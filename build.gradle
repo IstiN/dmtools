@@ -1,0 +1,38 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.github.istin.dmtools'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+compileJava {
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+
+    api 'com.google.code.gson:gson:2.7'
+    api 'org.json:json:20140107'
+    api 'com.squareup.okhttp3:okhttp:4.9.0'
+    api 'org.apache.commons:commons-lang3:3.8.1'
+    api(group: 'commons-io', name: 'commons-io', version: '2.6')
+    api(group: 'commons-codec', name: 'commons-codec', version: '1.10')
+
+}
+
+test {
+    useJUnitPlatform()
+}

@@ -1,0 +1,44 @@
+package com.github.istin.dmtools.atlassian.bitbucket.model;
+
+import com.github.istin.dmtools.atlassian.common.model.Assignee;
+import com.github.istin.dmtools.common.model.JSONModel;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.Calendar;
+
+public class Commit extends JSONModel {
+
+    public Commit() {
+    }
+
+    public Commit(String json) throws JSONException {
+        super(json);
+    }
+
+    public Commit(JSONObject json) {
+        super(json);
+    }
+
+    public String getId() {
+        return getString("id");
+    }
+    public String getMessage() {
+        return getString("message");
+    }
+
+    public Assignee getAuthor() {
+        return getModel(Assignee.class, "author");
+    }
+
+    public Long getCommiterTimestamp() {
+        return getLong("committerTimestamp");
+    }
+
+    public Calendar getCommitterDate() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(getCommiterTimestamp());
+        return calendar;
+    }
+
+}
