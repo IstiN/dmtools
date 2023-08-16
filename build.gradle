@@ -2,8 +2,8 @@ plugins {
     id 'java-library'
 }
 
-group = 'com.github.istin.dmtools'
-version = '1.0.0'
+group = 'com.github.istin'
+version = '1.0.1'
 
 repositories {
     mavenCentral()
