@@ -2,8 +2,10 @@ plugins {
     id 'java-library'
 }
 
+apply plugin: 'maven-publish'
+
 group = 'com.github.istin'
-version = '1.0.1'
+version = '1.0.2'
 
 repositories {
     mavenCentral()
@@ -35,4 +37,17 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
 }
