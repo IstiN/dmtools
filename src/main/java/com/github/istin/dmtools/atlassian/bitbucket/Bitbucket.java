@@ -203,16 +203,6 @@ public class Bitbucket extends AtlassianRestClient {
         return JSONModel.convertToModels(Tag.class, new BitbucketResult(response).getJSONObject().optJSONArray("values"));
     }
 
-//    public JSONModel getAttachments(String workspace, String repository) throws IOException {
-//        GenericRequest getRequest = new GenericRequest(this, path("projects/" + workspace + "/repos/" + repository + "/attachments/[some id]"));
-//        getRequest.param("limit", "100");
-//        String response = execute(getRequest);
-//        if (response == null) {
-//            return new JSONModel();
-//        }
-//        return new JSONModel(response);
-//    }
-
     public List<Commit> getCommitsBetween(String workspace, String repository, String from, String to) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path("projects/" + workspace + "/repos/" + repository + "/compare/commits?from="+from+"&to="+to));
         getRequest.param("limit", "1000");

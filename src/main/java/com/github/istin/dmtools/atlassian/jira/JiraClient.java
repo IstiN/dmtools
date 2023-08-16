@@ -45,11 +45,18 @@ public class JiraClient<T extends Ticket> implements RestClient {
     private boolean isClearCache = false;
     private String authType = "Basic";
     private Long instanceCreationTime = System.currentTimeMillis();
+
+    private boolean isLogEnabled = true;
+
     public void setClearCache(boolean clearCache) {
         isClearCache = clearCache;
     }
     public static String parseJiraProject(String key) {
         return key.split("-")[0].toUpperCase();
+    }
+
+    public void setLogEnabled(boolean logEnabled) {
+        isLogEnabled = logEnabled;
     }
 
     public JiraClient(String basePath, String authorization) throws IOException {
@@ -199,8 +206,8 @@ public class JiraClient<T extends Ticket> implements RestClient {
         log(getTicketBrowseUrl(key));
     }
 
-    public static void log(String message) {
-        if (true) {
+    public void log(String message) {
+        if (isLogEnabled) {
             System.out.println(message);
         }
     }
