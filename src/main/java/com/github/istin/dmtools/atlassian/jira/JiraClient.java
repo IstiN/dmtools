@@ -71,7 +71,7 @@ public class JiraClient<T extends Ticket> implements RestClient {
         setCacheFolderNameAndReinit("cache" + getClass().getSimpleName());
     }
 
-    private void initCache() throws IOException {
+    protected void initCache() throws IOException {
         File cache = new File(getCacheFolderName());
         log("cache folder: " + cache.getAbsolutePath());
         if (isClearCache) {
