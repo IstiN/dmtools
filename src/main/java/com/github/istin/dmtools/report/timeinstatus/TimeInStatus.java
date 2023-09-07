@@ -13,10 +13,11 @@ public class TimeInStatus {
 
     private final JiraClient<? extends Ticket> jira;
 
-    private List<String> finalStatuses = Arrays.asList("done", Status.IMPLEMENTATION_ACCEPTED.toLowerCase());
+    private List<String> finalStatuses = new ArrayList<>();
 
     public TimeInStatus(JiraClient<? extends Ticket> lgiJira) {
         jira = lgiJira;
+        finalStatuses.addAll(Arrays.asList("done", Status.IMPLEMENTATION_ACCEPTED.toLowerCase()));
     }
 
     public static class HoursAndStartDate {
