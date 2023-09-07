@@ -13,6 +13,8 @@ public class TimeInStatus {
 
     private final JiraClient<? extends Ticket> jira;
 
+    private List<String> finalStatuses = Arrays.asList("done", Status.IMPLEMENTATION_ACCEPTED.toLowerCase());
+
     public TimeInStatus(JiraClient<? extends Ticket> lgiJira) {
         jira = lgiJira;
     }
@@ -120,6 +122,14 @@ public class TimeInStatus {
         }
     }
 
+    public List<String> getFinalStatuses() {
+        return finalStatuses;
+    }
+
+    public void setFinalStatuses(List<String> finalStatuses) {
+        this.finalStatuses = finalStatuses;
+    }
+
     public List<Item> check(Ticket ticket, List<String> listOfStatuses, String firstDefaultStatus) throws Exception {
         Changelog changeLog = jira.getChangeLog(ticket.getKey(), ticket);
         List<History> histories = changeLog.getHistories();
@@ -153,7 +163,7 @@ public class TimeInStatus {
         }
 
         Calendar now = Calendar.getInstance();
-        if (lastStatus.equalsIgnoreCase("done") || lastStatus.equalsIgnoreCase(Status.IMPLEMENTATION_ACCEPTED)) {
+        if (finalStatuses.contains(lastStatus)) {
             now.setTimeInMillis(lastChanged.getTimeInMillis());
             now.add(Calendar.DATE, 1);
             if (now.getTimeInMillis() > System.currentTimeMillis()) {

@@ -1,9 +1,5 @@
 package com.github.istin.dmtools.report.timeinstatus;
 
-import com.github.istin.dmtools.report.ReportUtils;
-import com.github.istin.dmtools.report.freemarker.GenericCell;
-import com.github.istin.dmtools.report.freemarker.GenericRow;
-import com.github.istin.dmtools.report.freemarker.TicketLinkCell;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
@@ -13,6 +9,10 @@ import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.report.ReportUtils;
+import com.github.istin.dmtools.report.freemarker.GenericCell;
+import com.github.istin.dmtools.report.freemarker.GenericRow;
+import com.github.istin.dmtools.report.freemarker.TicketLinkCell;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONObject;
 
@@ -30,6 +30,9 @@ public class TimeInStatusJob {
 
     public static void main(JiraClient<? extends Ticket> jira, BasicConfluence confluence, Params params) throws Exception {
         TimeInStatus timeInStatus = new TimeInStatus(jira);
+        if (params.finalStatuses != null) {
+            timeInStatus.getFinalStatuses().addAll(Arrays.asList(params.finalStatuses));
+        }
 
         List<String> statuses = new ArrayList<>(Arrays.asList(params.getStatusesToCheck()));
         Set<String> genericStatuses = new HashSet<>();
@@ -181,6 +184,8 @@ public class TimeInStatusJob {
 
         private String[] extraFieldsNames;
 
+        private String[] finalStatuses;
+
         public Params(String reportName, String filter, String initialStatus, String[] statusesToCheck) {
             this.reportName = reportName;
             this.filter = filter;
@@ -236,6 +241,15 @@ public class TimeInStatusJob {
 
         public Params setExtraFieldsNames(String... extraFieldsNames) {
             this.extraFieldsNames = extraFieldsNames;
+            return this;
+        }
+
+        public String[] getFinalStatuses() {
+            return finalStatuses;
+        }
+
+        public Params setFinalStatuses(String... finalStatuses) {
+            this.finalStatuses = finalStatuses;
             return this;
         }
     }
