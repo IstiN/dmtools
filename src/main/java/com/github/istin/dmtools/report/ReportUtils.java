@@ -5,7 +5,9 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.BasicConfigurator;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.logging.log4j.core.config.DefaultConfiguration;
 
 import java.io.*;
 
@@ -16,7 +18,9 @@ public class ReportUtils {
     }
 
     public File write(String reportFriendlyName, String root, Object model, Writer writer, String basePath) throws IOException, TemplateException {
-        BasicConfigurator.configure();
+        Configurator.initialize(new DefaultConfiguration());
+        Configurator.setRootLevel(Level.INFO);
+
         Configuration cfg = new Configuration(Configuration.VERSION_2_3_27);
         cfg.setLocalizedLookup(false);
         cfg.setTemplateLoader(new ClassTemplateLoader(getClass().getClassLoader(), basePath));

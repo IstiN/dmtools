@@ -26,19 +26,18 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
 
-    api 'com.google.code.gson:gson:2.7'
-    api 'org.json:json:20140107'
+    api 'org.json:json:20230618'
     api 'com.squareup.okhttp3:okhttp:4.9.0'
     api 'org.apache.commons:commons-lang3:3.8.1'
 
     api 'com.thedeanda:lorem:2.1'
 
-    // https://mvnrepository.com/artifact/log4j/log4j
-    api group: 'log4j', name: 'log4j', version: '1.2.17'
+    api 'org.apache.logging.log4j:log4j-api:2.17.0'
+    api 'org.apache.logging.log4j:log4j-core:2.17.1'
 
-    api group: 'commons-io', name: 'commons-io', version: '2.6'
-    api group: 'commons-codec', name: 'commons-codec', version: '1.10'
-    api group: 'org.freemarker', name: 'freemarker', version: '2.3.28'
+    api group: 'commons-io', name: 'commons-io', version: '2.7'
+    api group: 'commons-codec', name: 'commons-codec', version: '1.13'
+    api group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
 }
 
 test {
