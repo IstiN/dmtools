@@ -1030,5 +1030,13 @@ public class JiraClient<T extends Ticket> implements RestClient {
     public static String tag(String basePath, String notifierId, String notifierName) {
         return "<a class=\"user-hover\" href=\"" + basePath + "/secure/ViewProfile.jspa?name="+notifierId+"\" rel=\""+notifierId+"\">"+notifierName+"</a>";
     }
-    
+
+    public boolean isWaitBeforePerform() {
+        return isWaitBeforePerform;
+    }
+
+    public void setWaitBeforePerform(boolean waitBeforePerform) {
+        isWaitBeforePerform = waitBeforePerform;
+    }
+
 }
