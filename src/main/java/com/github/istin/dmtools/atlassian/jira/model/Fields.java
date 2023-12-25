@@ -3,6 +3,7 @@ package com.github.istin.dmtools.atlassian.jira.model;
 import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;

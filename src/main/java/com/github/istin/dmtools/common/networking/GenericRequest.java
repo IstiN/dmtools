@@ -10,11 +10,19 @@ public class GenericRequest {
     private final StringBuilder url;
     private String body;
 
+    private String fieldsKey = "fields";
+
     private boolean ignoreCache = false;
 
     public GenericRequest(RestClient restClient, String url) {
         this.restClient = restClient;
         this.url = new StringBuilder(url);
+    }
+
+    public GenericRequest(RestClient restClient, String url, String fieldsKey) {
+        this.restClient = restClient;
+        this.url = new StringBuilder(url);
+        this.fieldsKey = fieldsKey;
     }
 
     public boolean isIgnoreCache() {
@@ -33,7 +41,7 @@ public class GenericRequest {
                 fieldsBuilder.append(",");
             }
         }
-        param("fields", fieldsBuilder.toString());
+        param(fieldsKey, fieldsBuilder.toString());
         return this;
     }
 

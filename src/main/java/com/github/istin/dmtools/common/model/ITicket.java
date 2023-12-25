@@ -1,10 +1,12 @@
 package com.github.istin.dmtools.common.model;
 
-import com.github.istin.dmtools.atlassian.jira.model.Status;
+import com.github.istin.dmtools.common.tracker.model.Status;
+import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Date;
 
-public interface IBlocker extends Key {
+public interface ITicket extends Key {
 
     String getStatus() throws IOException;
 
@@ -22,4 +24,9 @@ public interface IBlocker extends Key {
 
     String getTicketDependenciesDescription();
 
+    Date getCreated();
+
+    JSONObject getFieldsAsJSON();
+
+    Long getUpdatedAsMillis();
 }

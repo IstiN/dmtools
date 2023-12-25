@@ -2,11 +2,14 @@ package com.github.istin.dmtools.atlassian.jira;
 
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.model.*;
+import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.model.Key;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
+import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.StringUtils;
+import com.github.istin.dmtools.common.tracker.model.Status;
 import okhttp3.*;
 import okhttp3.OkHttpClient.Builder;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -32,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class JiraClient<T extends Ticket> implements RestClient {
+public class JiraClient<T extends Ticket> implements RestClient, TrackerClient<T> {
     public static final String PARAM_JQL = "jql";
     public static final String PARAM_FIELDS = "fields";
     public static final String PARAM_START_AT = "startAt";
@@ -80,8 +83,9 @@ public class JiraClient<T extends Ticket> implements RestClient {
         }
     }
 
-    public String getTicketBrowseUrl(String key) {
-        return basePath + "/browse/" + key;
+    @Override
+    public String getTicketBrowseUrl(String ticketKey) {
+        return basePath + "/browse/" + ticketKey;
     }
 
     public void setCacheGetRequestsEnabled(boolean cacheGetRequestsEnabled) {
@@ -96,22 +100,24 @@ public class JiraClient<T extends Ticket> implements RestClient {
         new GenericRequest(this, path("issueLink/" + id)).delete();
     }
 
-    public String assignTo(String ticketKey, String name) throws IOException {
+    @Override
+    public String assignTo(String ticketKey, String userName) throws IOException {
         GenericRequest jiraRequest = new GenericRequest(this, path("issue/" + ticketKey + "/assignee"));
-        jiraRequest.setBody(new JSONObject().put("name", name).toString());
+        jiraRequest.setBody(new JSONObject().put("name", userName).toString());
         return jiraRequest.put();
     }
 
-    public Changelog getChangeLog(String key, Ticket ticket) throws IOException {
-        GenericRequest genericRequest = createChangelogRequest(key);
-        clearRequestIfExpired(genericRequest, ticket != null ? ticket.getFields().getUpdatedAsMillis() : null);
+    @Override
+    public Changelog getChangeLog(String ticketKey, ITicket ticket) throws IOException {
+        GenericRequest genericRequest = createChangelogRequest(ticketKey);
+        clearRequestIfExpired(genericRequest, ticket != null ? ticket.getUpdatedAsMillis() : null);
         String body = null;
         try {
             body = genericRequest.execute();
             return createTicket(body).getChangelog();
         } catch (JSONException e) {
             System.err.println(body);
-            System.err.println(key);
+            System.err.println(ticketKey);
             System.err.println(e);
             clearCache(genericRequest);
             return createTicket(genericRequest.execute()).getChangelog();
@@ -133,6 +139,7 @@ public class JiraClient<T extends Ticket> implements RestClient {
         }
     }
 
+    @Override
     public void addLabelIfNotExists(Ticket ticket, String label) throws IOException {
         JSONArray jsonArray = ticket.getFields().getJSONObject().optJSONArray(Fields.LABELS);
         if (jsonArray == null) {
@@ -219,7 +226,7 @@ public class JiraClient<T extends Ticket> implements RestClient {
     }
 
 
-    public interface Performer<T extends Ticket> {
+    public interface Performer<T extends ITicket> {
 
         boolean perform(T ticket) throws Exception;
 
@@ -235,18 +242,21 @@ public class JiraClient<T extends Ticket> implements RestClient {
         }
     }
 
-    public List<T> searchAndPerform(String jql, String[] fields) throws Exception {
+    @Override
+    public List<T> searchAndPerform(String searchQuery, String[] fields) throws Exception {
         List<T> tickets = new ArrayList<>();
         searchAndPerform(ticket -> {
             tickets.add(ticket);
             return false;
-        }, jql, fields);
+        }, searchQuery, fields);
         return tickets;
     }
 
-    public void searchAndPerform(Performer<T> performer, String jql, String[] fields) throws Exception {
+
+    @Override
+    public void searchAndPerform(Performer<T> performer, String searchQuery, String[] fields) throws Exception {
         int startAt = 0;
-        SearchResult searchResults = search(jql, startAt, fields);
+        SearchResult searchResults = search(searchQuery, startAt, fields);
         JSONArray errorMessages = searchResults.getErrorMessages();
         if (errorMessages != null) {
             System.err.println(errorMessages);
@@ -281,7 +291,7 @@ public class JiraClient<T extends Ticket> implements RestClient {
                 break;
             }
             log(startAt + " " + total);
-            searchResults = search(jql, startAt, fields);
+            searchResults = search(searchQuery, startAt, fields);
             maxResults = searchResults.getMaxResults();
             total = searchResults.getTotal();
         }
@@ -348,8 +358,9 @@ public class JiraClient<T extends Ticket> implements RestClient {
         return new GenericRequest(this, path("serverInfo"));
     }
 
-    public T performTicket(String ticket, String[] fields) throws IOException {
-        GenericRequest jiraRequest = getTicket(ticket);
+    @Override
+    public T performTicket(String ticketKey, String[] fields) throws IOException {
+        GenericRequest jiraRequest = getTicket(ticketKey);
         if (fields != null && fields.length > 0) {
             jiraRequest.param("fields", StringUtils.concatenate(",", fields));
         }
@@ -388,8 +399,9 @@ public class JiraClient<T extends Ticket> implements RestClient {
         return genericRequest;
     }
 
-    public void postCommentIfNotExists(String key, String comment) throws IOException {
-        List<Comment> comments = getComments(key, null);
+    @Override
+    public void postCommentIfNotExists(String ticketKey, String comment) throws IOException {
+        List<Comment> comments = getComments(ticketKey, null);
         if (comments != null) {
             for (Comment commentObject : comments) {
                 if (comment.equalsIgnoreCase(commentObject.getBody())) {
@@ -397,11 +409,12 @@ public class JiraClient<T extends Ticket> implements RestClient {
                 }
             }
         }
-        GenericRequest commentPostRequest = comment(key, null);
+        GenericRequest commentPostRequest = comment(ticketKey, null);
         commentPostRequest.setBody(new JSONObject().put("body", comment).toString()).post();
         clearCache(commentPostRequest);
     }
 
+    @Override
     public List<Comment> getComments(String key, Ticket ticket) throws IOException {
         return new CommentsResult(comment(key, ticket).execute()).getComments();
     }
@@ -426,8 +439,9 @@ public class JiraClient<T extends Ticket> implements RestClient {
         return cachedFile;
     }
 
-    public void postComment(String ticket, String comment) throws IOException {
-        GenericRequest commentPostRequest = comment(ticket, null);
+    @Override
+    public void postComment(String ticketKey, String comment) throws IOException {
+        GenericRequest commentPostRequest = comment(ticketKey, null);
         commentPostRequest.setBody(new JSONObject().put("body", comment).toString()).post();
         clearCache(commentPostRequest);
     }
@@ -572,7 +586,7 @@ public class JiraClient<T extends Ticket> implements RestClient {
         searchAndPerform(performer, jql, fields);
     }
 
-    public Map<String, Ticket> issuesInEpicMap(String key, String projects, String... fields) throws Exception {
+    public Map<String, ITicket> issuesInEpicMap(String key, String projects, String... fields) throws Exception {
         String jql = getIssuesInEpicJql(key, projects);
         return getAllTicketsByJQL(jql, fields);
     }
@@ -591,16 +605,13 @@ public class JiraClient<T extends Ticket> implements RestClient {
         searchAndPerform(performer, jql, fields);
     }
 
-    public Map<String,Ticket> getAllTicketsByJQL(String query, String[] fields) throws Exception {
-        Map<String, Ticket> result = new HashMap<String, Ticket>();
+    public Map<String,ITicket> getAllTicketsByJQL(String query, String[] fields) throws Exception {
+        Map<String, ITicket> result = new HashMap<>();
 
         // find and create all required Tickets
-        searchAndPerform(new JiraClient.Performer() {
-            @Override
-            public boolean perform(Ticket ticket) throws Exception {
-                result.put(ticket.getTicketKey(), ticket);
-                return false;
-            }
+        searchAndPerform((Performer) ticket -> {
+            result.put(ticket.getTicketKey(), ticket);
+            return false;
         }, query, fields);
 
         return result;
@@ -838,12 +849,13 @@ public class JiraClient<T extends Ticket> implements RestClient {
         return new TransitionsResult(transitions(ticket).execute()).getTransitions();
     }
 
-    public String moveToStatus(String ticket, String statusName) throws IOException {
-        List<Transition> transitions = getTransitions(ticket);
+    @Override
+    public String moveToStatus(String ticketKey, String statusName) throws IOException {
+        List<Transition> transitions = getTransitions(ticketKey);
         if (transitions != null) {
             for (Transition transition : transitions) {
                 if (transition.getValue().equalsIgnoreCase(statusName)) {
-                    return moveToTransitionId(ticket, transition.getId());
+                    return moveToTransitionId(ticketKey, transition.getId());
                 }
             }
         }

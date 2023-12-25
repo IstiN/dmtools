@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONException;
 import org.json.JSONObject;
 

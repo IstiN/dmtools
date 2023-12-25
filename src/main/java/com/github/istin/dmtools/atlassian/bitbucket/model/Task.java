@@ -18,6 +18,14 @@ public class Task extends JSONModel {
     }
 
     public String getText() {
+        JSONObject content = getJSONObject("content");
+        if (content != null) {
+            String raw = content.getString("raw");
+            if (raw != null) {
+                return raw;
+            }
+        }
+
         return getString("text");
     }
 

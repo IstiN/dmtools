@@ -1,4 +1,4 @@
-package com.github.istin.dmtools.atlassian.jira.model;
+package com.github.istin.dmtools.common.tracker.model;
 
 import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
@@ -53,6 +53,8 @@ public class Status extends JSONModel {
     public static final String DEVELOPMENT_BLOCKED = "Development Blocked";
     public static final String BACKLOG = "Backlog";
     private static final String JSON_KEY_NAME = "name";
+
+    private static final String JSON_KEY_NAME_UPPER_FIRST_CHAR = "Name";
     private static final String JSON_KEY_ID = "id";
 
     public Status() {
@@ -67,7 +69,11 @@ public class Status extends JSONModel {
     }
 
     public String getName() {
-        return getString(JSON_KEY_NAME);
+        String name = getString(JSON_KEY_NAME);
+        if (name == null) {
+            name = getString(JSON_KEY_NAME_UPPER_FIRST_CHAR);
+        }
+        return name;
     }
 
     public JSONObject createPostObject() {

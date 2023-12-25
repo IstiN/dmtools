@@ -7,6 +7,7 @@ import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.FieldOption;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
+import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.report.ReportUtils;
@@ -47,7 +48,7 @@ public class TimeInStatusJob {
         jira.searchAndPerform(new JiraClient.Performer() {
 
             @Override
-            public boolean perform(Ticket ticket) throws Exception {
+            public boolean perform(ITicket ticket) throws Exception {
                 List<TimeInStatus.Item> check = timeInStatus.check(ticket, statuses, params.getInitialStatus());
                 for (TimeInStatus.Item item : check) {
                     boolean isFound = false;
@@ -92,7 +93,7 @@ public class TimeInStatusJob {
         int prevCycleTime = 0;
 
         for (TimeInStatus.Item item : items) {
-            Ticket ticket = item.getTicket();
+            ITicket ticket = item.getTicket();
             if (prevKey == null || !prevKey.equals(ticket.getKey())) {
                 if (prevKey != null) {
                     currentRow.getCells().add(new GenericCell(prevCycleTime + ""));
@@ -101,7 +102,7 @@ public class TimeInStatusJob {
                 prevCycleTime = 0;
 
                 currentRow = new GenericRow();
-                currentRow.getCells().add(new GenericCell(ticket.getFields().getSummary()));
+                currentRow.getCells().add(new GenericCell(ticket.getTicketTitle()));
                 currentRow.getCells().add(new TicketLinkCell(prevKey, ticket.getTicketLink()));
                 for (String status : statuses) {
                     currentRow.getCells().add(new GenericCell());
@@ -109,7 +110,7 @@ public class TimeInStatusJob {
 
                 if (params.extraFields != null) {
                     for (String extraField : params.extraFields) {
-                        JSONObject jsonObject = ticket.getFields().getJSONObject();
+                        JSONObject jsonObject = ticket.getFieldsAsJSON();
                         Object o = new JSONModel(jsonObject).getJSONObject().opt(extraField);
                         if ((o instanceof String || o instanceof Integer || o instanceof Double)) {
                             currentRow.getCells().add(new GenericCell(o.toString()));

@@ -1,16 +1,18 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
-import com.github.istin.dmtools.common.model.IBlocker;
+import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.model.Key;
+import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Date;
 
 import static com.github.istin.dmtools.atlassian.jira.model.Relationship.*;
 
-public class IssueLink extends JSONModel implements IBlocker, Key {
+public class IssueLink extends JSONModel implements ITicket, Key {
 
     public IssueLink() {
     }
@@ -150,6 +152,21 @@ public class IssueLink extends JSONModel implements IBlocker, Key {
         return null;
     }
 
+    @Override
+    public Date getCreated() {
+        return null;
+    }
+
+    @Override
+    public JSONObject getFieldsAsJSON() {
+        return null;
+    }
+
+    @Override
+    public Long getUpdatedAsMillis() {
+        return null;
+    }
+
     public IssueType getTicketType() {
         Ticket inwardIssue = getInwardIssue();
         if (inwardIssue == null) {
@@ -181,8 +198,8 @@ public class IssueLink extends JSONModel implements IBlocker, Key {
         if (o instanceof Key) {
             return this.getKey().equals(((Key) o).getKey());
         }
-        if (o instanceof IBlocker) {
-            return getTicketKey().equals(((IBlocker) o).getTicketKey());
+        if (o instanceof ITicket) {
+            return getTicketKey().equals(((ITicket) o).getTicketKey());
         }
         return super.equals(o);
     }

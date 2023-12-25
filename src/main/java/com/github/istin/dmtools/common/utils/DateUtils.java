@@ -8,6 +8,8 @@ import java.util.Date;
 public class DateUtils {
 
     public static final String JIRA_DATE_FORMAT = "yyyy-MM-dd";
+    public static final String RALLY_DATE_FORMAT = "YYYY-MM-DD'T'HH:MM:SS.SSS'Z'";
+
 
     public static Calendar parseCalendar(String date) {
         Calendar startDate = Calendar.getInstance();
@@ -51,6 +53,14 @@ public class DateUtils {
     public static Date parseJiraDate(String date) {
         try {
             return new SimpleDateFormat(JIRA_DATE_FORMAT).parse(date);
+        } catch (ParseException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    public static Date parseRallyDate(String date) {
+        try {
+            return new SimpleDateFormat(RALLY_DATE_FORMAT).parse(date);
         } catch (ParseException e) {
             throw new IllegalArgumentException(e);
         }

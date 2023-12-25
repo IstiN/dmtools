@@ -1,14 +1,16 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
-import com.github.istin.dmtools.common.model.IBlocker;
+import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.model.Key;
+import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Date;
 
-public class Ticket extends JSONModel implements IBlocker {
+public class Ticket extends JSONModel implements ITicket {
 
     private static final String ID = "id";
 
@@ -95,6 +97,21 @@ public class Ticket extends JSONModel implements IBlocker {
     @Override
     public String getTicketDependenciesDescription() {
         return null;
+    }
+
+    @Override
+    public Date getCreated() {
+        return getFields().getCreated();
+    }
+
+    @Override
+    public JSONObject getFieldsAsJSON() {
+        return getFields().getJSONObject();
+    }
+
+    @Override
+    public Long getUpdatedAsMillis() {
+        return getFields().getUpdatedAsMillis();
     }
 
     public String getHtmlTicketLink() {

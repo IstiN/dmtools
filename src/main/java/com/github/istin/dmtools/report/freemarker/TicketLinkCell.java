@@ -1,6 +1,6 @@
 package com.github.istin.dmtools.report.freemarker;
 
-import com.github.istin.dmtools.common.model.IBlocker;
+import com.github.istin.dmtools.common.model.ITicket;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -13,13 +13,13 @@ public class TicketLinkCell extends GenericCell {
         super(url(ticketKey, ticketLink));
     }
 
-    public TicketLinkCell(Collection<? extends IBlocker> tickets, Function<IBlocker, String> function) throws IOException {
+    public TicketLinkCell(Collection<? extends ITicket> tickets, Function<ITicket, String> function) throws IOException {
         super(urls(tickets, function));
     }
 
-    private static String urls(Collection<? extends IBlocker> tickets, Function<IBlocker, String> function) throws IOException {
+    private static String urls(Collection<? extends ITicket> tickets, Function<ITicket, String> function) throws IOException {
         StringBuilder buffer = new StringBuilder();
-        for (IBlocker blocker : tickets) {
+        for (ITicket blocker : tickets) {
             if (buffer.length() > 0) {
                 buffer.append(",");
             }

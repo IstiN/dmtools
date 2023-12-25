@@ -2,7 +2,9 @@ package com.github.istin.dmtools.report.timeinstatus;
 
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.*;
+import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.common.tracker.model.Status;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,12 +68,12 @@ public class TimeInStatus {
     }
 
     public static class Item {
-        private Ticket ticket;
+        private ITicket ticket;
         private String statusName;
         private Calendar startDate;
         private Calendar endDate;
 
-        public Item(Ticket ticket, String statusName, Calendar startDate, Calendar endDate) {
+        public Item(ITicket ticket, String statusName, Calendar startDate, Calendar endDate) {
             this.ticket = ticket;
             this.statusName = statusName;
             this.startDate = startDate;
@@ -114,7 +116,7 @@ public class TimeInStatus {
                     ", "+endDate.get(Calendar.HOUR_OF_DAY) +", "+endDate.get(Calendar.MINUTE) +", "+endDate.get(Calendar.SECOND)  +") ]";
         }
 
-        public Ticket getTicket() {
+        public ITicket getTicket() {
             return ticket;
         }
 
@@ -131,14 +133,14 @@ public class TimeInStatus {
         this.finalStatuses = finalStatuses;
     }
 
-    public List<Item> check(Ticket ticket, List<String> listOfStatuses, String firstDefaultStatus) throws Exception {
+    public List<Item> check(ITicket ticket, List<String> listOfStatuses, String firstDefaultStatus) throws Exception {
         Changelog changeLog = jira.getChangeLog(ticket.getKey(), ticket);
         List<History> histories = changeLog.getHistories();
 
         List<Item> itemsFirstTimeRight = new ArrayList<>();
 
         Calendar createdCalendar = Calendar.getInstance();
-        createdCalendar.setTime(ticket.getFields().getCreated());
+        createdCalendar.setTime(ticket.getCreated());
 
         Calendar lastChanged = createdCalendar;
         String lastStatus = firstDefaultStatus;

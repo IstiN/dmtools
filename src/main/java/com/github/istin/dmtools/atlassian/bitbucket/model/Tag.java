@@ -22,6 +22,10 @@ public class Tag extends JSONModel {
     }
 
     public String getName() {
+        if (getId() == null) {
+            return getString("name");
+        }
+
         return getId().replace("refs/tags/", "");
     }
 

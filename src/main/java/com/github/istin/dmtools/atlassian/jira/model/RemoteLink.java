@@ -1,13 +1,15 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
-import com.github.istin.dmtools.common.model.IBlocker;
+import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Date;
 
-public class RemoteLink extends JSONModel implements IBlocker {
+public class RemoteLink extends JSONModel implements ITicket {
 
     private static String GLOBAL_ID = "globalId";
 
@@ -99,9 +101,24 @@ public class RemoteLink extends JSONModel implements IBlocker {
     }
 
     @Override
+    public Date getCreated() {
+        return null;
+    }
+
+    @Override
+    public JSONObject getFieldsAsJSON() {
+        return null;
+    }
+
+    @Override
+    public Long getUpdatedAsMillis() {
+        return null;
+    }
+
+    @Override
     public boolean equals(Object obj) {
-        if (obj instanceof IBlocker) {
-            return getTicketKey().equals(((IBlocker) obj).getTicketKey());
+        if (obj instanceof ITicket) {
+            return getTicketKey().equals(((ITicket) obj).getTicketKey());
         }
         return super.equals(obj);
     }
