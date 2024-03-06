@@ -1,0 +1,9 @@
+<#list rows as row>
+<tr>
+    <#list row.cells as cell>
+        <td colspan="${cell.duration}">
+            ${cell.text}
+        </td>
+    </#list>
+</tr>
+</#list>

@@ -1,0 +1,21 @@
+<!-- <h1>Opened Questions</h1> -->
+<#assign lastRelease = -1>
+<#list questions as question>
+<#if question.release != -1>
+<#if lastRelease != question.release>
+<#if lastRelease != -1>
+</ul>
+</#if>
+<p style="font-weight:bolder;">R4.${question.release}</p>
+<ul>
+
+    <#assign lastRelease = question.release>
+</#if>
+<li><p><a href="${question.url}">${question.key}</a> - <span style="font-weight:bold;">${question.name}</span>[${question.status}] assigned to
+    <#if question.assignee??>
+    <a href="mailto:${question.assignee.email}" style="color:#C00001;">${question.assignee.name}</a>&nbsp;
+</#if>
+    </p></li>
+</#if>
+</#list>
+</ul>

@@ -1,0 +1,61 @@
+<!-- <h1>Dependencies / ISSUES</h1> -->
+<#assign lastRelease = -1>
+<#list tickets as ticket>
+<#if ticket.release != -1 && ticket.release - releases[0].name gte 0 && ticket.release - releases[0].name <= 3>
+
+<#if ticket.openedDependencies?size != 0>
+<#if lastRelease != ticket.release>
+<#if lastRelease != -1>
+</ul>
+</#if>
+<p style="font-weight:bolder;">R4.${ticket.release}</p>
+<ul>
+</#if>
+<#assign lastRelease = ticket.release>
+<li><p><a href="${ticket.url}">${ticket.key}</a> - <span style="font-weight:bold;">${ticket.name}</span> depends on
+    <#list ticket.openedDependencies as dependency>
+    ${dependency.type}&nbsp;<a href="${dependency.url}" style="color:#C00001;">${dependency.key}</a>&nbsp;${dependency.status}<#sep>,
+</#list>
+    </p></li>
+</#if>
+
+</#if>
+</#list>
+</ul>
+
+
+<h2>Requirements blockers</h2>
+<ul>
+    <#list requirementsBlockers as dependency>
+    <li><p>
+        ${dependency.type}&nbsp;<a href="${dependency.url}" style="color:#C00001;">${dependency.key} - ${dependency.title}</a>&nbsp;${dependency.status} <b>${dependency.dueDate}</b>
+    </p></li>
+    </#list>
+</ul>
+
+<h2>Product Clarifications</h2>
+<ul>
+    <#list productClarifications as dependency>
+    <li><p>
+        <a href="${dependency.url}" style="color:#C00001;">${dependency.key} - ${dependency.title}</a>&nbsp;${dependency.status} <b>${dependency.dueDate}</b>
+    </p></li>
+</#list>
+</ul>
+
+<h2>Solution Design</h2>
+<ul>
+    <#list solutionBlockers as dependency>
+    <li><p>
+        <a href="${dependency.url}" style="color:#C00001;">${dependency.key} - ${dependency.title}</a>&nbsp;${dependency.status} <b>${dependency.dueDate}</b>
+    </p></li>
+</#list>
+</ul>
+
+<h2>Backend Delivery</h2>
+<ul>
+    <#list backendDeliverables as dependency>
+    <li><p>
+        <a href="${dependency.url}" style="color:#C00001;">${dependency.key} - ${dependency.title}</a>&nbsp;${dependency.status} <b>${dependency.dueDate}</b>
+    </p></li>
+</#list>
+</ul>

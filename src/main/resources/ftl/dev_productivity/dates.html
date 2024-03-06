@@ -1,0 +1,8 @@
+<tr class="date">
+    <th colspan="${headers?size+1}"></th>
+    <#list releases as release>
+        <#list release.sprints as sprint>
+            <th>${sprint.startDateAsString}-${sprint.endDateAsString}</th>
+        </#list>
+    </#list>
+</tr>

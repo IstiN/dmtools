@@ -1,0 +1,7 @@
+<#if showReleases>
+<tr class="date version">
+    <#list releases as release>
+    <th colspan="${release.sprints?size}">${release.name}</th>
+</#list>
+</tr>
+</#if>

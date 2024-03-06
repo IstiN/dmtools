@@ -1,0 +1,11 @@
+<#if backlog??>
+    <tr>
+        <td colspan="60"><h2>Backlog(${backlog.scopeSP}sp)</h2></td>
+    </tr>
+    <#list backlog.tickets as ticket>
+    <tr>
+        <td colspan="60"><a href="${ticket.url}">${ticket.key}</a>&nbsp;${ticket.name} (${ticket.progress}sp)
+        </td>
+    </tr>
+    </#list>
+</#if>

@@ -1,0 +1,11 @@
+<tr class="sprint">
+    <th colspan="${headers?size+1}"></th>
+    <#list releases as release>
+        <#list release.sprints as sprint>
+            <th <#if sprint.isCurrent == true> class="current" </#if>>
+                <#if sprint.isCurrent == true> <span class="date version" style="color:red">NOW</span> </#if>
+                ${sprint.number}<#if sprint.capacity != -1>(${sprint.capacity}sp)</#if>
+            </th>
+        </#list>
+    </#list>
+</tr>

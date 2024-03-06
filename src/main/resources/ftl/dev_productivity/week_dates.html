@@ -1,0 +1,10 @@
+<tr class="date">
+    <th colspan="${headers?size+1}"></th>
+    <#list releases as release>
+        <#list release.sprints as sprint>
+            <#list sprint.weeks as week>
+                <th>${week.startDateAsString}-${week.endDateAsString}</th>
+            </#list>
+        </#list>
+    </#list>
+</tr>

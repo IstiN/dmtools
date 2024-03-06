@@ -1,0 +1,9 @@
+<tr class="date version">
+    <th>Name</th>
+    <#list headers as header>
+        <th>${header}</th>
+    </#list>
+    <#list releases as release>
+        <th colspan="${release.sprints?size}"><#if release.isCurrent == true> <span class="date version" style="color:red">NOW</span> </#if>${release.name}</th>
+    </#list>
+</tr>

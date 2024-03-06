@@ -1,0 +1,34 @@
+<#list roadmap.rows as row>
+<tr>
+    <#list row.tickets as ticket>
+    <#if ticket.key??>
+        <td colspan="${ticket.duration}"<#if !ticket.isHasCapacity>class="no_capacity"<#else>class="per_${ticket.percent}"</#if>>
+            <#if ticket.startSprint != -1 >
+            S${ticket.startSprint}&nbsp;
+            </#if>
+            <#if ticket.status??>
+                <div class="dev_complete">${ticket.status}</div>
+            </#if>
+            <#list ticket.labels as label>
+                <#if label == "NEW">
+                    <div class="new">${label}</div>
+                <#else>
+                    <div class="ba_sa">${label}</div>
+                </#if>
+            </#list>
+            <a href="${ticket.url}">${ticket.key}</a>&nbsp;${ticket.name}<p class="label">${ticket.progress}</p>
+
+            <#if ticket.dependencies?size != 0>
+                    <br/><p class="blocked_by"><font color="F14646">Dependencies: </font></p>
+                    <#list ticket.dependencies as dependency>
+                        <p class="blocked_by_tickets">
+                            <a href="${dependency.url}">${dependency.key}[${dependency.status}]</a></p>
+                    </#list>
+            </#if>
+        </td>
+    <#else>
+        <td colspan="${ticket.duration}"/>
+    </#if>
+    </#list>
+</tr>
+</#list>

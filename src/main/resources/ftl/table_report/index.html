@@ -1,0 +1,114 @@
+<#if isNotWiki>
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8"/>
+    <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro' rel='stylesheet' type='text/css'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+
+</head>
+<body>
+</#if>
+
+<#if isChart>
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+<div id="chart_div" style="width: 1920px; height: 900px;"></div>
+</#if>
+<style>
+    .circle-container {
+     position: relative;
+     display: inline-flex; /* use flexbox to center the 'a' element vertically and horizontally */
+     align-items: center;
+     justify-content: center;
+     border-radius: 50%;
+     background-color: green;
+     width: 1.5em; /* set the width and height to a fixed value */
+     height: 1.5em;
+   }
+
+   .circle-container a {
+     color: white;
+     font-weight: bold;
+     text-decoration: none;
+   }
+     table {
+      font-family: arial, sans-serif;
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    td,
+    th {
+      border: 1px solid #dddddd;
+      text-align: left;
+      padding: 8px;
+    }
+
+    tr:nth-child(even) {
+      background-color: #dddddd;
+    }
+</style>
+<table id="Displaytable">
+    <#list rows as row>
+    <tr>
+        <#list row.cells as cell>
+            <#if row.isHeader>
+                <th
+            <#else>
+                <td
+            </#if>
+         ${cell.meta} colspan="${cell.duration}">
+            ${cell.text}
+            <#if row.isHeader>
+                </th>
+            <#else>
+                </td>
+            </#if>
+        </#list>
+    </tr>
+    </#list>
+</table>
+
+<#if isChart>
+<script>
+    google.charts.load('current', {
+  packages: ['corechart'],
+  callback: drawChart
+});
+
+function drawChart() {
+  var tableRows = [];
+  var results = document.getElementById('Displaytable');
+   for (var i = 0; i < results.rows[0].cells.length; i++) {
+  var tableColumns = [];
+      for (var j = 0; j < results.rows.length; j++) {
+        if (j > 0 && i > 0) {
+          tableColumns.push(parseFloat(results.rows[j].cells[i].textContent.trim()));
+        } else {
+          tableColumns.push(results.rows[j].cells[i].textContent.trim());
+        }
+      }
+      tableRows.push(tableColumns);
+    }
+
+  var data = google.visualization.arrayToDataTable(tableRows);
+  var options_stacked = {
+          isStacked: true,
+          //legend: {position: 'top', maxLines: 3},
+          colors: [${chartColors}],
+          vAxis: {minValue: 0}
+        };
+  //var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+  var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+
+  chart.draw(data,options_stacked);
+}
+</script>
+</#if>
+
+<#if isNotWiki>
+</body>
+</html>
+</#if>

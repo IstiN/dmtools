@@ -1,0 +1,9 @@
+<tr class="date version">
+    <th>Name</th>
+    <#list headers as header>
+        <th>${header}</th>
+    </#list>
+    <#list releases as release>
+        <th <#if byWeeks == true>colspan="${release.sprints?size*2}"</#if>>${release.name}</th>
+    </#list>
+</tr>
