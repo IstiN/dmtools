@@ -1,6 +1,5 @@
-package com.github.istin.dmtools.atlassian.jira.model;
+package com.github.istin.dmtools.broadcom.rally.model;
 
-import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
@@ -8,11 +7,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class Comment extends JSONModel implements IComment {
-
-    private static final String ID = "id";
-    private static final String AUTHOR = "author";
-    public static final String BODY = "body";
-
 
     public Comment() {
     }
@@ -25,20 +19,18 @@ public class Comment extends JSONModel implements IComment {
         super(json);
     }
 
-
     @Override
-    public String getId() {
-        return getString(ID);
+    public IUser getAuthor() {
+        return getModel(RallyUser.class, RallyFields.USER);
     }
 
     @Override
     public String getBody() {
-        return getString(BODY);
+        return getString("Text");
     }
 
     @Override
-    public IUser getAuthor() {
-        return getModel(Assignee.class, AUTHOR);
+    public String getId() {
+        return getString("ObjectUUID");
     }
-
 }

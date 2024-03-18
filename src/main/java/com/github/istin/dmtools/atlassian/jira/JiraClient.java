@@ -2,15 +2,12 @@ package com.github.istin.dmtools.atlassian.jira;
 
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.model.*;
-import com.github.istin.dmtools.common.model.IChangelog;
-import com.github.istin.dmtools.common.model.ITicket;
-import com.github.istin.dmtools.common.model.JSONModel;
-import com.github.istin.dmtools.common.model.Key;
+import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import okhttp3.*;
 import okhttp3.OkHttpClient.Builder;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -402,9 +399,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public void postCommentIfNotExists(String ticketKey, String comment) throws IOException {
-        List<Comment> comments = getComments(ticketKey, null);
+        List<? extends IComment> comments = getComments(ticketKey, null);
         if (comments != null) {
-            for (Comment commentObject : comments) {
+            for (IComment commentObject : comments) {
                 if (comment.equalsIgnoreCase(commentObject.getBody())) {
                     return;
                 }
@@ -416,7 +413,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     @Override
-    public List<Comment> getComments(String key, Ticket ticket) throws IOException {
+    public List<? extends IComment> getComments(String key, Ticket ticket) throws IOException {
         return new CommentsResult(comment(key, ticket).execute()).getComments();
     }
 

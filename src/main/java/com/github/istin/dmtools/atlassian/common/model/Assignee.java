@@ -6,6 +6,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class Assignee extends JSONModel implements IUser {
+
     public Assignee() {
     }
 
@@ -34,6 +35,11 @@ public class Assignee extends JSONModel implements IUser {
             }
         }
         return displayName;
+    }
+
+    @Override
+    public String getID() {
+        return getAccountId();
     }
 
     @Override

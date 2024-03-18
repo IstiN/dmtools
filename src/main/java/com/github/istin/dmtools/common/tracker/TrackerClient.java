@@ -3,6 +3,7 @@ package com.github.istin.dmtools.common.tracker;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Comment;
 import com.github.istin.dmtools.common.model.IChangelog;
+import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.ITicket;
 
 import java.io.IOException;
@@ -28,7 +29,7 @@ public interface TrackerClient<T extends ITicket> {
 
     void postCommentIfNotExists(String ticketKey, String comment) throws IOException;
 
-    List<Comment> getComments(String ticketKey, T ticket) throws IOException;
+    List<? extends IComment> getComments(String ticketKey, T ticket) throws IOException;
 
     void postComment(String ticketKey, String comment) throws IOException;
 

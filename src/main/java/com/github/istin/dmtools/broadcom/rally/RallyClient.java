@@ -1,9 +1,9 @@
 package com.github.istin.dmtools.broadcom.rally;
 
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
-import com.github.istin.dmtools.atlassian.jira.model.Comment;
 import com.github.istin.dmtools.broadcom.rally.model.*;
 import com.github.istin.dmtools.common.model.IChangelog;
+import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
@@ -13,6 +13,7 @@ import okhttp3.Request;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.*;
@@ -44,6 +45,11 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     @NotNull
     private GenericRequest search(String query) {
         return new GenericRequest(this, path("search/enhanced?query=" + query), "fetch");
+    }
+    public void clearCacheForIssue(String formattedID, String[] fields) {
+        GenericRequest genericRequest = search("(FormattedId = " + formattedID+")");
+        genericRequest.fields(fields);
+        clearCache(genericRequest);
     }
 
     public RallyIssue getIssue(String formattedID, String[] fields) throws IOException {
@@ -217,23 +223,76 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     }
 
     @Override
-    public void postCommentIfNotExists(String ticketKey, String comment) throws IOException {
-        throw new UnsupportedOperationException();
+    public void postCommentIfNotExists(String ticketKey, String text) throws IOException {
+        List<? extends IComment> comments = getComments(ticketKey, null);
+        if (comments != null) {
+            for (IComment commentObject : comments) {
+                if (text.equalsIgnoreCase(commentObject.getBody())) {
+                    return;
+                }
+            }
+        }
+        postComment(ticketKey, text);
     }
 
     @Override
-    public List<Comment> getComments(String ticketKey, RallyIssue ticket) throws IOException {
-        throw new UnsupportedOperationException();
+    public List<? extends IComment> getComments(String ticketKey, RallyIssue ticket) throws IOException {
+        if (ticket == null) {
+            ticket = performTicket(ticketKey, getDefaultQueryFields());
+        }
+
+        String ref = ticket.getRef();
+        String url = ref + "/Discussion";
+        GenericRequest genericRequest = new GenericRequest(this, url);
+        clearRequestIfExpired(genericRequest, ticket.getUpdatedAsMillis());
+        String response = genericRequest.execute();
+        return new RallyResponse(response).getQueryResult().getComments();
     }
 
     @Override
     public void postComment(String ticketKey, String comment) throws IOException {
-        throw new UnsupportedOperationException();
+        RallyIssue ticket = performTicket(ticketKey, getDefaultQueryFields());
+        String ref = ticket.getRef();
+        JSONObject body = new JSONObject().put("ConversationPost",
+                new JSONObject()
+                        .put("Artifact", ref)
+                        .put("Text", comment));
+        GenericRequest genericRequest = new GenericRequest(this, path("conversationpost/create"));
+        genericRequest.setBody(body.toString());
+        post(genericRequest);
+
+        String url = ref + "/Discussion";
+        clearCache(new GenericRequest(this, url));
     }
 
     @Override
     public String moveToStatus(String ticketKey, String statusName) throws IOException {
-        throw new UnsupportedOperationException();
+        RallyIssue rallyIssue = performTicket(ticketKey, getDefaultQueryFields());
+        if (rallyIssue.getStatus().equalsIgnoreCase(statusName)) {
+            return null;
+        }
+
+        GenericRequest genericRequest = new GenericRequest(this, path("flowstate"));
+        genericRequest
+                .param("order", "OrderIndex ASC")
+                .param("pagesize", 50)
+                .param("start", 1)
+                .param("query", "(Project.Name = \""+rallyIssue.getProjectName()+"\")");
+        String response = genericRequest.execute();
+        List<FlowState> flowStates = new RallyResponse(response).getQueryResult().getFlowStates();
+        for (FlowState flowState : flowStates) {
+            if (flowState.getRefObjectName().equalsIgnoreCase(statusName)) {
+                GenericRequest updateFlowState = new GenericRequest(this, rallyIssue.getRef());
+                updateFlowState.setBody(new JSONObject()
+                        .put(rallyIssue.getType(),
+                                new JSONObject().put(RallyFields.FLOW_STATE, flowState.getRef())
+                        ).toString());
+                String post = updateFlowState.post();
+                clearCacheForIssue(ticketKey, getDefaultQueryFields());
+                return post;
+            }
+        }
+        return null;
     }
 
     public List<Iteration> iterations(String projectName, Calendar startDateCalendar) throws IOException {

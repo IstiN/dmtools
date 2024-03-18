@@ -251,4 +251,8 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
     public RevisionHistory getRevisionHistory() {
         return getModel(RevisionHistory.class, RallyFields.REVISION_HISTORY);
     }
+
+    public String getProjectName() {
+        return getJSONObject(RallyFields.PROJECT).optString("Name");
+    }
 }

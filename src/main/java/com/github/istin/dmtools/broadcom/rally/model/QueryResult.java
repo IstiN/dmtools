@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.broadcom.rally.model;
 
 import com.github.istin.dmtools.common.model.IChangelog;
+import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.IHistory;
 import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONArray;
@@ -54,5 +55,13 @@ public class QueryResult extends JSONModel implements IChangelog {
         List<Revision> revisions = getRevisions();
         Collections.reverse(revisions);
         return revisions;
+    }
+
+    public List<? extends IComment> getComments() {
+        return getModels(Comment.class, RESULTS);
+    }
+
+    public List<FlowState> getFlowStates() {
+        return getModels(FlowState.class, RESULTS);
     }
 }

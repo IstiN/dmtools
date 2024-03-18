@@ -55,7 +55,8 @@ public class Bitbucket extends AtlassianRestClient {
     public List<PullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
         List<PullRequest> result = new ArrayList<>();
         int start = getInitialStartValue();
-        GenericRequest getRequest = new GenericRequest(this, buildPullRequestsPath(workspace, repository, apiVersion == ApiVersion.V1 ? state : state.toUpperCase()));
+        String stateConverted = apiVersion == ApiVersion.V1 ? state : state.toUpperCase();
+        GenericRequest getRequest = new GenericRequest(this, buildPullRequestsPath(workspace, repository, stateConverted));
         getRequest.param(getNextPageField(), start);
         getRequest.param(getPageLimitField(), String.valueOf(defaultLimit));
         getRequest.setIgnoreCache(true);
@@ -70,7 +71,7 @@ public class Bitbucket extends AtlassianRestClient {
             start = buildNexPage(start);
             System.out.println("pull requests: " + start);
 
-            getRequest = new GenericRequest(this, buildPullRequestsPath(workspace, repository, state));
+            getRequest = new GenericRequest(this, buildPullRequestsPath(workspace, repository, stateConverted));
             getRequest.param(getNextPageField(), ""+ start);
             getRequest.param(getPageLimitField(), String.valueOf(defaultLimit));
             getRequest.setIgnoreCache(true);
@@ -133,7 +134,7 @@ public class Bitbucket extends AtlassianRestClient {
     public PullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestPath(workspace, repository, pullRequestId)));
         String response = execute(getRequest);
-        return PullRequest.create(apiVersion, repository);
+        return PullRequest.create(apiVersion, response);
     }
 
     @NotNull
@@ -146,13 +147,18 @@ public class Bitbucket extends AtlassianRestClient {
     }
 
     public JSONModel pullRequestComments(String workspace, String repository, String pullRequestId) throws IOException {
-        GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestCommentsPath(workspace, repository, pullRequestId)));
+        GenericRequest getRequest = createPullRequestCommentsRequest(workspace, repository, pullRequestId);
         String response = execute(getRequest);
         if (response == null) {
             return new JSONModel();
         }
 
         return new JSONModel(response);
+    }
+
+    @NotNull
+    private GenericRequest createPullRequestCommentsRequest(String workspace, String repository, String pullRequestId) {
+        return new GenericRequest(this, path(buildPullRequestCommentsPath(workspace, repository, pullRequestId)));
     }
 
     @NotNull
@@ -266,9 +272,10 @@ public class Bitbucket extends AtlassianRestClient {
     }
 
     public String addPullRequestComment(String workspace, String repository, String pullRequestId, String text) throws IOException {
-        GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestCommentsPath(workspace, repository, pullRequestId)));
+        GenericRequest getRequest = createPullRequestCommentsRequest(workspace, repository, pullRequestId);
         JSONObject jsonObject = createPullRequestCommentObject(text);
         getRequest.setBody(jsonObject.toString());
+        clearCache(getRequest);
         return post(getRequest);
     }
 
@@ -307,8 +314,8 @@ public class Bitbucket extends AtlassianRestClient {
         JSONObject jsonObject = new JSONObject();
 
         jsonObject.put("title", updateTitleIfWip);
-        jsonObject.put("version", pullRequest.getVersion());
-        jsonObject.put("reviewers", pullRequest.getJSONObject().optJSONArray("reviewers"));
+//        jsonObject.put("version", pullRequest.getVersion());
+//        jsonObject.put("reviewers", pullRequest.getJSONObject().optJSONArray("reviewers"));
         putRequest.setBody(jsonObject.toString());
         return put(putRequest);
     }

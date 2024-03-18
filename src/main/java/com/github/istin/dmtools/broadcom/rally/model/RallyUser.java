@@ -19,8 +19,18 @@ public class RallyUser extends JSONModel implements IUser {
     }
 
     @Override
+    public String getID() {
+        return getString(RallyFields._REF);
+    }
+
+    @Override
     public String getFullName() {
         return getString(RallyFields._REF_OBJECT_NAME);
+    }
+
+    @Override
+    public String getEmailAddress() {
+        throw new UnsupportedOperationException("not supported");
     }
 
 }
