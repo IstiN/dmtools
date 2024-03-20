@@ -3,11 +3,13 @@ package com.github.istin.dmtools.sync;
 import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
 import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
+import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import com.github.istin.dmtools.report.model.KeyTime;
 
 import java.io.IOException;
 import java.util.List;
@@ -43,6 +45,19 @@ public class BitbucketTrackerSyncJob {
 
 
         if (pullRequestState.equals(Bitbucket.PullRequestState.STATE_MERGED)) {
+            List<KeyTime> reopened = ChangelogAssessment.findDatesWhenTicketWasInStatus(tracker, key, ticket,"reopened");
+            boolean wasReopened = false;
+            if (!reopened.isEmpty()) {
+                for (KeyTime keyTime : reopened) {
+                    if (keyTime.getWhen().compareTo(pullRequest.getCreatedDateAsCalendar()) > 0) {
+                        wasReopened = true;
+                    }
+                }
+            }
+            if (wasReopened) {
+                return false;
+            }
+
             if (statusSyncDelegate != null) {
                 statusSyncDelegate.onMerged(pullRequest, ticket, tracker);
             }

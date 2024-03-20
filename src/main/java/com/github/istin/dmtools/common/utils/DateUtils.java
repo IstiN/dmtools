@@ -7,7 +7,7 @@ import java.util.Date;
 
 public class DateUtils {
 
-    public static final String BITBUCKET_CLOUD_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSX";
+    public static final String BITBUCKET_CLOUD_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS";
     public static final String BITBUCKET_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssXXX";
     public static final String JIRA_DATE_FORMAT = "yyyy-MM-dd";
     public static final String RALLY_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
@@ -70,6 +70,7 @@ public class DateUtils {
 
     public static Date parseCloudBitbucketDate(String date) {
         try {
+            date = date.substring(0, date.lastIndexOf('.')+4);
             return new SimpleDateFormat(BITBUCKET_CLOUD_DATE_FORMAT).parse(date);
         } catch (ParseException e) {
             throw new IllegalArgumentException(e);
