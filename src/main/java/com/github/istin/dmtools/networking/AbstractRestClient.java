@@ -37,6 +37,10 @@ public abstract class AbstractRestClient implements RestClient {
         this.basePath = basePath;
         this.authorization = authorization;
 
+        reinitCache();
+    }
+
+    private void reinitCache() throws IOException {
         File cache = new File(getCacheFolderName());
         System.out.println("cache folder: " + cache.getAbsolutePath());
         if (isClearCache) {
@@ -60,8 +64,11 @@ public abstract class AbstractRestClient implements RestClient {
         return new AtlassianRestClient.JiraException(responseError, body);
     }
 
-    public void setClearCache(boolean clearCache) {
-        isClearCache = clearCache;
+    public void setClearCache(boolean clearCache) throws IOException {
+        if (clearCache != isClearCache) {
+            isClearCache = clearCache;
+            reinitCache();
+        }
     }
 
     public void setCacheGetRequestsEnabled(boolean cacheGetRequestsEnabled) {

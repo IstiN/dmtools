@@ -243,7 +243,11 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
 
         String ref = ticket.getRef();
         String url = ref + "/Discussion";
-        GenericRequest genericRequest = new GenericRequest(this, url);
+        GenericRequest genericRequest = new GenericRequest(this, url)
+                .param("order", "CreationDate DESC")
+                .param("pagesize", 100)
+                .param("start", 1);
+
         clearRequestIfExpired(genericRequest, ticket.getUpdatedAsMillis());
         String response = genericRequest.execute();
         return new RallyResponse(response).getQueryResult().getComments();

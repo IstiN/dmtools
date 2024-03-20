@@ -30,28 +30,37 @@ public class BitbucketTrackerSyncJob {
             boolean wasRenamed = false;
             for (String key : keys) {
                 System.out.println(key);
-                ITicket ticket = tracker.performTicket(key, tracker.getDefaultQueryFields());
-                if (ticket == null) {
-                    continue;
-                }
-
-
-                if (pullRequestState.equals(Bitbucket.PullRequestState.STATE_MERGED)) {
-                    statusSyncDelegate.onMerged(pullRequest, ticket, tracker);
-                } else {
-                    if (!wasRenamed) {
-                        wasRenamed = true;
-                        renamePullRequest(workspace, repository, bitbucket, pullRequest, ticket, priorityToIcon);
-                    }
-
-                    statusSyncDelegate.onCreated(pullRequest, ticket, tracker);
-
-
-                    addBitbucketCommentIfNotExists(bitbucket, pullRequest, key, ticket, workspace, repository);
-                }
-                addTrackerCommentIfNotExists(bitbucket, workspace, repository, tracker, pullRequest, key);
+                wasRenamed = syncTicket(bitbucket, workspace, repository, pullRequestState, tracker, priorityToIcon, statusSyncDelegate, pullRequest, key, wasRenamed);
             }
         }
+    }
+
+    public static boolean syncTicket(Bitbucket bitbucket, String workspace, String repository, String pullRequestState, TrackerClient tracker, Function<String, String> priorityToIcon, StatusSyncDelegate statusSyncDelegate, PullRequest pullRequest, String key, boolean wasRenamed) throws IOException {
+        ITicket ticket = tracker.performTicket(key, tracker.getDefaultQueryFields());
+        if (ticket == null) {
+            return false;
+        }
+
+
+        if (pullRequestState.equals(Bitbucket.PullRequestState.STATE_MERGED)) {
+            if (statusSyncDelegate != null) {
+                statusSyncDelegate.onMerged(pullRequest, ticket, tracker);
+            }
+        } else {
+            if (!wasRenamed) {
+                wasRenamed = true;
+                renamePullRequest(workspace, repository, bitbucket, pullRequest, ticket, priorityToIcon);
+            }
+
+            if (statusSyncDelegate != null) {
+                statusSyncDelegate.onCreated(pullRequest, ticket, tracker);
+            }
+
+
+            addBitbucketCommentIfNotExists(bitbucket, pullRequest, key, ticket, workspace, repository);
+        }
+        addTrackerCommentIfNotExists(bitbucket, workspace, repository, tracker, pullRequest, key);
+        return wasRenamed;
     }
 
     private static void renamePullRequest(String workspace, String repo, Bitbucket bitbucket, PullRequest pullRequest, ITicket ticket, Function<String, String> priorityToIcon) throws IOException {
@@ -62,7 +71,7 @@ public class BitbucketTrackerSyncJob {
         } else {
             issueType = "\uD83D\uDD16";
         }
-        String priority = priorityToIcon.apply(ticket.getPriority());
+        String priority = priorityToIcon == null ? ticket.getPriority() : priorityToIcon.apply(ticket.getPriority());
         bitbucket.renamePullRequest(workspace, repo, pullRequest,  priority + " " + issueType + " " + ticket.getKey() + " " + summary);
     }
 
@@ -74,10 +83,10 @@ public class BitbucketTrackerSyncJob {
 
     public static void addBitbucketCommentIfNotExists(Bitbucket bitbucket, PullRequest pullRequest, String key, ITicket ticket, String workspace, String repository) throws IOException {
         String ticketUrl = ticket.getTicketLink();
-        String message = "[" + key + "]("+ticketUrl+")" + " " + ticket.getTicketTitle() + " ";
+        String message = "[" + key + "]("+ticketUrl+")" + " " + ticket.getTicketTitle().replaceAll("\"", "") + " ";
         String pullRequestId = pullRequest.getId().toString();
         JSONModel comments = bitbucket.pullRequestComments(workspace, repository, pullRequestId);
-        if (!comments.toString().contains(message)) {
+        if (!comments.toString().replaceAll("\\\\\"", "").contains(message)) {
             bitbucket.addPullRequestComment(workspace, repository, pullRequestId, message);
         }
     }
