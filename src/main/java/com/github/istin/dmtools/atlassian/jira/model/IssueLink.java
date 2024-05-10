@@ -5,6 +5,7 @@ import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.model.Key;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -149,6 +150,11 @@ public class IssueLink extends JSONModel implements ITicket, Key {
     }
 
     @Override
+    public String getTicketDescription() {
+        return getRelatedTicket().getTicketDescription();
+    }
+
+    @Override
     public String getTicketDependenciesDescription() {
         return null;
     }
@@ -176,6 +182,11 @@ public class IssueLink extends JSONModel implements ITicket, Key {
     @Override
     public Resolution getResolution() {
         return getRelatedTicket().getResolution();
+    }
+
+    @Override
+    public JSONArray getTicketLabels() {
+        return getRelatedTicket().getTicketLabels();
     }
 
     @Override

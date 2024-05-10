@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.broadcom.rally;
 
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
+import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.broadcom.rally.model.*;
 import com.github.istin.dmtools.common.model.IChangelog;
 import com.github.istin.dmtools.common.model.IComment;
@@ -38,6 +39,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
 
     public String search(String query, String[] fields) throws IOException {
         GenericRequest genericRequest = search(query);
+        genericRequest.setIgnoreCache(true);
         genericRequest.fields(fields);
         return execute(genericRequest);
     }
@@ -103,9 +105,77 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
         return new RallyResponse(genericRequest.execute()).getQueryResult();
     }
 
+    public void deleteLabelInTicket(RallyIssue ticket, String label) throws IOException {
+        JSONArray tagsRefsWithoutTag = ticket.getTagsRefsWithoutTag(label);
+        JSONObject updateBody = new JSONObject().put("Tags", tagsRefsWithoutTag);
+        JSONObject jsonObject = new JSONObject().put(ticket.getIssueType(), updateBody);
+        String response = updateTicketWithTags(ticket.getRef(), jsonObject);
+    }
+
     @Override
     public void addLabelIfNotExists(RallyIssue ticket, String label) throws IOException {
-        throw new UnsupportedOperationException();
+        JSONArray jsonArray = ticket.getTicketLabels();
+        if (jsonArray == null) {
+            jsonArray = new JSONArray();
+        }
+        boolean wasFound = false;
+        for (int i = 0; i < jsonArray.length(); i++) {
+            if (label.equalsIgnoreCase(jsonArray.optString(i))) {
+                wasFound = true;
+            }
+        }
+        if (!wasFound) {
+            JSONArray tagsRefs = ticket.getTagsRefs();
+            // If the label was not found, first check if it exists in Rally and get its reference
+            String tagRef = findOrCreateTag(label);
+            // Now associate this tag with the ticket
+            if (tagRef != null) {
+                JSONObject tag = new JSONObject().put("_ref", tagRef);
+                JSONArray tagsToUpdate = tagsRefs.put(tag);
+                JSONObject updateBody = new JSONObject().put("Tags", tagsToUpdate);
+                JSONObject jsonObject = new JSONObject().put(ticket.getIssueType(), updateBody);
+                String response = updateTicketWithTags(ticket.getRef(), jsonObject);
+                System.out.println(response);
+            }
+        }
+    }
+
+    public String findOrCreateTag(String label) throws IOException {
+        // This method should search for the tag by label and return its ref if it exists.
+        // If it doesn't exist, create the tag and then return its new ref.
+        // Placeholder for the actual implementation
+
+        GenericRequest genericRequest = new GenericRequest(this, path("Tag?query=(Name = \"" + label + "\")&fetch=true"));
+        genericRequest.setIgnoreCache(true);
+        String response = genericRequest.execute();
+        List<RallyTag> tags = new RallyResponse(response).getQueryResult().getTags();
+        if (tags == null || tags.isEmpty()) {
+            // Tag does not exist; create it
+            JSONObject newTag = new JSONObject();
+            newTag.put("Name", label);
+
+            JSONObject tagWrapper = new JSONObject();
+            tagWrapper.put("Tag", newTag);
+
+            GenericRequest tagCreationRequest = new GenericRequest(this, path("Tag/create"));
+            tagCreationRequest.setBody(tagWrapper.toString());
+            String newCreatedTagResponse = post(tagCreationRequest);
+            JSONObject createResponseObject = new JSONObject(newCreatedTagResponse);
+            // Assuming the creation response gives you the created tag object
+            return createResponseObject.getJSONObject("CreateResult").getJSONObject("Object").getString("_ref");
+        } else {
+            return tags.get(0).getRef();
+        }
+    }
+
+    private String updateTicketWithTags(String ticketRef, JSONObject updateBody) throws IOException {
+        // This method should send a request to Rally's REST API to update the ticket, associating it with the newly added tags.
+        // Placeholder for the actual implementation
+        System.out.println("Updating ticket " + ticketRef + " with tags: " + updateBody.toString());
+        // Send the update request to Rally here using a similar method to post(genericRequest);
+        GenericRequest genericRequest = new GenericRequest(this, ticketRef);
+        genericRequest.setBody(updateBody.toString());
+        return put(genericRequest);
     }
 
 
@@ -227,7 +297,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
         List<? extends IComment> comments = getComments(ticketKey, null);
         if (comments != null) {
             for (IComment commentObject : comments) {
-                if (text.equalsIgnoreCase(commentObject.getBody())) {
+                if (text.equalsIgnoreCase(commentObject.getBody()) || ("<p>" + text + "</p>").equalsIgnoreCase(commentObject.getBody())) {
                     return;
                 }
             }
@@ -247,7 +317,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
                 .param("order", "CreationDate DESC")
                 .param("pagesize", 100)
                 .param("start", 1);
-
+        genericRequest.setIgnoreCache(true);
         clearRequestIfExpired(genericRequest, ticket.getUpdatedAsMillis());
         String response = genericRequest.execute();
         return new RallyResponse(response).getQueryResult().getComments();
@@ -314,5 +384,10 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     @Override
     public String getDefaultStatusField() {
         return "FLOW STATE";
+    }
+
+    @Override
+    public String[] getExtendedQueryFields() {
+        return RallyFields.DEFAULT_EXTENDED;
     }
 }

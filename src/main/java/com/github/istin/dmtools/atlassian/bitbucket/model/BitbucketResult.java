@@ -55,4 +55,12 @@ public class BitbucketResult extends JSONModel {
     public List<Change> getChanges() {
         return getModels(Change.class, VALUES);
     }
+
+    public List<File> getFiles() {
+        return getModels(File.class, VALUES);
+    }
+
+    public String getNext() {
+        return getString("next");
+    }
 }

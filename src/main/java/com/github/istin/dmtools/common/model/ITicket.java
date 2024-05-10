@@ -4,6 +4,7 @@ import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Resolution;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -25,6 +26,8 @@ public interface ITicket extends Key {
 
     String getTicketTitle() throws IOException;
 
+    String getTicketDescription();
+
     String getTicketDependenciesDescription();
 
     Date getCreated();
@@ -36,6 +39,8 @@ public interface ITicket extends Key {
     IUser getCreator();
 
     Resolution getResolution();
+
+    JSONArray getTicketLabels();
 
     Fields getFields();
 

@@ -105,6 +105,7 @@ public class Status extends JSONModel {
                 || name.equals(DESIGN_ADJUSTMENTS)
                 || name.equals(IN_QA)
                 || name.equals(IN_TESTING)
+                || name.equals(READY_FOR_TEST)
                 || name.equals(ON_HOLD)
                 || name.equals(READY_FOR_TESTING)
                 || name.equals(INTEGRATION_DONE) || name.equals(READY_FOR_RELEASE)
@@ -113,6 +114,7 @@ public class Status extends JSONModel {
                 || name.equals(PRODUCT_ACCEPTANCE_BLOCKED)
                 || name.equals(INTEGRATION_BLOCKED)
                 || name.equals(BUSINESS_VALIDATION)
+                || name.equals(IN_ACCEPTANCE)
                 || name.equals(APPROVED);
     }
 

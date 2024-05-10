@@ -42,7 +42,11 @@ public class PullRequestsCommentsMetricSource extends CommonSourceCollector {
                 Comment comment = activity.getComment();
                 String action = null;
                 if (comment != null) {
-                    displayName = getEmployees().transformName(comment.getUser().getDisplayName());
+                    String commentDisplayName = comment.getUser().getDisplayName();
+                    if (getEmployees().isBot(commentDisplayName)) {
+                        continue;
+                    }
+                    displayName = getEmployees().transformName(commentDisplayName);
                     action = "Comments";
                 }
 

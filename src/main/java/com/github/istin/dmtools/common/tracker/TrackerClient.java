@@ -1,7 +1,6 @@
 package com.github.istin.dmtools.common.tracker;
 
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
-import com.github.istin.dmtools.atlassian.jira.model.Comment;
 import com.github.istin.dmtools.common.model.IChangelog;
 import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -37,5 +36,22 @@ public interface TrackerClient<T extends ITicket> {
 
     String[] getDefaultQueryFields();
 
+    String[] getExtendedQueryFields();
+
     String getDefaultStatusField();
+
+    List<? extends ITicket> getTestCases(ITicket ticket) throws IOException;
+
+    class Utils {
+        public static String checkCommentStartedWith(TrackerClient trackerClient, String key, ITicket ticket, String commentPrefix) throws IOException {
+            List<IComment> comments = trackerClient.getComments(key, ticket);
+            for (IComment comment : comments) {
+                if (comment.getBody().startsWith(commentPrefix) || comment.getBody().startsWith("<p>"+commentPrefix)) {
+                    return comment.getBody();
+                }
+            }
+            return null;
+        }
+    }
+
 }

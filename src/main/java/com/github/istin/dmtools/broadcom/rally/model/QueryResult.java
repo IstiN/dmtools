@@ -64,4 +64,8 @@ public class QueryResult extends JSONModel implements IChangelog {
     public List<FlowState> getFlowStates() {
         return getModels(FlowState.class, RESULTS);
     }
+
+    public List<RallyTag> getTags() {
+        return getModels(RallyTag.class, RESULTS);
+    }
 }

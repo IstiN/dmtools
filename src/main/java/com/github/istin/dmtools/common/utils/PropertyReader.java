@@ -76,4 +76,17 @@ public class PropertyReader {
 	public String getConfluenceLoginPassToken() {
 		return getValue("CONFLUENCE_LOGIN_PASS_TOKEN");
 	}
+
+	public String getOpenAIBathPath() {
+		return getValue("OPEN_AI_BATH_PATH");
+	}
+
+	public String getOpenAIApiKey() {
+		return getValue("OPEN_AI_API_KEY");
+	}
+
+	public String getOpenAIModel() {
+		return getValue("OPEN_AI_MODEL");
+	}
+
 }

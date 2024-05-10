@@ -10,6 +10,7 @@ import com.github.istin.dmtools.common.tracker.model.Workflow;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -18,6 +19,16 @@ import java.util.Calendar;
 import java.util.Date;
 
 public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIssue> {
+
+    private String lastStatusesUpdate = "";
+
+    public String getLastStatusesUpdate() {
+        return lastStatusesUpdate;
+    }
+
+    public void setLastStatusesUpdate(String lastStatusesUpdate) {
+        this.lastStatusesUpdate = lastStatusesUpdate;
+    }
 
     public RallyIssue() {
     }
@@ -187,6 +198,15 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
     }
 
     @Override
+    public String getTicketDescription() {
+        return getString(RallyFields.DESCRIPTION);
+    }
+
+    public void setTicketDescription(String description) {
+        set(RallyFields.DESCRIPTION, description);
+    }
+
+    @Override
     public String getTicketDependenciesDescription() {
         return getString(RallyFields.BLOCKED_REASON);
     }
@@ -214,6 +234,10 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
         return date.getTime();
     }
 
+    public String getLastTimeUpdated() {
+        return DateUtils.formatToRallyDate(getUpdatedAsMillis());
+    }
+
     @Override
     public IUser getCreator() {
         return null;
@@ -222,6 +246,52 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
     @Override
     public Resolution getResolution() {
         return null;
+    }
+
+    @Override
+    public JSONArray getTicketLabels() {
+        JSONObject jsonObject = getJSONObject(RallyFields.TAGS);
+        JSONArray result = new JSONArray();
+        if (jsonObject != null) {
+            JSONArray tagsNameArray = jsonObject.optJSONArray("_tagsNameArray");
+            if (tagsNameArray != null) {
+                for (int i = 0; i < tagsNameArray.length(); i++) {
+                    result.put(tagsNameArray.getJSONObject(i).getString("Name"));
+                }
+            }
+        }
+        return result;
+    }
+
+    public JSONArray getTagsRefs() {
+        JSONObject jsonObject = getJSONObject(RallyFields.TAGS);
+        JSONArray result = new JSONArray();
+        if (jsonObject != null) {
+            JSONArray tagsNameArray = jsonObject.optJSONArray("_tagsNameArray");
+            if (tagsNameArray != null) {
+                for (int i = 0; i < tagsNameArray.length(); i++) {
+                    result.put(new JSONObject().put("_ref", new RallyTag(tagsNameArray.getJSONObject(i)).getRef()));
+                }
+            }
+        }
+        return result;
+    }
+
+    public JSONArray getTagsRefsWithoutTag(String tag) {
+        JSONObject jsonObject = getJSONObject(RallyFields.TAGS);
+        JSONArray result = new JSONArray();
+        if (jsonObject != null) {
+            JSONArray tagsNameArray = jsonObject.optJSONArray("_tagsNameArray");
+            if (tagsNameArray != null) {
+                for (int i = 0; i < tagsNameArray.length(); i++) {
+                    RallyTag rallyTag = new RallyTag(tagsNameArray.getJSONObject(i));
+                    if (!rallyTag.getName().equalsIgnoreCase(tag)) {
+                        result.put(new JSONObject().put("_ref", rallyTag.getRef()));
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     @Override
@@ -255,4 +325,5 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
     public String getProjectName() {
         return getJSONObject(RallyFields.PROJECT).optString("Name");
     }
+
 }

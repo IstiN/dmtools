@@ -31,6 +31,10 @@ public class BasicConfluence extends Confluence {
         return updatePage(contentId, title, parentId, body, defaultSpace);
     }
 
+    public String getDefaultSpace() {
+        return defaultSpace;
+    }
+
     public Content findContent(String title) throws IOException {
         return findContent(title, defaultSpace);
     }

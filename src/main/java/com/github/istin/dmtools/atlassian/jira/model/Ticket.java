@@ -5,6 +5,7 @@ import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.model.Key;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -101,6 +102,11 @@ public class Ticket extends JSONModel implements ITicket {
     }
 
     @Override
+    public String getTicketDescription() {
+        return getFields().getDescription();
+    }
+
+    @Override
     public String getTicketDependenciesDescription() {
         return null;
     }
@@ -128,6 +134,11 @@ public class Ticket extends JSONModel implements ITicket {
     @Override
     public Resolution getResolution() {
         return getFields().getResolution();
+    }
+
+    @Override
+    public JSONArray getTicketLabels() {
+        return getFields().getLabels();
     }
 
     public String getHtmlTicketLink() {

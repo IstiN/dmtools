@@ -133,6 +133,7 @@ public class Bitbucket extends AtlassianRestClient {
 
     public PullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestPath(workspace, repository, pullRequestId)));
+        getRequest.setIgnoreCache(true);
         String response = execute(getRequest);
         return PullRequest.create(apiVersion, response);
     }
@@ -455,12 +456,27 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
-    public List<Change> getChanges(String workspace, String repository, String pullRequestId) throws IOException {
-        GenericRequest getRequest = new GenericRequest(this, path("projects/" + workspace + "/repos/" + repository + "/pull-requests/" + pullRequestId +"/changes"));
-        String response = execute(getRequest);
-        if (response == null) {
-            return Collections.emptyList();
+    public String getDiff(String workspace, String repository, String pullRequestId) throws IOException {
+        GenericRequest getRequest = new GenericRequest(this, path("repositories/" + workspace + "/" + repository + "/pullrequests/" + pullRequestId +"/diff"));
+        return execute(getRequest);
+    }
+
+    public List<File> getListOfFiles(String workspace, String repository, String branchName)  throws IOException {
+        GenericRequest getRequest = new GenericRequest(this, path("repositories/" + workspace + "/" + repository + "/src/" + branchName +"/?max_depth=50"));
+//        getRequest.param(getNextPageField(), 1);
+        getRequest.param(getPageLimitField(), 100);
+        BitbucketResult bitbucketResult = new BitbucketResult(execute(getRequest));
+        List<File> result = bitbucketResult.getFiles();
+        while (bitbucketResult.getNext() != null) {
+            getRequest = new GenericRequest(this, bitbucketResult.getNext());
+            bitbucketResult = new BitbucketResult(execute(getRequest));
+            result.addAll(bitbucketResult.getFiles());
         }
-        return new BitbucketResult(response).getChanges();
+        return result;
+    }
+
+    public String getFileContent(String selfLink) throws IOException {
+        GenericRequest request = new GenericRequest(this, selfLink);
+        return request.execute();
     }
 }

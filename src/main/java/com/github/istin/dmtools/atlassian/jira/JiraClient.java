@@ -139,7 +139,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public void addLabelIfNotExists(Ticket ticket, String label) throws IOException {
-        JSONArray jsonArray = ticket.getFields().getJSONObject().optJSONArray(Fields.LABELS);
+        JSONArray jsonArray = ticket.getTicketLabels();
         if (jsonArray == null) {
             jsonArray = new JSONArray();
         }

@@ -4,6 +4,7 @@ import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -97,6 +98,11 @@ public class RemoteLink extends JSONModel implements ITicket {
     }
 
     @Override
+    public String getTicketDescription() {
+        return "Unknown";
+    }
+
+    @Override
     public String getTicketDependenciesDescription() {
         return null;
     }
@@ -123,6 +129,11 @@ public class RemoteLink extends JSONModel implements ITicket {
 
     @Override
     public Resolution getResolution() {
+        return null;
+    }
+
+    @Override
+    public JSONArray getTicketLabels() {
         return null;
     }
 

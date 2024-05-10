@@ -1,7 +1,5 @@
 package com.github.istin.dmtools.broadcom.rally.model;
 
-import com.github.istin.dmtools.common.utils.DateUtils;
-
 public class RallyFields {
 
     public static final String START_DATE = "StartDate";
@@ -35,10 +33,22 @@ public class RallyFields {
 
     public static final String USER = "User";
 
+    public static final String TAGS = "Tags";
+
+    public static final String TESTCASES = "testcases";
+
     public static final String ITERATION = "Iteration";
 
+    public static final String PARENT = "Parent";
+
     public static final String[] DEFAULT = new String[] {
-            FORMATTED_ID,NAME,PRIORITY,PRIORITY_USER_STORY,CREATION_DATE,LAST_UPDATE_DATE,FLOW_STATE,BLOCKED,BLOCKED_REASON,PLAN_ESTIMATE, REVISION_HISTORY, ITERATION, START_DATE, END_DATE, PROJECT
+            FORMATTED_ID,NAME,PRIORITY,PRIORITY_USER_STORY,CREATION_DATE,LAST_UPDATE_DATE,FLOW_STATE,BLOCKED,BLOCKED_REASON,PLAN_ESTIMATE, REVISION_HISTORY, ITERATION, START_DATE, END_DATE, PROJECT, TAGS, PARENT
+    };
+
+
+    public static final String[] DEFAULT_EXTENDED = new String[] {
+            FORMATTED_ID,NAME,PRIORITY,PRIORITY_USER_STORY,CREATION_DATE,LAST_UPDATE_DATE,FLOW_STATE,BLOCKED,BLOCKED_REASON,PLAN_ESTIMATE, REVISION_HISTORY, ITERATION, START_DATE, END_DATE, PROJECT,
+            TAGS, RallyFields.DESCRIPTION,  TESTCASES, PARENT
     };
 
 

@@ -59,6 +59,10 @@ public class Confluence extends AtlassianRestClient {
     }
 
     public Content updatePage(String contentId, String title, String parentId, String body, String space) throws IOException {
+        return updatePage(contentId, title, parentId, body, space, "");
+    }
+
+    public Content updatePage(String contentId, String title, String parentId, String body, String space, String historyComment) throws IOException {
         Content oldContent = new Content(new GenericRequest(this, path("content/" + contentId + "?expand=version")).execute());
 
         GenericRequest content = new GenericRequest(this, path("content/"+contentId));
@@ -77,7 +81,11 @@ public class Confluence extends AtlassianRestClient {
                 .put("title", title)
                 .put("ancestors", new JSONArray().put(new JSONObject().put("id", parentId)))
                 .put("space", new JSONObject().put("key", space))
-                .put("version", new JSONObject().put("number", oldContent.getVersionNumber() + 1))
+                .put("version",
+                        new JSONObject()
+                                .put("number", oldContent.getVersionNumber() + 1)
+                                .put("message", historyComment) // Add history comment here
+                )
                 .put("body", new JSONObject().put("storage", new JSONObject()
                         .put("value", value)
                         .put("representation", "storage"))).toString());

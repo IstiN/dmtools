@@ -30,14 +30,18 @@ public abstract class AbstractRestClient implements RestClient {
 
     public AbstractRestClient(String basePath, String authorization) throws IOException {
         this.client = new OkHttpClient.Builder()
-                .connectTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
+                .connectTimeout(getTimeout(), TimeUnit.SECONDS)
+                .writeTimeout(getTimeout(), TimeUnit.SECONDS)
+                .readTimeout(getTimeout(), TimeUnit.SECONDS)
                 .build();
         this.basePath = basePath;
         this.authorization = authorization;
 
         reinitCache();
+    }
+
+    public int getTimeout() {
+        return 60;
     }
 
     private void reinitCache() throws IOException {

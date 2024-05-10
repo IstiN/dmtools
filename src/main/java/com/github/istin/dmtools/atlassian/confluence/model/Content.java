@@ -45,4 +45,7 @@ public class Content extends JSONModel {
         return getJSONObject(VERSION).getInt("number");
     }
 
+    public String getViewUrl(String basePath) {
+        return basePath + getJSONObject("_links").getString("webui");
+    }
 }

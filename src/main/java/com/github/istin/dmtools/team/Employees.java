@@ -23,7 +23,7 @@ public class Employees implements IEmployees {
 
     @Override
     public boolean isBot(String sourceFullName) {
-        return false;
+        return sourceFullName.equalsIgnoreCase("DM_scripts") || sourceFullName.equalsIgnoreCase("DM_scripts_token");
     }
 
 
@@ -45,12 +45,12 @@ public class Employees implements IEmployees {
         return instance;
     }
 
-    public void printAllMails() {
+    public void printAllMails(String emailDomain) {
         init();
         for (int i = 0; i < employees.length(); i++) {
             JSONObject jsonObject = employees.getJSONObject(i);
             String employee = jsonObject.optString("Employee");
-            System.out.print(employee.replace(" ", "_") + "@epam.com;");
+            System.out.print(employee.replace(" ", "_") + "@" + emailDomain + ";");
         }
     }
 
