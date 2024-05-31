@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.job;
 
 
+import com.github.istin.dmtools.documentation.DocumentationGenerator;
 import com.github.istin.dmtools.estimations.JEstimator;
 
 import java.util.Base64;
@@ -11,6 +12,8 @@ public class JobRunner {
         Job job = new Job(new String(decodeBase64(args[0])));
         if (job.getName().equalsIgnoreCase(JEstimator.NAME)) {
             JEstimator.runJob(job.getJEstimatorParams());
+        } else if (job.getName().equalsIgnoreCase(DocumentationGenerator.NAME)) {
+            DocumentationGenerator.runJob(job.getDocumentationGeneratorParams());
         }
 
     }

@@ -18,8 +18,6 @@ import java.util.*;
 
 public class DocumentationEditor {
 
-    public static String NAME = "DocumentationEditor";
-
     private final JAssistant jAssistant;
     private final TrackerClient<? extends ITicket> tracker;
     private final String areaPrefix;

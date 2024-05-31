@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.job;
 
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.documentation.DocumentationGeneratorParams;
 import com.github.istin.dmtools.estimations.JEstimatorParams;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,6 +33,10 @@ public class Job extends JSONModel {
 
     public JEstimatorParams getJEstimatorParams() {
         return getModel(JEstimatorParams.class, PARAMS);
+    }
+
+    public DocumentationGeneratorParams getDocumentationGeneratorParams() {
+        return getModel(DocumentationGeneratorParams.class, PARAMS);
     }
 
 }

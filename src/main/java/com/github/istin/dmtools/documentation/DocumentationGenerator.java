@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 
 public class DocumentationGenerator {
 
+    public static String NAME = "DocumentationEditor";
+
     public static void runJob(DocumentationGeneratorParams params) throws Exception {
         runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getJQL(), params.getListOfStatusesToSort());
     }
