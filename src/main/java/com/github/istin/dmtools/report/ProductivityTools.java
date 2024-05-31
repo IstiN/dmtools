@@ -177,7 +177,7 @@ public class ProductivityTools {
                         List<KeyTime> keyTimeList = customMetricsProductivityMap.get(m.getName()).get(metricName);
                         for (KeyTime keyTime : keyTimeList) {
                             long timeStart = getCurrentTimeForMeasurements();
-                            if (reportIteration.isMatchedToIterationTimeline(keyTime.getWhen())) {
+                            if (ReportIteration.Impl.isMatchedToIterationTimeline(reportIteration, keyTime.getWhen())) {
                                 timeStart = measureTime("isMatchedToIterationTimeline", timeStart);
                                 devProductivityCell.add(keyTime);
                                 timeStart = measureTime("isMatchedToIterationTimeline add Key Time", timeStart);

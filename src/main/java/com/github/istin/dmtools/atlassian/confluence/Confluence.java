@@ -1,12 +1,16 @@
 package com.github.istin.dmtools.atlassian.confluence;
 
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
+import com.github.istin.dmtools.atlassian.confluence.model.Attachment;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.confluence.model.ContentResult;
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.utils.HtmlCleaner;
+import okhttp3.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -24,9 +28,34 @@ public class Confluence extends AtlassianRestClient {
     }
 
     public ContentResult content(String title, String space) throws IOException {
-        GenericRequest content = new GenericRequest(this, path("content?expand=body.storage"));
+        GenericRequest content = new GenericRequest(this, path("content?expand=body.storage,ancestors"));
         content.param("title", title);
         content.param("spaceKey", space);
+        String response = execute(content);
+        try {
+            return new ContentResult(response);
+        } catch (Exception e) {
+            System.err.println(response);
+            throw e;
+        }
+    }
+
+    public List<Attachment> getContentAttachments(String contentId) throws IOException {
+        GenericRequest content = new GenericRequest(this, path("content/" + contentId + "/child/attachment"));
+
+        String response = execute(content);
+        try {
+            return new ContentResult(response).getAttachments();
+        } catch (Exception e) {
+            System.err.println(response);
+            throw e;
+        }
+    }
+
+    public ContentResult getContentVersions(String contentId) throws IOException {
+//        GenericRequest content = new GenericRequest(this, path("content/" + contentId + "/history"));
+//        GenericRequest content = new GenericRequest(this, path("content/" + contentId + "/version"))
+        GenericRequest content = new GenericRequest(this, path("content/" + contentId + "/history"));
         String response = execute(content);
         try {
             return new ContentResult(response);
@@ -64,17 +93,13 @@ public class Confluence extends AtlassianRestClient {
 
     public Content updatePage(String contentId, String title, String parentId, String body, String space, String historyComment) throws IOException {
         Content oldContent = new Content(new GenericRequest(this, path("content/" + contentId + "?expand=version")).execute());
+        body = HtmlCleaner.convertLinksUrlsToConfluenceFormat(body);
+
+        System.out.println(contentId + ", " + title + ", " + parentId + ", " + body + ", " + space + ", " + historyComment);
 
         GenericRequest content = new GenericRequest(this, path("content/"+contentId));
-        String value = body.contains("ac:name=\"html\"") ? body : body
-                .replaceAll("M&S", "M&amp;S")
-                .replaceAll("s&S", "s&amp;S")
-                .replaceAll(" & ", " &amp; ")
-                .replaceAll("g&d", "g&amp;D")
-                .replaceAll("o&S", "o&amp;S");
 
-
-        value = value.replace("&C", "&amp;C");
+        String value = body;
         content.setBody(new JSONObject()
                 .put("id", contentId)
                 .put("type", "page")
@@ -106,12 +131,69 @@ public class Confluence extends AtlassianRestClient {
         "</body>]]></ac:plain-text-body></ac:structured-macro></ac:rich-text-body></ac:structured-macro><p />";
     }
 
-    /*
-    <ac:structured-macro ac:name="swc-macro-html-input" ac:schema-version="1" data-layout="default" ac:local-id="cbe31bea-aec4-454a-ac9d-7c0611b882d0" ac:macro-id="8c4516f5-9f3d-4ff9-830d-ab2747611451"><ac:rich-text-body><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="da0a0dc5-5e02-40cc-9acc-303202ad6165"><ac:plain-text-body><![CDATA[<body>
+    public static String macroBase64Image(String imageBase64) {
+        return  "<div>\n" +
+                "    <img src=\"data:image/png;base64,"+imageBase64+"\" alt=\"Embedded Image\">\n" +
+                "</div>\n";
+    }
 
-</body>]]></ac:plain-text-body></ac:structured-macro></ac:rich-text-body></ac:structured-macro><p />
-     */
+    public void attachFileToPage(String contentId, File file) throws IOException {
+        List<Attachment> contentAttachments = getContentAttachments(contentId);
+        for (Attachment attachment : contentAttachments) {
+            if (attachment.getTitle().equalsIgnoreCase(file.getName())) {
+                return;
+            }
+        }
+        String url = path("content/" + contentId + "/child/attachment");
+        // Prepare the file part
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", file.getName(),
+                        okhttp3.RequestBody.Companion.create(file, MediaType.parse("image/*"))
+                ).build();
+
+        if (true) {
+            try {
+                Thread.currentThread().sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Create the request
+        Request request = sign(new Request.Builder()
+                .url(url)
+                .post(requestBody)
+        )
+                .build();
+
+        // Execute the request
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+            System.out.println(response.body().string());
+        }
+    }
+
+    public void insertImageInPageBody(String spaceKey, String contentId, String fileName) throws IOException {
+        // Get the current content
+        Content content = new Content(new GenericRequest(this, path("content/" + contentId + "?expand=body.storage")).execute());
+
+        // Prepare the new body with the image
+        String newBody = content.getStorage().getValue() + "<ac:image><ri:attachment ri:filename=\"" + fileName + "\" /></ac:image>";
+
+        // Update the page with the new body
+        updatePage(contentId, content.getTitle(), content.getParentId(), newBody, spaceKey);
+    }
 
 
+    public List<Content> getChildrenOfContentByName(String spaceKey, String contentName) throws IOException {
+        Content pageContent = findContent(contentName, spaceKey);
+        String contentId = pageContent.getId();
+        return getChildrenOfContentById(contentId);
+    }
 
+    public List<Content> getChildrenOfContentById(String contentId) throws IOException {
+        return new ContentResult(execute(new GenericRequest(this, path("content/" + contentId + "/child/page?limit=100")))).getContents();
+    }
 }

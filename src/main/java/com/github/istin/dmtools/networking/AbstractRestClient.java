@@ -5,8 +5,11 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
 import okhttp3.*;
+import okio.BufferedSink;
+import okio.Okio;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,6 +28,21 @@ public abstract class AbstractRestClient implements RestClient {
     protected String authorization;
     protected boolean isClearCache = false;
     private boolean isCacheGetRequestsEnabled = true;
+
+    public boolean isCachePostRequestsEnabled() {
+        return isCachePostRequestsEnabled;
+    }
+
+    public void setCachePostRequestsEnabled(boolean cachePostRequestsEnabled) {
+        isCachePostRequestsEnabled = cachePostRequestsEnabled;
+    }
+
+    @Override
+    public OkHttpClient getClient() {
+        return client;
+    }
+
+    private boolean isCachePostRequestsEnabled = false;
     private boolean isWaitBeforePerform = false;
     private HashMap<String, Long> timeMeasurement = new HashMap<>();
 
@@ -108,8 +126,6 @@ public abstract class AbstractRestClient implements RestClient {
         return cachedFile;
     }
 
-    public abstract Request.Builder sign(Request.Builder builder);
-
     @Override
     public String getBasePath() {
         return basePath;
@@ -148,6 +164,7 @@ public abstract class AbstractRestClient implements RestClient {
 
             try {
                 Request request = sign(new Request.Builder())
+                        .header("User-Agent", "DMTools")
                         .url(url)
                         .build();
                 try (Response response = client.newCall(request).execute()) {
@@ -204,17 +221,45 @@ public abstract class AbstractRestClient implements RestClient {
             }
         }
 
+        if (isCachePostRequestsEnabled && !genericRequest.isIgnoreCache()) {
+            String value = DigestUtils.md5Hex(buildHashForPostRequest(genericRequest, url));
+            File cache = new File(getCacheFolderName());
+            cache.mkdirs();
+            File cachedFile = new File(getCacheFolderName() + "/" + value);
+            if (cachedFile.exists()) {
+                System.out.println("Read From Cache: ");
+                return FileUtils.readFileToString(cachedFile);
+            } else {
+                System.out.println("Network Request: ");
+            }
+        } else {
+            System.out.println("Network Request: ");
+        }
+
         RequestBody body = RequestBody.create(JSON, genericRequest.getBody());
         try (Response response = client.newCall(sign(
                 new Request.Builder())
                 .url(url)
+                .header("User-Agent", "DMTools")
                 .post(body)
                 .build()
         ).execute()) {
-            return response.body().string();
+            String responseAsString = response.body().string();
+            if (isCachePostRequestsEnabled) {
+                String value = DigestUtils.md5Hex(buildHashForPostRequest(genericRequest, url));
+                File cache = new File(getCacheFolderName());
+                cache.mkdirs();
+                File cachedFile = new File(getCacheFolderName() + "/" + value);
+                FileUtils.writeStringToFile(cachedFile, responseAsString);
+            }
+            return responseAsString;
         } finally {
             client.connectionPool().evictAll();
         }
+    }
+
+    protected @NotNull String buildHashForPostRequest(GenericRequest genericRequest, String url) {
+        return url + genericRequest.getBody();
     }
 
     @Override
@@ -232,6 +277,7 @@ public abstract class AbstractRestClient implements RestClient {
         try (Response response = client.newCall(sign(
                 new Request.Builder())
                 .url(url)
+                .header("User-Agent", "DMTools")
                 .put(body)
                 .build()
         ).execute()) {
@@ -260,6 +306,7 @@ public abstract class AbstractRestClient implements RestClient {
         try (Response response = client.newCall(sign(
                 new Request.Builder())
                 .url(url)
+                .header("User-Agent", "DMTools")
                 .delete(body)
                 .build()
         ).execute()) {

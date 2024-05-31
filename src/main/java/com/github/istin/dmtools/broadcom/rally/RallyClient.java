@@ -1,25 +1,30 @@
 package com.github.istin.dmtools.broadcom.rally;
 
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
-import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.broadcom.rally.model.*;
 import com.github.istin.dmtools.common.model.IChangelog;
 import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.Request;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
 public abstract class RallyClient extends AbstractRestClient implements TrackerClient<RallyIssue> {
+
+    private boolean isLogEnabled = true;
 
     public RallyClient(String basePath, String authorization) throws IOException {
         super(basePath, authorization);
@@ -97,14 +102,22 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
 
     @Override
     public IChangelog getChangeLog(String ticketKey, ITicket ticket) throws IOException {
-        RallyIssue issue = getIssue(ticketKey, getDefaultQueryFields());
+        RallyIssue issue;
+        if (ticket instanceof RallyIssue) {
+            issue = ((RallyIssue) ticket);
+        } else {
+            issue = getIssue(ticketKey, getDefaultQueryFields());
+        }
+
         String ref = issue.getRevisionHistory().getRef();
         GenericRequest genericRequest = new GenericRequest(this, ref + "/revisions")
                 .param("start", 1)
                 .param("pagesize", 500);
+        clearRequestIfExpired(genericRequest, ticket != null ? ticket.getUpdatedAsMillis() : null);
         return new RallyResponse(genericRequest.execute()).getQueryResult();
     }
 
+    @Override
     public void deleteLabelInTicket(RallyIssue ticket, String label) throws IOException {
         JSONArray tagsRefsWithoutTag = ticket.getTagsRefsWithoutTag(label);
         JSONObject updateBody = new JSONObject().put("Tags", tagsRefsWithoutTag);
@@ -113,7 +126,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     }
 
     @Override
-    public void addLabelIfNotExists(RallyIssue ticket, String label) throws IOException {
+    public void addLabelIfNotExists(ITicket ticket, String label) throws IOException {
         JSONArray jsonArray = ticket.getTicketLabels();
         if (jsonArray == null) {
             jsonArray = new JSONArray();
@@ -125,7 +138,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
             }
         }
         if (!wasFound) {
-            JSONArray tagsRefs = ticket.getTagsRefs();
+            JSONArray tagsRefs = ticket.getTicketLabels();
             // If the label was not found, first check if it exists in Rally and get its reference
             String tagRef = findOrCreateTag(label);
             // Now associate this tag with the ticket
@@ -134,7 +147,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
                 JSONArray tagsToUpdate = tagsRefs.put(tag);
                 JSONObject updateBody = new JSONObject().put("Tags", tagsToUpdate);
                 JSONObject jsonObject = new JSONObject().put(ticket.getIssueType(), updateBody);
-                String response = updateTicketWithTags(ticket.getRef(), jsonObject);
+                String response = updateTicketWithTags(((RallyIssue)ticket).getRef(), jsonObject);
                 System.out.println(response);
             }
         }
@@ -162,6 +175,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
             String newCreatedTagResponse = post(tagCreationRequest);
             JSONObject createResponseObject = new JSONObject(newCreatedTagResponse);
             // Assuming the creation response gives you the created tag object
+            System.out.println(createResponseObject);
             return createResponseObject.getJSONObject("CreateResult").getJSONObject("Object").getString("_ref");
         } else {
             return tags.get(0).getRef();
@@ -312,15 +326,18 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
         }
 
         String ref = ticket.getRef();
-        String url = ref + "/Discussion";
-        GenericRequest genericRequest = new GenericRequest(this, url)
-                .param("order", "CreationDate DESC")
-                .param("pagesize", 100)
-                .param("start", 1);
+        GenericRequest genericRequest = createDiscussionGetRequest(ref);
         genericRequest.setIgnoreCache(true);
         clearRequestIfExpired(genericRequest, ticket.getUpdatedAsMillis());
         String response = genericRequest.execute();
         return new RallyResponse(response).getQueryResult().getComments();
+    }
+
+    private GenericRequest createDiscussionGetRequest(String ref) {
+        return new GenericRequest(this, ref + "/Discussion")
+                .param("order", "CreationDate DESC")
+                .param("pagesize", 100)
+                .param("start", 1);
     }
 
     @Override
@@ -334,9 +351,30 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
         GenericRequest genericRequest = new GenericRequest(this, path("conversationpost/create"));
         genericRequest.setBody(body.toString());
         post(genericRequest);
+        clearCache(createDiscussionGetRequest(ref));
+    }
 
-        String url = ref + "/Discussion";
-        clearCache(new GenericRequest(this, url));
+    @Override
+    public void deleteCommentIfExists(String ticketKey, String text) throws IOException {
+        List<? extends IComment> comments = getComments(ticketKey, null);
+        if (comments != null) {
+            for (IComment commentObject : comments) {
+                if (text.equalsIgnoreCase(commentObject.getBody()) || ("<p>" + text + "</p>").equalsIgnoreCase(commentObject.getBody())) {
+
+                    // Assuming the ref is the full URL to the conversation post. If not, you might need to construct the URL.
+                    GenericRequest genericRequest = new GenericRequest(this, ((Comment)commentObject).getRef());
+
+                    // Executing DELETE request on the conversation post ref
+                    delete(genericRequest);
+
+                    // Optionally, clear cache or perform any cleanup if needed
+                    RallyIssue ticket = performTicket(ticketKey, getDefaultQueryFields());
+                    String ref = ticket.getRef();
+                    clearCache(createDiscussionGetRequest(ref));
+                    return;
+                }
+            }
+        }
     }
 
     @Override
@@ -389,5 +427,50 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     @Override
     public String[] getExtendedQueryFields() {
         return RallyFields.DEFAULT_EXTENDED;
+    }
+
+    public File downloadAttachment(String path) throws IOException {
+        if (!path.startsWith("http")) {
+            path = basePath + path;
+        }
+        GenericRequest genericRequest = new GenericRequest(this, path);
+        return Impl.downloadFile(this, genericRequest, getCachedFile(genericRequest));
+    }
+
+    public String downloadImageAsBase64(String path) throws IOException {
+        File imageFile = downloadAttachment(path);
+        String[] split = path.split("\\.");
+        String formatName = split[split.length - 1];
+        return ImageUtils.convertToBase64(imageFile, formatName);
+    }
+
+    @Override
+    public File getCachedFile(GenericRequest request) {
+        String url = request.url();
+        String value = DigestUtils.md5Hex(url);
+        String imageExtension = Impl.getFileImageExtension(url);
+        return new File(getCacheFolderName() + "/" + value + imageExtension);
+    }
+
+    @Override
+    public boolean isValidImageUrl(String url) {
+        return url.contains("rally1.rallydev.com") && (url.endsWith("png") || url.endsWith("jpg") || url.endsWith("jpeg"));
+    }
+
+    @Override
+    public File convertUrlToFile(String href) throws IOException {
+        return downloadAttachment(href);
+    }
+
+    @Override
+    public void setLogEnabled(boolean isLogEnabled) {
+        this.isLogEnabled = isLogEnabled;
+    }
+
+    @Override
+    public List<? extends ReportIteration> getFixVersions(String projectCode) throws IOException {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.YEAR, -100);
+        return iterations(projectCode, calendar);
     }
 }

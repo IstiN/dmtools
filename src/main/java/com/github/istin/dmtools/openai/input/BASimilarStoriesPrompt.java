@@ -12,13 +12,13 @@ public class BASimilarStoriesPrompt extends TicketBasedPrompt {
 
     private String role;
 
-    public BASimilarStoriesPrompt(ITicket ticket, List<? extends ITicket> stories) {
-        super(ticket);
+    public BASimilarStoriesPrompt(String basePath, ITicket ticket, List<? extends ITicket> stories) {
+        super(basePath, ticket);
         this.stories = stories;
     }
 
-    public BASimilarStoriesPrompt(String role, ITicket ticket, ITicket similarTicket) {
-        super(ticket);
+    public BASimilarStoriesPrompt(String basePath, String role, ITicket ticket, ITicket similarTicket) {
+        super(basePath, ticket);
         this.similarTicket = similarTicket;
         this.role = role;
     }

@@ -1,11 +1,15 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.timeline.ReportIteration;
+import com.github.istin.dmtools.common.utils.DateUtils;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class FixVersion extends JSONModel implements Comparable<FixVersion> {
+import java.util.Date;
+
+public class FixVersion extends JSONModel implements Comparable<FixVersion>, ReportIteration {
 
     //"05/Nov/14"
     public static final String USER_RELEASE_DATE = "userReleaseDate";
@@ -29,8 +33,33 @@ public class FixVersion extends JSONModel implements Comparable<FixVersion> {
         return getString("name");
     }
 
-    public String getId() {
+    @Override
+    public String getIterationName() {
+        return getName();
+    }
+
+    @Override
+    public int getId() {
+        return getIdAsString().hashCode();
+    }
+
+    public String getIdAsString() {
         return getString("id");
+    }
+
+    @Override
+    public Date getStartDate() {
+        return DateUtils.parseJiraDate(getUserStartDate());
+    }
+
+    @Override
+    public Date getEndDate() {
+        return DateUtils.parseJiraDate(getUserReleaseDate());
+    }
+
+    @Override
+    public boolean isReleased() {
+        return getReleased();
     }
 
     public String getUserReleaseDate() {

@@ -1,9 +1,6 @@
 package com.github.istin.dmtools.broadcom.rally.model;
 
-import com.github.istin.dmtools.common.model.IChangelog;
-import com.github.istin.dmtools.common.model.IComment;
-import com.github.istin.dmtools.common.model.IHistory;
-import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.model.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -67,5 +64,9 @@ public class QueryResult extends JSONModel implements IChangelog {
 
     public List<RallyTag> getTags() {
         return getModels(RallyTag.class, RESULTS);
+    }
+
+    public List<? extends IAttachment> getAttachments() {
+        return getModels(RallyAttachment.class, RESULTS);
     }
 }

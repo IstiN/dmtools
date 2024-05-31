@@ -10,6 +10,7 @@ public class DateUtils {
     public static final String BITBUCKET_CLOUD_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS";
     public static final String BITBUCKET_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssXXX";
     public static final String JIRA_DATE_FORMAT = "yyyy-MM-dd";
+    public static final String JIRA_DATE_FORMAT_V2 = "dd/MMM/yyyy";
     public static final String RALLY_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
 
@@ -56,7 +57,11 @@ public class DateUtils {
         try {
             return new SimpleDateFormat(JIRA_DATE_FORMAT).parse(date);
         } catch (ParseException e) {
-            throw new IllegalArgumentException(e);
+            try {
+                return new SimpleDateFormat(JIRA_DATE_FORMAT_V2).parse(date);
+            } catch (ParseException ex) {
+                throw new IllegalArgumentException(ex);
+            }
         }
     }
 
@@ -92,6 +97,12 @@ public class DateUtils {
         Calendar startDate = Calendar.getInstance();
         startDate.setTime(parseRallyDate(date));
         return startDate;
+    }
+
+    public static Calendar calendar(Date date) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        return calendar;
     }
 
     public static Calendar parseJiraCalendar(String date) {

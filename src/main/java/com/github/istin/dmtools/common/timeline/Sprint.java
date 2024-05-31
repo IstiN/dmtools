@@ -111,17 +111,19 @@ public class Sprint implements ReportIteration {
         return Week.createBasedOnSprint(this);
     }
 
+    @Override
     public Date getStartDate() {
         return startDate;
     }
 
+    @Override
     public Date getEndDate() {
         return endDate;
     }
 
     @Override
-    public boolean isMatchedToIterationTimeline(Calendar date) {
-        return isMatchedToSprintTimelines(date);
+    public boolean isReleased() {
+        return getEndDate().getTime() < System.currentTimeMillis();
     }
 
     @Override

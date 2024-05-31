@@ -6,8 +6,8 @@ import java.util.List;
 
 public class PullRequestReview extends TicketBasedPrompt {
 
-    public PullRequestReview(String role, ITicket ticket) {
-        super(ticket);
+    public PullRequestReview(String basePath, String role, ITicket ticket) {
+        super(basePath, ticket);
         this.role = role;
     }
 

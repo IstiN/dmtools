@@ -1,9 +1,7 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
-import com.github.istin.dmtools.common.model.ITicket;
-import com.github.istin.dmtools.common.model.IUser;
-import com.github.istin.dmtools.common.model.JSONModel;
-import com.github.istin.dmtools.common.model.Key;
+import com.github.istin.dmtools.common.model.*;
+import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -11,6 +9,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
 
 import static com.github.istin.dmtools.atlassian.jira.model.Relationship.*;
 
@@ -195,8 +194,23 @@ public class IssueLink extends JSONModel implements ITicket, Key {
     }
 
     @Override
+    public ReportIteration getIteration() {
+        return getRelatedTicket().getIteration();
+    }
+
+    @Override
     public double getProgress() throws IOException {
         return new ITicket.ITicketProgress.Impl().calc(this);
+    }
+
+    @Override
+    public List<? extends IAttachment> getAttachments() {
+        return getRelatedTicket().getAttachments();
+    }
+
+    @Override
+    public TicketPriority getPriorityAsEnum() {
+        return getRelatedTicket().getPriorityAsEnum();
     }
 
     public IssueType getTicketType() {

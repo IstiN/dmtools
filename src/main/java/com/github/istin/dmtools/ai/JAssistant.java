@@ -14,8 +14,10 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,6 +28,9 @@ public class JAssistant {
     private static final Logger logger = LogManager.getLogger(JAssistant.class);
     public static final String ME = JAssistant.class.getSimpleName();
     public static final String TEST_CASES_COMMENT_PREFIX = "<p>JAI Generated Test Cases: </p>";
+    public static final String LABEL_REQUIREMENTS = "requirements";
+    public static final String LABEL_TIMELINE = "timeline";
+    public static final String LABEL_TEAM_SETUP = "team_setup";
 
     private TrackerClient<? extends ITicket> trackerClient;
 
@@ -59,7 +64,7 @@ public class JAssistant {
 
     public void generateCode(String role, String key, String workspace, String repository, String branchName) throws Exception {
         ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-        CodeGeneration codeGeneration = new CodeGeneration(role, ticket);
+        CodeGeneration codeGeneration = new CodeGeneration(trackerClient.getBasePath(), role, ticket);
         if (!IssueType.isBug(ticket.getIssueType())) {
             List<? extends ITicket> testCases = trackerClient.getTestCases(ticket);
             codeGeneration.setTestCases(testCases);
@@ -80,7 +85,7 @@ public class JAssistant {
                 File file = result.get(0);
                 file.setFileContent(sourceCode.getFileContent(file.getSelfLink()));
 
-                String request = promptManager.validatePotentiallyEffectedFile(new TicketFilePrompt(role, ticket, file));
+                String request = promptManager.validatePotentiallyEffectedFile(new TicketFilePrompt(trackerClient.getBasePath(), role, ticket, file));
                 String isTheFileUsefull = openAIClient.chat("gpt-35-turbo", request);
                 if (Boolean.parseBoolean(isTheFileUsefull)) {
                     finalResults.add(file);
@@ -104,44 +109,76 @@ public class JAssistant {
         }
     }
 
-    public void generateTestCases(String key) throws Exception {
+    public void generateTestCases(String key, List<? extends ITicket> listOfAllTestCases) throws Exception {
         ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
         String message = TrackerClient.Utils.checkCommentStartedWith(trackerClient, ticket.getKey(), ticket, TEST_CASES_COMMENT_PREFIX);
         if (message != null) {
             return;
         }
 
-        String aiRequest = promptManager.requestTestCasesForStory(new TicketBasedPrompt(ticket));
+        String aiRequest = promptManager.requestTestCasesForStory(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
         String response = openAIClient.chat(aiRequest);
         trackerClient.postComment(key, TEST_CASES_COMMENT_PREFIX + response);
     }
 
     public void generateNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO(String key) throws Exception {
         ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-        String aiRequest = promptManager.requestNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO(new TicketBasedPrompt(ticket));
+        String aiRequest = promptManager.requestNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
         String response = openAIClient.chat(aiRequest);
         response = openAIClient.chat(promptManager.convertToHTML(new InputPrompt(response)));
         trackerClient.postComment(key, "<p>JAI Generated Nice Looking Story In Gherkin Style And Potential Questions To PO: </p>" + response);
     }
 
     public String checkStoryIsTechnicalOrProduct(ITicket ticket) throws Exception {
-        String aiRequest = promptManager.checkTaskTechnicalOrProduct(new TicketBasedPrompt(ticket));
+        String aiRequest = promptManager.checkTaskTechnicalOrProduct(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
         return openAIClient.chat(aiRequest);
     }
 
-    public String checkStoryAreas(ITicket ticket, String[] areas) throws Exception {
-        String aiRequest = promptManager.checkStoryAreas(new BAStoryAreaPrompt(ticket, areas));
+    public String chooseFeatureAreaForStory(ITicket ticket, String areas) throws Exception {
+        String aiRequest = promptManager.checkStoryAreas(new BAStoryAreaPrompt(trackerClient.getBasePath(), ticket, areas));
+        return openAIClient.chat(
+                aiRequest
+        );
+    }
+
+    public String whatIsFeatureAreaOfStory(ITicket ticket) throws Exception {
+        String aiRequest = promptManager.whatIsFeatureAreaOfStory(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
+        return openAIClient.chat(aiRequest);
+    }
+
+    public JSONArray whatIsFeatureAreasOfDataInput(ITicket ticket) throws Exception {
+        String aiRequest = promptManager.whatIsFeatureAreasOfDataInput(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
+        return new JSONArray(openAIClient.chat(aiRequest));
+    }
+
+    public String buildDetailedPageWithRequirementsForInputData(ITicket ticket, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildDetailedPageWithRequirementsForInputData(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
     public String buildNiceLookingDocumentationForStory(ITicket ticket, String existingContent) throws Exception {
-        String aiRequest = promptManager.buildNiceLookingDocumentation(new NiceLookingDocumentationPrompt(ticket, existingContent));
+        String aiRequest = promptManager.buildNiceLookingDocumentation(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
+        return openAIClient.chat(aiRequest);
+    }
+
+    public String buildProjectTimeline(ITicket ticket, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildProjectTimelinePage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
+        return openAIClient.chat(aiRequest);
+    }
+
+    public String buildTeamSetupAndLicenses(ITicket ticket, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildTeamSetupAndLicensesPage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
+        return openAIClient.chat(aiRequest);
+    }
+
+    public String buildNiceLookingDocumentationForStoryWithTechnicalDetails(ITicket ticket, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildNiceLookingDocumentationWithTechnicalDetails(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
     public Double estimateStory(String role, String key, List<? extends ITicket> existingStories, boolean isCheckDetailsOfStory) throws Exception {
         ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-        String aiRequest = promptManager.checkSimilarStories(new BASimilarStoriesPrompt(ticket, existingStories));
+        String aiRequest = promptManager.checkSimilarStories(new BASimilarStoriesPrompt(trackerClient.getBasePath(), ticket, existingStories));
         String response = openAIClient.chat(aiRequest);
         JSONArray array = new JSONArray(response);
         List<ITicket> finalResults = new ArrayList<>();
@@ -149,7 +186,7 @@ public class JAssistant {
             String similarKey = array.getString(i);
             ITicket similarTicket = trackerClient.performTicket(similarKey, trackerClient.getExtendedQueryFields());
             if (isCheckDetailsOfStory) {
-                BASimilarStoriesPrompt baSimilarStoriesPrompt = new BASimilarStoriesPrompt(role, ticket, similarTicket);
+                BASimilarStoriesPrompt baSimilarStoriesPrompt = new BASimilarStoriesPrompt(trackerClient.getBasePath(), role, ticket, similarTicket);
                 String chatRequest = promptManager.validateSimilarStory(baSimilarStoriesPrompt);
                 String isSimilarStory = openAIClient.chat(
                     "gpt-35-turbo",
@@ -164,7 +201,7 @@ public class JAssistant {
         for (ITicket result : finalResults) {
             logger.log(Level.DEBUG,result.getTicketTitle() + " " + result.getWeight());
         }
-        String finalAiRequest = promptManager.estimateStory(new BASimilarStoriesPrompt(ticket, finalResults));
+        String finalAiRequest = promptManager.estimateStory(new BASimilarStoriesPrompt(trackerClient.getBasePath(), ticket, finalResults));
         String finalEstimations = openAIClient.chat(finalAiRequest);
         return findFirstNumberInTheString(finalEstimations);
     }
@@ -197,7 +234,7 @@ public class JAssistant {
         }
 
         ITicket ticket = trackerClient.performTicket(keys.get(0), trackerClient.getExtendedQueryFields());
-        PullRequestReview input = new PullRequestReview(role, ticket);
+        PullRequestReview input = new PullRequestReview(trackerClient.getBasePath(), role, ticket);
         input.setTicket(ticket);
 
         if (!IssueType.isBug(ticket.getIssueType())) {
@@ -223,4 +260,75 @@ public class JAssistant {
     }
 
 
+    public JSONObject createFeatureAreasTree(String inputAreas) throws Exception {
+        String prompt = promptManager.createFeatureAreasTree(new InputPrompt(inputAreas));
+        String response = openAIClient.chat(prompt);
+        return new JSONObject(response);
+    }
+
+    public JSONArray cleanFeatureAreas(String inputAreas) throws Exception {
+        String prompt = promptManager.cleanFeatureAreas(new InputPrompt(inputAreas));
+        String response = openAIClient.chat(prompt);
+        JSONArray cleanedAreas = new JSONArray(response);
+
+        List<String> list = new ArrayList<>();
+        for(int i=0; i < cleanedAreas.length(); i++){
+            list.add(cleanedAreas.getString(i));
+        }
+        Collections.sort(list);
+
+        JSONArray sortedJsonArray = new JSONArray(list);
+        return sortedJsonArray;
+    }
+
+    public void identifyIsContentRelatedToRequirementsAndMarkViaLabel(String prefix, ITicket ticket) throws Exception {
+        if (isTicketWasIdentified(prefix, ticket, LABEL_REQUIREMENTS)) {
+            return;
+        }
+
+        String prompt = String.valueOf(promptManager.isContentRelatedToRequirements(new TicketBasedPrompt("", ticket)));
+        Boolean isRequirements = Boolean.parseBoolean(openAIClient.chat(prompt));
+        if (isRequirements) {
+            trackerClient.addLabelIfNotExists(ticket, prefix + "_" + LABEL_REQUIREMENTS);
+        } else {
+            trackerClient.addLabelIfNotExists(ticket, prefix + "_not_" + LABEL_REQUIREMENTS);
+        }
+    }
+
+    private boolean isTicketWasIdentified(String prefix, ITicket ticket, String labelName) {
+        return TrackerClient.Utils.isLabelExists(ticket, prefix + "_" + labelName) || TrackerClient.Utils.isLabelExists(ticket, prefix + "_not_" + labelName) ;
+    }
+
+    public void identifyIsContentRelatedToTimelineAndMarkViaLabel(String prefix, ITicket ticket) throws Exception {
+        if (isTicketWasIdentified(prefix, ticket, LABEL_TIMELINE)) {
+            return;
+        }
+
+        String prompt = String.valueOf(promptManager.isContentRelatedToTimeline(new TicketBasedPrompt("", ticket)));
+        Boolean isTimeline = Boolean.parseBoolean(openAIClient.chat(prompt));
+        if (isTimeline) {
+            trackerClient.addLabelIfNotExists(ticket, prefix + "_" + LABEL_TIMELINE);
+        } else {
+            trackerClient.addLabelIfNotExists(ticket, prefix + "_not_" + LABEL_TIMELINE);
+        }
+    }
+
+    public void identifyIsContentRelatedToTeamSetupAndMarkViaLabel(String prefix, ITicket ticket) throws Exception {
+        if (isTicketWasIdentified(prefix, ticket, LABEL_TEAM_SETUP)) {
+            return;
+        }
+
+        String prompt = String.valueOf(promptManager.isContentRelatedToTeamSetup(new TicketBasedPrompt("", ticket)));
+        Boolean isTeamSetup = Boolean.parseBoolean(openAIClient.chat(prompt));
+        if (isTeamSetup) {
+            trackerClient.addLabelIfNotExists(ticket, prefix + "_" + LABEL_TEAM_SETUP);
+        } else {
+            trackerClient.addLabelIfNotExists(ticket, prefix + "_not_" + LABEL_TEAM_SETUP);
+        }
+    }
+
+    public String combineTextAndImage(String text, java.io.File pageSnapshot) throws Exception {
+        String prompt = promptManager.combineTextAndImage(new InputPrompt(text));
+        return openAIClient.chat("gpt-4-vision-preview", prompt, pageSnapshot);
+    }
 }

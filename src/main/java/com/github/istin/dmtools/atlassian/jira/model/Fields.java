@@ -2,6 +2,7 @@ package com.github.istin.dmtools.atlassian.jira.model;
 
 import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONArray;
@@ -14,7 +15,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-public class Fields extends JSONModel {
+public class Fields extends JSONModel implements TrackerClient.TrackerTicketFields {
 
     public static final String SUMMARY = "summary";
     public static final String DESCRIPTION = "description";
@@ -25,7 +26,7 @@ public class Fields extends JSONModel {
     public static final String WATCHES = "watches";
     public static final String ISSUETYPE = "issuetype";
     public static final String RESOLUTION = "resolution";
-
+    public static final String STORY_POINTS = "customfield_10004";
     public static final String FIXVERSIONS = "fixVersions";
     public static final String ISSUE_LINKS = "issuelinks";
     public static final String LABELS = "labels";

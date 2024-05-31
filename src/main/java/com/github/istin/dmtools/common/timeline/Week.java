@@ -38,25 +38,27 @@ public class Week implements ReportIteration {
         return simpleDateFormat.format(startDate);
     }
 
+    @Override
     public Date getStartDate() {
         return startDate;
+    }
+
+    @Override
+    public Date getEndDate() {
+        return endDate;
+    }
+
+    @Override
+    public boolean isReleased() {
+        return getEndDate().getTime() < System.currentTimeMillis();
     }
 
     public String getEndDateAsString() {
         return simpleDateFormat.format(endDate);
     }
 
-    public boolean isMatchedToWeekTimelines(Calendar date) {
-        return startDate.getTime() <= date.getTimeInMillis() && endDate.getTime() >= date.getTimeInMillis();
-    }
-
     public boolean isMatchedToWeekTimelinesOrLess(Calendar date) {
         return endDate.getTime() >= date.getTimeInMillis();
-    }
-
-    @Override
-    public boolean isMatchedToIterationTimeline(Calendar date) {
-        return isMatchedToWeekTimelines(date);
     }
 
     @Override

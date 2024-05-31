@@ -1,15 +1,19 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
+import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 
 public class RemoteLink extends JSONModel implements ITicket {
 
@@ -143,8 +147,23 @@ public class RemoteLink extends JSONModel implements ITicket {
     }
 
     @Override
+    public ReportIteration getIteration() {
+        return null;
+    }
+
+    @Override
     public double getProgress() throws IOException {
         return new ITicket.ITicketProgress.Impl().calc(this);
+    }
+
+    @Override
+    public List<? extends IAttachment> getAttachments() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public TicketPriority getPriorityAsEnum() {
+        return null;
     }
 
     @Override

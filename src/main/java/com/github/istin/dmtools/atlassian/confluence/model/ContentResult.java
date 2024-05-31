@@ -26,4 +26,7 @@ public class ContentResult extends JSONModel {
         return getModels(Content.class, RESULTS);
     }
 
+    public List<Attachment> getAttachments() {
+        return getModels(Attachment.class, RESULTS);
+    }
 }

@@ -5,8 +5,10 @@ import com.github.istin.dmtools.atlassian.jira.model.*;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
+import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import okhttp3.*;
 import okhttp3.OkHttpClient.Builder;
@@ -75,6 +77,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     protected void initCache() throws IOException {
         File cache = new File(getCacheFolderName());
         log("cache folder: " + cache.getAbsolutePath());
+        if (!cache.exists()) {
+            cache.mkdirs();
+        }
         if (isClearCache) {
             cache.mkdirs();
             FileUtils.deleteDirectory(cache);
@@ -138,7 +143,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     @Override
-    public void addLabelIfNotExists(Ticket ticket, String label) throws IOException {
+    public void addLabelIfNotExists(ITicket ticket, String label) throws IOException {
         JSONArray jsonArray = ticket.getTicketLabels();
         if (jsonArray == null) {
             jsonArray = new JSONArray();
@@ -153,6 +158,11 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             jsonArray.put(label);
             log(updateField(ticket.getKey(), Fields.LABELS, jsonArray));
         }
+    }
+
+    @Override
+    public void deleteLabelInTicket(T ticket, String label) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     public String getAuthType() {
@@ -180,36 +190,6 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return (Class<T>) Ticket.class;
     }
 
-    public void createTicketInEpic(String project, Ticket ticket, String issueType, FieldsInitializer fieldsInitializer) throws IOException {
-        GenericRequest jiraRequest = createTicket();
-
-        String ticketName = ticket.getFields().getSummary();
-
-        JSONObject jsonObject = new JSONObject();
-        Fields fields = new Fields();
-        fields.set("project", new JSONObject().put("key", project));
-        fields.set("summary", ticketName);
-        fields.set(getEpic(), ticket.getKey());
-
-        fields.set("description",
-                "<h3>Please, see <a class=\"external-link\" href=\"" + getTicketBrowseUrl(ticket.getKey()) + "\" rel=\"nofollow\">description in epic</a></h3>\n");
-
-        IssueType value = new IssueType();
-        value.set("name", issueType);
-        fields.set(Fields.ISSUETYPE, value.getJSONObject());
-
-        if (fieldsInitializer != null) {
-            fieldsInitializer.init(fields);
-        }
-
-        jsonObject.put("fields", fields.getJSONObject());
-
-        jiraRequest.setBody(jsonObject.toString());
-        String post = jiraRequest.post();
-        log(post);
-        String key = new JSONObject(post).getString("key");
-        log(getTicketBrowseUrl(key));
-    }
 
     public void log(String message) {
         if (isLogEnabled) {
@@ -358,15 +338,20 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public T performTicket(String ticketKey, String[] fields) throws IOException {
-        GenericRequest jiraRequest = getTicket(ticketKey);
-        if (fields != null && fields.length > 0) {
-            jiraRequest.param("fields", StringUtils.concatenate(",", fields));
-        }
+        GenericRequest jiraRequest = createPerformTicketRequest(ticketKey, fields);
         String response = jiraRequest.execute();
         if (response.contains("errorMessages")) {
             return null;
         }
         return createTicket(response);
+    }
+
+    protected GenericRequest createPerformTicketRequest(String ticketKey, String[] fields) {
+        GenericRequest jiraRequest = getTicket(ticketKey);
+        if (fields != null && fields.length > 0) {
+            jiraRequest.param("fields", StringUtils.concatenate(",", fields));
+        }
+        return jiraRequest;
     }
 
     public List<RemoteLink> performGettingRemoteLinks(String ticket) throws IOException {
@@ -413,7 +398,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     @Override
-    public List<? extends IComment> getComments(String key, Ticket ticket) throws IOException {
+    public void deleteCommentIfExists(String ticketKey, String comment) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<? extends IComment> getComments(String key, T ticket) throws IOException {
         return new CommentsResult(comment(key, ticket).execute()).getComments();
     }
 
@@ -433,8 +423,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @NotNull
     public File getCachedFile(String url) {
         String value = DigestUtils.md5Hex(url);
-        File cachedFile = new File(getCacheFolderName() + "/" + value);
-        return cachedFile;
+        String imageExtension = Impl.getFileImageExtension(url);
+        return new File(getCacheFolderName() + "/" + value + imageExtension);
     }
 
     @Override
@@ -448,10 +438,21 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         new GenericRequest(this, path("issue/" + ticket + "/remotelink?globalId=" + URLEncoder.encode(globalId))).delete();
     }
 
-    public List<FixVersion> getFixVersions(final String project) throws IOException {
+    @Override
+    public List<? extends ReportIteration> getFixVersions(final String project) throws IOException {
         GenericRequest genericRequest = new GenericRequest(this, path("project/" + project + "/versions"));
         genericRequest.setIgnoreCache(true);
         return JSONModel.convertToModels(FixVersion.class, new JSONArray(genericRequest.execute()));
+    }
+
+    public String createFixVersion(final String project, String fixVersion, Date startDate, Date endDate) throws IOException {
+        GenericRequest genericRequest = new GenericRequest(this, basePath + "/rest/api/2/project/" + project + "/version");
+        genericRequest.setBody(new JSONObject()
+                .put("name", fixVersion)
+                        .put("startDate", DateUtils.formatToJiraDate(startDate.getTime()))
+                .put("releaseDate", DateUtils.formatToJiraDate(endDate.getTime()))
+                .toString());
+        return post(genericRequest);
     }
 
     public List<Component> getComponents(final String project) throws IOException {
@@ -465,7 +466,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     public GenericRequest fixVersion(final FixVersion fixVersion) {
-        return new GenericRequest(this, path("version/" + fixVersion.getId()));
+        return new GenericRequest(this, path("version/" + fixVersion.getIdAsString()));
     }
 
     public String moveFixVersion(final FixVersion fixVersion, final FixVersion afterFixVersion) throws IOException {
@@ -494,10 +495,10 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return JSONModel.convertToModels(ProjectStatus.class, new JSONArray(new GenericRequest(this, path("project/" + project + "/statuses")).execute()));
     }
 
-    public FixVersion findVersion(final String fixVersion, String project) throws IOException {
-        List<FixVersion> fixVersions = getFixVersions(project);
-        for (FixVersion version : fixVersions) {
-            if (version.getName().equalsIgnoreCase(fixVersion)) {
+    public ReportIteration findVersion(final String fixVersion, String project) throws IOException {
+        List<? extends ReportIteration> fixVersions = getFixVersions(project);
+        for (ReportIteration version : fixVersions) {
+            if (version.getIterationName().equalsIgnoreCase(fixVersion)) {
                 return version;
             }
         }
@@ -508,35 +509,19 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return new GenericRequest(this, path("issue"));
     }
 
-    public static interface FieldsInitializer {
-
-        void init(Fields fields);
-
-    }
-
-
-    public String createEpicOrFind(String project, String summary, String description) throws IOException {
-        return createEpicOrFind(project, summary, description, null);
-    }
-
-    public String createEpicOrFind(String project, String summary, String description, FieldsInitializer fieldsInitializer) throws IOException {
-        summary = summary.replaceAll("\\\\", "/").replaceAll("'", "");
-        SearchResult search = searchByEpicName(project, summary);
-        if (search.getTotal() > 0) {
-            return search.getIssues().get(0).getKey();
-        }
+    @Override
+    public String createTicketInProject(String project, String issueType, String summary, String description, FieldsInitializer fieldsInitializer) throws IOException {
         GenericRequest jiraRequest = createTicket();
+
         JSONObject jsonObject = new JSONObject();
         Fields fields = new Fields();
         fields.set("project", new JSONObject().put("key", project));
         fields.set("summary", summary);
-        fields.set(getEpicName(), summary);
 
-        fields.set("description",
-                description);
+        fields.set("description", description);
 
         IssueType value = new IssueType();
-        value.set("name", "Epic");
+        value.set("name", issueType);
         fields.set(Fields.ISSUETYPE, value.getJSONObject());
 
         if (fieldsInitializer != null) {
@@ -547,8 +532,47 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
         jiraRequest.setBody(jsonObject.toString());
         String post = jiraRequest.post();
-        log(post);
-        return new JSONObject(post).getString("key");
+        String key = new JSONObject(post).getString("key");
+        log(getTicketBrowseUrl(key));
+        return post;
+    }
+
+    public String createEpicOrFind(String project, String summary, String description) throws IOException {
+        return createEpicOrFind(project, summary, description, null);
+    }
+
+    public String createTicketInEpic(String project, Ticket ticket, String issueType, FieldsInitializer fieldsInitializer) throws IOException {
+        String summary = ticket.getFields().getSummary();
+        String description = "<h3>Please, see <a class=\"external-link\" href=\"" + getTicketBrowseUrl(ticket.getKey()) + "\" rel=\"nofollow\">description in epic</a></h3>\n";
+        return createTicketInProject(project, issueType, summary, description, new FieldsInitializer() {
+
+            @Override
+            public void init(TrackerTicketFields fields) {
+                ((Fields)fields).set(getEpic(), ticket.getKey());
+                if (fieldsInitializer != null) {
+                    fieldsInitializer.init(fields);
+                }
+            }
+        });
+    }
+
+    public String createEpicOrFind(String project, String summary, String description, FieldsInitializer fieldsInitializer) throws IOException {
+        summary = summary.replaceAll("\\\\", "/").replaceAll("'", "");
+        SearchResult search = searchByEpicName(project, summary);
+        if (search.getTotal() > 0) {
+            return search.getIssues().get(0).getKey();
+        }
+
+        String finalSummary = summary;
+        return createTicketInProject(project, "Epic", summary, description, new FieldsInitializer() {
+            @Override
+            public void init(TrackerTicketFields fields) {
+                fields.set(getEpicName(), finalSummary);
+                if (fieldsInitializer != null) {
+                    fieldsInitializer.init(fields);
+                }
+            }
+        });
     }
 
     private SearchResult searchByEpicName(String project, String summary) throws IOException {
@@ -647,9 +671,11 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return updateResult;
     }
 
-    private Request.Builder sign(Request.Builder builder) {
+    @Override
+    public Request.Builder sign(Request.Builder builder) {
         return builder
                 .header("Authorization", authType + " " + authorization)
+                .header("X-Atlassian-Token", "nocheck")
                 .header("Content-Type", "application/json");
     }
 
@@ -686,6 +712,43 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     public String execute(String url) throws IOException {
         return execute(url, true, false);
+    }
+
+    public void attachFileToTicket(String ticketKey, String name, String contentType, File file) throws IOException {
+        if (contentType == null) {
+            contentType = "image/*";
+        }
+        String[] fields = {Fields.ATTACHMENT, Fields.SUMMARY};
+        T t = performTicket(ticketKey, fields);
+        List<? extends IAttachment> attachments = t.getAttachments();
+        for (IAttachment attachment : attachments) {
+            if (attachment.getName().equalsIgnoreCase(name)) {
+                return;
+            }
+        }
+
+        String url = path("issue/" + ticketKey + "/attachments");
+        // Prepare the file part
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", name,
+                        okhttp3.RequestBody.Companion.create(file, MediaType.parse(contentType))
+                ).build();
+
+        // Create the request
+        Request request = sign(new Request.Builder()
+                .url(url)
+                .post(requestBody)
+        )
+                .build();
+
+        // Execute the request
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+            System.out.println(response.body().string());
+            clearCache(createPerformTicketRequest(ticketKey, fields));
+        }
     }
 
     private String execute(String url, boolean isRepeatIfFails, boolean isIgnoreCache) throws IOException {
@@ -778,7 +841,19 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 .post(body)
                 .build()
         ).execute()) {
-            return response.body() != null ? response.body().string() : null;
+            if (response.isSuccessful()) {
+                System.out.println("Fix version created successfully!");
+                return response.body() != null ? response.body().string() : null;
+            } else {
+                int code = response.code();
+                System.err.println("Error creating fix version. Response code: " + code);
+                ResponseBody responseBody = response.body();
+                String responseBodyAsString = responseBody != null ? responseBody.string() : "";
+                if (responseBody != null) {
+                    System.err.println("Response body: " + responseBodyAsString);
+                }
+                return responseBodyAsString;
+            }
         } finally {
             client.connectionPool().evictAll();
         }
@@ -1052,5 +1127,20 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     public String getDefaultStatusField() {
         return "status";
+    }
+
+    @Override
+    public boolean isValidImageUrl(String url) {
+        return url.startsWith(getBasePath()) && (url.endsWith("png") || url.endsWith("jpg") || url.endsWith("jpeg"));
+    }
+
+    @Override
+    public File convertUrlToFile(String href) throws IOException {
+        return Impl.downloadFile(this, new GenericRequest(this, href), getCachedFile(href));
+    }
+
+    @Override
+    public OkHttpClient getClient() {
+        return client;
     }
 }

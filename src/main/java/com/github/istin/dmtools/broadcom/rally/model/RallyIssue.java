@@ -2,21 +2,24 @@ package com.github.istin.dmtools.broadcom.rally.model;
 
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Resolution;
+import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.common.tracker.model.Workflow;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 
 public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIssue> {
 
@@ -101,10 +104,10 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
         String iterationName = getIterationName();
         String secondIterationName = o.getIterationName();
 
-        Integer compareResult = sortByTwoStrings(iterationName, secondIterationName);
+        Integer compareResult = StringUtils.sortByTwoStrings(iterationName, secondIterationName);
         if (compareResult != null) return compareResult;
 
-        Integer typeCompare = sortByTwoStrings(getType(), o.getType());
+        Integer typeCompare = StringUtils.sortByTwoStrings(getType(), o.getType());
         if (typeCompare != null) return typeCompare;
 
         int workFlowComparison = compareWorkflow(o);
@@ -116,8 +119,8 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
     }
 
     private int comparePriority(@NotNull RallyIssue o) {
-        Priority priorityAsEnum = this.getPriorityAsEnum();
-        Priority secondObjectPriority = o.getPriorityAsEnum();
+        TicketPriority priorityAsEnum = this.getPriorityAsEnum();
+        TicketPriority secondObjectPriority = o.getPriorityAsEnum();
         return priorityAsEnum.compareTo(secondObjectPriority);
     }
 
@@ -131,45 +134,6 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
         }
     }
 
-    @Nullable
-    private static Integer sortByTwoStrings(String firstString, String secondString) {
-        // Null check for iterationName and secondIterationName
-        if (firstString !=null && secondString !=null) {
-            // Sort by iterationName first
-            int nameCompare = firstString.compareTo(secondString);
-            if(nameCompare != 0) {
-                return nameCompare;
-            }
-        } else if (firstString != null) {
-            return -1;
-        } else if (secondString != null) {
-            return 1;
-        }
-        return null;
-    }
-
-
-    public static enum Priority {
-        High_Attention,
-
-        High,
-        Medium,
-
-        Normal,
-        Low,
-        NotSet;
-
-        public static Priority byName(String name) {
-            if (name == null) {
-                return NotSet;
-            }
-            try {
-                return valueOf(name.replace(" ", "_"));
-            } catch (Exception ignored) {
-                return NotSet;
-            }
-        }
-    }
 
     @Override
     public String getPriority() throws IOException {
@@ -184,9 +148,10 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
         return null;
     }
 
-    public Priority getPriorityAsEnum() {
+    @Override
+    public TicketPriority getPriorityAsEnum() {
         try {
-            return Priority.byName(getPriority());
+            return TicketPriority.byName(getPriority());
         } catch (IOException e) {
             throw new IllegalStateException();
         }
@@ -302,6 +267,15 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
     @Override
     public double getProgress() throws IOException {
         return new ITicket.ITicketProgress.Impl().calc(this);
+    }
+
+    @Override
+    public List<? extends IAttachment> getAttachments() {
+        return Collections.emptyList();
+    }
+
+    public String getAttachmentsRefs() {
+        return getJSONObject("Attachments").optString(RallyFields._REF);
     }
 
     @Override

@@ -1,7 +1,9 @@
 package com.github.istin.dmtools.atlassian.confluence;
 
+import com.github.istin.dmtools.atlassian.confluence.model.Attachment;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.confluence.model.ContentResult;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.report.ReportUtils;
 import com.github.istin.dmtools.report.freemarker.GenericReport;
 import freemarker.template.TemplateException;
@@ -9,8 +11,30 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 public class BasicConfluence extends Confluence {
+
+    public static final String BASE_PATH;
+    public static final String LOGIN_PASS_TOKEN;
+    public static final String DEFAULT_SPACE;
+
+
+    static {
+        PropertyReader propertyReader = new PropertyReader();
+        BASE_PATH = propertyReader.getConfluenceBasePath();
+        LOGIN_PASS_TOKEN = propertyReader.getConfluenceLoginPassToken();
+        DEFAULT_SPACE = propertyReader.getConfluenceDefaultSpace();
+    }
+
+    private static BasicConfluence instance;
+
+    public static BasicConfluence getInstance() throws IOException {
+        if (instance == null) {
+            instance = new BasicConfluence(BASE_PATH, LOGIN_PASS_TOKEN, DEFAULT_SPACE);
+        }
+        return instance;
+    }
 
     private final String defaultSpace;
 
@@ -25,6 +49,10 @@ public class BasicConfluence extends Confluence {
             content = createPage(title, parentId, body, defaultSpace);
         }
         return content;
+    }
+
+    public Content updatePage(Content content, String body) throws IOException {
+        return updatePage(content.getId(), content.getTitle(), content.getParentId(), body, defaultSpace);
     }
 
     public Content updatePage(String contentId, String title, String parentId, String body) throws IOException {
@@ -43,6 +71,10 @@ public class BasicConfluence extends Confluence {
         return content(title, defaultSpace);
     }
 
+    public List<Attachment> contentAttachments(String contentId) throws IOException {
+        return getContentAttachments(contentId);
+    }
+
     public Content publishPageToDefaultSpace(String rootPage, String subPage, GenericReport genericReport) throws IOException, TemplateException {
         String name = genericReport.getName();
         new ReportUtils().write(name, "table_report", genericReport, null);
@@ -54,5 +86,15 @@ public class BasicConfluence extends Confluence {
 
         updatePage(content.getId(), name, findContent(subPageName).getId(), macroCloudHTML(fileContent));
         return content;
+    }
+
+    public void attachFileToPageInDefaultSpace(String contentTitle, File file) throws IOException {
+        Content content = findContent(contentTitle);
+        attachFileToPage(content.getId(), file);
+        insertImageInPageBody(defaultSpace, content.getId(), file.getName());
+    }
+
+    public List<Content> getChildrenOfContentByName(String contentName) throws IOException {
+        return getChildrenOfContentByName(getDefaultSpace(), contentName);
     }
 }

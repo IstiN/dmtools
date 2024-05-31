@@ -8,8 +8,8 @@ public class TicketFilePrompt extends TicketBasedPrompt {
     private final String role;
     private File file;
 
-    public TicketFilePrompt(String role, ITicket ticket, File file) {
-        super(ticket);
+    public TicketFilePrompt(String basePath, String role, ITicket ticket, File file) {
+        super(basePath, ticket);
         this.role = role;
         this.file = file;
     }

@@ -8,8 +8,8 @@ import java.util.List;
 
 public class CodeGeneration extends TicketBasedPrompt {
 
-    public CodeGeneration(String role, ITicket ticket) {
-        super(ticket);
+    public CodeGeneration(String basePath, String role, ITicket ticket) {
+        super(basePath, ticket);
         this.role = role;
     }
 

@@ -1,9 +1,7 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
-import com.github.istin.dmtools.common.model.ITicket;
-import com.github.istin.dmtools.common.model.IUser;
-import com.github.istin.dmtools.common.model.JSONModel;
-import com.github.istin.dmtools.common.model.Key;
+import com.github.istin.dmtools.common.model.*;
+import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -11,6 +9,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
 
 public class Ticket extends JSONModel implements ITicket {
 
@@ -42,8 +41,32 @@ public class Ticket extends JSONModel implements ITicket {
     }
 
     @Override
+    public ReportIteration getIteration() {
+        List<FixVersion> fixVersions = getFields().getFixVersions();
+        if (fixVersions != null && !fixVersions.isEmpty()) {
+            return fixVersions.get(0);
+        }
+        return null;
+    }
+
+    @Override
     public double getProgress() throws IOException {
         return new ITicket.ITicketProgress.Impl().calc(this);
+    }
+
+    @Override
+    public List<? extends IAttachment> getAttachments() {
+        Fields fields = getFields();
+        return fields.getAttachments();
+    }
+
+    @Override
+    public TicketPriority getPriorityAsEnum() {
+        try {
+            return TicketPriority.byName(getPriority());
+        } catch (IOException e) {
+            throw new IllegalStateException();
+        }
     }
 
     public String getId() {
@@ -61,7 +84,11 @@ public class Ticket extends JSONModel implements ITicket {
 
     @Override
     public String getPriority() throws IOException {
-        return getFields().getPriority().getName();
+        Priority priority = getFields().getPriority();
+        if (priority == null) {
+            return null;
+        }
+        return priority.getName();
     }
 
     @Override
@@ -153,5 +180,10 @@ public class Ticket extends JSONModel implements ITicket {
     @Override
     public int hashCode() {
         return getKey().hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return getJSONObject().toString();
     }
 }

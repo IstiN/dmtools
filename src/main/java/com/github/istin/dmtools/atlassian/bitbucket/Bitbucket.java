@@ -2,6 +2,7 @@ package com.github.istin.dmtools.atlassian.bitbucket;
 
 import com.github.istin.dmtools.atlassian.bitbucket.model.*;
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
+import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import org.jetbrains.annotations.NotNull;
@@ -13,7 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class Bitbucket extends AtlassianRestClient {
+public class Bitbucket extends AtlassianRestClient implements SourceCode {
 
     public static final boolean IGNORE_CACHE = false;
 
@@ -52,6 +53,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public List<PullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
         List<PullRequest> result = new ArrayList<>();
         int start = getInitialStartValue();
@@ -131,6 +133,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public PullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestPath(workspace, repository, pullRequestId)));
         getRequest.setIgnoreCache(true);
@@ -147,6 +150,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public JSONModel pullRequestComments(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = createPullRequestCommentsRequest(workspace, repository, pullRequestId);
         String response = execute(getRequest);
@@ -171,6 +175,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public BitbucketResult pullRequestActivities(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestActivityPath(workspace, repository, pullRequestId)));
         if (apiVersion == ApiVersion.V2) {
@@ -212,6 +217,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public BitbucketResult pullRequestTasks(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestTasksPath(workspace, repository, pullRequestId)));
         String response = execute(getRequest);
@@ -230,6 +236,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public String addTask(Integer commentId, String text) throws IOException {
         //it's not supported in api V2
         GenericRequest getRequest = new GenericRequest(this, path("tasks"));
@@ -252,6 +259,7 @@ public class Bitbucket extends AtlassianRestClient {
     }
 
 
+    @Override
     public String createPullRequestCommentAndTaskIfNotExists(String workspace, String repository, String pullRequestId, String commentText, String taskText) throws IOException {
         BitbucketResult bitbucketResult = pullRequestTasks(workspace, repository, pullRequestId);
         if (bitbucketResult.getJSONObject().toString().contains(commentText)) {
@@ -260,6 +268,7 @@ public class Bitbucket extends AtlassianRestClient {
         return createPullRequestCommentAndTask(workspace, repository, pullRequestId, commentText, taskText);
     }
 
+    @Override
     public String createPullRequestCommentAndTask(String workspace, String repository, String pullRequestId, String commentText, String taskText) throws IOException {
         BitbucketResult bitbucketResult = pullRequestTasks(workspace, repository, pullRequestId);
         List<Task> tasks = bitbucketResult.getTasks();
@@ -272,6 +281,7 @@ public class Bitbucket extends AtlassianRestClient {
         return addTask(new JSONModel(result).getInt("id"), taskText);
     }
 
+    @Override
     public String addPullRequestComment(String workspace, String repository, String pullRequestId, String text) throws IOException {
         GenericRequest getRequest = createPullRequestCommentsRequest(workspace, repository, pullRequestId);
         JSONObject jsonObject = createPullRequestCommentObject(text);
@@ -293,6 +303,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public JSONModel commitComments(String workspace, String repository, String commitId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path("projects/" + workspace + "/repos/" + repository + "/commits/" + commitId + "/comments"));
         String response = execute(getRequest);
@@ -303,7 +314,7 @@ public class Bitbucket extends AtlassianRestClient {
         return new JSONModel(response);
     }
 
-
+    @Override
     public String renamePullRequest(String workspace, String repository, PullRequest pullRequest, String newTitle) throws IOException {
         String updateTitleIfWip = (pullRequest.isWIP() ? upgradeTitleToWIP(newTitle) : newTitle).trim();
 
@@ -326,6 +337,7 @@ public class Bitbucket extends AtlassianRestClient {
     }
 
 
+    @Override
     public List<Tag> getTags(String workspace, String repository) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, buildTagsPath(workspace, repository));
         getRequest.param(getPageLimitField(), defaultLimit);
@@ -344,6 +356,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public List<Tag> getBranches(String workspace, String repository) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildGetBranchesPath(workspace, repository)));
         getRequest.param(getPageLimitField(), defaultLimit);
@@ -364,6 +377,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public List<Commit> getCommitsBetween(String workspace, String repository, String from, String to) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPathGetCommitsBetween(workspace, repository, from, to)));
         getRequest.param(getPageLimitField(), String.valueOf(defaultLimit));
@@ -383,6 +397,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public List<Commit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException {
         List<Commit> commits = new ArrayList<>();
         int start = getInitialStartValue();
@@ -413,6 +428,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public void performCommitsFromBranch(String workspace, String repository, String branchName, Performer<Commit> performer) throws Exception {
         int prevSize = 0;
         int currentSize = 0;
@@ -442,6 +458,7 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public BitbucketResult getCommitDiff(String workspace, String repository, String commitId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path("projects/" + workspace + "/repos/" + repository + "/commits/" + commitId +"/diff?AUTOSRCPATH&CONTEXTLINES&SINCE&SRCPATH&WHITESPACE&WITHCOMMENTS"));
         try {
@@ -456,11 +473,13 @@ public class Bitbucket extends AtlassianRestClient {
         }
     }
 
+    @Override
     public String getDiff(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path("repositories/" + workspace + "/" + repository + "/pullrequests/" + pullRequestId +"/diff"));
         return execute(getRequest);
     }
 
+    @Override
     public List<File> getListOfFiles(String workspace, String repository, String branchName)  throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path("repositories/" + workspace + "/" + repository + "/src/" + branchName +"/?max_depth=50"));
 //        getRequest.param(getNextPageField(), 1);
@@ -475,6 +494,7 @@ public class Bitbucket extends AtlassianRestClient {
         return result;
     }
 
+    @Override
     public String getFileContent(String selfLink) throws IOException {
         GenericRequest request = new GenericRequest(this, selfLink);
         return request.execute();

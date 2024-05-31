@@ -1,15 +1,17 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
 import com.github.istin.dmtools.atlassian.common.model.Assignee;
+import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Attachment extends JSONModel {
+public class Attachment extends JSONModel implements IAttachment {
 
     public static final String AUTHOR = "author";
 
     private static final String FILENAME = "filename";
+    public static final String CONTENT = "content";
 
     public Attachment() {
     }
@@ -30,4 +32,22 @@ public class Attachment extends JSONModel {
         return getString(FILENAME);
     }
 
+    public String getContent() {
+        return getString(CONTENT);
+    }
+
+    @Override
+    public String getName() {
+        return getFilename();
+    }
+
+    @Override
+    public String getUrl() {
+        return getContent();
+    }
+
+    @Override
+    public String getContentType() {
+        return null;
+    }
 }

@@ -1,13 +1,14 @@
 package com.github.istin.dmtools.broadcom.rally.model;
 
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.Calendar;
+import java.util.Date;
 
-public class Iteration extends JSONModel {
+public class Iteration extends JSONModel implements ReportIteration {
 
     public Iteration() {
     }
@@ -20,12 +21,29 @@ public class Iteration extends JSONModel {
         super(json);
     }
 
-    public Calendar getStartDate() {
-        return DateUtils.parseRallyCalendar(getString(RallyFields.START_DATE));
+    @Override
+    public String getIterationName() {
+        return getName();
     }
 
-    public Calendar getEndDate() {
-        return DateUtils.parseRallyCalendar(getString(RallyFields.END_DATE));
+    @Override
+    public int getId() {
+        return getName().hashCode();
+    }
+
+    @Override
+    public Date getStartDate() {
+        return DateUtils.parseRallyDate(getString(RallyFields.START_DATE));
+    }
+
+    @Override
+    public Date getEndDate() {
+        return DateUtils.parseRallyDate(getString(RallyFields.END_DATE));
+    }
+
+    @Override
+    public boolean isReleased() {
+        return getEndDate().getTime() < System.currentTimeMillis();
     }
 
     public String getName() {

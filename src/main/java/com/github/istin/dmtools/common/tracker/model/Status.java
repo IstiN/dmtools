@@ -22,6 +22,7 @@ public class Status extends JSONModel {
     public static final String IN_BUSINESS_ANALYSIS = "In Business Analysis";
     public static final String BA_BLOCKED = "BA Blocked";
     public static final String DONE = "Done";
+    public static final String COMPLETED = "Completed";
     public static final String REJECTED = "Rejected";
     public static final String DEFINED = "Defined";
     public static final String READY_FOR_RETEST = "Ready for retest";
@@ -64,6 +65,11 @@ public class Status extends JSONModel {
     public static final String CODE_REVIEW = "Code review";
     public static final String CANCELLED = "Cancelled";
     public static final String IN_ACCEPTANCE = "In Acceptance";
+    public static final String ACCEPTED = "Accepted";
+    public static final String RELEASE = "Release";
+    public static final String REVIEW = "Review";
+    public static final String TESTING = "Testing";
+    public static final String IN_PROGRESS = "In Progress";
 
     private static final String JSON_KEY_NAME = "name";
     private static final String JSON_KEY_NAME_UPPER_FIRST_CHAR = "Name";
@@ -191,6 +197,10 @@ public class Status extends JSONModel {
         return getName().equals(IN_REVIEW);
     }
 
+    public boolean isReview() {
+        return getName().equals(REVIEW);
+    }
+
     public boolean isCodeReview() {
         return getName().equals(CODE_REVIEW);
     }
@@ -217,6 +227,10 @@ public class Status extends JSONModel {
 
     public boolean isDone() {
         return getName().equalsIgnoreCase(DONE);
+    }
+
+    public boolean isCompleted() {
+        return getName().equalsIgnoreCase(COMPLETED);
     }
 
 
@@ -281,6 +295,16 @@ public class Status extends JSONModel {
         return name.equalsIgnoreCase(IN_ACCEPTANCE);
     }
 
+    public boolean isAccepted() {
+        String name = getName();
+        return name.equalsIgnoreCase(ACCEPTED);
+    }
+
+    public boolean isRelease() {
+        String name = getName();
+        return name.equalsIgnoreCase(RELEASE);
+    }
+
     public boolean isIntegrationDone() {
         String name = getName();
         return name.equalsIgnoreCase(INTEGRATION_DONE);
@@ -294,5 +318,20 @@ public class Status extends JSONModel {
     public boolean isInTesting() {
         String name = getName();
         return name.equalsIgnoreCase(IN_TESTING);
+    }
+
+    public boolean isTesting() {
+        String name = getName();
+        return name.equalsIgnoreCase(TESTING);
+    }
+
+    public boolean isInProgress() {
+        String name = getName();
+        return name.equalsIgnoreCase(IN_PROGRESS);
+    }
+
+    public boolean isOnHold() {
+        String name = getName();
+        return name.equalsIgnoreCase(ON_HOLD);
     }
 }

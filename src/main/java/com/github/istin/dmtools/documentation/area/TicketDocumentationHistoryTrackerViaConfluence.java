@@ -1,0 +1,39 @@
+package com.github.istin.dmtools.documentation.area;
+
+import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
+import com.github.istin.dmtools.atlassian.confluence.model.Content;
+import com.github.istin.dmtools.common.model.ITicket;
+import org.json.JSONArray;
+
+import java.io.IOException;
+
+public class TicketDocumentationHistoryTrackerViaConfluence implements ITicketDocumentationHistoryTracker {
+
+    private BasicConfluence confluence;
+
+    public TicketDocumentationHistoryTrackerViaConfluence(BasicConfluence confluence) {
+        this.confluence = confluence;
+    }
+
+    @Override
+    public boolean isTicketWasAddedToPage(ITicket ticket, String pageName) throws IOException {
+        Content content = confluence.findContent(pageName);
+        if (content == null) {
+            return false;
+        }
+        Content pageHistoryContent = confluence.findOrCreate(content.getTitle() + " History", content.getId(), "[]");
+        return pageHistoryContent.getStorage().getValue().contains(ticket.getTicketLink());
+    }
+
+    @Override
+    public void addTicketToPageHistory(ITicket ticket, String pageName) throws IOException {
+        Content content = confluence.findContent(pageName);
+        if (content == null) {
+            throw new IllegalStateException("something went wrong, page must be created created first");
+        }
+        Content pageHistoryContent = confluence.findOrCreate(content.getTitle() + " History", content.getId(), "[]");
+        JSONArray array = new JSONArray(pageHistoryContent.getStorage().getValue().replaceAll("&quot;", "\""));
+        array.put(ticket.getTicketLink());
+        confluence.updatePage(pageHistoryContent, array.toString());
+    }
+}

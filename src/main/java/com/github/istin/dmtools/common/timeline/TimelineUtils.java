@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.common.timeline;
 
 import com.github.istin.dmtools.broadcom.rally.model.Iteration;
+import com.github.istin.dmtools.common.utils.DateUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.text.SimpleDateFormat;
@@ -189,18 +190,18 @@ public class TimelineUtils {
         return quarters;
     }
 
-    public static List<Release> convertRallyIterationToRelease(Calendar startDate, List<Iteration> iterations) {
+    public static List<Release> convertRallyIterationToRelease(Calendar startDate, Calendar endDate, List<Iteration> iterations) {
         List<Release> releases = new ArrayList<>();
         int counter = 0;
         Calendar now = Calendar.getInstance();
         for (Iteration iteration : iterations) {
-            if (iteration.getStartDate().compareTo(startDate) < 0)
+            if (DateUtils.calendar(iteration.getStartDate()).compareTo(startDate) < 0 || DateUtils.calendar(iteration.getStartDate()).compareTo(endDate) > 0)
                 continue;
 
             Release release = new Release();
             release.setId(counter);
             release.setName(iteration.getName());
-            Sprint sprint = new Sprint(counter, iteration.getStartDate().getTime(), iteration.getEndDate().getTime(), -1) {
+            Sprint sprint = new Sprint(counter, iteration.getStartDate(), iteration.getEndDate(), -1) {
                 @Override
                 public String getIterationName() {
                     return iteration.getName();

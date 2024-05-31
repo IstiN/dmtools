@@ -1,5 +1,7 @@
 package com.github.istin.dmtools.common.utils;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -34,5 +36,22 @@ public class StringUtils {
             }
         }
         return resultsBuilder.toString();
+    }
+
+    @Nullable
+    public static Integer sortByTwoStrings(String firstString, String secondString) {
+        // Null check for iterationName and secondIterationName
+        if (firstString !=null && secondString !=null) {
+            // Sort by iterationName first
+            int nameCompare = firstString.compareTo(secondString);
+            if(nameCompare != 0) {
+                return nameCompare;
+            }
+        } else if (firstString != null) {
+            return -1;
+        } else if (secondString != null) {
+            return 1;
+        }
+        return null;
     }
 }

@@ -33,4 +33,8 @@ public class Comment extends JSONModel implements IComment {
     public String getId() {
         return getString("ObjectUUID");
     }
+
+    public String getRef() {
+        return getString("_ref");
+    }
 }

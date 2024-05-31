@@ -45,6 +45,9 @@ public class PropertyReader {
 		return getValue("JIRA_BASE_PATH");
 	}
 
+	public String getJiraAuthType() {
+		return getValue("JIRA_AUTH_TYPE");
+	}
 	public String getRallyToken() {
 		return getValue("RALLY_TOKEN");
 	}
@@ -77,6 +80,10 @@ public class PropertyReader {
 		return getValue("CONFLUENCE_LOGIN_PASS_TOKEN");
 	}
 
+	public String getConfluenceDefaultSpace() {
+		return getValue("CONFLUENCE_DEFAULT_SPACE");
+	}
+
 	public String getOpenAIBathPath() {
 		return getValue("OPEN_AI_BATH_PATH");
 	}
@@ -87,6 +94,14 @@ public class PropertyReader {
 
 	public String getOpenAIModel() {
 		return getValue("OPEN_AI_MODEL");
+	}
+
+	public String getFigmaBasePath() {
+		return getValue("FIGMA_BASE_PATH");
+	}
+
+	public String getFigmaApiKey() {
+		return getValue("FIGMA_TOKEN");
 	}
 
 }

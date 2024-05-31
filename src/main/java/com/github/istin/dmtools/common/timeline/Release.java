@@ -5,7 +5,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-public class Release {
+public class Release implements ReportIteration {
 
     public enum Style {
         BY_RELEASE,
@@ -50,8 +50,23 @@ public class Release {
         this.sprints = sprints;
     }
 
+    @Override
+    public String getIterationName() {
+        return getName();
+    }
+
     public int getId() {
         return id;
+    }
+
+    @Override
+    public Date getStartDate() {
+        return sprints.get(0).getStartDate();
+    }
+
+    @Override
+    public Date getEndDate() {
+        return sprints.get(sprints.size()-1).getEndDate();
     }
 
     public void setId(int id) {
@@ -66,18 +81,23 @@ public class Release {
         this.name = name;
     }
 
-    public Calendar getStartDate() {
-        Date startDate = sprints.get(0).getStartDate();
+    public Calendar getStartDateAsCalendar() {
+        Date startDate = getStartDate();
         Calendar instance = Calendar.getInstance();
         instance.setTime(startDate);
         return instance;
     }
 
-    public Calendar getEndDate() {
-        Date endDate = sprints.get(sprints.size()-1).getEndDate();
+    public Calendar getEndDateAsCalendar() {
+        Date endDate = getEndDate();
         Calendar instance = Calendar.getInstance();
         instance.setTime(endDate);
         return instance;
+    }
+
+    @Override
+    public boolean isReleased() {
+        return false;
     }
 
     public String getStartDateAsString() {
@@ -89,15 +109,15 @@ public class Release {
     }
 
     public boolean isMatchedToReleaseTimelines(Calendar date) {
-        return getStartDate().getTimeInMillis() <= date.getTimeInMillis() && getEndDate().getTimeInMillis() >= date.getTimeInMillis();
+        return getStartDateAsCalendar().getTimeInMillis() <= date.getTimeInMillis() && getEndDateAsCalendar().getTimeInMillis() >= date.getTimeInMillis();
     }
 
     public boolean beforeReleaseStart(Calendar date) {
-        return getStartDate().getTimeInMillis() > date.getTimeInMillis();
+        return getStartDateAsCalendar().getTimeInMillis() > date.getTimeInMillis();
     }
 
     public boolean afterReleaseEnds(Calendar date) {
-        return getEndDate().getTimeInMillis() < date.getTimeInMillis();
+        return getEndDateAsCalendar().getTimeInMillis() < date.getTimeInMillis();
     }
 
     public boolean getIsCurrent() {

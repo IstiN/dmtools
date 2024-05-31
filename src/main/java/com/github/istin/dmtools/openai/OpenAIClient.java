@@ -2,6 +2,7 @@ package com.github.istin.dmtools.openai;
 
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import com.github.istin.dmtools.openai.model.AIResponse;
 import okhttp3.Request;
@@ -10,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
 
 public class OpenAIClient extends AbstractRestClient {
@@ -38,6 +40,7 @@ public class OpenAIClient extends AbstractRestClient {
         super(basePath, authorization);
         this.model = model;
         this.conversationObserver = conversationObserver;
+        setCachePostRequestsEnabled(true);
     }
 
     public String getName() {
@@ -58,14 +61,14 @@ public class OpenAIClient extends AbstractRestClient {
 
     @Override
     public int getTimeout() {
-        return 300;
+        return 700;
     }
 
     public String chat(String message) throws Exception {
         return chat(model, message);
     }
 
-    public String chat(String model, String message) throws Exception {
+    public String chat(String model, String message, File imageFile) throws Exception {
         logger.info("-------- message to ai --------");
         logger.info(message);
         logger.info("-------- start chat ai --------");
@@ -73,14 +76,33 @@ public class OpenAIClient extends AbstractRestClient {
             conversationObserver.addMessage(new ConversationObserver.Message("DMTools", message));
         }
         GenericRequest postRequest = new GenericRequest(this, path("openai/deployments/" + model + "/chat/completions"));
-        postRequest.setIgnoreCache(true);
+//        postRequest.setIgnoreCache(true);
+
+        JSONArray messages = new JSONArray();;
+        if (imageFile != null) {
+            String extension = ImageUtils.getExtension(imageFile);
+            String imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
+            messages.put(new JSONObject()
+                    .put("role", "user")
+                    .put("content", new JSONArray()
+                            .put(new JSONObject()
+                                    .put("type", "text")
+                                    .put("text", message)
+                            )
+                            .put(new JSONObject()
+                                    .put("type", "image_url")
+                                    .put("image_url", new JSONObject()
+                                            .put("url", "data:image/"+extension+";base64," + imageBase64))
+                            )
+                    ));
+        } else {
+            messages.put(new JSONObject()
+                    .put("role", "user")
+                    .put("content", message));
+        }
         postRequest.setBody(new JSONObject()
-                .put("temperature", 0.2)
-                .put("messages", new JSONArray().put(
-                new JSONObject()
-                        .put("role", "user")
-                        .put("content", message)
-        )).toString());
+                .put("temperature", 0.1)
+                .put("messages", messages).toString());
         String response = post(postRequest);
         logger.info(response);
         String content = new AIResponse(response).getChoices().get(0).getMessage().getContent();
@@ -92,4 +114,9 @@ public class OpenAIClient extends AbstractRestClient {
         logger.info("-------- end chat ai --------");
         return content;
     }
+
+    public String chat(String model, String message) throws Exception {
+        return chat(model, message, null);
+    }
+
 }
