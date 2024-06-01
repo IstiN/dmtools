@@ -51,8 +51,8 @@ public class TicketBasedPrompt {
 
         @Override
         public String getTicketDescription() {
-            String ticketDescription = ticket.getTicketDescription();
-            List<? extends IAttachment> attachments = ticket.getAttachments();
+            String ticketDescription = getWrapped().getTicketDescription();
+            List<? extends IAttachment> attachments = getWrapped().getAttachments();
             if (attachments != null && !attachments.isEmpty()) {
                 for (IAttachment attachment : attachments) {
                     ticketDescription = ticketDescription + ("\n" + attachment.getName() + " " + attachment.getUrl());

@@ -102,6 +102,10 @@ public interface ITicket extends Key {
 
         private ITicket ticket;
 
+        public ITicket getWrapped() {
+            return ticket;
+        }
+
         public Wrapper(ITicket ticket) {
             this.ticket = ticket;
         }

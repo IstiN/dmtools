@@ -18,9 +18,15 @@ public class JobRunner {
 
     }
 
-    public static java.lang.String decodeBase64(java.lang.String input) {
+    public static String decodeBase64(String input) {
         byte[] decodedBytes = Base64.getDecoder().decode(input);
         // Convert the decoded bytes to a string
         return new java.lang.String(decodedBytes);
+    }
+
+    public static String encodeBase64(String input) {
+        byte[] decodedBytes = Base64.getEncoder().encode(input.getBytes());
+        // Convert the decoded bytes to a string
+        return new String(decodedBytes);
     }
 }

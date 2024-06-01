@@ -68,7 +68,7 @@ public class JEstimator {
     }
 
     public static void runJob(JEstimatorParams params) throws Exception {
-        runJob(params.getReportName(), params.getJQL());
+        runJob(params.getJQL(), params.getReportName());
     }
 
     private static void runJob(String jql, String reportName) throws Exception {

@@ -27,8 +27,16 @@ public class Job extends JSONModel {
         return getString(NAME);
     }
 
+    public void setName(String name) {
+        set(NAME, name);
+    }
+
     public JSONObject getParams() {
         return getJSONObject(PARAMS);
+    }
+
+    public void setParams(JSONModel model) {
+        set(PARAMS, model.getJSONObject());
     }
 
     public JEstimatorParams getJEstimatorParams() {

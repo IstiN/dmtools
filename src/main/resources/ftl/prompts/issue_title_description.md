@@ -1,4 +1,4 @@
 ```
-${issue.ticketTitle}
-${issue.ticketDescription}
+${(issue.ticketTitle)!""}
+${(issue.ticketDescription)!""}
 ```
