@@ -76,7 +76,7 @@ public class OpenAIClient extends AbstractRestClient {
             conversationObserver.addMessage(new ConversationObserver.Message("DMTools", message));
         }
         GenericRequest postRequest = new GenericRequest(this, path("openai/deployments/" + model + "/chat/completions"));
-        postRequest.setIgnoreCache(true);
+//        postRequest.setIgnoreCache(true);
 
         JSONArray messages = new JSONArray();;
         if (imageFile != null) {

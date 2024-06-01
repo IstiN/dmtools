@@ -245,12 +245,14 @@ public abstract class AbstractRestClient implements RestClient {
                 .build()
         ).execute()) {
             String responseAsString = response.body().string();
-            if (isCachePostRequestsEnabled) {
-                String value = DigestUtils.md5Hex(buildHashForPostRequest(genericRequest, url));
-                File cache = new File(getCacheFolderName());
-                cache.mkdirs();
-                File cachedFile = new File(getCacheFolderName() + "/" + value);
-                FileUtils.writeStringToFile(cachedFile, responseAsString);
+            if (response.isSuccessful()) {
+                if (isCachePostRequestsEnabled) {
+                    String value = DigestUtils.md5Hex(buildHashForPostRequest(genericRequest, url));
+                    File cache = new File(getCacheFolderName());
+                    cache.mkdirs();
+                    File cachedFile = new File(getCacheFolderName() + "/" + value);
+                    FileUtils.writeStringToFile(cachedFile, responseAsString);
+                }
             }
             return responseAsString;
         } finally {
