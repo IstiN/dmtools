@@ -6,12 +6,17 @@ import com.github.istin.dmtools.common.model.IChangelog;
 import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.timeline.ReportIteration;
+import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import org.json.JSONArray;
 
 import java.io.IOException;
 import java.util.List;
 
 public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImageFile {
+
+    enum TextType {
+        HTML, MARKDOWN
+    }
 
     String getBasePath();
 
@@ -57,6 +62,8 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
 
     List<? extends ReportIteration> getFixVersions(String projectCode) throws IOException;
 
+    TextType getTextType();
+
     interface TrackerTicketFields {
         void set(String key, Object object);
     }
@@ -71,7 +78,7 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
         public static String checkCommentStartedWith(TrackerClient trackerClient, String key, ITicket ticket, String commentPrefix) throws IOException {
             List<IComment> comments = trackerClient.getComments(key, ticket);
             for (IComment comment : comments) {
-                if (comment.getBody().startsWith(commentPrefix) || comment.getBody().startsWith("<p>"+commentPrefix)) {
+                if (comment.getBody().startsWith(commentPrefix) || comment.getBody().startsWith("<p>"+commentPrefix) || HtmlCleaner.cleanAllHtmlTags("", comment.getBody()).startsWith(commentPrefix)) {
                     return comment.getBody();
                 }
             }

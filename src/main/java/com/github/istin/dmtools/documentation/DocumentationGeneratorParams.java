@@ -30,6 +30,10 @@ public class DocumentationGeneratorParams extends JSONModel {
         return getString("jql");
     }
 
+    public boolean isReadFeatureAreasFromConfluenceRootPage() {
+        return getBoolean("isReadFeatureAreasFromConfluenceRootPage");
+    }
+
     public String[] getListOfStatusesToSort() {
         JSONArray listOfStatusesToSort = getJSONArray("listOfStatusesToSort");
         String[] listOfStatuses = new String[listOfStatusesToSort.length()];

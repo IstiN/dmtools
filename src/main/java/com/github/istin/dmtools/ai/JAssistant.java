@@ -5,14 +5,19 @@ import com.github.istin.dmtools.atlassian.bitbucket.model.File;
 import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
+import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.openai.input.*;
+import com.github.istin.dmtools.qa.TestCasesGeneratorParams;
+import io.github.furstenheim.CopyDown;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -109,16 +114,65 @@ public class JAssistant {
         }
     }
 
-    public void generateTestCases(String key, List<? extends ITicket> listOfAllTestCases) throws Exception {
-        ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-        String message = TrackerClient.Utils.checkCommentStartedWith(trackerClient, ticket.getKey(), ticket, TEST_CASES_COMMENT_PREFIX);
-        if (message != null) {
-            return;
+    public void generateTestCases(ITicket ticket, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
+        String key = ticket.getTicketKey();
+
+        if (outputType.equals(TestCasesGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
+            String message = TrackerClient.Utils.checkCommentStartedWith(trackerClient, ticket.getKey(), ticket, TEST_CASES_COMMENT_PREFIX);
+            if (message != null) {
+                return;
+            }
         }
 
-        String aiRequest = promptManager.requestTestCasesForStory(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
-        String response = openAIClient.chat(aiRequest);
-        trackerClient.postComment(key, TEST_CASES_COMMENT_PREFIX + response);
+        StringBuilder attachmentsDescription =
+                new StringBuilder();
+//         buildAttachmentsDescription(ticket);
+
+        List<ITicket> finaResults = new ArrayList<>();
+        for (ITicket testCase : listOfAllTestCases) {
+            SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(),  "", ticket, testCase);
+            similarStoriesPrompt.setAttachmentsDescription(attachmentsDescription.toString());
+
+            String chatRequest = promptManager.validateTestCaseRelatedToStory(similarStoriesPrompt);
+            String isRelatedToStory = openAIClient.chat(
+                    "gpt-35-turbo",
+                    chatRequest);
+            if (Boolean.parseBoolean(isRelatedToStory)) {
+                finaResults.add(testCase);
+            }
+        }
+
+        QATestCasesPrompt qaTestCasesPrompt = new QATestCasesPrompt(trackerClient.getBasePath(), ticket, testCasesPriorities);
+        qaTestCasesPrompt.setAttachmentsDescription(attachmentsDescription.toString());
+        qaTestCasesPrompt.setTestCases(finaResults);
+
+        if (outputType.equals(TestCasesGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
+            String aiRequest = promptManager.requestTestCasesForStoryAsHTML(qaTestCasesPrompt);
+            String response = openAIClient.chat(aiRequest);
+            String comment = TEST_CASES_COMMENT_PREFIX + response;
+            if (trackerClient.getTextType() == TrackerClient.TextType.HTML) {
+                trackerClient.postComment(key, comment);
+            } else if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+                CopyDown converter = new CopyDown();
+                trackerClient.postComment(key, converter.convert(comment).replaceAll("\\*\\*", "*"));
+            }
+        }
+    }
+
+    public @NotNull StringBuilder buildAttachmentsDescription(ITicket ticket) throws Exception {
+        List<? extends IAttachment> attachments = ticket.getAttachments();
+        StringBuilder attachmentsDescription = new StringBuilder();
+        if (!attachments.isEmpty()) {
+            for (IAttachment attachment : attachments) {
+                if (!RestClient.Impl.getFileImageExtension(attachment.getName()).isEmpty()) {
+                    java.io.File pageSnapshot = trackerClient.convertUrlToFile(attachment.getUrl());
+                    String extendedDescription = combineTextAndImage(ticket.getTicketTitle() + "\n" + ticket.getTicketDescription() + "\n" + attachmentsDescription, pageSnapshot);
+                    attachmentsDescription.append(extendedDescription).append("\n");
+                }
+            }
+
+        }
+        return attachmentsDescription;
     }
 
     public void generateNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO(String key) throws Exception {
@@ -178,7 +232,7 @@ public class JAssistant {
 
     public Double estimateStory(String role, String key, List<? extends ITicket> existingStories, boolean isCheckDetailsOfStory) throws Exception {
         ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-        String aiRequest = promptManager.checkSimilarStories(new BASimilarStoriesPrompt(trackerClient.getBasePath(), ticket, existingStories));
+        String aiRequest = promptManager.checkSimilarStories(new SimilarStoriesPrompt(trackerClient.getBasePath(), ticket, existingStories));
         String response = openAIClient.chat(aiRequest);
         JSONArray array = new JSONArray(response);
         List<ITicket> finalResults = new ArrayList<>();
@@ -186,8 +240,8 @@ public class JAssistant {
             String similarKey = array.getString(i);
             ITicket similarTicket = trackerClient.performTicket(similarKey, trackerClient.getExtendedQueryFields());
             if (isCheckDetailsOfStory) {
-                BASimilarStoriesPrompt baSimilarStoriesPrompt = new BASimilarStoriesPrompt(trackerClient.getBasePath(), role, ticket, similarTicket);
-                String chatRequest = promptManager.validateSimilarStory(baSimilarStoriesPrompt);
+                SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(), role, ticket, similarTicket);
+                String chatRequest = promptManager.validateSimilarStory(similarStoriesPrompt);
                 String isSimilarStory = openAIClient.chat(
                     "gpt-35-turbo",
                         chatRequest);
@@ -201,7 +255,7 @@ public class JAssistant {
         for (ITicket result : finalResults) {
             logger.log(Level.DEBUG,result.getTicketTitle() + " " + result.getWeight());
         }
-        String finalAiRequest = promptManager.estimateStory(new BASimilarStoriesPrompt(trackerClient.getBasePath(), ticket, finalResults));
+        String finalAiRequest = promptManager.estimateStory(new SimilarStoriesPrompt(trackerClient.getBasePath(), ticket, finalResults));
         String finalEstimations = openAIClient.chat(finalAiRequest);
         return findFirstNumberInTheString(finalEstimations);
     }

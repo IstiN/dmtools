@@ -10,6 +10,7 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.documentation.area.ITicketAreaMapper;
 import com.github.istin.dmtools.documentation.area.ITicketDocumentationHistoryTracker;
 import com.github.istin.dmtools.documentation.area.TicketAreaMapperViaConfluence;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -245,7 +246,7 @@ public class DocumentationEditor {
         }
     }
 
-    public JSONObject buildExistingAreasStructureForConfluence(String rootPage) throws IOException {
+    public JSONObject buildExistingAreasStructureForConfluence(String prefix, String rootPage) throws IOException {
         List<Content> results = confluence.getChildrenOfContentByName(rootPage);
         JSONObject jsonObject = new JSONObject();
         for (Content content : results) {
@@ -259,11 +260,18 @@ public class DocumentationEditor {
             for (Content child : childrenOfContent) {
                 String title = child.getTitle();
                 System.out.println(title);
-                children.put(title, new JSONObject());
+                children.put(adoptTitle(prefix, title), new JSONObject());
             }
-            jsonObject.put(content.getTitle(), children);
+            jsonObject.put(adoptTitle(prefix, content.getTitle()), children);
         }
         return jsonObject;
+    }
+
+    private static @NotNull String adoptTitle(String prefix, String title) {
+        if (prefix == null || prefix.isEmpty()) {
+            return title;
+        }
+        return title.replaceAll(prefix + " ", "");
     }
 
     public void attachImagesForPage(String pageTitle, ContentUtils.UrlToImageFile... urlToImageFiles) throws Exception {

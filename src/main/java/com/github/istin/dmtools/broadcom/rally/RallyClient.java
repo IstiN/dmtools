@@ -118,6 +118,11 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     }
 
     @Override
+    public TextType getTextType() {
+        return TextType.HTML;
+    }
+
+    @Override
     public void deleteLabelInTicket(RallyIssue ticket, String label) throws IOException {
         JSONArray tagsRefsWithoutTag = ticket.getTagsRefsWithoutTag(label);
         JSONObject updateBody = new JSONObject().put("Tags", tagsRefsWithoutTag);

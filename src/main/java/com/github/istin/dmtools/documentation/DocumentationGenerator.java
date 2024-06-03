@@ -30,10 +30,10 @@ public class DocumentationGenerator {
     public static String NAME = "DocumentationEditor";
 
     public static void runJob(DocumentationGeneratorParams params) throws Exception {
-        runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getJQL(), params.getListOfStatusesToSort());
+        runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getJQL(), params.getListOfStatusesToSort(), params.isReadFeatureAreasFromConfluenceRootPage());
     }
 
-    public static void runJob(String confluenceRootPage, String eachPagePrefix, String jql, String[] listOfStatusesToSort) throws Exception {
+    public static void runJob(String confluenceRootPage, String eachPagePrefix, String jql, String[] listOfStatusesToSort, boolean isReadFeatureAreasFromConfluenceRootPage) throws Exception {
         ConversationObserver conversationObserver = new ConversationObserver();
         BasicOpenAI openAIClient = new BasicOpenAI(conversationObserver);
         PromptManager promptManager = new PromptManager();
@@ -48,17 +48,23 @@ public class DocumentationGenerator {
         TicketAreaMapperViaConfluence ticketAreaMapper = new TicketAreaMapperViaConfluence(eachPagePrefix, confluenceRootPage, confluence);
         DocumentationEditor documentationEditor = new DocumentationEditor(jAssistant, tracker,  confluence, eachPagePrefix);
 
-        JSONArray areas = documentationEditor.buildDraftFeatureAreasByStories(tickets);
-        areas = documentationEditor.cleanFeatureAreas(areas);
-        System.out.println(areas);
-        JSONObject optimizedFeatureAreas = documentationEditor.createFeatureAreasTree(areas);
+        JSONObject optimizedFeatureAreas;
+        if (!isReadFeatureAreasFromConfluenceRootPage) {
+            JSONArray areas = documentationEditor.buildDraftFeatureAreasByStories(tickets);
+            areas = documentationEditor.cleanFeatureAreas(areas);
+            System.out.println(areas);
+            optimizedFeatureAreas = documentationEditor.createFeatureAreasTree(areas);
+        } else {
+            optimizedFeatureAreas = documentationEditor.buildExistingAreasStructureForConfluence(eachPagePrefix, confluenceRootPage);
+        }
+
         documentationEditor.buildConfluenceStructure(optimizedFeatureAreas, tickets, confluenceRootPage, confluence, ticketAreaMapper);
         System.out.println(optimizedFeatureAreas);
 
         TicketDocumentationHistoryTrackerViaConfluence ticketDocumentationHistoryTrackerViaConfluence = new TicketDocumentationHistoryTrackerViaConfluence(confluence);
         documentationEditor.buildPagesForTickets(tickets, eachPagePrefix, confluenceRootPage, confluence, ticketAreaMapper, ticketDocumentationHistoryTrackerViaConfluence, false);
 
-        JSONObject jsonObject = documentationEditor.buildExistingAreasStructureForConfluence(confluenceRootPage);
+        JSONObject jsonObject = documentationEditor.buildExistingAreasStructureForConfluence("", confluenceRootPage);
         Set<String> keys = jsonObject.keySet();
         for (String key : keys) {
             System.out.println(key);

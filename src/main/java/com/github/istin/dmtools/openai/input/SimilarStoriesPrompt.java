@@ -4,7 +4,7 @@ import com.github.istin.dmtools.common.model.ITicket;
 
 import java.util.List;
 
-public class BASimilarStoriesPrompt extends TicketBasedPrompt {
+public class SimilarStoriesPrompt extends TicketBasedPrompt {
 
     private List<? extends ITicket> stories;
 
@@ -12,12 +12,12 @@ public class BASimilarStoriesPrompt extends TicketBasedPrompt {
 
     private String role;
 
-    public BASimilarStoriesPrompt(String basePath, ITicket ticket, List<? extends ITicket> stories) {
+    public SimilarStoriesPrompt(String basePath, ITicket ticket, List<? extends ITicket> stories) {
         super(basePath, ticket);
         this.stories = stories;
     }
 
-    public BASimilarStoriesPrompt(String basePath, String role, ITicket ticket, ITicket similarTicket) {
+    public SimilarStoriesPrompt(String basePath, String role, ITicket ticket, ITicket similarTicket) {
         super(basePath, ticket);
         this.similarTicket = similarTicket;
         this.role = role;

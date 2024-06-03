@@ -63,16 +63,20 @@ public class PromptManager {
         return stringFromTemplate(input, "ba_nice_looking_documentation_with_technical_details");
     }
 
-    public String checkSimilarStories(BASimilarStoriesPrompt input) throws IOException, TemplateException {
+    public String checkSimilarStories(SimilarStoriesPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "ba_find_similar_stories");
     }
 
-    public String estimateStory(BASimilarStoriesPrompt input) throws IOException, TemplateException {
+    public String estimateStory(SimilarStoriesPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "developer_estimate_story");
     }
 
-    public String validateSimilarStory(BASimilarStoriesPrompt input) throws IOException, TemplateException {
+    public String validateSimilarStory(SimilarStoriesPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "developer_validate_similar_story");
+    }
+
+    public String validateTestCaseRelatedToStory(SimilarStoriesPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "qa_validate_testcase_related_to_story");
     }
 
     public String requestGenerateCodeForTicket(CodeGeneration input) throws IOException, TemplateException {
@@ -83,8 +87,12 @@ public class PromptManager {
         return stringFromTemplate(input, "convert_to_html");
     }
 
-    public String requestTestCasesForStory(TicketBasedPrompt input) throws IOException, TemplateException {
-        return stringFromTemplate(input, "qa_story_test_cases_generation");
+    public String requestTestCasesForStoryAsHTML(TicketBasedPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "qa_story_test_cases_generation_html");
+    }
+
+    public String requestTestCasesForStoryAsJSONArray(TicketBasedPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "qa_story_test_cases_generation_json");
     }
 
     public String requestNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO(TicketBasedPrompt input) throws IOException, TemplateException {

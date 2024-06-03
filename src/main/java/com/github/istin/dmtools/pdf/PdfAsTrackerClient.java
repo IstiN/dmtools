@@ -51,6 +51,11 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
     }
 
     @Override
+    public TextType getTextType() {
+        return TextType.HTML;
+    }
+
+    @Override
     public void addLabelIfNotExists(ITicket ticket, String label) throws IOException {
         String ticketFolder = findTicketFolder(ticket.getTicketKey());
         String fileString = readStringFromFile(ticketFolder, "labels.json");

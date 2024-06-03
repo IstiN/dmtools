@@ -842,7 +842,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 .build()
         ).execute()) {
             if (response.isSuccessful()) {
-                System.out.println("Fix version created successfully!");
+                System.out.println("Request performed successfully!");
                 return response.body() != null ? response.body().string() : null;
             } else {
                 int code = response.code();
@@ -1142,5 +1142,11 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     public OkHttpClient getClient() {
         return client;
+    }
+
+    public String getFields(String project) throws IOException {
+        GenericRequest genericRequest = new GenericRequest(this, path("issue/createmeta?projectKeys="+project+"&expand=projects.issuetypes.fields"));
+        genericRequest.setIgnoreCache(true);
+        return genericRequest.execute();
     }
 }

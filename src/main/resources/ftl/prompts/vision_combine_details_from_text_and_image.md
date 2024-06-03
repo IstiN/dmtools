@@ -8,6 +8,7 @@ Rules for Content Analysis:
 1. Carefully analyze the image and compare it with the {text}.
 2. Identify all significant elements, features, or details that are present in the image but are not mentioned in the {text}.
 3. Provide a detailed description of these missing elements and explain why they are important for a comprehensive understanding of the image.
+4. Ignore any sensitive information, such as account IDs or personal data
 
 Rules for Schema Analysis:
 
@@ -24,6 +25,12 @@ Rules for Flow Analysis:
 Rules for Visual Annotations:
 1. Use highlights or annotations in the image to clearly indicate these elements and flows.
 2. Include a separate section with these highlights to enhance clarity.
+
+To ensure that the response includes an explanation of highlighted areas:
+
+1. Highlight specific areas in the image that are significant (e.g., the left rectangle area).
+2. In the response, explicitly describe these highlighted areas and their importance.
+3. Provide a clear explanation of how these highlighted areas contribute to the overall understanding of the image.
 
 Provided Text:
 ${input}

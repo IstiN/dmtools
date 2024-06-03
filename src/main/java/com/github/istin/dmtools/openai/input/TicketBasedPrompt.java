@@ -11,6 +11,7 @@ public class TicketBasedPrompt {
 
     private final String basePath;
     private ITicket ticket;
+    private String attachmentsDescription;
 
     private List<ITicket> testCases = new ArrayList<>();
 
@@ -58,10 +59,17 @@ public class TicketBasedPrompt {
                     ticketDescription = ticketDescription + ("\n" + attachment.getName() + " " + attachment.getUrl());
                 }
             }
+            ticketDescription = ticketDescription + "\n" + attachmentsDescription;
             return HtmlCleaner.cleanAllHtmlTags(basePath, ticketDescription);
         }
 
     }
 
+    public String getAttachmentsDescription() {
+        return attachmentsDescription;
+    }
 
+    public void setAttachmentsDescription(String attachmentsDescription) {
+        this.attachmentsDescription = attachmentsDescription;
+    }
 }

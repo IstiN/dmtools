@@ -81,7 +81,7 @@ public class OpenAIClient extends AbstractRestClient {
         JSONArray messages = new JSONArray();;
         if (imageFile != null) {
             String extension = ImageUtils.getExtension(imageFile);
-            String imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
+            String imageBase64 = ImageUtils.convertToBase64(imageFile, "png");
             messages.put(new JSONObject()
                     .put("role", "user")
                     .put("content", new JSONArray()

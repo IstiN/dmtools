@@ -3,6 +3,7 @@ package com.github.istin.dmtools.documentation.area;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import org.json.JSONArray;
 
 import java.io.IOException;
@@ -32,7 +33,8 @@ public class TicketDocumentationHistoryTrackerViaConfluence implements ITicketDo
             throw new IllegalStateException("something went wrong, page must be created created first");
         }
         Content pageHistoryContent = confluence.findOrCreate(content.getTitle() + " History", content.getId(), "[]");
-        JSONArray array = new JSONArray(pageHistoryContent.getStorage().getValue().replaceAll("&quot;", "\""));
+        String value = HtmlCleaner.cleanAllHtmlTags("", pageHistoryContent.getStorage().getValue());
+        JSONArray array = new JSONArray(value.replaceAll("&quot;", "\""));
         array.put(ticket.getTicketLink());
         confluence.updatePage(pageHistoryContent, array.toString());
     }

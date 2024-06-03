@@ -10,6 +10,7 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.report.model.KeyTime;
+import io.github.furstenheim.CopyDown;
 
 import java.io.IOException;
 import java.util.List;
@@ -93,7 +94,14 @@ public class BitbucketTrackerSyncJob {
     private static void addTrackerCommentIfNotExists(Bitbucket bitbucket, String workspace, String repository, TrackerClient tracker, PullRequest pullRequest, String key) throws IOException {
         String url = bitbucket.getBasePath().replaceAll("api.", "") + "/" + workspace + "/" + repository + "/pull-requests/" + pullRequest.getId();
         String author = pullRequest.getAuthor().getDisplayName();
-        tracker.postCommentIfNotExists(key, "Merge request by <b>" + author + "</b> <br/> <a href=\"" + url + "\">" + url + "</a>");
+        if (tracker.getTextType() == TrackerClient.TextType.HTML) {
+            String comment = "Merge request by <b>" + author + "</b> <br/> <a href=\"" + url + "\">" + url + "</a>";
+            tracker.postCommentIfNotExists(key, comment);
+        } else {
+            String comment = "Merge request by <b>" + author + "</b> <br/>" + url;
+            CopyDown converter = new CopyDown();
+            tracker.postComment(key, converter.convert(comment).replaceAll("\\*\\*", "*"));
+        }
     }
 
     public static void addBitbucketCommentIfNotExists(Bitbucket bitbucket, PullRequest pullRequest, String key, ITicket ticket, String workspace, String repository) throws IOException {

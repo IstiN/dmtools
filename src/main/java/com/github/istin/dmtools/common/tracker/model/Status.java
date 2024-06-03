@@ -70,6 +70,7 @@ public class Status extends JSONModel {
     public static final String REVIEW = "Review";
     public static final String TESTING = "Testing";
     public static final String IN_PROGRESS = "In Progress";
+    public static final String READY_FOR_REVIEW = "Ready for review";
 
     private static final String JSON_KEY_NAME = "name";
     private static final String JSON_KEY_NAME_UPPER_FIRST_CHAR = "Name";

@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.atlassian.jira;
 
+import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
@@ -51,11 +52,25 @@ public class BasicJiraClient extends JiraClient<Ticket> {
 
     @Override
     public String[] getExtendedQueryFields() {
-        return new String[0];
+        return new String[] {
+                Fields.DESCRIPTION,
+                Fields.SUMMARY,
+                Fields.STATUS,
+                Fields.ATTACHMENT,
+                Fields.UPDATED,
+                Fields.CREATED,
+                Fields.CREATOR,
+                Fields.STORY_POINTS
+        };
     }
 
     @Override
     public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
         return Collections.emptyList();
+    }
+
+    @Override
+    public TextType getTextType() {
+        return TextType.MARKDOWN;
     }
 }
