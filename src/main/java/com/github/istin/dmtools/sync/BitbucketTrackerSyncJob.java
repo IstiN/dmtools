@@ -100,7 +100,7 @@ public class BitbucketTrackerSyncJob {
         } else {
             String comment = "Merge request by <b>" + author + "</b> <br/>" + url;
             CopyDown converter = new CopyDown();
-            tracker.postComment(key, converter.convert(comment).replaceAll("\\*\\*", "*"));
+            tracker.postCommentIfNotExists(key, converter.convert(comment).replaceAll("\\*\\*", "*"));
         }
     }
 
