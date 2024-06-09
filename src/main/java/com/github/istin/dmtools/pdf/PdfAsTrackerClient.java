@@ -71,6 +71,11 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
     }
 
     @Override
+    public void attachFileToTicket(String ticketKey, String name, String contentType, File file) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void addLabelIfNotExists(ITicket ticket, String label) throws IOException {
         String ticketFolder = findTicketFolder(ticket.getTicketKey());
         String fileString = readStringFromFile(ticketFolder, "labels.json");

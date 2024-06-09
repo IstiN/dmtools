@@ -2,6 +2,7 @@ package com.github.istin.dmtools.job;
 
 
 import com.github.istin.dmtools.ba.RequirementsCollector;
+import com.github.istin.dmtools.diagram.DiagramsCreator;
 import com.github.istin.dmtools.documentation.DocumentationGenerator;
 import com.github.istin.dmtools.estimations.JEstimator;
 import com.github.istin.dmtools.presale.PreSaleSupport;
@@ -20,7 +21,8 @@ public class JobRunner {
             new RequirementsCollector(),
             new JEstimator(),
             new TestCasesGenerator(),
-            new SolutionArchitectureCreator()
+            new SolutionArchitectureCreator(),
+            new DiagramsCreator()
     );
 
     public static void main(String[] args) throws Exception {

@@ -9,6 +9,7 @@ import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import org.json.JSONArray;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -69,6 +70,8 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
     List<? extends ReportIteration> getFixVersions(String projectCode) throws IOException;
 
     TextType getTextType();
+
+    void attachFileToTicket(String ticketKey, String name, String contentType, File file) throws IOException;
 
     interface TrackerTicketFields {
         void set(String key, Object object);

@@ -44,8 +44,6 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
                         extraTickets.add(trackerClient.performTicket(key, trackerClient.getExtendedQueryFields()));
                     }
                 }
-                String ticketDescription = ticket.getTicketDescription();
-
                 String jqlToSearch = jAssistant.buildJQLForContent(trackerClient, roleSpecific, projectSpecific, ticket, extraTickets);
                 String researchPageName = makeSearchAndCollectRequirementsToPage(trackerClient, jAssistant, jqlToSearch, ticket, extraTickets, roleSpecific, projectSpecific, eachPagePrefix);
                 BasicConfluence confluence = BasicConfluence.getInstance();

@@ -25,6 +25,7 @@ public class ReadPDFFile {
     }
 
     public static void parsePdfFilesToTickets(String folderPath) {
+        System.out.println(folderPath);
         File[] listOfFiles = new File(folderPath).listFiles();
 
         for (int i = 0; i < listOfFiles.length; i++) {

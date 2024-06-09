@@ -45,7 +45,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     private boolean isWaitBeforePerform = false;
     private String authorization;
     private String cacheFolderName;
-    private boolean isClearCache = false;
+    private boolean isClearCache = true;
     private String authType = "Basic";
     private Long instanceCreationTime = System.currentTimeMillis();
 
@@ -727,6 +727,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return execute(url, true, false);
     }
 
+    @Override
     public void attachFileToTicket(String ticketKey, String name, String contentType, File file) throws IOException {
         if (contentType == null) {
             contentType = "image/*";
@@ -825,7 +826,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         }
     }
 
-    private String getCacheFolderName() {
+    public String getCacheFolderName() {
         return cacheFolderName;
     }
 

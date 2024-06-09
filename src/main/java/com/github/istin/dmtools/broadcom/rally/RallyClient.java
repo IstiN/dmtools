@@ -488,4 +488,9 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     public String updateDescription(String key, String description) throws IOException {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public void attachFileToTicket(String ticketKey, String name, String contentType, File file) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 }

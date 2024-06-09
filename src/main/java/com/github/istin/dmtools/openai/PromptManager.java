@@ -161,4 +161,8 @@ public class PromptManager {
     public String baIsTicketRelatedToContent(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
         return stringFromTemplate(multiTicketsPrompt, "ba_check_is_ticket_related_to_content");
     }
+
+    public String createDiagrams(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
+        return stringFromTemplate(multiTicketsPrompt, "role_create_diagrams");
+    }
 }

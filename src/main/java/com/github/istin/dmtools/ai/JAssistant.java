@@ -8,6 +8,7 @@ import com.github.istin.dmtools.atlassian.jira.model.Relationship;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.openai.OpenAIClient;
@@ -414,5 +415,12 @@ public class JAssistant {
         multiTicketsPrompt.setContent(content);
         String aiRequest = promptManager.baCollectRequirementsForTicket(multiTicketsPrompt);
         return openAIClient.chat(aiRequest);
+    }
+
+    public List<Diagram> createDiagrams(ITicket ticket, List<ITicket> extraTickets, String roleSpecific, String projectSpecific) throws Exception {
+        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets);
+        String aiRequest = promptManager.createDiagrams(multiTicketsPrompt);
+        String chatResponse = openAIClient.chat("gpt-4o-2024-05-13", aiRequest);
+        return JSONModel.convertToModels(Diagram.class, new JSONArray(chatResponse));
     }
 }
