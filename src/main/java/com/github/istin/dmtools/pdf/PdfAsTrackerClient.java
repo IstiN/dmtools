@@ -31,6 +31,21 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
     }
 
     @Override
+    public String linkIssueWithRelationship(String sourceKey, String anotherKey, String relationship) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String updateDescription(String key, String description) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String buildUrlToSearch(String query) {
+        return query;
+    }
+
+    @Override
     public String getBasePath() {
         return folderWithPdfAssets;
     }

@@ -206,6 +206,10 @@ public class Status extends JSONModel {
         return getName().equals(CODE_REVIEW);
     }
 
+    public boolean isReadyForReview() {
+        return getName().equals(READY_FOR_REVIEW);
+    }
+
     public boolean isMerged() {
         return getName().equals(MERGED);
     }

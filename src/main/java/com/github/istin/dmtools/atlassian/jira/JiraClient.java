@@ -53,6 +53,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     public void setClearCache(boolean clearCache) {
         isClearCache = clearCache;
+
     }
     public static String parseJiraProject(String key) {
         return key.split("-")[0].toUpperCase();
@@ -639,6 +640,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return result;
     }
 
+    @Override
     public String updateDescription(String key, String description) throws IOException {
         GenericRequest jiraRequest = getTicket(key);
         JSONObject body = new JSONObject();
@@ -703,6 +705,17 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 }
             }
             throw e;
+        }
+    }
+
+
+    @Override
+    public String buildUrlToSearch(String query) {
+        try {
+            String encodedQuery = URLEncoder.encode(query, "UTF-8");
+            return getBasePath() + "/issues/?jql=" + encodedQuery;
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -876,7 +889,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 .put(body)
                 .build()
         ).execute()) {
-            return response.body() != null ? response.body().string() : null;
+            if (response.isSuccessful()) {
+                return response.body() != null ? response.body().string() : null;
+            } else {
+                System.err.println("Error code " + response.code());
+                return response.body() != null ? response.body().string() : null;
+            }
         } finally {
             client.connectionPool().evictAll();
         }
@@ -1069,6 +1087,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     public static String buildJQLByKeys(Collection<? extends Key> keys) {
+        if (keys.isEmpty()) {
+            return "";
+        }
         StringBuilder jql = new StringBuilder("key in (");
         boolean isFirst = true;
         for (Key key : keys) {
@@ -1149,4 +1170,52 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         genericRequest.setIgnoreCache(true);
         return genericRequest.execute();
     }
+
+    public String getFieldCustomCode(String project, String fieldName) throws IOException {
+        String response = getFields(project);
+        JSONArray issueTypesWithFields = new JSONObject(response).getJSONArray("projects").getJSONObject(0).getJSONArray("issuetypes");
+        for (int i = 0; i < issueTypesWithFields.length(); i++) {
+            JSONObject issueTypeFields = issueTypesWithFields.getJSONObject(i);
+            JSONObject fieldsJSONObject = issueTypeFields.getJSONObject("fields");
+            Set<String> keys = fieldsJSONObject.keySet();
+            for (String key : keys) {
+                String humanNameOfField = fieldsJSONObject.getJSONObject(key).getString("name");
+                if (humanNameOfField.equalsIgnoreCase(fieldName)) {
+                    return key;
+                }
+            }
+        }
+        return null;
+    }
+
+    public IssueType getRelationshipByName(String name) throws IOException {
+        List<IssueType> relationships = getRelationships();
+        for (IssueType issueType : relationships) {
+            if (issueType.getName().equalsIgnoreCase(name)) {
+                return issueType;
+            }
+        }
+        return null;
+    }
+
+    public List<IssueType> getRelationships() throws IOException {
+        GenericRequest genericRequest = new GenericRequest(this, path("issueLinkType"));
+        genericRequest.setIgnoreCache(true);
+        return JSONModel.convertToModels(IssueType.class, new JSONObject(genericRequest.execute()).getJSONArray("issueLinkTypes"));
+    }
+
+    @Override
+    public String linkIssueWithRelationship(String sourceKey, String anotherKey, String relationship) throws IOException {
+        IssueType relationshipByNameIssueType = getRelationshipByName(relationship);
+        GenericRequest jiraRequest = new GenericRequest(this, path("issueLink"));
+        JSONObject body = new JSONObject();
+
+        body.put("type", new JSONObject().put("name", relationshipByNameIssueType.getName()))
+            .put("inwardIssue", new JSONObject().put("key", sourceKey))
+                .put("outwardIssue", new JSONObject().put("key", anotherKey))
+        ;
+        jiraRequest.setBody(body.toString());
+        return post(jiraRequest);
+    }
+
 }

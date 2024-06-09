@@ -1,7 +1,9 @@
 package com.github.istin.dmtools.atlassian.jira.utils;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,5 +43,26 @@ public class IssuesIDsParser {
             }
         }
         return result;
+    }
+
+    public static Set<String> extractAllJiraIDs(String text) {
+        // Enhanced JIRA Key Pattern to match keys in text and URLs
+        // It looks for word boundaries or URL prefixes before the JIRA key pattern
+        String jiraKeyPattern = "(?:\\b|\\/browse\\/)[A-Z]+-\\d+\\b";
+
+        Pattern pattern = Pattern.compile(jiraKeyPattern);
+        Matcher matcher = pattern.matcher(text);
+
+        Set<String> keys = new HashSet<>();
+        while (matcher.find()) {
+            String found = matcher.group();
+            // If the match is part of a URL, extract the JIRA key part after '/browse/'
+            if (found.contains("/browse/")) {
+                found = found.substring(found.indexOf("/browse/") + 8);
+            }
+            keys.add(found);
+            System.out.println("Found JIRA Key: " + found);
+        }
+        return keys;
     }
 }

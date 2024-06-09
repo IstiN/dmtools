@@ -146,4 +146,19 @@ public class PromptManager {
     }
 
 
+    public String saCreateSolutionForTicket(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
+        return stringFromTemplate(multiTicketsPrompt, "sa_write_solution_for_ticket");
+    }
+
+    public String baCollectRequirementsForTicket(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
+        return stringFromTemplate(multiTicketsPrompt, "ba_collect_requirements_for_ticket");
+    }
+
+    public String baBuildJqlForRequirementsSearching(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
+        return stringFromTemplate(multiTicketsPrompt, "ba_build_jql_for_requirements_searching");
+    }
+
+    public String baIsTicketRelatedToContent(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
+        return stringFromTemplate(multiTicketsPrompt, "ba_check_is_ticket_related_to_content");
+    }
 }

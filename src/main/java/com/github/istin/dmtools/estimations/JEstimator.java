@@ -6,6 +6,7 @@ import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.report.ReportUtils;
@@ -23,9 +24,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class JEstimator {
-
-    public static String NAME = "JEstimator";
+public class JEstimator extends AbstractJob<JEstimatorParams> {
 
     public static class AIEstimatedTicket extends ITicket.Wrapper {
 
@@ -67,7 +66,8 @@ public class JEstimator {
         runJob(args[0], args[1]);
     }
 
-    public static void runJob(JEstimatorParams params) throws Exception {
+    @Override
+    public void runJob(JEstimatorParams params) throws Exception {
         runJob(params.getJQL(), params.getReportName());
     }
 

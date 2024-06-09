@@ -4,6 +4,7 @@ import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
 import com.github.istin.dmtools.atlassian.bitbucket.model.File;
 import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
+import com.github.istin.dmtools.atlassian.jira.model.Relationship;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -139,6 +140,7 @@ public class JAssistant {
                     chatRequest);
             if (Boolean.parseBoolean(isRelatedToStory)) {
                 finaResults.add(testCase);
+                trackerClient.linkIssueWithRelationship(ticket.getTicketKey(), testCase.getKey(), Relationship.TESTS);
             }
         }
 
@@ -384,5 +386,33 @@ public class JAssistant {
     public String combineTextAndImage(String text, java.io.File pageSnapshot) throws Exception {
         String prompt = promptManager.combineTextAndImage(new InputPrompt(text));
         return openAIClient.chat("gpt-4-vision-preview", prompt, pageSnapshot);
+    }
+
+    public String createSolutionForTicket(TrackerClient trackerClient, String roleSpecific, String projectSpecific, ITicket ticket, List<ITicket> extraTickets) throws Exception {
+        String prompt = promptManager.saCreateSolutionForTicket(new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets));
+        return openAIClient.chat(prompt);
+    }
+
+    public String buildJQLForContent(TrackerClient trackerClient, String roleSpecific, String projectSpecific, ITicket ticket, List<ITicket> extraTickets) throws Exception {
+        String requestToCreateJQL = promptManager.baBuildJqlForRequirementsSearching(new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets));
+        String jqlToSearch = openAIClient.chat(requestToCreateJQL);
+        System.out.println(jqlToSearch);
+        return jqlToSearch;
+    }
+
+    public boolean baIsTicketRelatedToContent(TrackerClient trackerClient, String roleSpecific, String projectSpecific, ITicket ticket, List<ITicket> extraTickets, ITicket content) throws Exception {
+        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets);
+        multiTicketsPrompt.setContent(content);
+        String prompt = promptManager.baIsTicketRelatedToContent(multiTicketsPrompt);
+        String response = openAIClient.chat(prompt);
+        System.out.println(response);
+        return Boolean.parseBoolean(response);
+    }
+
+    public String buildPageWithRequirementsForInputData(ITicket ticket, List<ITicket> extraTickets, String roleSpecific, String projectSpecific, String existingContent, ITicket content) throws Exception {
+        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets, existingContent);
+        multiTicketsPrompt.setContent(content);
+        String aiRequest = promptManager.baCollectRequirementsForTicket(multiTicketsPrompt);
+        return openAIClient.chat(aiRequest);
     }
 }

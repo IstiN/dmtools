@@ -253,12 +253,14 @@ public interface ITicket extends Key {
                         return 100;
                     } else if (statusModel.isInDev() || statusModel.isInProgress()) {
                         return 50;
-                    } else if (statusModel.isInReview() || statusModel.isCodeReview() || statusModel.isReview()) {
+                    } else if (statusModel.isInReview() || statusModel.isCodeReview()  || statusModel.isReadyForReview()) {
                         return 60;
-                    } else if (statusModel.isReadyForTesting() || statusModel.isReadyForTest() || statusModel.isInTesting()) {
+                    } else if (statusModel.isReadyForTesting() || statusModel.isReadyForTest()) {
                         return 80;
                     } else if (statusModel.isInTesting()) {
                         return 90;
+                    } else if (statusModel.isReview()) {
+                        return 95;
                     } else {
                         return 0;
                     }
@@ -269,11 +271,11 @@ public interface ITicket extends Key {
                     }
                     if (statusModel.isDone() || statusModel.isRejected() || statusModel.isCancelled() || statusModel.isCompleted() || statusModel.isAccepted()  || statusModel.isRelease() ) {
                         return 100;
-                    } else if (statusModel.isInAcceptance()) {
+                    } else if (statusModel.isInAcceptance() || statusModel.isReview()) {
                         return 95;
                     } else if (statusModel.isInDev() || statusModel.isInProgress()) {
                         return 50;
-                    } else if (statusModel.isInReview() || statusModel.isCodeReview() || statusModel.isReview()) {
+                    } else if (statusModel.isInReview() || statusModel.isCodeReview() || statusModel.isReadyForReview()) {
                         return 60;
                     } else if (statusModel.isReadyForTesting() || statusModel.isReadyForTest() ) {
                         return 80;

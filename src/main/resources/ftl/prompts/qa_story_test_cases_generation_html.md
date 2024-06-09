@@ -1,2 +1,2 @@
 <#include "qa_story_test_cases_generation_common.md">
-Make result nice looking with html tags inside, skip html, head and body tags and don't use class attribute. Use <p> tag for each test case. Don't use ```, html mardowns.
+<#include "response_type_html.md">

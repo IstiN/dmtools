@@ -11,6 +11,7 @@ import com.github.istin.dmtools.documentation.area.TicketAreaMapperViaConfluence
 import com.github.istin.dmtools.documentation.area.TicketDocumentationHistoryTrackerViaConfluence;
 import com.github.istin.dmtools.figma.BasicFigmaClient;
 import com.github.istin.dmtools.figma.FigmaClient;
+import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.report.model.KeyTime;
@@ -25,11 +26,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class DocumentationGenerator {
+public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorParams> {
 
     public static String NAME = "DocumentationEditor";
 
-    public static void runJob(DocumentationGeneratorParams params) throws Exception {
+    @Override
+    public void runJob(DocumentationGeneratorParams params) throws Exception {
         runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getJQL(), params.getListOfStatusesToSort(), params.isReadFeatureAreasFromConfluenceRootPage());
     }
 

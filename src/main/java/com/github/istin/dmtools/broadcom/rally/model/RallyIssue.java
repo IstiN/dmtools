@@ -228,6 +228,10 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
         return result;
     }
 
+    public RallyIssue getWorkProduct() {
+        return getModel(RallyIssue.class, "WorkProduct");
+    }
+
     public JSONArray getTagsRefs() {
         JSONObject jsonObject = getJSONObject(RallyFields.TAGS);
         JSONArray result = new JSONArray();

@@ -44,7 +44,7 @@ public class TicketBasedPrompt {
         }
     }
 
-    private class TicketWrapper extends ITicket.Wrapper {
+    public class TicketWrapper extends ITicket.Wrapper {
 
         public TicketWrapper(ITicket ticket) {
             super(ticket);

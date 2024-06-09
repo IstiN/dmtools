@@ -14,9 +14,15 @@ import java.util.List;
 
 public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImageFile {
 
+    String linkIssueWithRelationship(String sourceKey, String anotherKey, String relationship) throws IOException;
+
     enum TextType {
         HTML, MARKDOWN
     }
+
+    String updateDescription(String key, String description) throws IOException;
+
+    String buildUrlToSearch(String query);
 
     String getBasePath();
 
@@ -78,7 +84,9 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
         public static String checkCommentStartedWith(TrackerClient trackerClient, String key, ITicket ticket, String commentPrefix) throws IOException {
             List<IComment> comments = trackerClient.getComments(key, ticket);
             for (IComment comment : comments) {
-                if (comment.getBody().startsWith(commentPrefix) || comment.getBody().startsWith("<p>"+commentPrefix) || HtmlCleaner.cleanAllHtmlTags("", comment.getBody()).startsWith(commentPrefix)) {
+                String cleanedComment = HtmlCleaner.cleanAllHtmlTags("", comment.getBody());
+                String cleanedPrefix = HtmlCleaner.cleanAllHtmlTags("", commentPrefix);
+                if (comment.getBody().startsWith(commentPrefix) || comment.getBody().startsWith("<p>"+commentPrefix) || cleanedComment.startsWith(cleanedPrefix)) {
                     return comment.getBody();
                 }
             }

@@ -1,21 +1,36 @@
 package com.github.istin.dmtools.job;
 
 
+import com.github.istin.dmtools.ba.RequirementsCollector;
 import com.github.istin.dmtools.documentation.DocumentationGenerator;
 import com.github.istin.dmtools.estimations.JEstimator;
+import com.github.istin.dmtools.presale.PreSaleSupport;
+import com.github.istin.dmtools.qa.TestCasesGenerator;
+import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
 
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 
 public class JobRunner {
 
-    public static void main(String[] args) throws Exception {
-        Job job = new Job(new String(decodeBase64(args[0])));
-        if (job.getName().equalsIgnoreCase(JEstimator.NAME)) {
-            JEstimator.runJob(job.getJEstimatorParams());
-        } else if (job.getName().equalsIgnoreCase(DocumentationGenerator.NAME)) {
-            DocumentationGenerator.runJob(job.getDocumentationGeneratorParams());
-        }
+    private static List<Job> JOBS = Arrays.asList(
+            new PreSaleSupport(),
+            new DocumentationGenerator(),
+            new RequirementsCollector(),
+            new JEstimator(),
+            new TestCasesGenerator(),
+            new SolutionArchitectureCreator()
+    );
 
+    public static void main(String[] args) throws Exception {
+        JobParams jobParams = new JobParams(new String(decodeBase64(args[0])));
+        for (Job job : JOBS) {
+            if (job.getName().equalsIgnoreCase(jobParams.getName())) {
+                job.runJob(jobParams.getParamsByClass(job.getParamsClass()));
+                return;
+            }
+        }
     }
 
     public static String decodeBase64(String input) {

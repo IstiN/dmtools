@@ -21,6 +21,8 @@ public class Relationship {
     public static final String FIXED_IN = "fixed in";
     public static final String IS_COVERED_BY = "is covered by";
     public static final String RELATE = "relate";
+    public static final String RELATES = "Relates";
+    public static final String TESTS = "Tests";
 
     public static boolean isFixedInOrImplementedIn(IssueLink issueLink) {
         String inwardType = issueLink.getInwardType();

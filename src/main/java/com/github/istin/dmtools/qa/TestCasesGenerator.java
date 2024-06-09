@@ -7,6 +7,7 @@ import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.report.freemarker.GenericCell;
@@ -15,11 +16,10 @@ import com.github.istin.dmtools.report.freemarker.GenericRow;
 
 import java.util.List;
 
-public class TestCasesGenerator {
+public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
 
-    public static String NAME = "TestCasesGenerator";
-
-    public static void runJob(TestCasesGeneratorParams params) throws Exception {
+    @Override
+    public void runJob(TestCasesGeneratorParams params) throws Exception {
         runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getStoriesJQL(), params.getExistingTestCasesJQL(), params.getOutputType(), params.getTestCasesPriorities());
     }
 

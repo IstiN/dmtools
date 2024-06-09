@@ -450,6 +450,11 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     }
 
     @Override
+    public String linkIssueWithRelationship(String sourceKey, String anotherKey, String relationship) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public File getCachedFile(GenericRequest request) {
         String url = request.url();
         String value = DigestUtils.md5Hex(url);
@@ -477,5 +482,10 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.YEAR, -100);
         return iterations(projectCode, calendar);
+    }
+
+    @Override
+    public String updateDescription(String key, String description) throws IOException {
+        throw new UnsupportedOperationException();
     }
 }
