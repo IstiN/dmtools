@@ -156,7 +156,17 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
         for (int i = 0; i < listOfTickets.length; i++) {
             File file = listOfTickets[i];
             if (file.isDirectory()) {
+                try {
+                    Integer number = Integer.parseInt(file.getName());
+                } catch (Exception e) {
+                    continue;
+                }
+
                 PdfPageAsTicket ticket = performTicket(fileCacheFolder.getName() + "-" + (i + 1), fields);
+                if (ticket == null) {
+                    continue;
+                }
+
                 if (searchQuery != null) {
                     String[] paramAndValue = searchQuery.split("=");
                     if (paramAndValue[0].equalsIgnoreCase("labels")) {
@@ -205,11 +215,17 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
 
         File[] listOfFiles = new File(pathToTicketFolder).listFiles();
 
-        for (int i = 0; i < listOfFiles.length; i++) {
-            File file = listOfFiles[i];
-            if (file.isFile() && file.getName().startsWith("attachment")) {
-                pdfPageAsTicket.addAttachment(file);
+        System.out.println(pathToTicketFolder);
+        if (listOfFiles != null) {
+            for (int i = 0; i < listOfFiles.length; i++) {
+                File file = listOfFiles[i];
+                if (file.isFile() && file.getName().startsWith("attachment")) {
+                    pdfPageAsTicket.addAttachment(file);
+                }
             }
+        } else {
+            System.out.println("empty folder " + pathToTicketFolder);
+            return null;
         }
         return pdfPageAsTicket;
     }
