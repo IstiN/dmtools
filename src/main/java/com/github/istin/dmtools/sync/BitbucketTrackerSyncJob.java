@@ -2,6 +2,7 @@ package com.github.istin.dmtools.sync;
 
 import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
 import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
+import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
@@ -39,7 +40,12 @@ public class BitbucketTrackerSyncJob {
     }
 
     public static boolean syncTicket(Bitbucket bitbucket, String workspace, String repository, String pullRequestState, TrackerClient tracker, Function<String, String> priorityToIcon, StatusSyncDelegate statusSyncDelegate, PullRequest pullRequest, String key, boolean wasRenamed) throws IOException {
-        ITicket ticket = tracker.performTicket(key, tracker.getDefaultQueryFields());
+        ITicket ticket = null;
+        try {
+            ticket = tracker.performTicket(key, tracker.getDefaultQueryFields());
+        } catch (AtlassianRestClient.JiraException ignored) {
+            ignored.printStackTrace();
+        }
         if (ticket == null) {
             return false;
         }
