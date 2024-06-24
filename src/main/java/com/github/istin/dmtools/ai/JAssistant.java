@@ -235,7 +235,16 @@ public class JAssistant {
 
     public Double estimateStory(String role, String key, List<? extends ITicket> existingStories, boolean isCheckDetailsOfStory) throws Exception {
         ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-        String aiRequest = promptManager.checkSimilarStories(new SimilarStoriesPrompt(trackerClient.getBasePath(), ticket, existingStories));
+        List<ITicket> finalResults = checkSimilarTickets(role, existingStories, isCheckDetailsOfStory, ticket, new ArrayList<>());
+        String finalAiRequest = promptManager.estimateStory(new SimilarStoriesPrompt(trackerClient.getBasePath(), ticket, finalResults));
+        String finalEstimations = openAIClient.chat(finalAiRequest);
+        return findFirstNumberInTheString(finalEstimations);
+    }
+
+    public @NotNull List<ITicket> checkSimilarTickets(String role, List<? extends ITicket> existingTickets, boolean isCheckDetailsOfStory, ITicket ticket, List<ITicket> extraTickets) throws Exception {
+        SimilarStoriesPrompt similarStoriesHighlevel = new SimilarStoriesPrompt(trackerClient.getBasePath(), ticket, existingTickets);
+        similarStoriesHighlevel.setExtraTickets(extraTickets);
+        String aiRequest = promptManager.checkSimilarTickets(similarStoriesHighlevel);
         String response = openAIClient.chat(aiRequest);
         JSONArray array = new JSONArray(response);
         List<ITicket> finalResults = new ArrayList<>();
@@ -258,9 +267,7 @@ public class JAssistant {
         for (ITicket result : finalResults) {
             logger.log(Level.DEBUG,result.getTicketTitle() + " " + result.getWeight());
         }
-        String finalAiRequest = promptManager.estimateStory(new SimilarStoriesPrompt(trackerClient.getBasePath(), ticket, finalResults));
-        String finalEstimations = openAIClient.chat(finalAiRequest);
-        return findFirstNumberInTheString(finalEstimations);
+        return finalResults;
     }
 
     private static Double findFirstNumberInTheString(String input) {
@@ -405,7 +412,7 @@ public class JAssistant {
         MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets);
         multiTicketsPrompt.setContent(content);
         String prompt = promptManager.baIsTicketRelatedToContent(multiTicketsPrompt);
-        String response = openAIClient.chat(prompt);
+        String response = openAIClient.chat("gpt-4o-2024-05-13", prompt);
         System.out.println(response);
         return Boolean.parseBoolean(response);
     }

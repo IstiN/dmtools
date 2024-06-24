@@ -304,4 +304,7 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
         return getJSONObject(RallyFields.PROJECT).optString("Name");
     }
 
+    public RallyIssue getTestFolder() {
+        return getModel(RallyIssue.class, "TestFolder");
+    }
 }

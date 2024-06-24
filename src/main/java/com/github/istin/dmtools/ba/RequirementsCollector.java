@@ -24,10 +24,10 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
 
     @Override
     public void runJob(RequirementsCollectorParams params) throws Exception {
-        runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getStoriesJql(), params.getLabelNameToMarkAsReviewed(), params.getEachPagePrefix());
+        runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getStoriesJql(), params.getExcludeJQL(), params.getLabelNameToMarkAsReviewed(), params.getEachPagePrefix());
     }
 
-    public static void runJob(String roleSpecific, String projectSpecific, String storiesJql, String labelNameToMarkAsReviewed, String eachPagePrefix) throws Exception {
+    public static void runJob(String roleSpecific, String projectSpecific, String storiesJql, String excludeJQL, String labelNameToMarkAsReviewed, String eachPagePrefix) throws Exception {
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
         ConversationObserver conversationObserver = new ConversationObserver();
         BasicOpenAI openAI = new BasicOpenAI(conversationObserver);
@@ -45,7 +45,8 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
                     }
                 }
                 String jqlToSearch = jAssistant.buildJQLForContent(trackerClient, roleSpecific, projectSpecific, ticket, extraTickets);
-                String researchPageName = makeSearchAndCollectRequirementsToPage(trackerClient, jAssistant, jqlToSearch, ticket, extraTickets, roleSpecific, projectSpecific, eachPagePrefix);
+                System.out.println(jqlToSearch);
+                String researchPageName = makeSearchAndCollectRequirementsToPage(trackerClient, jAssistant, jqlToSearch, excludeJQL, ticket, extraTickets, roleSpecific, projectSpecific, eachPagePrefix);
                 BasicConfluence confluence = BasicConfluence.getInstance();
                 String viewUrl = confluence.findContent(researchPageName).getViewUrl(confluence.getBasePath());
                 trackerClient.postCommentIfNotExists(ticket.getKey(), "Research in Existing Jira Tickets Was Done " + viewUrl);
@@ -55,44 +56,72 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
         }, storiesJql, trackerClient.getExtendedQueryFields());
     }
 
-    private static String makeSearchAndCollectRequirementsToPage(TrackerClient<? extends ITicket> trackerClient, JAssistant jAssistant, String jqlToSearch, ITicket feature, List<ITicket> extraTickets, String roleSpecific, String projectSpecific, String eachPagePrefix) throws Exception {
+    private static String makeSearchAndCollectRequirementsToPage(TrackerClient<? extends ITicket> trackerClient, JAssistant jAssistant, String jqlToSearch, String excludeJQL, ITicket feature, List<ITicket> extraTickets, String roleSpecific, String projectSpecific, String eachPagePrefix) throws Exception {
         List<Key> keys = new ArrayList<>();
         keys.add(feature);
         keys.addAll(extraTickets);
         String jqlKeysNotIn = JiraClient.buildNotInJQLByKeys(keys);
-        jqlToSearch = "(" + jqlToSearch + ") and " + jqlKeysNotIn;
+        jqlToSearch = "(" + jqlToSearch + ") and " + jqlKeysNotIn ;
+        if (excludeJQL != null && !excludeJQL.isEmpty()) {
+            jqlToSearch += " and " + excludeJQL;
+        }
+
+        trackerClient.postCommentIfNotExists(feature.getTicketKey(), "Research query: " + trackerClient.buildUrlToSearch(jqlToSearch));
+
         List<ITicket> relatedTickets = new ArrayList<>();
+        final int[] i = {0};
+
+        List<ITicket> ticketsToCheck = new ArrayList<>();
+
         trackerClient.searchAndPerform(new JiraClient.Performer() {
+
+
             @Override
             public boolean perform(ITicket ticket) throws Exception {
-                boolean isRelated = jAssistant.baIsTicketRelatedToContent(trackerClient, roleSpecific, projectSpecific, feature, extraTickets, ticket);
-                if (isRelated) {
-                    relatedTickets.add(ticket);
+                System.out.println("Progress : " + i[0]);
+                ticketsToCheck.add(ticket);
+                if (ticketsToCheck.size() == 50) {
+                    List<ITicket> tickets = jAssistant.checkSimilarTickets(roleSpecific, ticketsToCheck, false, feature, extraTickets);
+                    relatedTickets.addAll(tickets);
+                    ticketsToCheck.clear();
                 }
+                i[0]++;
                 return false;
             }
         }, jqlToSearch, trackerClient.getExtendedQueryFields());
 
-        trackerClient.postCommentIfNotExists(feature.getTicketKey(), "Research query: " + trackerClient.buildUrlToSearch(jqlToSearch));
+        if (!ticketsToCheck.isEmpty()) {
+            List<ITicket> tickets = jAssistant.checkSimilarTickets(roleSpecific, ticketsToCheck, false, feature, extraTickets);
+            relatedTickets.addAll(tickets);
+        }
 
         BasicConfluence confluence = BasicConfluence.getInstance();
         DocumentationEditor documentationEditor = new DocumentationEditor(jAssistant, trackerClient, confluence, eachPagePrefix);
         Content rootContent = confluence.findContent(eachPagePrefix);
         TicketDocumentationHistoryTrackerViaConfluence ticketDocumentationHistoryTrackerViaConfluence = new TicketDocumentationHistoryTrackerViaConfluence(confluence);
         String researchPageName = eachPagePrefix + " " + feature.getKey();
-        String searchQuery = JiraClient.buildJQLByKeys(relatedTickets);
 
+        List<ITicket> finalList = new ArrayList<>();
+        for (ITicket relatedTicket :relatedTickets) {
+            boolean isRelated = jAssistant.baIsTicketRelatedToContent(trackerClient, roleSpecific, projectSpecific, feature, extraTickets, relatedTicket);
+            if (isRelated) {
+                finalList.add(relatedTicket);
+            }
+        }
 
+        String searchQuery = JiraClient.buildJQLByKeys(finalList);
         trackerClient.postCommentIfNotExists(feature.getTicketKey(), "Filtered tickets: " + trackerClient.buildUrlToSearch(searchQuery));
 
-        trackerClient.searchAndPerform(new JiraClient.Performer() {
-            @Override
-            public boolean perform(ITicket content) throws Exception {
-                documentationEditor.extendDocumentationPageWithTicket(confluence, ticketDocumentationHistoryTrackerViaConfluence, content, researchPageName, rootContent, source ->
-                        jAssistant.buildPageWithRequirementsForInputData(feature, extraTickets, roleSpecific, projectSpecific, source, content));
-                return false;
-            }
-        }, searchQuery, trackerClient.getExtendedQueryFields());
+        if (!finalList.isEmpty()) {
+            trackerClient.searchAndPerform(new JiraClient.Performer() {
+                @Override
+                public boolean perform(ITicket content) throws Exception {
+                    documentationEditor.extendDocumentationPageWithTicket(confluence, ticketDocumentationHistoryTrackerViaConfluence, content, researchPageName, rootContent, source ->
+                            jAssistant.buildPageWithRequirementsForInputData(feature, extraTickets, roleSpecific, projectSpecific, source, content));
+                    return false;
+                }
+            }, searchQuery, trackerClient.getExtendedQueryFields());
+        }
         return researchPageName;
     }
 }

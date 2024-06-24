@@ -11,6 +11,7 @@ public class RequirementsCollectorParams extends JSONModel {
     public static final String ROLE_SPECIFIC = "roleSpecific";
     public static final String PROJECT_SPECIFIC = "projectSpecific";
     public static final String EACH_PAGE_PREFIX = "eachPagePrefix";
+    private static final String EXCLUDE_JQL = "excludeJQL";
 
     public RequirementsCollectorParams() {
     }
@@ -41,5 +42,9 @@ public class RequirementsCollectorParams extends JSONModel {
 
     public String getEachPagePrefix() {
         return getString(EACH_PAGE_PREFIX);
+    }
+
+    public String getExcludeJQL() {
+        return getString(EXCLUDE_JQL);
     }
 }

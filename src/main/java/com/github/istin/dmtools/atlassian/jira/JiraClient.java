@@ -51,9 +51,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     private boolean isLogEnabled = true;
 
-    public void setClearCache(boolean clearCache) {
+    public void setClearCache(boolean clearCache) throws IOException {
         isClearCache = clearCache;
-
+        initCache();
     }
     public static String parseJiraProject(String key) {
         return key.split("-")[0].toUpperCase();
@@ -244,6 +244,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         int maxResults = searchResults.getMaxResults();
         int total = searchResults.getTotal();
         if (total == 0) {
+            log("total search query results: " + 0);
             return;
         }
 
@@ -255,8 +256,10 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             for (Ticket ticket : tickets) {
                 if (performer instanceof ProgressPerformer) {
                     isBreak = ((ProgressPerformer) performer).perform(createTicket(ticket), ticketIndex, startAt, total);
+                    log("total search query results: " + total);
                 } else {
                     isBreak = performer.perform(createTicket(ticket));
+                    log("total search query results: " + total);
                 }
                 if (isBreak) {
                     break;
@@ -649,6 +652,57 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                         .put(new JSONObject()
                                 .put("set", description)
                         )));
+        jiraRequest.setBody(body.toString());
+        String updateResult = jiraRequest.put();
+        log(updateResult);
+        return updateResult;
+    }
+
+    public String updateTicket2(String key, FieldsInitializer fieldsInitializer) throws IOException {
+        GenericRequest jiraRequest = getTicket(key);
+        JSONObject body = new JSONObject();
+        JSONObject fields = new JSONObject();
+        if (fieldsInitializer != null) {
+            fieldsInitializer.init(new TrackerTicketFields() {
+                @Override
+                public void set(String key, Object object) {
+                    fields.put(key, object);
+                }
+            });
+        }
+        body.put("fields", fields);
+        jiraRequest.setBody(body.toString());
+        String updateResult = jiraRequest.put();
+        log(updateResult);
+        return updateResult;
+    }
+
+    @Override
+    public String updateTicket(String key, FieldsInitializer fieldsInitializer) throws IOException {
+        GenericRequest jiraRequest = getTicket(key);
+        JSONObject body = new JSONObject();
+        JSONObject fields = new JSONObject();
+        if (fieldsInitializer != null) {
+            fieldsInitializer.init(new TrackerTicketFields() {
+                @Override
+                public void set(String key, Object object) {
+                    JSONObject jsonObject = null;
+                    if (object instanceof JSONObject) {
+//                        JSONObject objectToSet = (JSONObject) object;
+                        JSONObject objectToSet = new JSONObject().put("key", ((JSONObject) object).getString("key"));
+                        jsonObject = new JSONObject()
+                                .put("set", objectToSet);
+                    } else {
+                        jsonObject = new JSONObject()
+                                .put("set", object);
+                    }
+                    fields.put(key, new JSONArray()
+                            .put(jsonObject
+                            ));
+                }
+            });
+        }
+        body.put("update", fields);
         jiraRequest.setBody(body.toString());
         String updateResult = jiraRequest.put();
         log(updateResult);
@@ -1100,6 +1154,24 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 jql.append(",");
             }
             jql.append(key.getKey());
+        }
+        jql.append(")");
+        return jql.toString();
+    }
+
+    public static String buildJQLNotInProjects(Collection<? extends Key> keys) {
+        if (keys.isEmpty()) {
+            return "";
+        }
+        StringBuilder jql = new StringBuilder("project not in (");
+        boolean isFirst = true;
+        for (Key key : keys) {
+            if (isFirst) {
+                isFirst = false;
+            } else {
+                jql.append(",");
+            }
+            jql.append(key.getKey().split("-")[0]);
         }
         jql.append(")");
         return jql.toString();

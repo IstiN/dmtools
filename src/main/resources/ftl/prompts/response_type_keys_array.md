@@ -1,0 +1,1 @@
+Your answer must be JSONArray only (Maximum 20 keys) with keys. Do not include ticket title in json array response, do not wrap it in ```. Example of AI response: [KEY-1, KEY-2]. Don't skip proejct code. Don't use ```, html markdowns.

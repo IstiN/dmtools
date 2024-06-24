@@ -122,7 +122,8 @@ public class Status extends JSONModel {
                 || name.equals(INTEGRATION_BLOCKED)
                 || name.equals(BUSINESS_VALIDATION)
                 || name.equals(IN_ACCEPTANCE)
-                || name.equals(APPROVED);
+                || name.equals(APPROVED)
+                || name.equals(COMPLETED);
     }
 
     public boolean isInDev() {

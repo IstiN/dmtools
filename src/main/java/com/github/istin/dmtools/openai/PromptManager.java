@@ -63,8 +63,8 @@ public class PromptManager {
         return stringFromTemplate(input, "ba_nice_looking_documentation_with_technical_details");
     }
 
-    public String checkSimilarStories(SimilarStoriesPrompt input) throws IOException, TemplateException {
-        return stringFromTemplate(input, "ba_find_similar_stories");
+    public String checkSimilarTickets(SimilarStoriesPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "ba_find_similar_tickets");
     }
 
     public String estimateStory(SimilarStoriesPrompt input) throws IOException, TemplateException {

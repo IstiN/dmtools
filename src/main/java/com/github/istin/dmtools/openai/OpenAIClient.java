@@ -8,6 +8,7 @@ import com.github.istin.dmtools.openai.model.AIResponse;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -117,6 +118,17 @@ public class OpenAIClient extends AbstractRestClient {
 
     public String chat(String model, String message) throws Exception {
         return chat(model, message, null);
+    }
+
+    @Override
+    protected @NotNull String buildHashForPostRequest(GenericRequest genericRequest, String url) {
+        String adjustedUrl =
+                url.replaceAll("gpt-4-0125-preview", "gpt-4-turbo-2024-04-09")
+                        .replaceAll("gpt-4-32k", "gpt-4-turbo-2024-04-09")
+                        .replaceAll("gpt-4-1106-preview", "gpt-4-turbo-2024-04-09")
+                        .replaceAll("gpt-35-turbo", "gpt-4-turbo-2024-04-09")
+                ;
+        return adjustedUrl + genericRequest.getBody();
     }
 
 }

@@ -35,6 +35,7 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
     public static final String CREATED = "created";
     public static final String UPDATED = "updated";
     public static final String DUEDATE = "duedate";
+    public static final String PARENT = "parent";
     public static final String AFFECTS_VERSIONS = "versions";
 
     public Fields() {
@@ -126,6 +127,10 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
 
     public Resolution getResolution() {
         return getModel(Resolution.class, Fields.RESOLUTION);
+    }
+
+    public Ticket getParent() {
+        return getModel(Ticket.class, PARENT);
     }
 
 

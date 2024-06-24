@@ -23,6 +23,8 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
 
     String updateDescription(String key, String description) throws IOException;
 
+    String updateTicket(String key, FieldsInitializer fieldsInitializer) throws IOException;
+
     String buildUrlToSearch(String query);
 
     String getBasePath();

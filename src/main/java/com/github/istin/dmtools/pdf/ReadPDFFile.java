@@ -9,11 +9,15 @@ import org.apache.pdfbox.pdmodel.PDResources;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
+import org.apache.pdfbox.pdmodel.interactive.action.PDActionURI;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 public class ReadPDFFile {
 
@@ -42,7 +46,8 @@ public class ReadPDFFile {
             String cacheFolder = folderPath + "/cache/" + file.getName().split("\\.")[0];
             File fileCacheFolder = new File(cacheFolder);
             if (fileCacheFolder.exists()) {
-                return;
+
+//                return;
             }
 
             fileCacheFolder.mkdirs();
@@ -64,6 +69,32 @@ public class ReadPDFFile {
 
                 System.out.println("Page " + pageNum + " Text:");
                 System.out.println(text);
+
+                // Extract links and replace in text
+                StringBuilder htmlContent = new StringBuilder();
+                htmlContent.append("<html><body>");
+                List<PDAnnotation> annotations = page.getAnnotations();
+                for (PDAnnotation annotation : annotations) {
+                    if (annotation instanceof PDAnnotationLink) {
+                        PDAnnotationLink link = (PDAnnotationLink) annotation;
+                        if (link.getAction() instanceof PDActionURI) {
+                            PDActionURI uriAction = (PDActionURI) link.getAction();
+                            String uri = uriAction.getURI();
+                            String annotationText = link.getContents();
+                            if (annotationText == null || annotationText.isEmpty()) {
+                                annotationText = uri;
+                            }
+                            String linkHtml = "<a href=\"" + uri + "\">" + annotationText + "</a>";
+                            text = text.replace(annotationText, linkHtml);
+                        }
+                    }
+                }
+                htmlContent.append("<p>").append(text).append("</p>");
+                htmlContent.append("</body></html>");
+
+                // Save text and links as HTML
+                FileUtils.write(new File(currentPageCache, "description.html"), htmlContent.toString(), "UTF-8");
+
                 FileUtils.write(new File(currentPageCache, "description.txt"), text);
                 BufferedImage bim = pdfRenderer.renderImageWithDPI(pageNum-1, 100); // 300 is the dpi (dots per inch), change it as needed
 

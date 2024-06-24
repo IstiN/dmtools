@@ -48,7 +48,7 @@ public class RallyFields {
 
     public static final String[] DEFAULT_EXTENDED = new String[] {
             FORMATTED_ID,NAME,PRIORITY,PRIORITY_USER_STORY,CREATION_DATE,LAST_UPDATE_DATE,FLOW_STATE,BLOCKED,BLOCKED_REASON,PLAN_ESTIMATE, REVISION_HISTORY, ITERATION, START_DATE, END_DATE, PROJECT,
-            TAGS, RallyFields.DESCRIPTION,  TESTCASES, PARENT, "Attachments", "WorkProduct"
+            TAGS, RallyFields.DESCRIPTION,  TESTCASES, PARENT, "Attachments", "WorkProduct", "TestFolder"
     };
 
 

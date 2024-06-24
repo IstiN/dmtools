@@ -17,6 +17,7 @@ public class FixVersion extends JSONModel implements Comparable<FixVersion>, Rep
 
     public static final String RELEASE_DATE = "releaseDate";
     public static final String START_DATE = "startDate";
+    public static final String NAME = "name";
 
     public FixVersion() {
     }
@@ -30,7 +31,7 @@ public class FixVersion extends JSONModel implements Comparable<FixVersion>, Rep
     }
 
     public String getName() {
-        return getString("name");
+        return getString(NAME);
     }
 
     @Override

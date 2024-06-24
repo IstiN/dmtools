@@ -41,6 +41,11 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
     }
 
     @Override
+    public String updateTicket(String key, FieldsInitializer fieldsInitializer) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String buildUrlToSearch(String query) {
         return query;
     }

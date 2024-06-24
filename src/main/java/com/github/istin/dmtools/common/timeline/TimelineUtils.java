@@ -190,21 +190,21 @@ public class TimelineUtils {
         return quarters;
     }
 
-    public static List<Release> convertRallyIterationToRelease(Calendar startDate, Calendar endDate, List<Iteration> iterations) {
+    public static List<Release> convertRallyIterationToRelease(Calendar startDate, Calendar endDate, List<? extends ReportIteration> iterations) {
         List<Release> releases = new ArrayList<>();
         int counter = 0;
         Calendar now = Calendar.getInstance();
-        for (Iteration iteration : iterations) {
+        for (ReportIteration iteration : iterations) {
             if (DateUtils.calendar(iteration.getStartDate()).compareTo(startDate) < 0 || DateUtils.calendar(iteration.getStartDate()).compareTo(endDate) > 0)
                 continue;
 
             Release release = new Release();
             release.setId(counter);
-            release.setName(iteration.getName());
+            release.setName(iteration.getIterationName());
             Sprint sprint = new Sprint(counter, iteration.getStartDate(), iteration.getEndDate(), -1) {
                 @Override
                 public String getIterationName() {
-                    return iteration.getName();
+                    return iteration.getIterationName();
                 }
             };
             boolean matchedToSprintTimelines = sprint.isMatchedToSprintTimelines(now);

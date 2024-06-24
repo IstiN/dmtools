@@ -49,7 +49,11 @@ public class DiagramsDrawer {
         System.setProperty("webdriver.http.factory", "jdk-http-client");
         // Create an instance of ChromeDriver
         WebDriverManager.chromedriver().setup();
-        WebDriver driver = new ChromeDriver();
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless");
+        WebDriver driver = new ChromeDriver(options);
+//        WebDriver driver = new ChromeDriver();
+        https://stackoverflow.com/questions/16180428/can-selenium-webdriver-open-browser-windows-silently-in-the-background
         try {
             // Navigate to the desired URL
             //driver.get("file:///path/to/your/HTMLfile.html");
