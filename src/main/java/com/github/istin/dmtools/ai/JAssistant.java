@@ -430,4 +430,9 @@ public class JAssistant {
         String chatResponse = openAIClient.chat("gpt-4o-2024-05-13", aiRequest);
         return JSONModel.convertToModels(Diagram.class, new JSONArray(chatResponse));
     }
+
+    public String getEstimationInManHours(String input) throws Exception {
+        String aiRequest = promptManager.getManHourEstimationPrompt(new InputPrompt(input));
+        return openAIClient.chat(aiRequest);
+    }
 }

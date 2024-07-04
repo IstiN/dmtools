@@ -165,4 +165,8 @@ public class PromptManager {
     public String createDiagrams(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
         return stringFromTemplate(multiTicketsPrompt, "role_create_diagrams");
     }
+
+    public String getManHourEstimationPrompt(InputPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "presale_estimate_story");
+    }
 }
