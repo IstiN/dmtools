@@ -15,6 +15,13 @@ import java.util.List;
 public class ScopeStatusReport {
 
     private List<? extends ITicket> ticketList;
+    private Integer defaultSPsValue;
+
+    public void setTicketProgressCalc(ITicket.ITicketProgress ticketProgressCalc) {
+        this.ticketProgressCalc = ticketProgressCalc;
+    }
+
+    private ITicket.ITicketProgress ticketProgressCalc = new ITicket.ITicketProgress.Impl();
 
     public ScopeStatusReport(List<? extends ITicket> ticketList) {
         this.ticketList = ticketList;
@@ -25,7 +32,7 @@ public class ScopeStatusReport {
         List<GenericRow> rows = new ArrayList<>();
         rows.add(new TicketHeaderRow());
         for (ITicket ticket : ticketList) {
-            rows.add(new TicketBaseRow(ticket, new ITicket.ITicketProgress.Impl()));
+            rows.add(new TicketBaseRow(ticket, ticketProgressCalc, defaultSPsValue));
         }
         report.setRows(rows);
         return report;
@@ -90,5 +97,9 @@ public class ScopeStatusReport {
         }
 
         confluence.publishPageToDefaultSpace("Summary By Iterations", null, chartsSummaryReport);
+    }
+
+    public void setDefaultSPsValue(Integer defaultSPsValue) {
+        this.defaultSPsValue = defaultSPsValue;
     }
 }

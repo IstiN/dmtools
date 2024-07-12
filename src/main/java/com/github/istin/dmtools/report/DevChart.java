@@ -71,7 +71,7 @@ public class DevChart {
 
         public String getScore() throws ScriptException {
             ScriptEngineManager mgr = new ScriptEngineManager();
-            javax.script.ScriptEngine engine = mgr.getEngineByName("JavaScript");
+            javax.script.ScriptEngine engine = mgr.getEngineByName("graal.js");
             //
             for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
                 Metric metric = getCustomMetricsHeaders().get(i);

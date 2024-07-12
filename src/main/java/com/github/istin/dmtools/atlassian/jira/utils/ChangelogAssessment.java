@@ -1,12 +1,12 @@
 package com.github.istin.dmtools.atlassian.jira.utils;
 
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
-import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
-import com.github.istin.dmtools.broadcom.rally.model.RallyFields;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.report.model.KeyTime;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -84,13 +84,33 @@ public class ChangelogAssessment {
         return result;
     }
 
+    public static Pair<IUser, IHistoryItem> findSourceStatusForRequestedOne(TrackerClient trackerClient, String key, ITicket ticket, String targetStatus) throws IOException {
+        IChangelog changeLog = trackerClient.getChangeLog(key, ticket);
+        List<IHistory> histories = (List<IHistory>) changeLog.getHistories();
+        for (IHistory history : histories) {
+            List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
+            for (IHistoryItem historyItem : items) {
+                if (historyItem.getField().equalsIgnoreCase(trackerClient.getDefaultStatusField())) {
+                    String toString = historyItem.getToAsString();
+                    if (toString != null) {
+                        if (toString.equalsIgnoreCase(targetStatus)) {
+                            return new ImmutablePair<>(history.getAuthor(), historyItem);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+
     public static boolean fieldWasChangedByUser(JiraClient jiraClient, String ticketKey, String field, String user, Ticket ticket) throws IOException {
         IChangelog changeLog = jiraClient.getChangeLog(ticketKey, ticket);
         List<IHistory> histories = (List<IHistory>) changeLog.getHistories();
         for (IHistory history : histories) {
             List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
             for (IHistoryItem historyItem : items) {
-                if (historyItem.getField().contains("High Level Estimation") && history.getAuthor().toString().contains(user)) {
+                if (historyItem.getField().contains(field) && history.getAuthor().toString().contains(user)) {
                     System.out.println(historyItem.getField() + " changed by " + history.getAuthor() + " " + user);
                     return true;
                 }
