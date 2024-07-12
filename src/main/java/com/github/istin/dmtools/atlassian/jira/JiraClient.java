@@ -49,7 +49,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     private String authType = "Basic";
     private Long instanceCreationTime = System.currentTimeMillis();
 
-    private boolean isLogEnabled = true;
+    private boolean isLogEnabled = false;
 
     public void setClearCache(boolean clearCache) throws IOException {
         isClearCache = clearCache;
@@ -947,7 +947,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             if (response.isSuccessful()) {
                 return response.body() != null ? response.body().string() : null;
             } else {
-                System.err.println("Error code " + response.code());
+                System.err.println("Error code " + response.code() + " " + genericRequest.getBody() + " " + genericRequest.url());
                 return response.body() != null ? response.body().string() : null;
             }
         } finally {
@@ -1208,6 +1208,10 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     public static String tag(String basePath, String notifierId, String notifierName) {
         return "<a class=\"user-hover\" href=\"" + basePath + "/secure/ViewProfile.jspa?name="+notifierId+"\" rel=\""+notifierId+"\">"+notifierName+"</a>";
+    }
+
+    public static String tag(String notifierId) {
+        return "[~accountid:" + notifierId + "]";
     }
 
     public boolean isWaitBeforePerform() {

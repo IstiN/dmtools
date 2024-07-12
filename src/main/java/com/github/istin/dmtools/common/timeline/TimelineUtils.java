@@ -190,9 +190,9 @@ public class TimelineUtils {
         return quarters;
     }
 
-    public static List<Release> convertRallyIterationToRelease(Calendar startDate, Calendar endDate, List<? extends ReportIteration> iterations) {
+    public static List<Release> convertRallyIterationToRelease(int idsCounter, Calendar startDate, Calendar endDate, List<? extends ReportIteration> iterations) {
         List<Release> releases = new ArrayList<>();
-        int counter = 0;
+        int counter = idsCounter;
         Calendar now = Calendar.getInstance();
         for (ReportIteration iteration : iterations) {
             if (DateUtils.calendar(iteration.getStartDate()).compareTo(startDate) < 0 || DateUtils.calendar(iteration.getStartDate()).compareTo(endDate) > 0)

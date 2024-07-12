@@ -123,6 +123,7 @@ public class Status extends JSONModel {
                 || name.equals(BUSINESS_VALIDATION)
                 || name.equals(IN_ACCEPTANCE)
                 || name.equals(APPROVED)
+                || name.equals(ACCEPTED)
                 || name.equals(COMPLETED);
     }
 

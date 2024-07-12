@@ -25,7 +25,7 @@ public class ScopePageSummary {
 
     public void addCustomMetric(String name, String formula) {
         ScriptEngineManager mgr = new ScriptEngineManager();
-        javax.script.ScriptEngine engine = mgr.getEngineByName("JavaScript");
+        javax.script.ScriptEngine engine = mgr.getEngineByName("graal.js");
         //
         for (int i = 0; i < this.summaryItems.size(); i++) {
             SummaryItem summaryItem = this.summaryItems.get(i);

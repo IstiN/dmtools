@@ -28,7 +28,7 @@ public class Ticket extends JSONModel implements ITicket {
 
     @Override
     public double getWeight() {
-        return 1;
+        return getFields().getStoryPoints();
     }
 
     @Override
@@ -45,6 +45,14 @@ public class Ticket extends JSONModel implements ITicket {
         List<FixVersion> fixVersions = getFields().getFixVersions();
         if (fixVersions != null && !fixVersions.isEmpty()) {
             return fixVersions.get(0);
+        }
+        return null;
+    }
+
+    public String getIterationName() {
+        ReportIteration iteration = getIteration();
+        if (iteration != null) {
+            return iteration.getIterationName();
         }
         return null;
     }
