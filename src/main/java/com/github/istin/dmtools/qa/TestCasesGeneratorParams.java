@@ -1,10 +1,11 @@
 package com.github.istin.dmtools.qa;
 
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.job.BaseJobParams;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class TestCasesGeneratorParams extends JSONModel {
+public class TestCasesGeneratorParams extends BaseJobParams {
 
     public static final String STORIES_JQL = "storiesJql";
     public static final String EXISTING_TEST_CASES_JQL = "existingTestCasesJql";

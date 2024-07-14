@@ -1210,7 +1210,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return "<a class=\"user-hover\" href=\"" + basePath + "/secure/ViewProfile.jspa?name="+notifierId+"\" rel=\""+notifierId+"\">"+notifierName+"</a>";
     }
 
-    public static String tag(String notifierId) {
+    public String tag(String notifierId) {
         return "[~accountid:" + notifierId + "]";
     }
 

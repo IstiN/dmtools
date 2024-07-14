@@ -23,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -158,6 +159,23 @@ public class JAssistant {
             } else if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
                 CopyDown converter = new CopyDown();
                 trackerClient.postComment(key, converter.convert(comment).replaceAll("\\*\\*", "*"));
+            }
+        } else {
+            String aiRequest = promptManager.requestTestCasesForStoryAsJSONArray(qaTestCasesPrompt);
+            String response = openAIClient.chat(aiRequest);
+            JSONArray array = new JSONArray(response);
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject jsonObject = array.getJSONObject(i);
+                String projectCode = key.split("-")[0];
+                trackerClient.createTicketInProject(projectCode, "Test Case", jsonObject.getString("summary"), jsonObject.getString("description"), new TrackerClient.FieldsInitializer() {
+                    @Override
+                    public void init(TrackerClient.TrackerTicketFields fields) {
+                        fields.set("priority",
+                                new JSONObject().put("name", jsonObject.getString("priority"))
+                        );
+                        fields.set("labels", new JSONArray().put("ai_generated"));
+                    }
+                });
             }
         }
     }
