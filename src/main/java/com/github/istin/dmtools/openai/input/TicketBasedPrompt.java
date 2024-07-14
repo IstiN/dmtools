@@ -12,7 +12,15 @@ public class TicketBasedPrompt {
     private final String basePath;
     private ITicket ticket;
     private String attachmentsDescription;
+    public List<ITicket> getExtraTickets() {
+        return extraTickets;
+    }
 
+    public void setExtraTickets(List<ITicket> extraTickets) {
+        this.extraTickets = extraTickets;
+    }
+
+    private List<ITicket> extraTickets;
     private List<ITicket> testCases = new ArrayList<>();
 
     public TicketBasedPrompt(String basePath, ITicket ticket) {

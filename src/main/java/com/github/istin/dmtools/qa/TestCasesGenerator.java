@@ -5,6 +5,7 @@ import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
+import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.job.AbstractJob;
@@ -14,7 +15,9 @@ import com.github.istin.dmtools.report.freemarker.GenericCell;
 import com.github.istin.dmtools.report.freemarker.GenericReport;
 import com.github.istin.dmtools.report.freemarker.GenericRow;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
 
@@ -35,14 +38,21 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
         JAssistant jAssistant = new JAssistant(trackerClient, null, openAI, promptManager);
 
         trackerClient.searchAndPerform(ticket -> {
-            generateTestCases(confluenceRootPage, eachPagePrefix, ticket, jAssistant, conversationObserver, confluence, listOfAllTestCases, outputType, testCasesPriorities);
+            Set<String> keys = IssuesIDsParser.extractAllJiraIDs(ticket.getTicketDescription());
+            List<ITicket> extraTickets = new ArrayList<>();
+            if (!keys.isEmpty()) {
+                for (String key : keys) {
+                    extraTickets.add(trackerClient.performTicket(key, trackerClient.getExtendedQueryFields()));
+                }
+            }
+            generateTestCases(confluenceRootPage, eachPagePrefix, ticket, jAssistant, conversationObserver, confluence, listOfAllTestCases, outputType, testCasesPriorities, extraTickets);
             trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", similar test cases are linked and new test cases are generated.");
             return false;
         }, storiesJQL, trackerClient.getDefaultQueryFields());
     }
 
-    public static void generateTestCases(String confluenceRootPage, String eachPagePrefix, ITicket ticket, JAssistant jAssistant, ConversationObserver conversationObserver, BasicConfluence confluence, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
-        jAssistant.generateTestCases(ticket, listOfAllTestCases, outputType, testCasesPriorities);
+    public static void generateTestCases(String confluenceRootPage, String eachPagePrefix, ITicket ticket, JAssistant jAssistant, ConversationObserver conversationObserver, BasicConfluence confluence, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities, List<ITicket> extraTickets) throws Exception {
+        jAssistant.generateTestCases(ticket, extraTickets, listOfAllTestCases, outputType, testCasesPriorities);
         List<ConversationObserver.Message> messages = conversationObserver.getMessages();
         if (!messages.isEmpty()) {
             GenericReport genericReport = new GenericReport();
