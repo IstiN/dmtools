@@ -1,2 +1,2 @@
 <#include "qa_story_test_cases_generation_common.md">
-Return results as Json Array with JSON objects inside. Each json object must include 'priority', 'summary', 'description'. Don't use ```, html mardowns.
+Return results as Json Array with JSON objects inside. Each json object must include 'priority', 'summary', 'description'. Don't use ```, html markdowns.
