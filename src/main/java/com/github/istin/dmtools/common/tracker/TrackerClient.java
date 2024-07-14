@@ -17,6 +17,8 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
 
     String linkIssueWithRelationship(String sourceKey, String anotherKey, String relationship) throws IOException;
 
+    String tag(String initiator);
+
     enum TextType {
         HTML, MARKDOWN
     }

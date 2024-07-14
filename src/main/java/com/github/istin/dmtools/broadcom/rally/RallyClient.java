@@ -91,6 +91,11 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     }
 
     @Override
+    public String tag(String initiator) {
+        return "";
+    }
+
+    @Override
     public String getTicketBrowseUrl(String ticketKey) {
         return basePath + "/#/?detail=/" + getLastTwoSegments(ticketKey) + "&fdp=true";
     }

@@ -36,6 +36,11 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
     }
 
     @Override
+    public String tag(String initiator) {
+        return "";
+    }
+
+    @Override
     public String updateDescription(String key, String description) throws IOException {
         throw new UnsupportedOperationException();
     }

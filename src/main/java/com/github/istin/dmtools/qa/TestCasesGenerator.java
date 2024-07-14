@@ -20,10 +20,10 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
 
     @Override
     public void runJob(TestCasesGeneratorParams params) throws Exception {
-        runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getStoriesJQL(), params.getExistingTestCasesJQL(), params.getOutputType(), params.getTestCasesPriorities());
+        runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getStoriesJQL(), params.getExistingTestCasesJQL(), params.getOutputType(), params.getTestCasesPriorities(), params.getInitiator());
     }
 
-    public static void runJob(String confluenceRootPage, String eachPagePrefix, String storiesJQL, String existingTestCasesJQL, String outputType, String testCasesPriorities) throws Exception {
+    public static void runJob(String confluenceRootPage, String eachPagePrefix, String storiesJQL, String existingTestCasesJQL, String outputType, String testCasesPriorities, String initiator) throws Exception {
         BasicConfluence confluence = BasicConfluence.getInstance();
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
 
@@ -36,6 +36,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
 
         trackerClient.searchAndPerform(ticket -> {
             generateTestCases(confluenceRootPage, eachPagePrefix, ticket, jAssistant, conversationObserver, confluence, listOfAllTestCases, outputType, testCasesPriorities);
+            trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", similar test cases are linked and new test cases are generated.");
             return false;
         }, storiesJQL, trackerClient.getDefaultQueryFields());
     }
