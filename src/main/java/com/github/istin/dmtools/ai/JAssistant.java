@@ -5,6 +5,7 @@ import com.github.istin.dmtools.atlassian.bitbucket.model.File;
 import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Relationship;
+import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -117,7 +118,7 @@ public class JAssistant {
         }
     }
 
-    public void generateTestCases(ITicket ticket, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
+    public void generateTestCases(ITicket ticket, List<ITicket> extraTickets, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
         String key = ticket.getTicketKey();
 
         if (outputType.equals(TestCasesGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
@@ -134,6 +135,7 @@ public class JAssistant {
         List<ITicket> finaResults = new ArrayList<>();
         for (ITicket testCase : listOfAllTestCases) {
             SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(),  "", ticket, testCase);
+            similarStoriesPrompt.setExtraTickets(extraTickets);
             similarStoriesPrompt.setAttachmentsDescription(attachmentsDescription.toString());
 
             String chatRequest = promptManager.validateTestCaseRelatedToStory(similarStoriesPrompt);
@@ -147,6 +149,7 @@ public class JAssistant {
         }
 
         QATestCasesPrompt qaTestCasesPrompt = new QATestCasesPrompt(trackerClient.getBasePath(), ticket, testCasesPriorities);
+        qaTestCasesPrompt.setExtraTickets(extraTickets);
         qaTestCasesPrompt.setAttachmentsDescription(attachmentsDescription.toString());
         qaTestCasesPrompt.setTestCases(finaResults);
 
@@ -167,7 +170,12 @@ public class JAssistant {
             for (int i = 0; i < array.length(); i++) {
                 JSONObject jsonObject = array.getJSONObject(i);
                 String projectCode = key.split("-")[0];
-                trackerClient.createTicketInProject(projectCode, "Test Case", jsonObject.getString("summary"), jsonObject.getString("description"), new TrackerClient.FieldsInitializer() {
+                String description = jsonObject.getString("description");
+                if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+                    CopyDown converter = new CopyDown();
+                    description = converter.convert(description).replaceAll("\\*\\*", "*");
+                }
+                Ticket createdTestCase = new Ticket(trackerClient.createTicketInProject(projectCode, "Test Case", jsonObject.getString("summary"), description, new TrackerClient.FieldsInitializer() {
                     @Override
                     public void init(TrackerClient.TrackerTicketFields fields) {
                         fields.set("priority",
@@ -175,7 +183,8 @@ public class JAssistant {
                         );
                         fields.set("labels", new JSONArray().put("ai_generated"));
                     }
-                });
+                }));
+                trackerClient.linkIssueWithRelationship(ticket.getTicketKey(), createdTestCase.getKey(), Relationship.TESTS);
             }
         }
     }

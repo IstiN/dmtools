@@ -10,6 +10,10 @@ Rules:
 {new story}
 <#assign issue = ticket>
 <#include "issue_title_description.md">
+<#list extraTickets as issue>
+${(issue.ticketKey)!""}
+<#include "issue_title_description.md">
+</#list>
 {new story}
 
 {existing test case}

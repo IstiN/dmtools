@@ -12,16 +12,6 @@ public class SimilarStoriesPrompt extends TicketBasedPrompt {
 
     private String role;
 
-    public List<ITicket> getExtraTickets() {
-        return extraTickets;
-    }
-
-    public void setExtraTickets(List<ITicket> extraTickets) {
-        this.extraTickets = extraTickets;
-    }
-
-    private List<ITicket> extraTickets;
-
     public SimilarStoriesPrompt(String basePath, ITicket ticket, List<? extends ITicket> stories) {
         super(basePath, ticket);
         this.stories = stories;

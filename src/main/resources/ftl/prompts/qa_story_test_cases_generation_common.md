@@ -19,5 +19,9 @@ Generate Test Cases for the specific Story:
 {story description}
 <#assign issue = ticket>
 <#include "issue_title_description.md">
+<#list extraTickets as issue>
+${(issue.ticketKey)!""}
+<#include "issue_title_description.md">
+</#list>
 {story description}
 Ensure your feedback is constructive and professional.
