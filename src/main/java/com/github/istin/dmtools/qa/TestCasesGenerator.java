@@ -30,7 +30,6 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
         BasicConfluence confluence = BasicConfluence.getInstance();
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
 
-        List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(existingTestCasesJQL, new String[]{Fields.SUMMARY});
         ConversationObserver conversationObserver = new ConversationObserver();
         BasicOpenAI openAI = new BasicOpenAI(conversationObserver);
         PromptManager promptManager = new PromptManager();
@@ -38,6 +37,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
         JAssistant jAssistant = new JAssistant(trackerClient, null, openAI, promptManager);
 
         trackerClient.searchAndPerform(ticket -> {
+            List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(existingTestCasesJQL, new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
             Set<String> keys = IssuesIDsParser.extractAllJiraIDs(ticket.getTicketDescription());
             List<ITicket> extraTickets = new ArrayList<>();
             if (!keys.isEmpty()) {
@@ -54,8 +54,14 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
     public static void generateTestCases(String confluenceRootPage, String eachPagePrefix, ITicket ticket, JAssistant jAssistant, ConversationObserver conversationObserver, BasicConfluence confluence, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities, List<ITicket> extraTickets) throws Exception {
         jAssistant.generateTestCases(ticket, extraTickets, listOfAllTestCases, outputType, testCasesPriorities);
         List<ConversationObserver.Message> messages = conversationObserver.getMessages();
+        if (confluenceRootPage == null || eachPagePrefix == null || confluenceRootPage.isEmpty() || eachPagePrefix.isEmpty()) {
+            messages.clear();
+            return;
+        }
+
         if (!messages.isEmpty()) {
             GenericReport genericReport = new GenericReport();
+            genericReport.setIsNotWiki(false);
             genericReport.setName(eachPagePrefix + " " + ticket.getKey());
             for (ConversationObserver.Message message : messages) {
                 GenericRow row = new GenericRow(false);
