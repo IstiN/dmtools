@@ -15,6 +15,8 @@ import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.report.model.KeyTime;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -27,7 +29,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorParams> {
-
+    private static final Logger logger = LogManager.getLogger(DocumentationGenerator.class);
     public static String NAME = "DocumentationEditor";
 
     @Override
@@ -69,11 +71,11 @@ public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorPa
         JSONObject jsonObject = documentationEditor.buildExistingAreasStructureForConfluence("", confluenceRootPage);
         Set<String> keys = jsonObject.keySet();
         for (String key : keys) {
-            System.out.println(key);
+            logger.info(key);
             JSONObject children = jsonObject.getJSONObject(key);
             Set<String> childrenKeys = children.keySet();
             for (String childKey : childrenKeys) {
-                System.out.println("===" + childKey);
+                logger.info("==={}", childKey);
                 documentationEditor.attachImagesForPage(childKey, tracker, figma);
             }
         }

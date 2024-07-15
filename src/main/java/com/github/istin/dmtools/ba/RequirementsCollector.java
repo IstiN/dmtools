@@ -15,13 +15,15 @@ import com.github.istin.dmtools.documentation.area.TicketDocumentationHistoryTra
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 public class RequirementsCollector extends AbstractJob<RequirementsCollectorParams> {
-
+    private static final Logger logger = LogManager.getLogger(RequirementsCollector.class);
     @Override
     public void runJob(RequirementsCollectorParams params) throws Exception {
         runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getStoriesJql(), params.getExcludeJQL(), params.getLabelNameToMarkAsReviewed(), params.getEachPagePrefix());
@@ -45,7 +47,7 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
                     }
                 }
                 String jqlToSearch = jAssistant.buildJQLForContent(trackerClient, roleSpecific, projectSpecific, ticket, extraTickets);
-                System.out.println(jqlToSearch);
+                logger.info(jqlToSearch);
                 String researchPageName = makeSearchAndCollectRequirementsToPage(trackerClient, jAssistant, jqlToSearch, excludeJQL, ticket, extraTickets, roleSpecific, projectSpecific, eachPagePrefix);
                 BasicConfluence confluence = BasicConfluence.getInstance();
                 String viewUrl = confluence.findContent(researchPageName).getViewUrl(confluence.getBasePath());
@@ -78,7 +80,7 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
 
             @Override
             public boolean perform(ITicket ticket) throws Exception {
-                System.out.println("Progress : " + i[0]);
+                logger.info("Progress : {}", i[0]);
                 ticketsToCheck.add(ticket);
                 if (ticketsToCheck.size() == 50) {
                     List<ITicket> tickets = jAssistant.checkSimilarTickets(roleSpecific, ticketsToCheck, false, feature, extraTickets);

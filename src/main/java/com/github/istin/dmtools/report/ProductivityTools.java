@@ -14,6 +14,8 @@ import com.github.istin.dmtools.report.freemarker.cells.DevItemsSumCell;
 import com.github.istin.dmtools.report.freemarker.cells.DevProductivityCell;
 import com.github.istin.dmtools.report.freemarker.cells.DevStoriesSPSumCell;
 import com.github.istin.dmtools.report.model.KeyTime;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import javax.script.ScriptException;
@@ -22,7 +24,7 @@ import java.util.*;
 import java.util.stream.Stream;
 
 public class ProductivityTools {
-
+    private static final Logger logger = LogManager.getLogger(ProductivityTools.class);
     public static interface IReleaseGenerator {
         List<Release> generate(int typeOfReleases, int startSprint, int startFixVersion, int extraSprintTimeline, Calendar startDate, long maxTime);
 
@@ -235,7 +237,7 @@ public class ProductivityTools {
         long newTime = getCurrentTimeForMeasurements();
         long timeSpend = newTime - timeStart;
         if (timeSpend > 10) {
-            System.out.println(action + " " + timeSpend);
+            logger.info("{} {}", action, timeSpend);
         }
         return newTime;
     }

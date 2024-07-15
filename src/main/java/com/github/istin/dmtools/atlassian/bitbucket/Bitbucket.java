@@ -5,6 +5,8 @@ import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -15,7 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class Bitbucket extends AtlassianRestClient implements SourceCode {
-
+    private static final Logger logger = LogManager.getLogger(Bitbucket.class);
     public static final boolean IGNORE_CACHE = false;
 
     public enum ApiVersion {
@@ -71,7 +73,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
         result.addAll(values);
         while (!values.isEmpty() && checkAllRequests) {
             start = buildNexPage(start);
-            System.out.println("pull requests: " + start);
+            logger.info("pull requests: {}", start);
 
             getRequest = new GenericRequest(this, buildPullRequestsPath(workspace, repository, stateConverted));
             getRequest.param(getNextPageField(), ""+ start);
@@ -84,9 +86,9 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
             }
 
             values = new BitbucketResult(response).getValues(apiVersion);
-            System.out.println("pull requests response size: " + values.size());
+            logger.info("pull requests response size: {}", values.size());
             if (!values.isEmpty()) {
-                System.out.println("pull requests response first item: " + values.get(0).getId());
+                logger.info("pull requests response first item: {}", values.get(0).getId());
             }
             result.addAll(values);
         }

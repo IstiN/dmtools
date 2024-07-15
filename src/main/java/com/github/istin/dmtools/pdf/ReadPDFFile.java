@@ -1,17 +1,19 @@
 package com.github.istin.dmtools.pdf;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDResources;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
-import org.apache.pdfbox.rendering.PDFRenderer;
-import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.pdmodel.interactive.action.PDActionURI;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
-import org.apache.pdfbox.pdmodel.interactive.action.PDActionURI;
+import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.text.PDFTextStripper;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -20,7 +22,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class ReadPDFFile {
-
+    private static final Logger logger = LogManager.getLogger(ReadPDFFile.class);
     public static void main(String[] args) {
 
         String folderPath = "path/to/pdf_files_folder";
@@ -29,7 +31,7 @@ public class ReadPDFFile {
     }
 
     public static void parsePdfFilesToTickets(String folderPath) {
-        System.out.println(folderPath);
+        logger.info(folderPath);
         File[] listOfFiles = new File(folderPath).listFiles();
 
         for (int i = 0; i < listOfFiles.length; i++) {
@@ -67,8 +69,8 @@ public class ReadPDFFile {
                 pdfStripper.setEndPage(pageNum);
                 String text = pdfStripper.getText(document);
 
-                System.out.println("Page " + pageNum + " Text:");
-                System.out.println(text);
+                logger.info("Page {} Text:", pageNum);
+                logger.info(text);
 
                 // Extract links and replace in text
                 StringBuilder htmlContent = new StringBuilder();
