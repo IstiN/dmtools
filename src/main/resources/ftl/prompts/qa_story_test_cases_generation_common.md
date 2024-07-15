@@ -4,17 +4,19 @@ Your task is to write test cases and follow to the rules:
 2. Description must be in Given-When-Then scenario. 
 3. Make sure Description is nice looking with html tags inside, skip html, head and body tags and don't use class attribute. Use tag for each test case.
 4. Use only following tags in Description: <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <p>, <strong>, <em>, <u>, <s>, <ul>, <ol>, <li>, <a>, <code>, <pre>, <table>, <tr>, <th>, <td>.
-5. Don't write test cases for visual design (UI) checks 
-6. Use 'User' instead of 'I' in scenarios.  
-7. Each generated Test Case must include priority from the list: ${testCasesPriorities}.
-8. Don't create duplicates, check {existing test cases list}.
-9. Don't introduce additional Test Cases which are not related to {story description} especially if it can confuse readers. 
+5. Words must be bold formatted: Given, When, Then, And.
+6. Don't write test cases for visual design (UI) checks 
+7. Use 'User' instead of 'I' in scenarios.  
+8. Each generated Test Case must include priority from the list: ${testCasesPriorities}.
+9. Don't create duplicates, check {existing test cases list}.
+10. Don't introduce additional Test Cases which are not related to {story description} especially if it can confuse readers.
+11. Don't create new test cases if current list of test cases cover the {story description}
 
-{existing test cases list}
+{existing test cases list linked to the story}
 <#list testCases as issue>
 <#include "issue_title_description.md">
 </#list>
-{existing test cases list}
+{existing test cases list linked to the story}
 
 Generate Test Cases for the specific Story:
 {story description}
