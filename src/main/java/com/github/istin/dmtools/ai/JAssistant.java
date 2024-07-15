@@ -24,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -431,7 +430,7 @@ public class JAssistant {
     public String buildJQLForContent(TrackerClient trackerClient, String roleSpecific, String projectSpecific, ITicket ticket, List<ITicket> extraTickets) throws Exception {
         String requestToCreateJQL = promptManager.baBuildJqlForRequirementsSearching(new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets));
         String jqlToSearch = openAIClient.chat(requestToCreateJQL);
-        System.out.println(jqlToSearch);
+        logger.info(jqlToSearch);
         return jqlToSearch;
     }
 
@@ -440,7 +439,7 @@ public class JAssistant {
         multiTicketsPrompt.setContent(content);
         String prompt = promptManager.baIsTicketRelatedToContent(multiTicketsPrompt);
         String response = openAIClient.chat("gpt-4o-2024-05-13", prompt);
-        System.out.println(response);
+        logger.info(response);
         return Boolean.parseBoolean(response);
     }
 

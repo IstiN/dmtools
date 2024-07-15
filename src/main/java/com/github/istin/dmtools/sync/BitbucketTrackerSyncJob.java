@@ -9,16 +9,17 @@ import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.report.model.KeyTime;
 import io.github.furstenheim.CopyDown;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
 
 public class BitbucketTrackerSyncJob {
-
+    private static final Logger logger = LogManager.getLogger(BitbucketTrackerSyncJob.class);
     public static interface StatusSyncDelegate {
 
         void onMerged(PullRequest pullRequest, ITicket ticket, TrackerClient tracker) throws IOException;
@@ -33,7 +34,7 @@ public class BitbucketTrackerSyncJob {
             List<String> keys = issuesIDsParser.parseIssues(pullRequest.getTitle(), pullRequest.getSourceBranchName(), pullRequest.getDescription());
             boolean wasRenamed = false;
             for (String key : keys) {
-                System.out.println(key);
+                logger.info(key);
                 wasRenamed = syncTicket(bitbucket, workspace, repository, pullRequestState, tracker, priorityToIcon, statusSyncDelegate, pullRequest, key, wasRenamed);
             }
         }

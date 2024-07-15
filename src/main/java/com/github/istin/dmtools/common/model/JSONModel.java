@@ -1,6 +1,8 @@
 package com.github.istin.dmtools.common.model;
 
 import com.github.istin.dmtools.common.utils.Log;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -10,6 +12,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class JSONModel {
+
+    private static final Logger logger = LogManager.getLogger(JSONModel.class);
 
     private static final String TAG = JSONModel.class.getSimpleName();
     /**
@@ -34,7 +38,7 @@ public class JSONModel {
         try {
             jo = new JSONObject(json);
         } catch (Exception e) {
-            System.err.println("json object is not correct " + json);
+            logger.error("json object is not correct {}", json);
             throw e;
         }
     }

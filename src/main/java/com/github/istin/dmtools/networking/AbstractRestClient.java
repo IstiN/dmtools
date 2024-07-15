@@ -5,10 +5,10 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
 import okhttp3.*;
-import okio.BufferedSink;
-import okio.Okio;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractRestClient implements RestClient {
+    private static final Logger logger = LogManager.getLogger(AbstractRestClient.class);
     public static final MediaType JSON
             = MediaType.parse("application/json; charset=utf-8");
     protected final OkHttpClient client;
@@ -64,7 +65,7 @@ public abstract class AbstractRestClient implements RestClient {
 
     private void reinitCache() throws IOException {
         File cache = new File(getCacheFolderName());
-        System.out.println("cache folder: " + cache.getAbsolutePath());
+        logger.info("cache folder: {}", cache.getAbsolutePath());
         if (isClearCache) {
             cache.mkdirs();
             FileUtils.deleteDirectory(cache);
@@ -82,7 +83,7 @@ public abstract class AbstractRestClient implements RestClient {
             }
         }
         String responseError = "printAndCreateException error: " + request.url() + "\n" + body + "\n" + response.message() + "\n" + code;
-        System.err.println(responseError);
+        logger.error(responseError);
         return new AtlassianRestClient.JiraException(responseError, body);
     }
 
@@ -183,7 +184,7 @@ public abstract class AbstractRestClient implements RestClient {
                     }
                 }
             } catch (SocketTimeoutException e) {
-                System.out.println(url);
+                logger.info(url);
                 if (isRepeatIfFails) {
                     if (isWaitBeforePerform) {
                         try {
@@ -200,7 +201,7 @@ public abstract class AbstractRestClient implements RestClient {
         } finally {
             Long prevTime = timeMeasurement.get(url);
             long time = System.currentTimeMillis() - 200 - prevTime;
-            System.out.println(time + " " + url);
+            logger.info("{} {}", time, url);
             client.connectionPool().evictAll();
         }
     }
@@ -227,13 +228,13 @@ public abstract class AbstractRestClient implements RestClient {
             cache.mkdirs();
             File cachedFile = new File(getCacheFolderName() + "/" + value);
             if (cachedFile.exists()) {
-                System.out.println("Read From Cache: ");
+                logger.info("Read From Cache: ");
                 return FileUtils.readFileToString(cachedFile);
             } else {
-                System.out.println("Network Request: ");
+                logger.info("Network Request: ");
             }
         } else {
-            System.out.println("Network Request: ");
+            logger.info("Network Request: ");
         }
 
         RequestBody body = RequestBody.create(JSON, genericRequest.getBody());

@@ -19,7 +19,7 @@ public class UrlEncodedJobTrigger {
 
         if (args != null) {
             for (String arg : args) {
-                System.out.println("arg: " + arg);
+                logger.info("arg: {}", arg);
             }
             String decodedArgs = URLDecoder.decode(args[0]);
             System.out.println(new JSONObject(decodedArgs));

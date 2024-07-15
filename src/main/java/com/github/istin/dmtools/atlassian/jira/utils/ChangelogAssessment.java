@@ -7,6 +7,8 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.report.model.KeyTime;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,7 +16,7 @@ import java.util.Calendar;
 import java.util.List;
 
 public class ChangelogAssessment {
-
+    private static final Logger logger = LogManager.getLogger(ChangelogAssessment.class);
     public static List<KeyTime> findCreatedDate(JiraClient jira, String key) throws IOException {
         Ticket ticket = jira.performTicket(key, new String[]{"created", "creator"});
         List<KeyTime> result = new ArrayList<>();
@@ -111,7 +113,7 @@ public class ChangelogAssessment {
             List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
             for (IHistoryItem historyItem : items) {
                 if (historyItem.getField().contains(field) && history.getAuthor().toString().contains(user)) {
-                    System.out.println(historyItem.getField() + " changed by " + history.getAuthor() + " " + user);
+                    logger.info("{} changed by {} {}", historyItem.getField(), history.getAuthor(), user);
                     return true;
                 }
             }

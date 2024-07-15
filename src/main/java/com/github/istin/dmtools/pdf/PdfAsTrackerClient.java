@@ -9,6 +9,8 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.pdf.model.PdfPageAsTicket;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 
@@ -18,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
-
+    private static final Logger logger = LogManager.getLogger(PdfAsTrackerClient.class);
     public static void main(String[] args) {
 
     }
@@ -225,7 +227,7 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
 
         File[] listOfFiles = new File(pathToTicketFolder).listFiles();
 
-        System.out.println(pathToTicketFolder);
+        logger.info(pathToTicketFolder);
         if (listOfFiles != null) {
             for (int i = 0; i < listOfFiles.length; i++) {
                 File file = listOfFiles[i];
@@ -234,7 +236,7 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
                 }
             }
         } else {
-            System.out.println("empty folder " + pathToTicketFolder);
+            logger.info("empty folder {}", pathToTicketFolder);
             return null;
         }
         return pdfPageAsTicket;

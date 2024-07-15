@@ -1,5 +1,8 @@
 package com.github.istin.dmtools.atlassian.jira.utils;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -8,7 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class IssuesIDsParser {
-
+    private static final Logger logger = LogManager.getLogger(IssuesIDsParser.class);
     private Pattern r;
 
     public IssuesIDsParser(String... keywords) {
@@ -37,7 +40,7 @@ public class IssuesIDsParser {
                     if (!result.contains(ticketKey)) {
                         result.add(ticketKey);
                     } else {
-                        System.out.println("double key: " + ticketKey);
+                        logger.info("double key: {}", ticketKey);
                     }
                 }
             }
@@ -61,7 +64,7 @@ public class IssuesIDsParser {
                 found = found.substring(found.indexOf("/browse/") + 8);
             }
             keys.add(found);
-            System.out.println("Found JIRA Key: " + found);
+            logger.info("Found JIRA Key: {}", found);
         }
         return keys;
     }
