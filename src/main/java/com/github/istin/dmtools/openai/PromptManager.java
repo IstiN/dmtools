@@ -5,7 +5,6 @@ import freemarker.cache.ClassTemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.logging.log4j.core.config.DefaultConfiguration;
 
@@ -113,7 +112,6 @@ public class PromptManager {
 
     private String stringFromTemplate(Object input, String template) throws IOException, TemplateException {
         Configurator.initialize(new DefaultConfiguration());
-        Configurator.setRootLevel(Level.INFO);
 
         Configuration cfg = new Configuration(Configuration.VERSION_2_3_27);
         cfg.setLocalizedLookup(false);

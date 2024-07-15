@@ -1,6 +1,5 @@
 package com.github.istin.dmtools;
 
-import com.github.istin.dmtools.report.timeinstatus.TimeInStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

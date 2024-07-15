@@ -86,7 +86,6 @@ public class DiagramsDrawer {
 
     private String stringFromTemplate(Object input) throws IOException, TemplateException {
         Configurator.initialize(new DefaultConfiguration());
-        Configurator.setRootLevel(Level.INFO);
 
         Configuration cfg = new Configuration(Configuration.VERSION_2_3_27);
         cfg.setLocalizedLookup(false);

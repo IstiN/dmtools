@@ -291,7 +291,7 @@ public class JAssistant {
             }
         }
         for (ITicket result : finalResults) {
-            logger.log(Level.DEBUG,result.getTicketTitle() + " " + result.getWeight());
+            logger.debug("{} {}", result.getTicketTitle(), result.getWeight());
         }
         return finalResults;
     }
