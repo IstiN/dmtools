@@ -2,9 +2,15 @@ You are an experienced ${role}.
 Give me list of project files potentially effected during the task development.
 Your response must be as JSONArray with file names.  Don't use ```, html mardowns.
 
-Task Description:
+{Task Description}
 <#assign issue = ticket>
 <#include "issue_title_description.md">
+<#list extraTickets as issue>
+${(issue.ticketKey)!""}
+<#include "issue_title_description.md">
+</#list>
+{Task Description}
+
 List of test cases:
 <#list testCases as issue>
 <#include "issue_title_description.md">

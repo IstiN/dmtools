@@ -436,6 +436,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public void postComment(String ticketKey, String comment) throws IOException {
+        if (getTextType() == TrackerClient.TextType.MARKDOWN) {
+            comment = StringUtils.convertToMarkdown(comment);
+        }
         GenericRequest commentPostRequest = comment(ticketKey, null);
         commentPostRequest.setBody(new JSONObject().put("body", comment).toString()).post();
         clearCache(commentPostRequest);

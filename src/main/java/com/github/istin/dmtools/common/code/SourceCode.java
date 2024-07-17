@@ -48,4 +48,9 @@ public interface SourceCode {
     List<File> getListOfFiles(String workspace, String repository, String branchName)  throws IOException;
 
     String getFileContent(String selfLink) throws IOException;
+
+    String getDefaultRepository();
+    String getDefaultBranch();
+    String getDefaultWorkspace();
+
 }
