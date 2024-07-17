@@ -501,4 +501,19 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
         GenericRequest request = new GenericRequest(this, selfLink);
         return request.execute();
     }
+
+    @Override
+    public String getDefaultRepository() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getDefaultBranch() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getDefaultWorkspace() {
+        throw new UnsupportedOperationException();
+    }
 }

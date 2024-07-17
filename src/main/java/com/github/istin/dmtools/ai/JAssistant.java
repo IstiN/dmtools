@@ -1,23 +1,22 @@
 package com.github.istin.dmtools.ai;
 
-import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
 import com.github.istin.dmtools.atlassian.bitbucket.model.File;
 import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Relationship;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
+import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.openai.input.*;
 import com.github.istin.dmtools.qa.TestCasesGeneratorParams;
-import io.github.furstenheim.CopyDown;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -42,7 +41,7 @@ public class JAssistant {
 
     private TrackerClient<? extends ITicket> trackerClient;
 
-    private Bitbucket sourceCode;
+    private SourceCode sourceCode;
 
     private OpenAIClient openAIClient;
 
@@ -58,11 +57,11 @@ public class JAssistant {
         this.conversationObserver = conversationObserver;
     }
 
-    public JAssistant(TrackerClient<? extends ITicket> trackerClient, Bitbucket sourceCode, OpenAIClient openAIClient, PromptManager promptManager) {
+    public JAssistant(TrackerClient<? extends ITicket> trackerClient, SourceCode sourceCode, OpenAIClient openAIClient, PromptManager promptManager) {
         this(trackerClient, sourceCode, openAIClient, promptManager, null);
     }
 
-    public JAssistant(TrackerClient<? extends ITicket> trackerClient, Bitbucket sourceCode, OpenAIClient openAIClient, PromptManager promptManager, ConversationObserver conversationObserver) {
+    public JAssistant(TrackerClient<? extends ITicket> trackerClient, SourceCode sourceCode, OpenAIClient openAIClient, PromptManager promptManager, ConversationObserver conversationObserver) {
         this.trackerClient = trackerClient;
         this.sourceCode = sourceCode;
         this.openAIClient = openAIClient;
@@ -70,9 +69,10 @@ public class JAssistant {
         this.conversationObserver = conversationObserver;
     }
 
-    public void generateCode(String role, String key, String workspace, String repository, String branchName) throws Exception {
-        ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
+    public void generateCode(String role, TicketContext ticketContext, String workspace, String repository, String branchName) throws Exception {
+        ITicket ticket = ticketContext.getTicket();
         CodeGeneration codeGeneration = new CodeGeneration(trackerClient.getBasePath(), role, ticket);
+        codeGeneration.setExtraTickets(ticketContext.getExtraTickets());
         if (!IssueType.isBug(ticket.getIssueType())) {
             List<? extends ITicket> testCases = trackerClient.getTestCases(ticket);
             codeGeneration.setTestCases(testCases);
@@ -82,6 +82,7 @@ public class JAssistant {
         List<File> filesOnly = listOfFiles.stream().filter(file -> !file.isDir()).collect(Collectors.toList());
         codeGeneration.setFiles(filesOnly);
         String aiRequest = promptManager.checkPotentiallyEffectedFilesForTicket(codeGeneration);
+        //TODO generate query to search internally
         String response = openAIClient.chat(aiRequest);
         logger.info(response);
         JSONArray objects = new JSONArray(response);
@@ -93,8 +94,10 @@ public class JAssistant {
                 File file = result.get(0);
                 file.setFileContent(sourceCode.getFileContent(file.getSelfLink()));
 
-                String request = promptManager.validatePotentiallyEffectedFile(new TicketFilePrompt(trackerClient.getBasePath(), role, ticket, file));
-                String isTheFileUsefull = openAIClient.chat("gpt-35-turbo", request);
+                TicketFilePrompt ticketFilePrompt = new TicketFilePrompt(trackerClient.getBasePath(), role, ticket, file);
+                ticketFilePrompt.setExtraTickets(ticketContext.getExtraTickets());
+                String request = promptManager.validatePotentiallyEffectedFile(ticketFilePrompt);
+                String isTheFileUsefull = openAIClient.chat(request);
                 if (Boolean.parseBoolean(isTheFileUsefull)) {
                     finalResults.add(file);
                 }
@@ -106,9 +109,7 @@ public class JAssistant {
         String finalResponse = openAIClient.chat(finalAIRequest);
         logger.info("----- FINAL AI RESPONSE ---- ");
         logger.info(finalResponse);
-        String htmlConversation = promptManager.convertToHTML(new InputPrompt(finalResponse));
-        finalResponse = openAIClient.chat(htmlConversation);
-        trackerClient.postComment(key, "<p>JAI Generated Code: </p>" + finalResponse);
+        trackerClient.postComment(ticketContext.getTicket().getTicketKey(), "<p>AI Generated Code: </p>" + finalResponse);
     }
 
     private void trackConversation(String author, String text) {
@@ -156,12 +157,7 @@ public class JAssistant {
             String aiRequest = promptManager.requestTestCasesForStoryAsHTML(qaTestCasesPrompt);
             String response = openAIClient.chat(aiRequest);
             String comment = TEST_CASES_COMMENT_PREFIX + response;
-            if (trackerClient.getTextType() == TrackerClient.TextType.HTML) {
-                trackerClient.postComment(key, comment);
-            } else if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
-                CopyDown converter = new CopyDown();
-                trackerClient.postComment(key, converter.convert(comment).replaceAll("\\*\\*", "*"));
-            }
+            trackerClient.postComment(key, comment);
         } else {
             String aiRequest = promptManager.requestTestCasesForStoryAsJSONArray(qaTestCasesPrompt);
             String response = openAIClient.chat(aiRequest);
@@ -171,8 +167,7 @@ public class JAssistant {
                 String projectCode = key.split("-")[0];
                 String description = jsonObject.getString("description");
                 if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
-                    CopyDown converter = new CopyDown();
-                    description = converter.convert(description).replaceAll("\\*\\*", "*");
+                    description = StringUtils.convertToMarkdown(description);
                 }
                 Ticket createdTestCase = new Ticket(trackerClient.createTicketInProject(projectCode, "Test Case", jsonObject.getString("summary"), description, new TrackerClient.FieldsInitializer() {
                     @Override
