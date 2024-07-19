@@ -152,6 +152,10 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
         File cacheFolder = new File(folderWithPdfAssets + "/cache");
         File[] listOfFiles = cacheFolder.listFiles();
 
+        if (listOfFiles == null) {
+            return;
+        }
+
         for (int i = 0; i < listOfFiles.length; i++) {
             File potentialPdfFileDir = listOfFiles[i];
             if (potentialPdfFileDir.isDirectory()) {
