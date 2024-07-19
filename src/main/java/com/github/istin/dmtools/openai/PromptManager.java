@@ -18,6 +18,10 @@ public class PromptManager {
         return stringFromTemplate(input, "developer_check_potentially_effected_files");
     }
 
+    public String checkPotentiallyRelatedCommitsToTicket(CodeGeneration input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "developer_check_potentially_related_commits");
+    }
+
     public String checkTaskTechnicalOrProduct(TicketBasedPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "po_check_story_technical_or_product");
     }

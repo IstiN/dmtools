@@ -461,8 +461,37 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
+    public BitbucketResult getCommitDiffStat(String workspace, String repository, String commitId) throws IOException {
+        String path = "";
+
+        if (apiVersion == ApiVersion.V1) {
+            throw new UnsupportedOperationException();
+        } else {
+            path = path("repositories/" + workspace + "/" + repository + "/diffstat/" + commitId);
+        }
+        GenericRequest getRequest = new GenericRequest(this, path);
+        try {
+            String response = execute(getRequest);
+            if (response == null) {
+                return new BitbucketResult("{}");
+            }
+            return new BitbucketResult(response);
+        } catch (Exception e) {
+            clearCache(getRequest);
+            return new BitbucketResult("{}");
+        }
+    }
+
+    @Override
     public BitbucketResult getCommitDiff(String workspace, String repository, String commitId) throws IOException {
-        GenericRequest getRequest = new GenericRequest(this, path("projects/" + workspace + "/repos/" + repository + "/commits/" + commitId +"/diff?AUTOSRCPATH&CONTEXTLINES&SINCE&SRCPATH&WHITESPACE&WITHCOMMENTS"));
+        String path = "";
+
+        if (apiVersion == ApiVersion.V1) {
+            path = path("projects/" + workspace + "/repos/" + repository + "/commits/" + commitId + "/diff?AUTOSRCPATH&CONTEXTLINES&SINCE&SRCPATH&WHITESPACE&WITHCOMMENTS");
+        } else {
+            path = path("repositories/" + workspace + "/" + repository + "/diff/" + commitId);
+        }
+        GenericRequest getRequest = new GenericRequest(this, path);
         try {
             String response = execute(getRequest);
             if (response == null) {
@@ -477,7 +506,13 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
 
     @Override
     public String getDiff(String workspace, String repository, String pullRequestId) throws IOException {
-        GenericRequest getRequest = new GenericRequest(this, path("repositories/" + workspace + "/" + repository + "/pullrequests/" + pullRequestId +"/diff"));
+        String path = "";
+        if (apiVersion == ApiVersion.V1) {
+            path = path("repositories/" + workspace + "/" + repository + "/pullrequests/" + pullRequestId + "/diff");
+        } else {
+            throw new UnsupportedOperationException();
+        }
+        GenericRequest getRequest = new GenericRequest(this, path);
         return execute(getRequest);
     }
 
