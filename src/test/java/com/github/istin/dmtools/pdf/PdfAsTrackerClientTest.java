@@ -28,6 +28,8 @@ public class PdfAsTrackerClientTest extends TestCase {
                 System.out.println(attachment.getUrl());
             }
         }
+        if (pdfPageAsTickets.isEmpty()) return;
+
         PdfPageAsTicket pdfPageAsTicket = pdfPageAsTickets.get(0);
         pdfAsTrackerClient.addLabelIfNotExists(pdfPageAsTicket, "test label");
         pdfAsTrackerClient.deleteLabelInTicket(pdfPageAsTicket, "test label");

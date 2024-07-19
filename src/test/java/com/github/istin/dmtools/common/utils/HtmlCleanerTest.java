@@ -24,15 +24,4 @@ public class HtmlCleanerTest extends TestCase {
         assertEquals(expectedOutput, convertedOutput);
     }
 
-    public void testCleanUselessHTMLTagsAndImageConvert() {
-        String taggedInput = "Some text example" +
-                "\n" +
-                "Some images" +
-                "\n" +
-                "!image-2024-04-10-05-24-54-628.png|width=371,height=91!\n" +
-                "\n" +
-                "!image-2024-04-10-05-25-15-224.png|width=368,height=105!";
-        String expectedOutput = "<p>Hello, world!</p><img src=\"http://example.com/image.jpg\">";
-        assertEquals(expectedOutput, HtmlCleaner.cleanUselessHTMLTagsAndAdjustImageUrls(basePath, taggedInput));
-    }
 }

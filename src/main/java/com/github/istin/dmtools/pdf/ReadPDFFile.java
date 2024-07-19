@@ -34,6 +34,8 @@ public class ReadPDFFile {
         logger.info(folderPath);
         File[] listOfFiles = new File(folderPath).listFiles();
 
+        if (listOfFiles == null) return;
+
         for (int i = 0; i < listOfFiles.length; i++) {
             File file = listOfFiles[i];
             if (file.isFile() && file.getName().endsWith(".pdf")) {
