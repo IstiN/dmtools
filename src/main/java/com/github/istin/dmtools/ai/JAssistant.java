@@ -1,7 +1,6 @@
 package com.github.istin.dmtools.ai;
 
-import com.github.istin.dmtools.atlassian.bitbucket.model.File;
-import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
+import com.github.istin.dmtools.atlassian.bitbucket.model.*;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Relationship;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
@@ -12,6 +11,7 @@ import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
@@ -23,9 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -38,6 +36,18 @@ public class JAssistant {
     public static final String LABEL_REQUIREMENTS = "requirements";
     public static final String LABEL_TIMELINE = "timeline";
     public static final String LABEL_TEAM_SETUP = "team_setup";
+
+    private static String CODE_AI_MODEL;
+
+    static {
+        PropertyReader propertyReader = new PropertyReader();
+        String codeAIModel = propertyReader.getCodeAIModel();
+        if (codeAIModel == null || codeAIModel.isEmpty()) {
+            CODE_AI_MODEL = propertyReader.getOpenAIModel();
+        } else {
+            CODE_AI_MODEL = codeAIModel;
+        }
+    }
 
     private TrackerClient<? extends ITicket> trackerClient;
 
@@ -78,17 +88,18 @@ public class JAssistant {
             codeGeneration.setTestCases(testCases);
         }
 
+
         List<File> listOfFiles = sourceCode.getListOfFiles(workspace, repository, branchName);
         List<File> filesOnly = listOfFiles.stream().filter(file -> !file.isDir()).collect(Collectors.toList());
-        codeGeneration.setFiles(filesOnly);
-        String aiRequest = promptManager.checkPotentiallyEffectedFilesForTicket(codeGeneration);
-        //TODO generate query to search internally
-        String response = openAIClient.chat(aiRequest);
-        logger.info(response);
-        JSONArray objects = new JSONArray(response);
+
+        JSONArray filePaths = getListOfEffectedFilesFromFiles(codeGeneration, filesOnly);
+
+        List<Commit> commitsFromBranch = sourceCode.getCommitsFromBranch(workspace, repository, branchName);
+        JSONArray filePathsFromCommits = getListOfEffectedFilesFromCommits(workspace, repository, codeGeneration, commitsFromBranch);
+        filePaths.putAll(filePathsFromCommits);
         List<File> finalResults = new ArrayList<>();
-        for (int i = 0; i < objects.length(); i++) {
-            String path = objects.getString(i);
+        for (int i = 0; i < filePaths.length(); i++) {
+            String path = filePaths.getString(i);
             List<File> result = filesOnly.stream().filter(file -> file.getPath().equals(path)).collect(Collectors.toList());
             if (!result.isEmpty()) {
                 File file = result.get(0);
@@ -97,7 +108,9 @@ public class JAssistant {
                 TicketFilePrompt ticketFilePrompt = new TicketFilePrompt(trackerClient.getBasePath(), role, ticket, file);
                 ticketFilePrompt.setExtraTickets(ticketContext.getExtraTickets());
                 String request = promptManager.validatePotentiallyEffectedFile(ticketFilePrompt);
-                String isTheFileUsefull = openAIClient.chat(request);
+                String isTheFileUsefull = openAIClient.chat(
+                        CODE_AI_MODEL,
+                        request);
                 if (Boolean.parseBoolean(isTheFileUsefull)) {
                     finalResults.add(file);
                 }
@@ -106,10 +119,48 @@ public class JAssistant {
 
         codeGeneration.setFiles(finalResults);
         String finalAIRequest = promptManager.requestGenerateCodeForTicket(codeGeneration);
-        String finalResponse = openAIClient.chat(finalAIRequest);
+        String finalResponse = openAIClient.chat(
+                CODE_AI_MODEL,
+                finalAIRequest);
         logger.info("----- FINAL AI RESPONSE ---- ");
         logger.info(finalResponse);
         trackerClient.postComment(ticketContext.getTicket().getTicketKey(), "<p>AI Generated Code: </p>" + finalResponse);
+        trackerClient.addLabelIfNotExists(ticketContext.getTicket(), "ai_generated_code");
+
+    }
+
+    private JSONArray getListOfEffectedFilesFromFiles(CodeGeneration codeGeneration, List<File> filesOnly) throws Exception {
+        codeGeneration.setFiles(filesOnly);
+        String aiRequest = promptManager.checkPotentiallyEffectedFilesForTicket(codeGeneration);
+        String response = openAIClient.chat(
+                CODE_AI_MODEL,
+                aiRequest);
+        logger.info(response);
+        return new JSONArray(response);
+    }
+
+    private JSONArray getListOfEffectedFilesFromCommits(String workspace, String repository, CodeGeneration codeGeneration, List<Commit> commits) throws Exception {
+        codeGeneration.setCommits(commits);
+        String aiRequest = promptManager.checkPotentiallyRelatedCommitsToTicket(codeGeneration);
+        String response = openAIClient.chat(
+                CODE_AI_MODEL,
+                aiRequest);
+        logger.info(response);
+        JSONArray jsonArray = new JSONArray(response);
+        Set<String> filesFromCommits = new HashSet<>();
+        for (int i = 0; i < jsonArray.length(); i++) {
+            String commit = jsonArray.getString(i);
+            BitbucketResult commitDiffStat = sourceCode.getCommitDiffStat(workspace, repository, commit);
+            List<Change> changes = commitDiffStat.getChanges();
+            for (Change change : changes) {
+                filesFromCommits.add(change.getFilePath());
+            }
+        }
+        JSONArray result = new JSONArray();
+        for (String path : filesFromCommits) {
+            result.put(path);
+        }
+        return result;
     }
 
     private void trackConversation(String author, String text) {

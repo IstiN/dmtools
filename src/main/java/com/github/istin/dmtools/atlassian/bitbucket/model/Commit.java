@@ -24,8 +24,17 @@ public class Commit extends JSONModel {
     public String getId() {
         return getString("id");
     }
+
+    public String getHash() {
+        return getString("hash");
+    }
+
     public String getMessage() {
         return getString("message");
+    }
+
+    public String getSummary() {
+        return getJSONObject("summary").getString("raw");
     }
 
     public Assignee getAuthor() {

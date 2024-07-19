@@ -112,6 +112,10 @@ public class PropertyReader {
 		return getValue("OPEN_AI_MODEL");
 	}
 
+	public String getCodeAIModel() {
+		return getValue("CODE_AI_MODEL");
+	}
+
 	public String getFigmaBasePath() {
 		return getValue("FIGMA_BASE_PATH");
 	}

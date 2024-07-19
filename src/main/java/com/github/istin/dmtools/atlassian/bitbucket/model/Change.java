@@ -20,6 +20,10 @@ public class Change extends JSONModel {
     public String getFilePath() {
         JSONObject path = getJSONObject("path");
         if (path == null) {
+            JSONObject jsonObject = getJSONObject("new");
+            if (jsonObject != null) {
+                return jsonObject.getString("path");
+            }
             return "";
         }
         return path.getString("toString");

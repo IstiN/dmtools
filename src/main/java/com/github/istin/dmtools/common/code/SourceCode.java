@@ -41,6 +41,8 @@ public interface SourceCode {
 
     void performCommitsFromBranch(String workspace, String repository, String branchName, AbstractRestClient.Performer<Commit> performer) throws Exception;
 
+    BitbucketResult getCommitDiffStat(String workspace, String repository, String commitId) throws IOException;
+
     BitbucketResult getCommitDiff(String workspace, String repository, String commitId) throws IOException;
 
     String getDiff(String workspace, String repository, String pullRequestId) throws IOException;
@@ -50,7 +52,9 @@ public interface SourceCode {
     String getFileContent(String selfLink) throws IOException;
 
     String getDefaultRepository();
+
     String getDefaultBranch();
+
     String getDefaultWorkspace();
 
 }
