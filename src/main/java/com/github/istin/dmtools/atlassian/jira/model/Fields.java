@@ -191,4 +191,7 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
         return null;
     }
 
+    public int getStoryPoints() {
+        return getJSONObject().optInt(Fields.STORY_POINTS, -1);
+    }
 }

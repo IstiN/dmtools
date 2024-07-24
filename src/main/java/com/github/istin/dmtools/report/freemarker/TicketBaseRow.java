@@ -7,7 +7,7 @@ import java.io.IOException;
 
 public class TicketBaseRow extends GenericRow {
 
-    public TicketBaseRow(ITicket ticket, ITicket.ITicketProgress ticketProgress) throws IOException {
+    public TicketBaseRow(ITicket ticket, ITicket.ITicketProgress ticketProgress, Integer defaultSPsValue) throws IOException {
         super(false);
         getCells().add(new LinkCell(ticket.getTicketKey(), ticket.getTicketLink()));
         getCells().add(new GenericCell(ticket.getPriority()));
@@ -17,7 +17,16 @@ public class TicketBaseRow extends GenericRow {
         }
         getCells().add(new GenericCell(issueType));
         getCells().add(new GenericCell(ticket.getTicketTitle()));
-        getCells().add(new GenericCell(String.valueOf(ticket.getWeight())));
+        double weight = ticket.getWeight();
+        if (weight >= 0) {
+            getCells().add(new GenericCell(String.valueOf(weight)));
+        } else {
+            if (defaultSPsValue == null) {
+                getCells().add(new GenericCell("&nbsp;"));
+            } else {
+                getCells().add(new GenericCell(String.valueOf(defaultSPsValue)));
+            }
+        }
         getCells().add(new GenericCell("" + ticketProgress.calc(ticket)));
         getCells().add(new GenericCell(ticket.getStatus()));
     }

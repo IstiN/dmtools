@@ -6,6 +6,8 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import okio.BufferedSink;
 import okio.Okio;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,9 +33,12 @@ public interface RestClient {
     OkHttpClient getClient();
 
     class Impl {
+
+        private static final Logger logger = LogManager.getLogger(Impl.class);
+
         public static File downloadFile(RestClient restClient, GenericRequest genericRequest, File downloadedFile) throws IOException {
             String url = genericRequest.url();
-            System.out.println(url);
+            logger.info(url);
             if (downloadedFile.exists()) {
                 return downloadedFile;
             }
@@ -54,7 +59,7 @@ public interface RestClient {
                         sink.writeAll(responseBody.source());
                     }
 
-                    System.out.println("Download successful: " + downloadedFile.getAbsolutePath());
+                    logger.info("Download successful: {}", downloadedFile.getAbsolutePath());
                     return downloadedFile;
                 } else {
                     throw new IOException(response.code() + " " + response.body());

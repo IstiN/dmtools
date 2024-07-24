@@ -13,6 +13,8 @@ import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.Request;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -23,7 +25,7 @@ import java.io.IOException;
 import java.util.*;
 
 public abstract class RallyClient extends AbstractRestClient implements TrackerClient<RallyIssue> {
-
+    private static final Logger logger = LogManager.getLogger(RallyClient.class);
     private boolean isLogEnabled = true;
 
     public RallyClient(String basePath, String authorization) throws IOException {
@@ -91,6 +93,11 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     }
 
     @Override
+    public String tag(String initiator) {
+        return "";
+    }
+
+    @Override
     public String getTicketBrowseUrl(String ticketKey) {
         return basePath + "/#/?detail=/" + getLastTwoSegments(ticketKey) + "&fdp=true";
     }
@@ -153,7 +160,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
                 JSONObject updateBody = new JSONObject().put("Tags", tagsToUpdate);
                 JSONObject jsonObject = new JSONObject().put(ticket.getIssueType(), updateBody);
                 String response = updateTicketWithTags(((RallyIssue)ticket).getRef(), jsonObject);
-                System.out.println(response);
+                logger.info(response);
             }
         }
     }
@@ -190,7 +197,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     private String updateTicketWithTags(String ticketRef, JSONObject updateBody) throws IOException {
         // This method should send a request to Rally's REST API to update the ticket, associating it with the newly added tags.
         // Placeholder for the actual implementation
-        System.out.println("Updating ticket " + ticketRef + " with tags: " + updateBody.toString());
+        logger.info("Updating ticket {} with tags: {}", ticketRef, updateBody.toString());
         // Send the update request to Rally here using a similar method to post(genericRequest);
         GenericRequest genericRequest = new GenericRequest(this, ticketRef);
         genericRequest.setBody(updateBody.toString());
@@ -235,7 +242,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
             try {
                 return new RallyResponse(body);
             } catch (JSONException e1) {
-                System.err.println("response: " + body);
+                logger.error("response: {}", body);
                 throw e1;
             }
         }

@@ -5,6 +5,7 @@ import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import com.github.istin.dmtools.openai.model.AIResponse;
+import com.github.istin.dmtools.openai.model.Choice;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,6 +15,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 public class OpenAIClient extends AbstractRestClient {
 
@@ -76,7 +78,9 @@ public class OpenAIClient extends AbstractRestClient {
         if (conversationObserver != null) {
             conversationObserver.addMessage(new ConversationObserver.Message("DMTools", message));
         }
-        GenericRequest postRequest = new GenericRequest(this, path("openai/deployments/" + model + "/chat/completions"));
+        String path = path("openai/deployments/" + model + "/chat/completions");
+        logger.info(path);
+        GenericRequest postRequest = new GenericRequest(this, path);
 //        postRequest.setIgnoreCache(true);
 
         JSONArray messages = new JSONArray();;
@@ -106,7 +110,18 @@ public class OpenAIClient extends AbstractRestClient {
                 .put("messages", messages).toString());
         String response = post(postRequest);
         logger.info(response);
-        String content = new AIResponse(response).getChoices().get(0).getMessage().getContent();
+        List<Choice> choices = new AIResponse(response).getChoices();
+        String content;
+        if (choices.isEmpty()) {
+            if (response.contains("error")) {
+                logger.error(response);
+                content = response;
+            } else {
+                content = "";
+            }
+        } else {
+            content = choices.get(0).getMessage().getContent();
+        }
         if (conversationObserver != null) {
             conversationObserver.addMessage(new ConversationObserver.Message(model, content));
         }

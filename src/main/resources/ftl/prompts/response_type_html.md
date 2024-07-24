@@ -1,1 +1,1 @@
-Make result nice looking with html tags inside, skip html, head and body tags and don't use class attribute. Use <p> tag for each test case. Don't use ```, html mardowns.
+Make result nice looking with html tags inside, skip html, head and body tags and don't use class attribute. Use <p> tag for each test case. Don't use ```, html markdowns.

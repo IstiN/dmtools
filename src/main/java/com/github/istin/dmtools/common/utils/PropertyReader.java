@@ -68,6 +68,22 @@ public class PropertyReader {
 		return getValue("BITBUCKET_TOKEN");
 	}
 
+	public String getBitbucketApiVersion() {
+		return getValue("BITBUCKET_API_VERSION");
+	}
+
+	public String getBitbucketWorkspace() {
+		return getValue("BITBUCKET_WORKSPACE");
+	}
+
+	public String getBitbucketRepository() {
+		return getValue("BITBUCKET_REPOSITORY");
+	}
+
+	public String getBitbucketBranch() {
+		return getValue("BITBUCKET_BRANCH");
+	}
+
 	public String getBitbucketBasePath() {
 		return getValue("BITBUCKET_BASE_PATH");
 	}
@@ -94,6 +110,10 @@ public class PropertyReader {
 
 	public String getOpenAIModel() {
 		return getValue("OPEN_AI_MODEL");
+	}
+
+	public String getCodeAIModel() {
+		return getValue("CODE_AI_MODEL");
 	}
 
 	public String getFigmaBasePath() {

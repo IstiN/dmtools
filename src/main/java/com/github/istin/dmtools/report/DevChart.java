@@ -3,6 +3,8 @@ package com.github.istin.dmtools.report;
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.Employees;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
@@ -13,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 public class DevChart {
-
+    private static final Logger logger = LogManager.getLogger(DevChart.class);
     private String devName;
 
     private List<String> headers = new ArrayList<>();
@@ -71,7 +73,7 @@ public class DevChart {
 
         public String getScore() throws ScriptException {
             ScriptEngineManager mgr = new ScriptEngineManager();
-            javax.script.ScriptEngine engine = mgr.getEngineByName("JavaScript");
+            javax.script.ScriptEngine engine = mgr.getEngineByName("graal.js");
             //
             for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
                 Metric metric = getCustomMetricsHeaders().get(i);
@@ -94,8 +96,8 @@ public class DevChart {
                 }
                 return new DecimalFormat("#.##").format(((Double)eval));
             } catch (Exception e) {
-                System.out.println(formula);
-                System.err.println(e);
+                logger.error(formula);
+                logger.error(e);
                 return "NaN";
             }
         }

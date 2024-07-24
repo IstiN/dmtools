@@ -1,11 +1,14 @@
 package com.github.istin.dmtools.report.scopestatus;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javax.script.ScriptEngineManager;
 import java.text.DecimalFormat;
 import java.util.List;
 
 public class ScopePageSummary {
-
+    private static final Logger logger = LogManager.getLogger(ScopePageSummary.class);
     private String name;
 
     private List<SummaryItem> summaryItems;
@@ -25,7 +28,7 @@ public class ScopePageSummary {
 
     public void addCustomMetric(String name, String formula) {
         ScriptEngineManager mgr = new ScriptEngineManager();
-        javax.script.ScriptEngine engine = mgr.getEngineByName("JavaScript");
+        javax.script.ScriptEngine engine = mgr.getEngineByName("graal.js");
         //
         for (int i = 0; i < this.summaryItems.size(); i++) {
             SummaryItem summaryItem = this.summaryItems.get(i);
@@ -47,8 +50,8 @@ public class ScopePageSummary {
 
             this.summaryItems.add(new SummaryItem(name, new DecimalFormat("#.##").format(((Double) eval))));
         } catch (Exception e) {
-            System.out.println(formula);
-            System.err.println(e);
+            logger.error(formula);
+            logger.error(e);
             this.summaryItems.add(new SummaryItem(name, new DecimalFormat("#.##").format(0)));
         }
     }

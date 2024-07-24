@@ -1,6 +1,5 @@
 package com.github.istin.dmtools.report.timeinstatus;
 
-import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.IChangelog;
 import com.github.istin.dmtools.common.model.IHistory;
@@ -9,6 +8,8 @@ import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +17,7 @@ import java.util.Calendar;
 import java.util.List;
 
 public class TimeInStatus {
-
+    private static final Logger logger = LogManager.getLogger(TimeInStatus.class);
     private final TrackerClient<? extends ITicket> tracker;
 
     private List<String> finalStatuses = new ArrayList<>();
@@ -65,7 +66,7 @@ public class TimeInStatus {
             if (hoursResult < 1) {
                 hoursResult = DateUtils.getHoursDuration(endDate.getTimeInMillis(), startDate.getTimeInMillis());
             }
-            System.out.println(tracker.getTicketBrowseUrl(ticket.getKey()) + " " + hoursResult);
+            logger.info("{} {}", tracker.getTicketBrowseUrl(ticket.getKey()), hoursResult);
             return new HoursAndStartDate(hoursResult, startDate);
         }
         return null;

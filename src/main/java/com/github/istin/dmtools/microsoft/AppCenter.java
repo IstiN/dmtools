@@ -7,6 +7,8 @@ import com.github.istin.dmtools.microsoft.model.ACAppVersion;
 import com.github.istin.dmtools.microsoft.model.App;
 import com.github.istin.dmtools.microsoft.model.AppVersion;
 import okhttp3.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -20,6 +22,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 
 public class AppCenter {
+
+    private static final Logger logger = LogManager.getLogger(AppCenter.class);
 
     public static final MediaType JSON
             = MediaType.parse("application/json; charset=utf-8");
@@ -103,7 +107,7 @@ public class AppCenter {
                 client.connectionPool().evictAll();
             }
         } catch (IOException e) {
-            System.out.println(url);
+            logger.error(url);
             throw e;
         }
     }
@@ -125,9 +129,9 @@ public class AppCenter {
         try {
             return JSONModel.convertToModels(ACAppVersion.class, new JSONArray(response));
         } catch (Exception e) {
-            System.err.println(e);
-            System.out.println(url);
-            System.out.println(response);
+            logger.error(e);
+            logger.error(url);
+            logger.error(response);
             return new ArrayList<>();
         }
     }
@@ -166,7 +170,7 @@ public class AppCenter {
             }
             JSONObject jsonObject = new JSONObject().put("user_emails", mails);
             RequestBody body = RequestBody.create(JSON, jsonObject.toString());
-            System.out.println(post(membersUrl(groupName), body));
+            logger.error(post(membersUrl(groupName), body));
         }
         return "";
     }
@@ -187,7 +191,7 @@ public class AppCenter {
         String response = execute(urlDistributionGroups + convertGroupName(groupName));
         String id = new JSONObject(response).optString("id");
         if (id == null) {
-            System.err.println(groupName + " is not exist");
+            logger.error("{} is not exist", groupName);
         }
         return id;
     }
@@ -234,7 +238,7 @@ public class AppCenter {
         List<String> urls = StringUtils.extractUrls(input);
         int index = 0;
         for (String url : urls) {
-            System.out.println("progress " + index + " / " + urls.size());
+            logger.info("progress {} / {}", index, urls.size());
             String[] appIdVersion = null;
             if (url.startsWith("https://install.appcenter.ms/orgs/" + organization + "/apps/")) {//465
                 appIdVersion = url.replace("https://install.appcenter.ms/orgs/" + organization + "/apps/", "").split("/releases/");

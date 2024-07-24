@@ -15,6 +15,8 @@ import okhttp3.OkHttpClient.Builder;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,6 +38,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class JiraClient<T extends Ticket> implements RestClient, TrackerClient<T> {
+    private static final Logger logger = LogManager.getLogger(JiraClient.class);
     public static final String PARAM_JQL = "jql";
     public static final String PARAM_FIELDS = "fields";
     public static final String PARAM_START_AT = "startAt";
@@ -49,7 +52,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     private String authType = "Basic";
     private Long instanceCreationTime = System.currentTimeMillis();
 
-    private boolean isLogEnabled = true;
+    private boolean isLogEnabled = false;
 
     public void setClearCache(boolean clearCache) throws IOException {
         isClearCache = clearCache;
@@ -120,9 +123,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             body = genericRequest.execute();
             return createTicket(body).getChangelog();
         } catch (JSONException e) {
-            System.err.println(body);
-            System.err.println(ticketKey);
-            System.err.println(e);
+            logger.error(body);
+            logger.error(ticketKey);
+            logger.error(e);
             clearCache(genericRequest);
             return createTicket(genericRequest.execute()).getChangelog();
         }
@@ -194,7 +197,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     public void log(String message) {
         if (isLogEnabled) {
-            System.out.println(message);
+            logger.info(message);
         }
     }
 
@@ -301,7 +304,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             try {
                 return new SearchResult(body);
             } catch (JSONException e1) {
-                System.err.println("response: " + body);
+                logger.error("response: {}", body);
                 throw e1;
             }
         }
@@ -433,6 +436,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public void postComment(String ticketKey, String comment) throws IOException {
+        if (getTextType() == TrackerClient.TextType.MARKDOWN) {
+            comment = StringUtils.convertToMarkdown(comment);
+        }
         GenericRequest commentPostRequest = comment(ticketKey, null);
         commentPostRequest.setBody(new JSONObject().put("body", comment).toString()).post();
         clearCache(commentPostRequest);
@@ -814,7 +820,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
 
-            System.out.println(response.body().string());
+            logger.info(response.body().string());
             clearCache(createPerformTicketRequest(ticketKey, fields));
         }
     }
@@ -910,15 +916,15 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 .build()
         ).execute()) {
             if (response.isSuccessful()) {
-                System.out.println("Request performed successfully!");
+                logger.info("Request performed successfully!");
                 return response.body() != null ? response.body().string() : null;
             } else {
                 int code = response.code();
-                System.err.println("Error creating fix version. Response code: " + code);
+                logger.info("Error creating fix version. Response code: {}", code);
                 ResponseBody responseBody = response.body();
                 String responseBodyAsString = responseBody != null ? responseBody.string() : "";
                 if (responseBody != null) {
-                    System.err.println("Response body: " + responseBodyAsString);
+                    logger.error("Response body: {}", responseBodyAsString);
                 }
                 return responseBodyAsString;
             }
@@ -947,7 +953,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             if (response.isSuccessful()) {
                 return response.body() != null ? response.body().string() : null;
             } else {
-                System.err.println("Error code " + response.code());
+                logger.error("Error code {} {} {}", response.code(), genericRequest.getBody(), genericRequest.url());
                 return response.body() != null ? response.body().string() : null;
             }
         } finally {
@@ -1208,6 +1214,10 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     public static String tag(String basePath, String notifierId, String notifierName) {
         return "<a class=\"user-hover\" href=\"" + basePath + "/secure/ViewProfile.jspa?name="+notifierId+"\" rel=\""+notifierId+"\">"+notifierName+"</a>";
+    }
+
+    public String tag(String notifierId) {
+        return "[~accountid:" + notifierId + "]";
     }
 
     public boolean isWaitBeforePerform() {

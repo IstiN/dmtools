@@ -5,6 +5,11 @@ Your response must be true or false.
 Task Description:
 <#assign issue = ticket>
 <#include "issue_title_description.md">
+<#list extraTickets as issue>
+${(issue.ticketKey)!""}
+<#include "issue_title_description.md">
+</#list>
+
 List of test cases:
 <#list testCases as issue>
 <#include "issue_title_description.md">

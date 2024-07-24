@@ -7,6 +7,8 @@ import com.github.istin.dmtools.atlassian.confluence.model.ContentResult;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import okhttp3.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -15,7 +17,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class Confluence extends AtlassianRestClient {
-
+    private static final Logger logger = LogManager.getLogger(Confluence.class);
     public Confluence(String basePath, String authorization) throws IOException {
         super(basePath, authorization);
         setClearCache(true);
@@ -35,7 +37,7 @@ public class Confluence extends AtlassianRestClient {
         try {
             return new ContentResult(response);
         } catch (Exception e) {
-            System.err.println(response);
+            logger.error(response);
             throw e;
         }
     }
@@ -47,7 +49,7 @@ public class Confluence extends AtlassianRestClient {
         try {
             return new ContentResult(response).getAttachments();
         } catch (Exception e) {
-            System.err.println(response);
+            logger.error(response);
             throw e;
         }
     }
@@ -60,7 +62,7 @@ public class Confluence extends AtlassianRestClient {
         try {
             return new ContentResult(response);
         } catch (Exception e) {
-            System.err.println(response);
+            logger.error(response);
             throw e;
         }
     }
@@ -95,7 +97,7 @@ public class Confluence extends AtlassianRestClient {
         Content oldContent = new Content(new GenericRequest(this, path("content/" + contentId + "?expand=version")).execute());
         body = HtmlCleaner.convertLinksUrlsToConfluenceFormat(body);
 
-        System.out.println(contentId + ", " + title + ", " + parentId + ", " + body + ", " + space + ", " + historyComment);
+        logger.info("{}, {}, {}, {}, {}, {}", contentId, title, parentId, body, space, historyComment);
 
         GenericRequest content = new GenericRequest(this, path("content/"+contentId));
 
@@ -115,7 +117,7 @@ public class Confluence extends AtlassianRestClient {
                         .put("value", value)
                         .put("representation", "storage"))).toString());
         String putResponse = content.put();
-        System.out.println(putResponse);
+        logger.info(putResponse);
         return new Content(putResponse);
     }
 
@@ -171,7 +173,7 @@ public class Confluence extends AtlassianRestClient {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
 
-            System.out.println(response.body().string());
+            logger.info(response.body().string());
         }
     }
 

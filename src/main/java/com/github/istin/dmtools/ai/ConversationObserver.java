@@ -1,9 +1,15 @@
 package com.github.istin.dmtools.ai;
 
+import com.github.istin.dmtools.openai.OpenAIClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class ConversationObserver {
+
+    private static final Logger logger = LogManager.getLogger(ConversationObserver.class);
 
     public static class Message {
 
@@ -35,10 +41,10 @@ public class ConversationObserver {
     }
 
     public String printAndClear() {
-        StringBuffer stringBuffer = new StringBuffer();
+        StringBuilder stringBuffer = new StringBuilder();
         for (Message message : messages) {
-            stringBuffer.append(message.getAuthor() + "\n").append(message.getText() + "\n").append("=================\n");
-            System.out.println(stringBuffer);
+            stringBuffer.append(message.getAuthor()).append("\n").append(message.getText()).append("\n").append("=================\n");
+            logger.info(stringBuffer);
         }
         messages.clear();
         return stringBuffer.toString();

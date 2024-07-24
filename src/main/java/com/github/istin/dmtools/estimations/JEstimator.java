@@ -13,6 +13,8 @@ import com.github.istin.dmtools.report.ReportUtils;
 import com.github.istin.dmtools.report.freemarker.*;
 import freemarker.template.TemplateException;
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -25,7 +27,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class JEstimator extends AbstractJob<JEstimatorParams> {
-
+    private static final Logger logger = LogManager.getLogger(JEstimator.class);
     public static class AIEstimatedTicket extends ITicket.Wrapper {
 
         private String storyPointsField;
@@ -153,7 +155,7 @@ public class JEstimator extends AbstractJob<JEstimatorParams> {
         // Parse the number
         Double number = Double.parseDouble(numberAsString);
 
-        System.out.println("Parsed number: " + number);
+        logger.info("Parsed number: {}", number);
         return number;
     };
 

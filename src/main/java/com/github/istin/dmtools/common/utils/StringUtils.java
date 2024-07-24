@@ -1,6 +1,14 @@
 package com.github.istin.dmtools.common.utils;
 
+import io.github.furstenheim.CopyDown;
+import io.github.furstenheim.Options;
+import io.github.furstenheim.OptionsBuilder;
 import org.jetbrains.annotations.Nullable;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.nodes.TextNode;
+import org.jsoup.select.Elements;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +33,56 @@ public class StringUtils {
         }
 
         return containedUrls;
+    }
+
+    public static String convertToMarkdown(String input) {
+        Document.OutputSettings outputSettings = new Document.OutputSettings();
+        outputSettings.prettyPrint(false);
+
+        Document document = Jsoup.parse(input);
+        document.outputSettings(outputSettings);
+
+        // Handle code blocks
+        Elements codeBlocks = document.select("pre > code");
+        int placeholderIndex = 0;
+        for (Element codeBlock : codeBlocks) {
+            // Replace the HTML code block with a placeholder
+            codeBlock.parent().replaceWith(new TextNode("JIRACODEBLOCKPLACEHOLDER" + placeholderIndex));
+            placeholderIndex++;
+        }
+
+        // Convert the rest of the HTML to Markdown
+        OptionsBuilder optionsBuilder = OptionsBuilder.anOptions();
+        Options options = optionsBuilder
+                //.withCodeBlockStyle(CodeBlockStyle.FENCED)
+                // more options
+                .build();
+        CopyDown converter = new CopyDown(options);
+        String markdown = converter.convert(document.body().html());
+
+        // Replace ** with * for bold text
+        markdown = markdown.replaceAll("\\*\\*", "*");
+
+        // Replace placeholders with actual Jira code blocks
+        placeholderIndex = 0;
+        for (Element codeBlock : codeBlocks) {
+            String language = codeBlock.attr("class");
+            String codeContent = codeBlock.wholeText(); // Use wholeText() to preserve line breaks and whitespace
+
+            // Determine the Jira code block format
+            String jiraCodeBlock;
+            if (language.isEmpty()) {
+                jiraCodeBlock = "{noformat}\n" + codeContent + "\n{noformat}";
+            } else {
+                jiraCodeBlock = "{code:" + language + "}\n" + codeContent + "\n{code}";
+            }
+
+            // Replace the placeholder with the actual Jira code block
+            markdown = markdown.replaceFirst("JIRACODEBLOCKPLACEHOLDER" + placeholderIndex, Matcher.quoteReplacement(jiraCodeBlock));
+            placeholderIndex++;
+        }
+
+        return markdown;
     }
 
     public static String concatenate(String divider, String ... values) {

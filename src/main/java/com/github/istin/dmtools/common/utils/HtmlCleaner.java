@@ -1,5 +1,7 @@
 package com.github.istin.dmtools.common.utils;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -10,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HtmlCleaner {
+
+    private static final Logger logger = LogManager.getLogger(HtmlCleaner.class);
 
     public static String cleanUselessHTMLTagsAndAdjustImageUrls(String basePath, String taggedInput) {
         Document document = Jsoup.parse(taggedInput);
@@ -99,7 +103,7 @@ public class HtmlCleaner {
         // Modify the href attributes: replacing "&", with "&amp;"
         for (Element anchor : anchorTags) {
             String originalHref = anchor.attr("href");
-            System.out.println(originalHref);
+            logger.info(originalHref);
         }
 
         // Print the modified HTML

@@ -47,7 +47,7 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
         getRequest.param("ids", nodeId);
         try {
             String response = execute(getRequest);
-            System.out.println(response);
+            logger.info(response);
             return new JSONObject(response).getJSONObject("images").optString(nodeId.replaceAll("-", ":"));
         } catch (Exception ignored) {
             ignored.printStackTrace();
