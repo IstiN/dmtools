@@ -2,6 +2,7 @@ package com.github.istin.dmtools.presale;
 
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
+import com.github.istin.dmtools.atlassian.confluence.model.Attachment;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.utils.Log;
@@ -14,10 +15,15 @@ import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.pdf.PdfAsTrackerClient;
 import com.github.istin.dmtools.pdf.model.PdfPageAsTicket;
 import com.github.istin.dmtools.presale.model.StoryEstimation;
+import com.google.gson.Gson;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -103,16 +109,21 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
 
         documentationEditor.buildDetailedPageWithRequirementsForInputData(dataInputTicketsWithRequirements, confluenceRootPage, rootRequirementsPageName, confluence, ticketAreaMapper, ticketDocumentationHistoryTrackerViaConfluence, false);
 
-        Set<String> pagesWithContent = getPages(documentationEditor, confluenceRootPage);
+        final String requirementPage = getRequirementPage(documentationEditor, confluenceRootPage);
+
+        Set<String> pagesWithContent = getPages(documentationEditor, requirementPage);
 
         List<StoryEstimation> estimations = new ArrayList<>();
+        List<String> platforms = getPlatforms(preSaleSupportParams);
+
+        boolean isMobileTemplate = preSaleSupportParams.getPlatforms().isEmpty();
 
         for (String pageWithContent : pagesWithContent) {
             Content content = confluence.findContent(pageWithContent);
             String wikiContent = content.getStorage().getValue();
 
             try {
-                List<StoryEstimation> parse = PresaleResponseParser.parse(jAssistant.getEstimationInManHours(wikiContent));
+                List<StoryEstimation> parse = PresaleResponseParser.parse(jAssistant.getEstimationInManHours(wikiContent, platforms), content.getViewUrl(confluence.getBasePath()), platforms);
                 estimations.addAll(parse);
             } catch (Exception e) {
                 System.out.println("PreSaleSupport Not able to estimate wiki page " + pageWithContent);
@@ -120,7 +131,11 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
             }
         }
 
-        PresaleResultExcelExporter.exportToExcel(estimations, preSaleSupportParams.getFolderWithPdfAssets());
+        if (isMobileTemplate) {
+            PresaleResultExcelExporter.exportToExcelMobileTemplate(estimations, preSaleSupportParams.getFolderWithPdfAssets());
+        } else {
+            PresaleResultExcelExporter.exportToExcel(estimations, preSaleSupportParams.getFolderWithPdfAssets());
+        }
 
         //TODO Analyze the requirements to determine the most efficient technology stack (e.g., React Native, Flutter for cross-platform development, or native iOS and Android).
         //TODO Recommended technology stack with justifications.
@@ -184,6 +199,20 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
         documentationEditor.buildConfluenceStructure(optimizedFeatureAreas, dataInputTicketsWithRequirements, rootRequirementsPageName, confluence, ticketAreaMapper);
     }
 
+    private String getRequirementPage(DocumentationEditor documentationEditor, String rootPage) throws Exception {
+        JSONObject page = documentationEditor.buildExistingAreasStructureForConfluence("", rootPage);
+
+        Set<String> pageKeys = page.keySet();
+
+        for (String key : pageKeys) {
+            if (key.endsWith("Requirements")) {
+                return key;
+            }
+        }
+
+        return "";
+
+    }
 
     //TODO Reimplement to more efficient way
     private Set<String> getPages(DocumentationEditor documentationEditor, String rootPage) throws Exception {
@@ -219,4 +248,22 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
 
     }
 
+    private List<String> getPlatforms(PreSaleSupportParams params) {
+        List<String> platforms = params.getPlatforms();
+
+        if (platforms.isEmpty()) {
+            List<String> defaultPlatforms = new ArrayList<>();
+
+            defaultPlatforms.add("iOS Native");
+            defaultPlatforms.add("Android Native");
+            defaultPlatforms.add("React Native");
+            defaultPlatforms.add("Flutter");
+            defaultPlatforms.add("Backend");
+
+            return defaultPlatforms;
+
+        } else {
+            return platforms;
+        }
+    }
 }

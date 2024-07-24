@@ -1,6 +1,6 @@
 plugins {
     id 'java-library'
-//    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 apply plugin: 'maven-publish'
@@ -55,6 +55,7 @@ dependencies {
     api(group: 'org.apache.commons', name: 'commons-collections4', version: '4.3')
     api(group: 'org.apache.commons', name: 'commons-jexl', version: '2.1.1')
 
+    implementation 'com.google.code.gson:gson:2.8.8'
     api group: 'org.apache.poi', name: 'poi', version: '3.17'
     api group: 'org.apache.poi', name: 'poi-ooxml', version: '3.17'
 
@@ -106,11 +107,11 @@ publishing {
     }
 }
 
-//shadowJar {
-//    archiveBaseName.set('lib')
-//    archiveClassifier.set('')
-//    archiveVersion.set('')
-//    manifest {
-//        attributes 'Main-Class': 'com.github.istin.dmtools.job.JobRunner'
-//    }
-//}
+shadowJar {
+    archiveBaseName.set('lib')
+    archiveClassifier.set('')
+    archiveVersion.set('')
+    manifest {
+        attributes 'Main-Class': 'com.github.istin.dmtools.job.JobRunner'
+    }
+}

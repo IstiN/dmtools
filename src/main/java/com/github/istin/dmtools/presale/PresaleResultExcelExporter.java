@@ -1,102 +1,218 @@
 package com.github.istin.dmtools.presale;
 
+import com.github.istin.dmtools.presale.command.HyperlinkCommand;
 import com.github.istin.dmtools.presale.model.Estimation;
 import com.github.istin.dmtools.presale.model.StoryEstimation;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.CellValue;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.jxls.builder.xls.XlsCommentAreaBuilder;
+import org.jxls.common.Context;
+import org.jxls.util.JxlsHelper;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class PresaleResultExcelExporter {
 
-    static public void exportToExcel(List<StoryEstimation> estimations, String folderPath) {
-             Workbook workbook = new XSSFWorkbook();
-             Sheet sheet = workbook.createSheet("Estimations");
+    static public void exportToExcelMobileTemplate(List<StoryEstimation> stories, String folderPath) throws Exception {
+        Map<String, List<Estimation>> groupedEstimations = new HashMap<>();
 
-             int cellIndex = 1;
-             String[] platforms = {"Android", "iOS", "Flutter", "React Native", "Backend"};
+        for (StoryEstimation story : stories) {
+            story.estimations.forEach((key, value) -> {
+                // Check if the map already contains this platform
+                if (!groupedEstimations.containsKey(key)) {
+                    // If not, add the platform with a new list
+                    groupedEstimations.put(key, new ArrayList<>());
+                }
 
-             CellStyle centeredStyle = workbook.createCellStyle();
-             centeredStyle.setAlignment(HorizontalAlignment.CENTER);
-             // platform headers - each platform will have 4 columns merged
-             Row platformRow = sheet.createRow(0);
+                // Add the estimation to the list for this platform
+                groupedEstimations.get(key).add(value);
+            });
+        }
 
-             for (int i = 0; i < platforms.length; i++) {
-                 Cell cell = platformRow.createCell(cellIndex + 4 * i);
-                 cell.setCellStyle(centeredStyle);
-                 cell.setCellValue(platforms[i]);
-                 sheet.addMergedRegion(new CellRangeAddress(0, 0, cellIndex + 4 * i, cellIndex + 4 * i + 3));
-             }
+        try (InputStream is = PreSaleSupport.class.getResourceAsStream("/ftl/template/mcc_template.xlsx")) {
+            try (OutputStream os = Files.newOutputStream(Paths.get(folderPath + "/output.xlsx"))) {
 
-             // Create headers for each estimation type after platform title
-             Row headerRow = sheet.createRow(1);
-             headerRow.createCell(0).setCellValue("Story Title");
-             String[] estimates = {"Optimistic", "Pessimistic", "Most Likely", "Man hours"};
+                Context context = new Context();
+                context.putVar("stories", stories);
+                context.putVar("backendEstimations", groupedEstimations.get("Backend"));
+                context.putVar("flutterEstimations", groupedEstimations.get("Flutter"));
+                context.putVar("reactEstimations", groupedEstimations.get("React Native"));
+                context.putVar("androidEstimations", groupedEstimations.get("Android Native"));
+                context.putVar("iosEstimations", groupedEstimations.get("iOS Native"));
 
-             for (int i = 0; i < platforms.length; i++) {
-                 for (String estimate : estimates) {
-                     headerRow.createCell(cellIndex++).setCellValue(estimate);
-                 }
-             }
-
-             int rowIndex = 2;
-             for (StoryEstimation story : estimations) {
-                 Row row = sheet.createRow(rowIndex++);
-                 cellIndex = 0;
-
-                 row.createCell(cellIndex++).setCellValue(story.title);
-
-                 writeEstimationToRow(row, cellIndex, story.androidEstimation);
-                 cellIndex += 4;
-
-                 writeEstimationToRow(row, cellIndex, story.iosEstimation);
-                 cellIndex += 4;
-
-                 writeEstimationToRow(row, cellIndex, story.flutterEstimation);
-                 cellIndex += 4;
-
-                 writeEstimationToRow(row, cellIndex, story.reactEstimation);
-                 cellIndex += 4;
-
-                 writeEstimationToRow(row, cellIndex, story.backendEstimation);
-             }
-
-             for (int i = 0; i < cellIndex; i++) {
-                 sheet.autoSizeColumn(i);
-             }
-
-             // Write the output
-             try (FileOutputStream outputStream = new FileOutputStream(folderPath + "/result.xlsx")) {
-                 workbook.write(outputStream);
-             } catch (IOException e) {
-                 e.printStackTrace();
-             }
-
-
-
+                XlsCommentAreaBuilder.addCommandMapping("hyperlink", HyperlinkCommand.class);
+                JxlsHelper instance = JxlsHelper.getInstance();
+                instance.processTemplate(is, os, context);
+            }
+        }
     }
 
-    private static void writeEstimationToRow(Row row, int startIndex, Estimation estimation) {
-        row.createCell(startIndex).setCellValue(estimation.optimistic);
-        row.createCell(startIndex + 1).setCellValue(estimation.pessimistic);
-        row.createCell(startIndex + 2).setCellValue(estimation.mostLikely);
+    static public void exportToExcel(List<StoryEstimation> stories, String folderPath) throws Exception {
+        Map<String, List<Estimation>> groupedEstimations = new HashMap<>();
 
-        Cell cell = row.createCell(startIndex + 3);
-        cell.setCellFormula(
-                String.format("(%s%d + %s%d + 4 * %s%d) / 6",
-                        CellReference.convertNumToColString(startIndex), row.getRowNum() + 1,
-                        CellReference.convertNumToColString(startIndex + 1), row.getRowNum() + 1,
-                        CellReference.convertNumToColString(startIndex + 2), row.getRowNum() + 1)
-        );
+        for (StoryEstimation story : stories) {
+            story.estimations.forEach((key, value) -> {
+                // Check if the map already contains this platform
+                if (!groupedEstimations.containsKey(key)) {
+                    // If not, add the platform with a new list
+                    groupedEstimations.put(key, new ArrayList<>());
+                }
+
+                // Add the estimation to the list for this platform
+                groupedEstimations.get(key).add(value);
+            });
+        }
+
+        groupedEstimations.forEach((k, v) -> writeEstimation(k, v, folderPath));
+        writeInitialStoryData(stories, folderPath);
+        writeEstimationToStory(groupedEstimations.keySet(), folderPath);
+        groupedEstimations.forEach((key, value) -> {
+            new File(folderPath + "/output" + key + ".xlsx").delete();
+        });
+    }
+
+    private static void writeInitialStoryData(List<StoryEstimation> stories, String path) throws Exception {
+        try (InputStream is = PreSaleSupport.class.getResourceAsStream("/ftl/template/presale_story_template.xlsx")) {
+            try (OutputStream os = Files.newOutputStream(Paths.get(path + "/output.xlsx"))) {
+                Context context = new Context();
+                context.putVar("stories", stories);
+                JxlsHelper.getInstance().processTemplate(is, os, context);
+            }
+        }
+    }
+
+
+    private static void writeEstimation(String platform, List<Estimation> estimations, String path) {
+        try (InputStream is = PreSaleSupport.class.getResourceAsStream("/ftl/template/estimation_template.xlsx")) {
+            try (OutputStream os = Files.newOutputStream(Paths.get(path + "/output" + platform + ".xlsx"))) {
+                Context context = new Context();
+                context.putVar("estimations", estimations);
+                context.putVar("platform", platform);
+                JxlsHelper.getInstance().processTemplate(is, os, context);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void writeEstimationToStory(Set<String> platforms, String path) throws Exception {
+        int columnOffset = 1;
+
+        try (FileInputStream fis2 = new FileInputStream(path + "/output.xlsx")) {
+            XSSFWorkbook destinationWorkbook = new XSSFWorkbook(fis2);
+            XSSFSheet destinationSheet = destinationWorkbook.getSheetAt(0); // destination workbook sheet
+
+
+            int shift = 0;
+
+            for (String platform : platforms) {
+                shift = 0;
+
+                try (FileInputStream fis = new FileInputStream(path + "/output" + platform + ".xlsx")) {
+                    XSSFWorkbook sourceWorkbook = new XSSFWorkbook(fis);
+                    XSSFSheet sourceSheet = sourceWorkbook.getSheetAt(0);  // source workbook sheet
+
+                    FormulaEvaluator evaluator = sourceWorkbook.getCreationHelper().createFormulaEvaluator();
+
+                    // Open the destination workbook and get the sheet
+                    shift = sourceSheet.getPhysicalNumberOfRows();
+
+                    for (int i = 0; i < sourceSheet.getPhysicalNumberOfRows(); i++) {
+                        XSSFRow sourceRow = sourceSheet.getRow(i);
+
+                        XSSFRow destinationRow;
+
+                        if (destinationSheet.getRow(i) != null) {
+                            destinationRow = destinationSheet.getRow(i);
+                        } else {
+                            destinationRow = destinationSheet.createRow(i);
+                        }
+
+                        if (sourceRow != null) {
+                            for (int j = 0; j < sourceRow.getPhysicalNumberOfCells(); j++) {
+                                XSSFCell sourceCell = sourceRow.getCell(j);
+                                XSSFCell destinationCell = destinationRow.createCell(columnOffset + j);
+
+                                if (sourceCell != null) {
+                                    switch (sourceCell.getCellType()) {
+                                        case STRING:
+                                            destinationCell.setCellValue(sourceCell.getRichStringCellValue());
+                                            break;
+                                        case NUMERIC:
+                                            destinationCell.setCellValue(sourceCell.getNumericCellValue());
+                                            break;
+                                        case FORMULA:
+                                            CellValue cellValue = evaluator.evaluate(sourceCell);
+                                            destinationCell.setCellValue(cellValue.getNumberValue());
+                                            break;
+                                        case BOOLEAN:
+                                            destinationCell.setCellValue(sourceCell.getBooleanCellValue());
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                    CellStyle style = destinationWorkbook.createCellStyle();
+                                    style.cloneStyleFrom(sourceCell.getCellStyle());
+                                    destinationCell.setCellStyle(style);
+                                }
+                            }
+                        }
+                    }
+
+                    if (sourceSheet.getPhysicalNumberOfRows() > 1) {
+                        XSSFRow sourceRow = sourceSheet.getRow(1);
+
+                        if (sourceRow != null) {
+                            shift = sourceRow.getPhysicalNumberOfCells();
+                        }
+                    }
+                    // Save the destination workbook
+
+                }
+                columnOffset += shift;
+            }
+
+            Row firstRow = destinationSheet.getRow(0);
+
+            int index = 0;
+
+            for (Cell ignored : firstRow) {
+                destinationSheet.autoSizeColumn(index);
+                index++;
+            }
+
+            for (Cell cell : firstRow) {
+                if (cell.getCellType() == CellType.STRING && !cell.getStringCellValue().trim().equals("")) {
+                    CellRangeAddress region = new CellRangeAddress(0, 0, cell.getColumnIndex(), cell.getColumnIndex() + shift - 1);
+                    destinationSheet.addMergedRegion(region);
+                }
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(path + "/output.xlsx")) {
+                destinationWorkbook.write(fos);
+            }
+        }
     }
 }
