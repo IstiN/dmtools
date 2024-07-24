@@ -167,4 +167,12 @@ public class PromptManager {
     public String createDiagrams(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
         return stringFromTemplate(multiTicketsPrompt, "role_create_diagrams");
     }
+
+    public String getManHourEstimationPrompt(PresaleEstimationPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "presale_estimate_story");
+    }
+
+    public String isImageValuableForDevelopment() throws IOException, TemplateException {
+        return stringFromTemplate(new InputPrompt(""), "presale_image_value_recognition");
+    }
 }

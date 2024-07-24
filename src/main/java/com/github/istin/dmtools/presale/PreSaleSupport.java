@@ -2,8 +2,10 @@ package com.github.istin.dmtools.presale;
 
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
+import com.github.istin.dmtools.atlassian.confluence.model.Attachment;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.common.model.IAttachment;
+import com.github.istin.dmtools.common.utils.Log;
 import com.github.istin.dmtools.documentation.DocumentationEditor;
 import com.github.istin.dmtools.documentation.area.TicketAreaMapperViaConfluence;
 import com.github.istin.dmtools.documentation.area.TicketDocumentationHistoryTrackerViaConfluence;
@@ -12,9 +14,18 @@ import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.pdf.PdfAsTrackerClient;
 import com.github.istin.dmtools.pdf.model.PdfPageAsTicket;
+import com.github.istin.dmtools.presale.model.StoryEstimation;
+import com.google.gson.Gson;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -49,7 +60,7 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
             jAssistant.identifyIsContentRelatedToTeamSetupAndMarkViaLabel(prefix, ticket);
 
             return false;
-        }, null, new String[] {});
+        }, null, new String[]{});
 
         BasicConfluence confluence = BasicConfluence.getInstance();
         TicketDocumentationHistoryTrackerViaConfluence ticketDocumentationHistoryTrackerViaConfluence = new TicketDocumentationHistoryTrackerViaConfluence(confluence);
@@ -98,7 +109,33 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
 
         documentationEditor.buildDetailedPageWithRequirementsForInputData(dataInputTicketsWithRequirements, confluenceRootPage, rootRequirementsPageName, confluence, ticketAreaMapper, ticketDocumentationHistoryTrackerViaConfluence, false);
 
+        final String requirementPage = getRequirementPage(documentationEditor, confluenceRootPage);
 
+        Set<String> pagesWithContent = getPages(documentationEditor, requirementPage);
+
+        List<StoryEstimation> estimations = new ArrayList<>();
+        List<String> platforms = getPlatforms(preSaleSupportParams);
+
+        boolean isMobileTemplate = preSaleSupportParams.getPlatforms().isEmpty();
+
+        for (String pageWithContent : pagesWithContent) {
+            Content content = confluence.findContent(pageWithContent);
+            String wikiContent = content.getStorage().getValue();
+
+            try {
+                List<StoryEstimation> parse = PresaleResponseParser.parse(jAssistant.getEstimationInManHours(wikiContent, platforms), content.getViewUrl(confluence.getBasePath()), platforms);
+                estimations.addAll(parse);
+            } catch (Exception e) {
+                System.out.println("PreSaleSupport Not able to estimate wiki page " + pageWithContent);
+                Log.e("PreSaleSupport", e);
+            }
+        }
+
+        if (isMobileTemplate) {
+            PresaleResultExcelExporter.exportToExcelMobileTemplate(estimations, preSaleSupportParams.getFolderWithPdfAssets());
+        } else {
+            PresaleResultExcelExporter.exportToExcel(estimations, preSaleSupportParams.getFolderWithPdfAssets());
+        }
 
         //TODO Analyze the requirements to determine the most efficient technology stack (e.g., React Native, Flutter for cross-platform development, or native iOS and Android).
         //TODO Recommended technology stack with justifications.
@@ -162,4 +199,71 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
         documentationEditor.buildConfluenceStructure(optimizedFeatureAreas, dataInputTicketsWithRequirements, rootRequirementsPageName, confluence, ticketAreaMapper);
     }
 
+    private String getRequirementPage(DocumentationEditor documentationEditor, String rootPage) throws Exception {
+        JSONObject page = documentationEditor.buildExistingAreasStructureForConfluence("", rootPage);
+
+        Set<String> pageKeys = page.keySet();
+
+        for (String key : pageKeys) {
+            if (key.endsWith("Requirements")) {
+                return key;
+            }
+        }
+
+        return "";
+
+    }
+
+    //TODO Reimplement to more efficient way
+    private Set<String> getPages(DocumentationEditor documentationEditor, String rootPage) throws Exception {
+        JSONObject page = documentationEditor.buildExistingAreasStructureForConfluence("", rootPage);
+
+        Set<String> pageKeys = page.keySet();
+
+        HashSet<String> result = new HashSet<>();
+
+        if (pageKeys.isEmpty()) {
+            result.add(rootPage);
+
+            return result;
+        }
+
+        for (String key : pageKeys) {
+            JSONObject inner = page.getJSONObject(key);
+
+            Set<String> innerSet = inner.keySet();
+
+            if (key.endsWith("History")) {
+                continue;
+            }
+
+            if (innerSet.size() == 1 && innerSet.iterator().next().equals(key + " History")) {
+                result.add(key);
+            } else {
+                result.addAll(getPages(documentationEditor, key));
+            }
+        }
+
+        return result;
+
+    }
+
+    private List<String> getPlatforms(PreSaleSupportParams params) {
+        List<String> platforms = params.getPlatforms();
+
+        if (platforms.isEmpty()) {
+            List<String> defaultPlatforms = new ArrayList<>();
+
+            defaultPlatforms.add("iOS Native");
+            defaultPlatforms.add("Android Native");
+            defaultPlatforms.add("React Native");
+            defaultPlatforms.add("Flutter");
+            defaultPlatforms.add("Backend");
+
+            return defaultPlatforms;
+
+        } else {
+            return platforms;
+        }
+    }
 }

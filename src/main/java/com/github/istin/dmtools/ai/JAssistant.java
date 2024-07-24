@@ -502,4 +502,16 @@ public class JAssistant {
         String chatResponse = openAIClient.chat("gpt-4o-2024-05-13", aiRequest);
         return JSONModel.convertToModels(Diagram.class, new JSONArray(chatResponse));
     }
+
+    public String getEstimationInManHours(String input, List<String> platforms) throws Exception {
+        String aiRequest = promptManager.getManHourEstimationPrompt(new PresaleEstimationPrompt(input, platforms));
+
+        return openAIClient.chat(aiRequest);
+    }
+
+    public Boolean isImageValuableForDevelopment(java.io.File image) throws Exception {
+        String aiRequest = promptManager.isImageValuableForDevelopment();
+
+        return Boolean.parseBoolean(openAIClient.chat(openAIClient.getName(), aiRequest, image));
+    }
 }
