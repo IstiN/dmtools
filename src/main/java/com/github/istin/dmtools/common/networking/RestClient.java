@@ -22,6 +22,8 @@ public interface RestClient {
 
     String put(GenericRequest jiraRequest) throws IOException;
 
+    String patch(GenericRequest jiraRequest) throws IOException;
+
     String delete(GenericRequest jiraRequest) throws IOException;
 
     String getBasePath();

@@ -8,6 +8,24 @@ public interface IHistoryItem {
 
     String getToAsString();
 
+    class NewTicketCreation implements IHistoryItem {
+
+        @Override
+        public String getField() {
+            return "NewTicketCreation";
+        }
+
+        @Override
+        public String getFromAsString() {
+            return "";
+        }
+
+        @Override
+        public String getToAsString() {
+            return "";
+        }
+
+    }
     class Impl implements IHistoryItem {
         private String field;
         private String from;

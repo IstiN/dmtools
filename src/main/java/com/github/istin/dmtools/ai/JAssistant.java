@@ -1,14 +1,11 @@
 package com.github.istin.dmtools.ai;
 
-import com.github.istin.dmtools.atlassian.bitbucket.model.*;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Relationship;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.code.SourceCode;
-import com.github.istin.dmtools.common.model.IAttachment;
-import com.github.istin.dmtools.common.model.ITicket;
-import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.PropertyReader;
@@ -51,7 +48,7 @@ public class JAssistant {
 
     private TrackerClient<? extends ITicket> trackerClient;
 
-    private SourceCode sourceCode;
+    private List<SourceCode> sourceCodes;
 
     private OpenAIClient openAIClient;
 
@@ -67,19 +64,19 @@ public class JAssistant {
         this.conversationObserver = conversationObserver;
     }
 
-    public JAssistant(TrackerClient<? extends ITicket> trackerClient, SourceCode sourceCode, OpenAIClient openAIClient, PromptManager promptManager) {
-        this(trackerClient, sourceCode, openAIClient, promptManager, null);
+    public JAssistant(TrackerClient<? extends ITicket> trackerClient, List<SourceCode> sourceCodes, OpenAIClient openAIClient, PromptManager promptManager) {
+        this(trackerClient, sourceCodes, openAIClient, promptManager, null);
     }
 
-    public JAssistant(TrackerClient<? extends ITicket> trackerClient, SourceCode sourceCode, OpenAIClient openAIClient, PromptManager promptManager, ConversationObserver conversationObserver) {
+    public JAssistant(TrackerClient<? extends ITicket> trackerClient, List<SourceCode> sourceCodes, OpenAIClient openAIClient, PromptManager promptManager, ConversationObserver conversationObserver) {
         this.trackerClient = trackerClient;
-        this.sourceCode = sourceCode;
+        this.sourceCodes = sourceCodes;
         this.openAIClient = openAIClient;
         this.promptManager = promptManager;
         this.conversationObserver = conversationObserver;
     }
 
-    public void generateCode(String role, TicketContext ticketContext, String workspace, String repository, String branchName) throws Exception {
+    public void generateCode(String role, TicketContext ticketContext) throws Exception {
         ITicket ticket = ticketContext.getTicket();
         CodeGeneration codeGeneration = new CodeGeneration(trackerClient.getBasePath(), role, ticket);
         codeGeneration.setExtraTickets(ticketContext.getExtraTickets());
@@ -88,33 +85,9 @@ public class JAssistant {
             codeGeneration.setTestCases(testCases);
         }
 
-
-        List<File> listOfFiles = sourceCode.getListOfFiles(workspace, repository, branchName);
-        List<File> filesOnly = listOfFiles.stream().filter(file -> !file.isDir()).collect(Collectors.toList());
-
-        JSONArray filePaths = getListOfEffectedFilesFromFiles(codeGeneration, filesOnly);
-
-        List<Commit> commitsFromBranch = sourceCode.getCommitsFromBranch(workspace, repository, branchName);
-        JSONArray filePathsFromCommits = getListOfEffectedFilesFromCommits(workspace, repository, codeGeneration, commitsFromBranch);
-        filePaths.putAll(filePathsFromCommits);
-        List<File> finalResults = new ArrayList<>();
-        for (int i = 0; i < filePaths.length(); i++) {
-            String path = filePaths.getString(i);
-            List<File> result = filesOnly.stream().filter(file -> file.getPath().equals(path)).collect(Collectors.toList());
-            if (!result.isEmpty()) {
-                File file = result.get(0);
-                file.setFileContent(sourceCode.getFileContent(file.getSelfLink()));
-
-                TicketFilePrompt ticketFilePrompt = new TicketFilePrompt(trackerClient.getBasePath(), role, ticket, file);
-                ticketFilePrompt.setExtraTickets(ticketContext.getExtraTickets());
-                String request = promptManager.validatePotentiallyEffectedFile(ticketFilePrompt);
-                String isTheFileUsefull = openAIClient.chat(
-                        CODE_AI_MODEL,
-                        request);
-                if (Boolean.parseBoolean(isTheFileUsefull)) {
-                    finalResults.add(file);
-                }
-            }
+        List<IFile> finalResults = new ArrayList<>();
+        for (SourceCode sourceCode : sourceCodes) {
+            extractPotentiallyEffectedFiles(role, ticketContext, sourceCode, codeGeneration, ticket, finalResults);
         }
 
         codeGeneration.setFiles(finalResults);
@@ -129,7 +102,36 @@ public class JAssistant {
 
     }
 
-    private JSONArray getListOfEffectedFilesFromFiles(CodeGeneration codeGeneration, List<File> filesOnly) throws Exception {
+    private void extractPotentiallyEffectedFiles(String role, TicketContext ticketContext, SourceCode sourceCode, CodeGeneration codeGeneration, ITicket ticket, List<IFile> finalResults) throws Exception {
+        List<IFile> listOfFiles = sourceCode.getListOfFiles(sourceCode.getDefaultWorkspace(), sourceCode.getDefaultRepository(), sourceCode.getDefaultBranch());
+        List<IFile> filesOnly = listOfFiles.stream().filter(file -> !file.isDir()).collect(Collectors.toList());
+
+        JSONArray filePaths = getListOfEffectedFilesFromFiles(codeGeneration, filesOnly);
+
+        List<ICommit> commitsFromBranch = sourceCode.getCommitsFromBranch(sourceCode.getDefaultWorkspace(), sourceCode.getDefaultRepository(), sourceCode.getDefaultBranch());
+        JSONArray filePathsFromCommits = getListOfEffectedFilesFromCommits(sourceCode, sourceCode.getDefaultWorkspace(), sourceCode.getDefaultRepository(), codeGeneration, commitsFromBranch);
+        filePaths.putAll(filePathsFromCommits);
+        for (int i = 0; i < filePaths.length(); i++) {
+            String path = filePaths.getString(i);
+            List<IFile> result = filesOnly.stream().filter(file -> file.getPath().equals(path)).collect(Collectors.toList());
+            if (!result.isEmpty()) {
+                IFile file = result.get(0);
+                file.setFileContent(sourceCode.getFileContent(file.getSelfLink()));
+
+                TicketFilePrompt ticketFilePrompt = new TicketFilePrompt(trackerClient.getBasePath(), role, ticket, file);
+                ticketFilePrompt.setExtraTickets(ticketContext.getExtraTickets());
+                String request = promptManager.validatePotentiallyEffectedFile(ticketFilePrompt);
+                String isTheFileUsefull = openAIClient.chat(
+                        CODE_AI_MODEL,
+                        request);
+                if (Boolean.parseBoolean(isTheFileUsefull)) {
+                    finalResults.add(file);
+                }
+            }
+        }
+    }
+
+    private JSONArray getListOfEffectedFilesFromFiles(CodeGeneration codeGeneration, List<IFile> filesOnly) throws Exception {
         codeGeneration.setFiles(filesOnly);
         String aiRequest = promptManager.checkPotentiallyEffectedFilesForTicket(codeGeneration);
         String response = openAIClient.chat(
@@ -139,7 +141,7 @@ public class JAssistant {
         return new JSONArray(response);
     }
 
-    private JSONArray getListOfEffectedFilesFromCommits(String workspace, String repository, CodeGeneration codeGeneration, List<Commit> commits) throws Exception {
+    private JSONArray getListOfEffectedFilesFromCommits(SourceCode sourceCode, String workspace, String repository, CodeGeneration codeGeneration, List<ICommit> commits) throws Exception {
         codeGeneration.setCommits(commits);
         String aiRequest = promptManager.checkPotentiallyRelatedCommitsToTicket(codeGeneration);
         String response = openAIClient.chat(
@@ -150,9 +152,9 @@ public class JAssistant {
         Set<String> filesFromCommits = new HashSet<>();
         for (int i = 0; i < jsonArray.length(); i++) {
             String commit = jsonArray.getString(i);
-            BitbucketResult commitDiffStat = sourceCode.getCommitDiffStat(workspace, repository, commit);
-            List<Change> changes = commitDiffStat.getChanges();
-            for (Change change : changes) {
+            IDiffStats commitDiffStat = sourceCode.getCommitDiffStat(workspace, repository, commit);
+            List<IChange> changes = commitDiffStat.getChanges();
+            for (IChange change : changes) {
                 filesFromCommits.add(change.getFilePath());
             }
         }
@@ -357,8 +359,8 @@ public class JAssistant {
             return null;
         }
     }
-    public void reviewPullRequest(String role, String workspace, String repository, String pullRequestId, IssuesIDsParser issuesIDsParser) throws Exception {
-        PullRequest pullRequest = sourceCode.pullRequest(workspace, repository, pullRequestId);
+    public void reviewPullRequest(SourceCode sourceCode, String role, String workspace, String repository, String pullRequestId, IssuesIDsParser issuesIDsParser) throws Exception {
+        IPullRequest pullRequest = sourceCode.pullRequest(workspace, repository, pullRequestId);
         List<String> keys = issuesIDsParser.parseIssues(pullRequest.getTitle(), pullRequest.getSourceBranchName(), pullRequest.getDescription());
         if (keys.isEmpty()) {
             sourceCode.addPullRequestComment(workspace, repository, pullRequestId, "Please use Ticket Number in Title, Description or Branch Name");
@@ -379,8 +381,8 @@ public class JAssistant {
         }
 
         input.setRole(role);
-        String diff = sourceCode.getDiff(workspace, repository, pullRequestId);
-        input.setDiff(diff);
+        IBody diff = sourceCode.getDiff(workspace, repository, pullRequestId);
+        input.setDiff(diff.getBody());
 
         String request;
         if (!IssueType.isBug(ticket.getIssueType())) {
@@ -501,5 +503,10 @@ public class JAssistant {
         String aiRequest = promptManager.createDiagrams(multiTicketsPrompt);
         String chatResponse = openAIClient.chat("gpt-4o-2024-05-13", aiRequest);
         return JSONModel.convertToModels(Diagram.class, new JSONArray(chatResponse));
+    }
+
+    public String makeDailyScrumReportOfUserWork(String userName, List<com.github.istin.dmtools.sm.Change> changeList) throws Exception {
+        String aiRequest = promptManager.makeDailyScrumReportOfUserWork(new ScrumDailyPrompt(userName, changeList));
+        return openAIClient.chat(aiRequest);
     }
 }

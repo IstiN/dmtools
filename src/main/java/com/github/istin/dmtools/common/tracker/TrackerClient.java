@@ -90,14 +90,7 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
     class Utils {
         public static String checkCommentStartedWith(TrackerClient trackerClient, String key, ITicket ticket, String commentPrefix) throws IOException {
             List<IComment> comments = trackerClient.getComments(key, ticket);
-            for (IComment comment : comments) {
-                String cleanedComment = HtmlCleaner.cleanAllHtmlTags("", comment.getBody());
-                String cleanedPrefix = HtmlCleaner.cleanAllHtmlTags("", commentPrefix);
-                if (comment.getBody().startsWith(commentPrefix) || comment.getBody().startsWith("<p>"+commentPrefix) || cleanedComment.startsWith(cleanedPrefix)) {
-                    return comment.getBody();
-                }
-            }
-            return null;
+            return IComment.Impl.checkCommentStartedWith(comments, commentPrefix);
         }
 
         public static boolean isLabelExists(ITicket ticket, String label) {

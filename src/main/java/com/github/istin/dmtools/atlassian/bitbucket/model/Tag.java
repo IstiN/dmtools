@@ -1,10 +1,11 @@
 package com.github.istin.dmtools.atlassian.bitbucket.model;
 
+import com.github.istin.dmtools.common.model.ITag;
 import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Tag extends JSONModel {
+public class Tag extends JSONModel implements ITag {
 
     public Tag() {
     }
@@ -21,6 +22,7 @@ public class Tag extends JSONModel {
         return getString("id");
     }
 
+    @Override
     public String getName() {
         if (getId() == null) {
             return getString("name");

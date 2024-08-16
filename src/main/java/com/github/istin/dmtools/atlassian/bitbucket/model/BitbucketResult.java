@@ -1,9 +1,10 @@
 package com.github.istin.dmtools.atlassian.bitbucket.model;
 
 import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
+import com.github.istin.dmtools.atlassian.bitbucket.model.cloud.CloudBitbucketComment;
 import com.github.istin.dmtools.atlassian.bitbucket.model.cloud.CloudPullRequest;
 import com.github.istin.dmtools.atlassian.bitbucket.model.server.ServerPullRequest;
-import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.model.*;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -36,11 +37,11 @@ public class BitbucketResult extends JSONModel {
         }
     }
 
-    public List<Activity> getActivities() {
+    public List<IActivity> getActivities() {
         return getModels(Activity.class, VALUES);
     }
 
-    public List<Task> getTasks() {
+    public List<ITask> getTasks() {
         return getModels(Task.class, VALUES);
     }
 
@@ -52,12 +53,16 @@ public class BitbucketResult extends JSONModel {
         return getModels(Repository.class, VALUES);
     }
 
-    public List<Change> getChanges() {
+    public List<IChange> getChanges() {
         return getModels(Change.class, VALUES);
     }
 
-    public List<File> getFiles() {
+    public List<IFile> getFiles() {
         return getModels(File.class, VALUES);
+    }
+
+    public List<IComment> getComments() {
+        return getModels(CloudBitbucketComment.class, VALUES);
     }
 
     public String getNext() {

@@ -18,7 +18,8 @@ public class BasicBitbucket extends Bitbucket {
         PropertyReader propertyReader = new PropertyReader();
         BASE_PATH = propertyReader.getBitbucketBasePath();
         TOKEN = propertyReader.getBitbucketToken();
-        API_VERSION = Bitbucket.ApiVersion.valueOf(propertyReader.getBitbucketApiVersion());
+        String bitbucketApiVersion = propertyReader.getBitbucketApiVersion();
+        API_VERSION = bitbucketApiVersion == null ? null : Bitbucket.ApiVersion.valueOf(bitbucketApiVersion);
         WORKSPACE = propertyReader.getBitbucketWorkspace();
         REPOSITORY = propertyReader.getBitbucketRepository();
         BRANCH = propertyReader.getBitbucketBranch();
@@ -53,4 +54,8 @@ public class BasicBitbucket extends Bitbucket {
         return WORKSPACE;
     }
 
+    @Override
+    public boolean isConfigured() {
+        return BASE_PATH != null || TOKEN != null || REPOSITORY != null || BRANCH != null || WORKSPACE != null || API_VERSION != null;
+    }
 }

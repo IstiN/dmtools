@@ -1,10 +1,13 @@
 package com.github.istin.dmtools.atlassian.jira.utils;
 
+import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
+import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.report.model.KeyTime;
+import com.github.istin.dmtools.team.IEmployees;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -105,6 +108,113 @@ public class ChangelogAssessment {
         return null;
     }
 
+    public static String findWhoFromEmployeeMovedToStatus(TrackerClient trackerClient, String key, ITicket ticket,  IEmployees teamToFilter, String... targetStatuses) throws IOException {
+        IChangelog changeLog = trackerClient.getChangeLog(key, ticket);
+        List<IHistory> histories = (List<IHistory>) changeLog.getHistories();
+        String lastAssignee = null;
+        for (IHistory history : histories) {
+            List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
+            for (IHistoryItem historyItem : items) {
+                if (historyItem.getField().equalsIgnoreCase(trackerClient.getDefaultStatusField())) {
+                    String toString = historyItem.getToAsString();
+                    if (toString != null) {
+                        for (String targetStatus : targetStatuses) {
+                            if (toString.equalsIgnoreCase(targetStatus)) {
+                                String fullName = history.getAuthor().getFullName();
+                                if (teamToFilter != null) {
+                                    if (teamToFilter.contains(fullName)) {
+                                        lastAssignee = teamToFilter.transformName(fullName);
+                                    }
+                                } else {
+                                    lastAssignee = fullName;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return lastAssignee;
+    }
+
+    public static Pair<String, IHistoryItem> findLastAssigneeForStatus(TrackerClient trackerClient, String key, ITicket ticket, IEmployees teamToFilter, String... targetStatuses) throws IOException {
+        IChangelog changeLog = trackerClient.getChangeLog(key, ticket);
+        List<IHistory> histories = (List<IHistory>) changeLog.getHistories();
+        String lastAssignee = null;
+        IHistoryItem lastStatusChangeHistoryItem = null;
+        boolean isTargetStatus = false;
+        IUser creator = ticket.getCreator();
+        if (creator != null) {
+            if (teamToFilter != null) {
+                if (teamToFilter.contains(creator.getFullName())) {
+                    lastAssignee = teamToFilter.transformName(creator.getFullName());
+                }
+            } else {
+                lastAssignee = creator.getFullName();
+            }
+        }
+
+        if (!isAssigneeFieldWasEverChanged(histories)) {
+            Assignee assignee = ticket.getFields().getAssignee();
+            if (assignee != null) {
+                if (teamToFilter != null) {
+                    if (teamToFilter.contains(assignee.getFullName())) {
+                        lastAssignee = teamToFilter.transformName(assignee.getFullName());
+                    }
+                } else {
+                    lastAssignee = assignee.getFullName();
+                }
+            }
+        }
+
+
+        for (IHistory history : histories) {
+            List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
+            for (IHistoryItem historyItem : items) {
+                if (historyItem.getField().contains(Fields.ASSIGNEE) && (lastStatusChangeHistoryItem == null || isTargetStatus)) {
+                    if (historyItem.getToAsString() != null ) {
+                        if (teamToFilter != null) {
+                            if (teamToFilter.contains(historyItem.getToAsString())) {
+                                lastAssignee = teamToFilter.transformName(historyItem.getToAsString());
+                            }
+                        } else {
+                            lastAssignee = historyItem.getToAsString();
+                        }
+                    }
+                }
+                if (targetStatuses != null && historyItem.getField().equalsIgnoreCase(trackerClient.getDefaultStatusField())) {
+                    String toString = historyItem.getToAsString();
+                    if (toString != null) {
+                        boolean wasFound = false;
+                        for (String targetStatus : targetStatuses) {
+                            if (toString.equalsIgnoreCase(targetStatus)) {
+                                lastStatusChangeHistoryItem = historyItem;
+                                wasFound = true;
+                                isTargetStatus = true;
+                            }
+                        }
+                        if (!wasFound) {
+                            isTargetStatus = false;
+                        }
+                    }
+                }
+            }
+        }
+        return new ImmutablePair<>(lastAssignee, lastStatusChangeHistoryItem);
+    }
+
+    public static boolean isAssigneeFieldWasEverChanged(List<IHistory> histories) {
+        for (IHistory history : histories) {
+            List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
+            for (IHistoryItem historyItem : items) {
+                if (historyItem.getField().contains(Fields.ASSIGNEE)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
 
     public static boolean fieldWasChangedByUser(JiraClient jiraClient, String ticketKey, String field, String user, Ticket ticket) throws IOException {
         IChangelog changeLog = jiraClient.getChangeLog(ticketKey, ticket);
@@ -119,5 +229,36 @@ public class ChangelogAssessment {
             }
         }
         return false;
+    }
+
+    public static boolean isFirstTimeRight(TrackerClient jiraClient, String ticketKey, ITicket ticket, String[] inProgressStatuses, String[] qualityStatuses) throws IOException {
+        IChangelog changeLog = jiraClient.getChangeLog(ticketKey, ticket);
+        List<IHistory> histories = (List<IHistory>) changeLog.getHistories();
+        boolean isWasInQualityStatus = false;
+        for (IHistory history : histories) {
+            List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
+            for (IHistoryItem historyItem : items) {
+                if (historyItem.getField().toLowerCase().contains(Fields.STATUS)) {
+                    String toString = historyItem.getToAsString();
+                    if (toString != null) {
+                        for (String qualityStatus : qualityStatuses) {
+                            if (toString.toLowerCase().contains(qualityStatus.toLowerCase())) {
+                                isWasInQualityStatus = true;
+                                break;
+                            }
+                        }
+
+                        if (isWasInQualityStatus) {
+                            for (String inProgressStatus : inProgressStatuses) {
+                                if (toString.toLowerCase().contains(inProgressStatus.toLowerCase())) {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true;
     }
 }

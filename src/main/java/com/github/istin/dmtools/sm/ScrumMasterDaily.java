@@ -1,16 +1,24 @@
 package com.github.istin.dmtools.sm;
 
+import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
+import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.openai.BasicOpenAI;
+import com.github.istin.dmtools.openai.PromptManager;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ScrumMasterDaily extends AbstractJob<ScrumMasterDailyParams> {
     private static final Logger logger = LogManager.getLogger(ScrumMasterDaily.class);
@@ -29,7 +37,20 @@ public class ScrumMasterDaily extends AbstractJob<ScrumMasterDailyParams> {
         yesterday.set(Calendar.SECOND, 0);
         yesterday.set(Calendar.MILLISECOND, 0);
 
+        List<Change> listOfChanges = new ArrayList<>();
+
+        String searchQuery = "(" + scrumMasterDailyParams.getJql() + ") and (updated >= '-2d' or created >= '-2d')";
+        logger.info("JQL: " + searchQuery);
         trackerClient.searchAndPerform(ticket -> {
+            Calendar ticketCreatedCalendar = DateUtils.calendar(ticket.getCreated());
+            if (ticketCreatedCalendar.compareTo(yesterday) >= 0) {
+                Change change = new Change();
+                change.setWhen(ticketCreatedCalendar);
+                change.setWho(ticket.getCreator());
+                change.setTicket(ticket);
+                change.setHistoryItem(new IHistoryItem.NewTicketCreation());
+                listOfChanges.add(change);
+            }
             IChangelog changeLog = trackerClient.getChangeLog(ticket.getTicketKey(), ticket);
             List<IHistory> histories = (List<IHistory>) changeLog.getHistories();
             boolean isFirstChange = true;
@@ -44,16 +65,22 @@ public class ScrumMasterDaily extends AbstractJob<ScrumMasterDailyParams> {
                     }
                     logger.info("By Author: {}", authorName);
                     logger.info("When: {}", DateUtils.formatToRallyDate(created));
-
                     for (IHistoryItem item : history.getHistoryItems()) {
                         String field = item.getField();
                         String fromString = item.getFromAsString();
                         String toString = item.getToAsString();
 
                         logger.info("Field: {}", field);
-                        logger.info("From: {}", fromString);
-                        logger.info("To: {}", toString);
+                        logger.info("From: {}", fromString == null ? "" : fromString);
+                        logger.info("To: {}", toString == null ? "" : toString);
                         logger.info("\n");
+
+                        Change change = new Change();
+                        change.setWhen(created);
+                        change.setTicket(ticket);
+                        change.setWho(author);
+                        change.setHistoryItem(item);
+                        listOfChanges.add(change);
                     }
                 }
             }
@@ -61,7 +88,31 @@ public class ScrumMasterDaily extends AbstractJob<ScrumMasterDailyParams> {
                 logger.info("-----");
             }
             return false;
-        }, scrumMasterDailyParams.getJql() + " and updated >= -2", trackerClient.getDefaultQueryFields());
+        }, searchQuery, trackerClient.getDefaultQueryFields());
+
+        logger.log(Level.INFO, listOfChanges.size());
+
+        BasicOpenAI openAI = new BasicOpenAI(null);
+        PromptManager promptManager = new PromptManager();
+        JAssistant jAssistant = new JAssistant(trackerClient, null, openAI, promptManager);
+
+        // Group by IUser.getName()
+        Map<String, List<Change>> groupedByUserName = listOfChanges.stream()
+                .collect(Collectors.groupingBy(change -> change.getWho().getFullName()));
+
+        // Print the results
+        StringBuilder finalPageDescription = new StringBuilder();
+        groupedByUserName.forEach((name, changeList) -> {
+            logger.log(Level.INFO, "User: " + name);
+            try {
+                finalPageDescription.append(jAssistant.makeDailyScrumReportOfUserWork(name, changeList)).append("\n");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        logger.log(Level.INFO, finalPageDescription);
+        Content content = confluence.findContent(scrumMasterDailyParams.getConfluencePage());
+        confluence.updatePage(content, BasicConfluence.macroCloudHTML(finalPageDescription.toString()));
     }
 
 }

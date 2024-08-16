@@ -365,13 +365,22 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return JSONModel.convertToModels(RemoteLink.class, new JSONArray(getRemoteLinks(ticket).execute()));
     }
 
+    private boolean subtasksCallIsNotSupported = false;
+
     public List<T> performGettingSubtask(String ticket) throws IOException {
+        if (subtasksCallIsNotSupported) {
+            return Collections.emptyList();
+        }
         GenericRequest subtasks = getSubtasks(ticket);
         try {
             return JSONModel.convertToModels(getTicketClass(), new JSONArray(subtasks.execute()));
         } catch (JSONException e) {
             clearCache(subtasks);
             throw e;
+        } catch (AtlassianRestClient.JiraException e) {
+            subtasksCallIsNotSupported = true;
+            e.getMessage().contains("404");
+            return Collections.emptyList();
         }
     }
 
@@ -934,6 +943,34 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     @Override
+    public String patch(GenericRequest genericRequest) throws IOException {
+        String url = genericRequest.url();
+        if (isWaitBeforePerform) {
+            try {
+                Thread.currentThread().sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        RequestBody body = RequestBody.create(JSON, genericRequest.getBody());
+        try (Response response = client.newCall(sign(
+                new Request.Builder())
+                .url(url)
+                .patch(body)
+                .build()
+        ).execute()) {
+            if (response.isSuccessful()) {
+                return response.body() != null ? response.body().string() : null;
+            } else {
+                logger.error("Error code {} {} {}", response.code(), genericRequest.getBody(), genericRequest.url());
+                return response.body() != null ? response.body().string() : null;
+            }
+        } finally {
+            client.connectionPool().evictAll();
+        }
+    }
+
+    @Override
     public String put(GenericRequest genericRequest) throws IOException {
         String url = genericRequest.url();
         if (isWaitBeforePerform) {
@@ -1300,5 +1337,6 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         jiraRequest.setBody(body.toString());
         return post(jiraRequest);
     }
+
 
 }

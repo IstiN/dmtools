@@ -28,9 +28,9 @@ public class VacationsMetricSource extends CommonSourceCollector {
         List<Vacation> vacationList = Vacations.getInstance().getVacations(peopleToFilterOut);
         int i = 0;
         for (Vacation vacation : vacationList) {
-            String name = vacation.getName();
+            String name = employees.transformName(vacation.getName());
             if (employees != null) {
-                if (!employees.contains(employees.transformName(name))) {
+                if (!employees.contains(name)) {
                     continue;
                 }
             }

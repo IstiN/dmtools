@@ -43,6 +43,11 @@ public class IssueType extends JSONModel {
         return lowerCaseName.contains("task");
     }
 
+    public static boolean isSubTask(String name) {
+        String lowerCaseName = name.toLowerCase();
+        return lowerCaseName.contains("sub-task");
+    }
+
     public static boolean isExternalDelivery(String name) {
         String lowerCaseName = name.toLowerCase();
         return lowerCaseName.contains("external delivery");

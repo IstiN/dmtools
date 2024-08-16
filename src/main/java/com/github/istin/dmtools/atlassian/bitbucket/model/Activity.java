@@ -1,10 +1,13 @@
 package com.github.istin.dmtools.atlassian.bitbucket.model;
 
+import com.github.istin.dmtools.common.model.IActivity;
+import com.github.istin.dmtools.common.model.IComment;
+import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Activity extends JSONModel {
+public class Activity extends JSONModel implements IActivity {
 
     public Activity() {
     }
@@ -17,16 +20,23 @@ public class Activity extends JSONModel {
         super(json);
     }
 
+    @Override
     public String getAction() {
         return getString("action");
     }
 
-    public Comment getComment() {
+    @Override
+    public IComment getComment() {
         return getModel(Comment.class, "comment");
     }
 
-    public Approval getApproval() {
-        return getModel(Approval.class, "approval");
+    @Override
+    public IUser getApproval() {
+        Approval approval = getModel(Approval.class, "approval");
+        if (approval == null) {
+            return null;
+        }
+        return approval.getUser();
     }
 
 }

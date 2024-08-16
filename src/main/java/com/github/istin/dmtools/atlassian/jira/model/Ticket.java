@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.atlassian.jira.model;
 
+import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.model.Status;
@@ -163,7 +164,11 @@ public class Ticket extends JSONModel implements ITicket {
 
     @Override
     public IUser getCreator() {
-        return getFields().getCreator();
+        Assignee creator = getFields().getCreator();
+        if (creator == null) {
+            return getFields().getReporter();
+        }
+        return creator;
     }
 
     @Override

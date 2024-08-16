@@ -74,6 +74,10 @@ public class GenericRequest {
         return restClient.post(this);
     }
 
+    public synchronized String patch() throws IOException {
+        return restClient.patch(this);
+    }
+
     public synchronized String put() throws IOException {
         return restClient.put(this);
     }

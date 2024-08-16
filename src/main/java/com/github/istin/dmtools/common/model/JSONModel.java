@@ -75,6 +75,24 @@ public class JSONModel {
         }
     }
 
+    public final void setArray(final String key, final String... values) {
+        try {
+            synchronized (jo) {
+                if (values == null) {
+                    jo.remove(key);
+                } else {
+                    JSONArray array = new JSONArray();
+                    for (String value : values) {
+                        array.put(value);
+                    }
+                    jo.put(key, array);
+                }
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, e);
+        }
+    }
+
     protected final void setModel(final String key, final JSONModel model) {
         synchronized (jo) {
             if (model == null) {
@@ -256,14 +274,14 @@ public class JSONModel {
         return model;
     }
 
-    public  <Model extends JSONModel> List<Model> getModels(Class<Model> clazz, final String key) {
+    public  <ReturnType, Model extends JSONModel> List<ReturnType> getModels(Class<Model> clazz, final String key) {
         JSONArray jsonArray = getJSONArray(key);
         return convertToModels(clazz, jsonArray);
     }
 
-    public static  <Model extends JSONModel> List<Model> convertToModels(Class<Model> clazz, JSONArray jsonArray) {
+    public static  <ReturnType, Model extends JSONModel> List<ReturnType> convertToModels(Class<Model> clazz, JSONArray jsonArray) {
         if (jsonArray != null && jsonArray.length() > 0) {
-            List<Model> models = new ArrayList<>();
+            List<ReturnType> models = new ArrayList<>();
             for (int i = 0; i < jsonArray.length(); i++) {
                 Model model = null;
                 try {
@@ -276,7 +294,7 @@ public class JSONModel {
                 } catch (JSONException e) {
                     throw new IllegalStateException(String.valueOf(jsonArray.opt(i)), e);
                 }
-                models.add(model);
+                models.add((ReturnType) model);
             }
             return models;
 
@@ -327,6 +345,23 @@ public class JSONModel {
         for (String key : keys) {
             to.set(key, get(key));
         }
+    }
+
+    public String[] getStringArray(String key) {
+        JSONArray jsonArray = getJSONArray(key);
+        if (jsonArray != null) {
+            String[] stringArray = new String[jsonArray.length()];
+            for (int i = 0; i < jsonArray.length(); i++) {
+                try {
+                    stringArray[i] = jsonArray.getString(i);
+                } catch (JSONException e) {
+                    // Handle the exception as per your requirement
+                    e.printStackTrace();
+                }
+            }
+            return stringArray;
+        }
+        return null;
     }
 
 }

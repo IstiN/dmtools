@@ -6,6 +6,9 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 public class Employees implements IEmployees {
 
@@ -18,7 +21,7 @@ public class Employees implements IEmployees {
 
     @Override
     public String transformName(String sourceFullName) {
-        return sourceFullName;
+        return convertNameIfAlias(sourceFullName);
     }
 
     @Override
@@ -31,18 +34,35 @@ public class Employees implements IEmployees {
 
     private JSONObject aliases;
 
+    private String filterRole;
+
     private static Employees instance;
 
+    private static Map<String, Employees> roleInstances = new HashMap<>();
 
-    private Employees() {
 
+    private Employees(String filterRole) {
+        this.filterRole = filterRole;
     }
 
     public static Employees getInstance() {
         if (instance == null) {
-            instance = new Employees();
+            instance = new Employees(null);
         }
         return instance;
+    }
+
+    public static Employees getDevelopers() {
+        return getInstance("Developer");
+    }
+
+    public static Employees getInstance(String role) {
+        Employees employees = roleInstances.get(role);
+        if (employees == null) {
+            employees = new Employees(role);
+            roleInstances.put(role, employees);
+        }
+        return employees;
     }
 
     public void printAllMails(String emailDomain) {
@@ -67,7 +87,18 @@ public class Employees implements IEmployees {
             input = getClass().getResourceAsStream("/employees.json");
             if (input != null) {
                 String source = convertInputStreamToString(input);
-                employees = new JSONArray(source);
+                JSONArray sourceEmployees = new JSONArray(source);
+                if (filterRole != null) {
+                    employees = new JSONArray();
+                    for (int i = 0; i < sourceEmployees.length(); i++) {
+                        JSONObject employee = sourceEmployees.getJSONObject(i);
+                        if (employee.getString("Role").equalsIgnoreCase(filterRole)) {
+                            employees.put(employee);
+                        }
+                    }
+                } else {
+                    employees = sourceEmployees;
+                }
             }
         } catch (IOException e) {
             throw new IllegalStateException("Property file not found");
@@ -105,6 +136,9 @@ public class Employees implements IEmployees {
 
     public int getLevel(String employeeName) {
         init();
+        if (this.employees == null) {
+            return 0;
+        }
         for (int i = 0; i < employees.length(); i++) {
             JSONObject jsonObject = employees.getJSONObject(i);
             String employee = jsonObject.optString("Employee");
@@ -123,6 +157,9 @@ public class Employees implements IEmployees {
     }
 
     private boolean checkInAliases(String mainName, String queryEmployeeName) {
+        if (aliases == null) {
+            return false;
+        }
         JSONArray objects = aliases.optJSONArray(mainName);
         if (objects != null) {
             for (int i = 0; i < objects.length(); i++) {
@@ -133,6 +170,26 @@ public class Employees implements IEmployees {
             }
         }
         return false;
+    }
+
+    private String convertNameIfAlias(String queryEmployeeName) {
+        if (aliases == null) {
+            return queryEmployeeName;
+        }
+        Iterator<String> keys = aliases.keys();
+        for (Iterator<String> it = keys; it.hasNext(); ) {
+            String mainName = it.next();
+            JSONArray objects = aliases.optJSONArray(mainName);
+            if (objects != null) {
+                for (int i = 0; i < objects.length(); i++) {
+                    String alias = objects.getString(i);
+                    if (alias.equalsIgnoreCase(queryEmployeeName)) {
+                        return mainName;
+                    }
+                }
+            }
+        }
+        return queryEmployeeName;
     }
 
     public static final int DEFAULT_BUFFER_SIZE = 8192;
