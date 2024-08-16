@@ -291,6 +291,31 @@ public abstract class AbstractRestClient implements RestClient {
     }
 
     @Override
+    public String patch(GenericRequest genericRequest) throws IOException {
+        String url = genericRequest.url();
+        if (isWaitBeforePerform) {
+            try {
+                Thread.currentThread().sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        RequestBody body = RequestBody.create(JSON, genericRequest.getBody());
+        try (Response response = client.newCall(sign(
+                new Request.Builder())
+                .url(url)
+                .header("User-Agent", "DMTools")
+                .patch(body)
+                .build()
+        ).execute()) {
+            return response.body().string();
+        } finally {
+            client.connectionPool().evictAll();
+        }
+    }
+
+    @Override
     public String delete(GenericRequest genericRequest) throws IOException {
         String url = genericRequest.url();
         if (isWaitBeforePerform) {
@@ -319,7 +344,7 @@ public abstract class AbstractRestClient implements RestClient {
         }
     }
 
-    public interface Performer<T extends JSONModel> {
+    public interface Performer<T> {
 
         boolean perform(T model) throws Exception;
 

@@ -88,6 +88,46 @@ public class PropertyReader {
 		return getValue("BITBUCKET_BASE_PATH");
 	}
 
+	public String getGithubToken() {
+		return getValue("GITHUB_TOKEN");
+	}
+
+	public String getGithubWorkspace() {
+		return getValue("GITHUB_WORKSPACE");
+	}
+
+	public String getGithubRepository() {
+		return getValue("GITHUB_REPOSITORY");
+	}
+
+	public String getGithubBranch() {
+		return getValue("GITHUB_BRANCH");
+	}
+
+	public String getGithubBasePath() {
+		return getValue("GITHUB_BASE_PATH");
+	}
+
+	public String getGitLabToken() {
+		return getValue("GITLAB_TOKEN");
+	}
+
+	public String getGitLabWorkspace() {
+		return getValue("GITLAB_WORKSPACE");
+	}
+
+	public String getGitLabRepository() {
+		return getValue("GITLAB_REPOSITORY");
+	}
+
+	public String getGitLabBranch() {
+		return getValue("GITLAB_BRANCH");
+	}
+
+	public String getGitLabBasePath() {
+		return getValue("GITLAB_BASE_PATH");
+	}
+
 	public String getConfluenceBasePath() {
 		return getValue("CONFLUENCE_BASE_PATH");
 	}

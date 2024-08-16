@@ -1,23 +1,27 @@
 package com.github.istin.dmtools.common.code;
 
-import com.github.istin.dmtools.atlassian.bitbucket.model.*;
-import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.atlassian.bitbucket.BasicBitbucket;
+import com.github.istin.dmtools.common.model.*;
+import com.github.istin.dmtools.github.BasicGithub;
+import com.github.istin.dmtools.gitlab.BasicGitLab;
 import com.github.istin.dmtools.networking.AbstractRestClient;
+import org.json.JSONArray;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public interface SourceCode {
 
-    List<PullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException;
+    List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException;
 
-    PullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException;
+    IPullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException;
 
-    JSONModel pullRequestComments(String workspace, String repository, String pullRequestId) throws IOException;
+    List<IComment> pullRequestComments(String workspace, String repository, String pullRequestId) throws IOException;
 
-    BitbucketResult pullRequestActivities(String workspace, String repository, String pullRequestId) throws IOException;
+    List<IActivity> pullRequestActivities(String workspace, String repository, String pullRequestId) throws IOException;
 
-    BitbucketResult pullRequestTasks(String workspace, String repository, String pullRequestId) throws IOException;
+    List<ITask> pullRequestTasks(String workspace, String repository, String pullRequestId) throws IOException;
 
     String addTask(Integer commentId, String text) throws IOException;
 
@@ -29,25 +33,29 @@ public interface SourceCode {
 
     JSONModel commitComments(String workspace, String repository, String commitId) throws IOException;
 
-    String renamePullRequest(String workspace, String repository, PullRequest pullRequest, String newTitle) throws IOException;
+    String renamePullRequest(String workspace, String repository, IPullRequest pullRequest, String newTitle) throws IOException;
 
-    List<Tag> getTags(String workspace, String repository) throws IOException;
+    List<ITag> getTags(String workspace, String repository) throws IOException;
 
-    List<Tag> getBranches(String workspace, String repository) throws IOException;
+    List<ITag> getBranches(String workspace, String repository) throws IOException;
 
-    List<Commit> getCommitsBetween(String workspace, String repository, String from, String to) throws IOException;
+    List<IRepository> getRepositories(String namespace) throws IOException;
 
-    List<Commit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException;
+    List<ICommit> getCommitsBetween(String workspace, String repository, String from, String to) throws IOException;
 
-    void performCommitsFromBranch(String workspace, String repository, String branchName, AbstractRestClient.Performer<Commit> performer) throws Exception;
+    List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException;
 
-    BitbucketResult getCommitDiffStat(String workspace, String repository, String commitId) throws IOException;
+    void performCommitsFromBranch(String workspace, String repository, String branchName, AbstractRestClient.Performer<ICommit> performer) throws Exception;
 
-    BitbucketResult getCommitDiff(String workspace, String repository, String commitId) throws IOException;
+    IDiffStats getCommitDiffStat(String workspace, String repository, String commitId) throws IOException;
 
-    String getDiff(String workspace, String repository, String pullRequestId) throws IOException;
+    IDiffStats getPullRequestDiff(String workspace, String repository, String pullRequestID) throws IOException;
 
-    List<File> getListOfFiles(String workspace, String repository, String branchName)  throws IOException;
+    IBody getCommitDiff(String workspace, String repository, String commitId) throws IOException;
+
+    IBody getDiff(String workspace, String repository, String pullRequestId) throws IOException;
+
+    List<IFile> getListOfFiles(String workspace, String repository, String branchName)  throws IOException;
 
     String getFileContent(String selfLink) throws IOException;
 
@@ -57,4 +65,69 @@ public interface SourceCode {
 
     String getDefaultWorkspace();
 
+    boolean isConfigured();
+
+    String getBasePath();
+
+    class Impl {
+
+        public static List<SourceCode> getConfiguredSourceCodes(JSONArray sources) throws IOException {
+            List<SourceCode> sourceCodes = new ArrayList<>();
+            if (sources == null || sources.isEmpty()) {
+                addGitHubSource(sourceCodes);
+                addBitbucketSource(sourceCodes);
+            } else {
+                for (int i = 0; i < sources.length(); i++) {
+                    String sourceCode = sources.getString(i);
+                    if (sourceCode.equalsIgnoreCase("github")) {
+                        addGitHubSource(sourceCodes);
+                    } else if (sourceCode.equalsIgnoreCase("bitbucket")) {
+                        addBitbucketSource(sourceCodes);
+                    } else if (sourceCode.equalsIgnoreCase("gitlab")) {
+                        addGitlabSource(sourceCodes);
+                    }
+                }
+            }
+
+            return sourceCodes;
+        }
+
+        private static void addGitHubSource(List<SourceCode> sourceCodes) throws IOException {
+            SourceCode githubSourceCode = BasicGithub.getInstance();
+            if (githubSourceCode.isConfigured()) {
+                sourceCodes.add(githubSourceCode);
+            }
+        }
+
+    }
+
+    static void addBitbucketSource(List<SourceCode> sourceCodes) throws IOException {
+        SourceCode bitbucketSourceCode = BasicBitbucket.getInstance();
+        if (bitbucketSourceCode.isConfigured()) {
+            sourceCodes.add(bitbucketSourceCode);
+        }
+    }
+
+    static void addGitlabSource(List<SourceCode> sourceCodes) throws IOException {
+        SourceCode gitlabSourceCode = BasicGitLab.getInstance();
+        if (gitlabSourceCode.isConfigured()) {
+            if (gitlabSourceCode.getDefaultRepository() == null) {
+                List<IRepository> repositories = gitlabSourceCode.getRepositories(gitlabSourceCode.getDefaultWorkspace());
+                for (IRepository repository : repositories) {
+                    sourceCodes.add(new BasicGitLab() {
+                        @Override
+                        public String getDefaultBranch() {
+                            return "main";
+                        }
+
+                        @Override
+                        public String getDefaultRepository() {
+                            return repository.getName();
+                        }
+                    });
+                }
+            }
+
+        }
+    }
 }

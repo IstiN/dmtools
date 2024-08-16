@@ -1,10 +1,10 @@
 package com.github.istin.dmtools.metrics.source;
 
 import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
-import com.github.istin.dmtools.atlassian.bitbucket.model.Activity;
-import com.github.istin.dmtools.atlassian.bitbucket.model.BitbucketResult;
-import com.github.istin.dmtools.atlassian.bitbucket.model.Comment;
-import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
+import com.github.istin.dmtools.common.code.SourceCode;
+import com.github.istin.dmtools.common.model.IActivity;
+import com.github.istin.dmtools.common.model.IComment;
+import com.github.istin.dmtools.common.model.IPullRequest;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.IEmployees;
 
@@ -14,45 +14,63 @@ import java.util.List;
 
 public class PullRequestsCommentsMetricSource extends CommonSourceCollector {
 
+    private final boolean isPositive;
     private final String workspace;
     private final String repo;
-    private final Bitbucket bitbucket;
+    private final SourceCode sourceCode;
 
-    public PullRequestsCommentsMetricSource(String workspace, String repo, Bitbucket bitbucket, IEmployees employees) {
+    public PullRequestsCommentsMetricSource(boolean isPositive, String workspace, String repo, SourceCode sourceCode, IEmployees employees) {
         super(employees);
+        this.isPositive = isPositive;
         this.workspace = workspace;
         this.repo = repo;
-        this.bitbucket = bitbucket;
+        this.sourceCode = sourceCode;
     }
 
     @Override
     public List<KeyTime> performSourceCollection(boolean isPersonalized, String metricName) throws Exception {
         List<KeyTime> data = new ArrayList<>();
-        List<PullRequest> pullRequests = bitbucket.pullRequests(workspace, repo, Bitbucket.PullRequestState.STATE_MERGED, true);
-        for (PullRequest pullRequest : pullRequests) {
+        List<IPullRequest> pullRequests = sourceCode.pullRequests(workspace, repo, Bitbucket.PullRequestState.STATE_MERGED, true);
+        for (IPullRequest pullRequest : pullRequests) {
 
-            String displayName = pullRequest.getAuthor().getDisplayName();
+            String pullRequestAuthorDisplayName = pullRequest.getAuthor().getFullName();
 
-            displayName = getEmployees().transformName(displayName);
+            pullRequestAuthorDisplayName = getEmployees().transformName(pullRequestAuthorDisplayName);
+
+            if (!isTeamContainsTheName(pullRequestAuthorDisplayName)) {
+                pullRequestAuthorDisplayName = IEmployees.UNKNOWN;
+            }
 
             String pullRequestIdAsString = pullRequest.getId().toString();
-            BitbucketResult bitbucketResult = bitbucket.pullRequestActivities(workspace, repo, pullRequestIdAsString);
-            List<Activity> activities = bitbucketResult.getActivities();
-            for (Activity activity : activities) {
-                Comment comment = activity.getComment();
+            List<IActivity> activities = sourceCode.pullRequestActivities(workspace, repo, pullRequestIdAsString);
+            for (IActivity activity : activities) {
+                IComment comment = activity.getComment();
                 String action = null;
+                String commentDisplayName = null;
                 if (comment != null) {
-                    String commentDisplayName = comment.getUser().getDisplayName();
+                    commentDisplayName = comment.getAuthor().getFullName();
+
+                    commentDisplayName = getEmployees().transformName(commentDisplayName);
+
                     if (getEmployees().isBot(commentDisplayName)) {
                         continue;
                     }
-                    displayName = getEmployees().transformName(commentDisplayName);
-                    action = "Comments";
+
+                    if (!isTeamContainsTheName(commentDisplayName)) {
+                        commentDisplayName = IEmployees.UNKNOWN;
+                    }
+
+                    if (!pullRequestAuthorDisplayName.equalsIgnoreCase(commentDisplayName)) {
+                        action = "Comments";
+                    }
                 }
 
                 if (action != null) {
-                    Calendar pullRequestClosedDateAsCalendar = pullRequest.getClosedDateAsCalendar();
-                    String keyTimeOwner = isPersonalized ? displayName : metricName;
+                    Calendar pullRequestClosedDateAsCalendar = IPullRequest.Utils.getClosedDateAsCalendar(pullRequest);
+                    if (!isPositive) {
+                        commentDisplayName = pullRequestAuthorDisplayName;
+                    }
+                    String keyTimeOwner = isPersonalized ? commentDisplayName : metricName;
                     KeyTime keyTime = new KeyTime(pullRequestIdAsString, pullRequestClosedDateAsCalendar, keyTimeOwner);
 
                     data.add(keyTime);

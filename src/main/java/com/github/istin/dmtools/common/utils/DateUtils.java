@@ -4,9 +4,12 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class DateUtils {
 
+    private static final String ISO_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
     public static final String BITBUCKET_CLOUD_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS";
     public static final String BITBUCKET_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssXXX";
     public static final String JIRA_DATE_FORMAT = "yyyy-MM-dd";
@@ -199,6 +202,22 @@ public class DateUtils {
         } while (startCal.getTimeInMillis() < endCal.getTimeInMillis());
 
         return weekendDays;
+    }
+
+    /**
+     * Parses an ISO 8601 date string into a Date object.
+     *
+     * @param isoDate the ISO 8601 date string
+     * @return the parsed Date object
+     */
+    public static Date parseIsoDate(String isoDate) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat(ISO_DATE_FORMAT, Locale.US);
+        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        try {
+            return dateFormat.parse(isoDate);
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Invalid ISO 8601 date: " + isoDate, e);
+        }
     }
 
 }

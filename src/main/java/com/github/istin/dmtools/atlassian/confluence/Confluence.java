@@ -94,6 +94,7 @@ public class Confluence extends AtlassianRestClient {
     }
 
     public Content updatePage(String contentId, String title, String parentId, String body, String space, String historyComment) throws IOException {
+        logger.info("{} {} {} {} {} {}", contentId, title, parentId, body, space, historyComment);
         Content oldContent = new Content(new GenericRequest(this, path("content/" + contentId + "?expand=version")).execute());
         body = HtmlCleaner.convertLinksUrlsToConfluenceFormat(body);
 

@@ -5,7 +5,7 @@ import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.timeline.Release;
 import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.metrics.CombinedCustomRunnableMetrics;
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.report.freemarker.DevProductivityReport;
 import com.github.istin.dmtools.report.freemarker.GenericCell;
@@ -25,19 +25,15 @@ import java.util.stream.Stream;
 
 public class ProductivityTools {
     private static final Logger logger = LogManager.getLogger(ProductivityTools.class);
-    public static interface IReleaseGenerator {
-        List<Release> generate(int typeOfReleases, int startSprint, int startFixVersion, int extraSprintTimeline, Calendar startDate, long maxTime);
-
-    }
     public static final String REPORT_NAME = "Dev Productivity";
 
-    public static File generate(TrackerClient tracker, IReleaseGenerator releaseGenerator, int startSprint, String startDate, int startFixVersion, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, int sprintShift, int typeOfReleases, int defaultCurrentIteration) throws Exception {
-        DevProductivityReport productivityReport = buildReport(tracker, releaseGenerator, startSprint, startDate, startFixVersion, team, formula, jql, listOfCustomMetrics, style, sprintShift, 0, typeOfReleases, defaultCurrentIteration);
+    public static File generate(TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style) throws Exception {
+        DevProductivityReport productivityReport = buildReport(tracker, releaseGenerator, team, formula, jql, listOfCustomMetrics, style);
         return new ReportUtils().write(team + "_" + REPORT_NAME, "dev_productivity", productivityReport, null);
     }
 
     @NotNull
-    public static DevProductivityReport buildReport(final TrackerClient tracker, IReleaseGenerator releaseGenerator, int startSprint, String startDate, int startFixVersion, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, int sprintShift, int extraSprintTimeline, int typeOfReleases, int defaultCurrentIteration) throws Exception {
+    public static DevProductivityReport buildReport(final TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style) throws Exception {
         final Map<String, Map<String,List<KeyTime>>> customMetricsProductivityMap = new HashMap<>();
         Set<String> combinedMetrics = new HashSet<>();
         DevProductivityReport productivityReport = new DevProductivityReport();
@@ -86,13 +82,13 @@ public class ProductivityTools {
 
         }
         for (Metric m : listOfCustomMetrics) {
-            if (m.getSourceCollector() != null) {
+            if (m.getSourceCollector() != null || m instanceof CombinedCustomRunnableMetrics) {
                 m.perform(customMetricsProductivityMap, combinedMetrics);
             }
         }
 
         long maxTime = 0;
-        Calendar date = DateUtils.parseCalendar(startDate);
+        Calendar date = releaseGenerator.getStartDate();
 
         for (String metricName : combinedMetrics) {
             //custom metrics
@@ -119,7 +115,7 @@ public class ProductivityTools {
         }
 
 
-        List<Release> releases = releaseGenerator.generate(typeOfReleases, startSprint, startFixVersion, extraSprintTimeline, date, maxTime);
+        List<Release> releases = releaseGenerator.generate();
 
 
         productivityReport.setReleases(releases);
@@ -185,14 +181,14 @@ public class ProductivityTools {
                                 timeStart = measureTime("isMatchedToIterationTimeline add Key Time", timeStart);
                                 ((DevProductivityCell) cells.get(i+1)).add(keyTime);
                                 timeStart = measureTime("isMatchedToIterationTimeline add Key Time to cells +1", timeStart);
-                                addToDevChart(listOfCustomMetrics, reportIteration, sprintShift, m, keyTime, devChart, defaultCurrentIteration, formula);
+                                addToDevChart(listOfCustomMetrics, reportIteration, releaseGenerator, m, keyTime, devChart, formula);
                                 timeStart = measureTime("addToDevChart", timeStart);
-                                addToDevChart(listOfCustomMetrics, reportIteration, sprintShift, m, keyTime, allMetrics, defaultCurrentIteration, formula);
+                                addToDevChart(listOfCustomMetrics, reportIteration, releaseGenerator, m, keyTime, allMetrics, formula);
                                 timeStart = measureTime("addToAllMetrics", timeStart);
                             } else {
-                                addToDevChart(listOfCustomMetrics, reportIteration, sprintShift, m, null, devChart, defaultCurrentIteration, formula);
+                                addToDevChart(listOfCustomMetrics, reportIteration, releaseGenerator, m, null, devChart, formula);
                                 timeStart = measureTime("addToDevChart null", timeStart);
-                                addToDevChart(listOfCustomMetrics, reportIteration, sprintShift, m, null, allMetrics, defaultCurrentIteration, formula);
+                                addToDevChart(listOfCustomMetrics, reportIteration, releaseGenerator, m, null, allMetrics, formula);
                                 timeStart = measureTime("addToAllMetrics null", timeStart);
                             }
                         }
@@ -224,7 +220,7 @@ public class ProductivityTools {
         });
 
 
-        productivityReport.makeSprintShifts(sprintShift);
+        productivityReport.makeSprintShifts(releaseGenerator.getExtraSprintTimeline());
         productivityReport.shiftTimelineStarts(16);
         return productivityReport;
     }
@@ -243,13 +239,13 @@ public class ProductivityTools {
     }
 
 
-    private static void addToDevChart(List<Metric> metrics, ReportIteration reportIteration, int sprintShift, Metric metric, KeyTime keyTime, DevChart devChart, int defaultCurrentIteration, String formula) {
+    private static void addToDevChart(List<Metric> metrics, ReportIteration reportIteration, IReleaseGenerator releaseGenerator, Metric metric, KeyTime keyTime, DevChart devChart, String formula) {
         List<DevChart.ReportIterationData> reportIterationDataList = devChart.reportIterationDataList;
         DevChart.ReportIterationData reportIterationData = null;
         long timeStart = getCurrentTimeForMeasurements();
         String iterationName = reportIteration.getIterationName();
         try {
-            iterationName = (Integer.parseInt(iterationName) + sprintShift) + "";
+            iterationName = (Integer.parseInt(iterationName) + releaseGenerator.getExtraSprintTimeline()) + "";
         } catch (Exception ignored) {}
         timeStart = measureTime("conversion to int", timeStart);
 
@@ -271,16 +267,16 @@ public class ProductivityTools {
 //        }
 
         timeStart = measureTime("find reportIterationData", timeStart);
-
+        Release currentIteration = releaseGenerator.getCurrentIteration();
         if (reportIterationData == null) {
-            int id = reportIteration.getId() + sprintShift;
-            reportIterationData = new DevChart.ReportIterationData(id, iterationName, defaultCurrentIteration, formula);
+            int id = reportIteration.getId() + releaseGenerator.getExtraSprintTimeline();
+            reportIterationData = new DevChart.ReportIterationData(id, iterationName, currentIteration.getId(), formula);
             reportIterationData.customMetricsHeaders = metrics;
             if (devChart.reportIterationDataList.size() > 0) {
                 int prevIteration = devChart.reportIterationDataList.get(devChart.reportIterationDataList.size() - 1).getReportIterationId();
                 if (prevIteration != id - 1) {
                     for (int i = prevIteration + 1; i != id; i++) {
-                        devChart.reportIterationDataList.add(new DevChart.ReportIterationData(i, iterationName, defaultCurrentIteration, formula));
+                        devChart.reportIterationDataList.add(new DevChart.ReportIterationData(i, iterationName, currentIteration.getId(), formula));
                     }
                 }
             }

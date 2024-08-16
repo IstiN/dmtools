@@ -3,7 +3,7 @@ package com.github.istin.dmtools.atlassian.bitbucket;
 import com.github.istin.dmtools.atlassian.bitbucket.model.*;
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.common.code.SourceCode;
-import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class Bitbucket extends AtlassianRestClient implements SourceCode {
+public abstract class Bitbucket extends AtlassianRestClient implements SourceCode {
     private static final Logger logger = LogManager.getLogger(Bitbucket.class);
     public static final boolean IGNORE_CACHE = false;
 
@@ -56,14 +56,14 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public List<PullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
-        List<PullRequest> result = new ArrayList<>();
+    public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
+        List<IPullRequest> result = new ArrayList<>();
         int start = getInitialStartValue();
         String stateConverted = apiVersion == ApiVersion.V1 ? state : state.toUpperCase();
         GenericRequest getRequest = new GenericRequest(this, buildPullRequestsPath(workspace, repository, stateConverted));
         getRequest.param(getNextPageField(), start);
         getRequest.param(getPageLimitField(), String.valueOf(defaultLimit));
-        getRequest.setIgnoreCache(true);
+        getRequest.setIgnoreCache(IGNORE_CACHE);
         String response = execute(getRequest);
         if (response == null) {
             return result;
@@ -78,7 +78,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
             getRequest = new GenericRequest(this, buildPullRequestsPath(workspace, repository, stateConverted));
             getRequest.param(getNextPageField(), ""+ start);
             getRequest.param(getPageLimitField(), String.valueOf(defaultLimit));
-            getRequest.setIgnoreCache(true);
+            getRequest.setIgnoreCache(IGNORE_CACHE);
 
             response = execute(getRequest);
             if (response == null) {
@@ -94,6 +94,61 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
         }
 
         return result;
+    }
+
+    @Override
+    public List<IRepository> getRepositories(String namespace) throws IOException {
+        throw new UnsupportedOperationException("implement me");
+    }
+
+    @Override
+    public IDiffStats getPullRequestDiff(String workspace, String repository, String pullRequestID) throws IOException {
+        String pullRequestChanges = getPullRequestChanges(workspace, repository, pullRequestID);
+        if (pullRequestChanges == null) {
+            return new IDiffStats.Empty();
+        }
+        List<IChange> changes = new BitbucketResult(pullRequestChanges).getChanges();
+        int additions = 0;
+        int deletions = 0;
+        for (IChange change : changes) {
+            additions += ((Change)change).getLinesAdded();
+            deletions += ((Change)change).getLinesRemoved();
+        }
+        int finalAdditions = additions;
+        int finalDeletions = deletions;
+        return new IDiffStats() {
+            @Override
+            public IStats getStats() {
+                return new IStats() {
+                    @Override
+                    public int getTotal() {
+                        return finalAdditions + finalDeletions;
+                    }
+
+                    @Override
+                    public int getAdditions() {
+                        return finalAdditions;
+                    }
+
+                    @Override
+                    public int getDeletions() {
+                        return finalDeletions;
+                    }
+                };
+            }
+
+            @Override
+            public List<IChange> getChanges() {
+                return changes;
+            }
+        };
+    }
+
+    private String getPullRequestChanges(String workspace, String repository, String pullRequestId) throws IOException {
+        // Bitbucket API endpoint for pull request diff
+        String path = path(String.format("repositories/%s/%s/pullrequests/%s/diffstat", workspace, repository, pullRequestId));
+        GenericRequest getRequest = new GenericRequest(this, path);
+        return execute(getRequest);
     }
 
     private int getInitialStartValue() {
@@ -136,9 +191,9 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public PullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException {
+    public IPullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestPath(workspace, repository, pullRequestId)));
-        getRequest.setIgnoreCache(true);
+        getRequest.setIgnoreCache(IGNORE_CACHE);
         String response = execute(getRequest);
         return PullRequest.create(apiVersion, response);
     }
@@ -153,14 +208,14 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public JSONModel pullRequestComments(String workspace, String repository, String pullRequestId) throws IOException {
+    public List<IComment> pullRequestComments(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = createPullRequestCommentsRequest(workspace, repository, pullRequestId);
         String response = execute(getRequest);
         if (response == null) {
-            return new JSONModel();
+            return new ArrayList<>();
         }
 
-        return new JSONModel(response);
+        return new BitbucketResult(response).getComments();
     }
 
     @NotNull
@@ -178,7 +233,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public BitbucketResult pullRequestActivities(String workspace, String repository, String pullRequestId) throws IOException {
+    public List<IActivity> pullRequestActivities(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestActivityPath(workspace, repository, pullRequestId)));
         if (apiVersion == ApiVersion.V2) {
             getRequest.param(getNextPageField(), getInitialStartValue());
@@ -186,9 +241,9 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
         }
         String response = execute(getRequest);
         if (response == null) {
-            return new BitbucketResult();
+            return new BitbucketResult().getActivities();
         }
-        return new BitbucketResult(response);
+        return new BitbucketResult(response).getActivities();
     }
 
     @NotNull
@@ -220,13 +275,13 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public BitbucketResult pullRequestTasks(String workspace, String repository, String pullRequestId) throws IOException {
+    public List<ITask> pullRequestTasks(String workspace, String repository, String pullRequestId) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPullRequestTasksPath(workspace, repository, pullRequestId)));
         String response = execute(getRequest);
         if (response == null) {
-            return new BitbucketResult();
+            return new BitbucketResult().getTasks();
         }
-        return new BitbucketResult(response);
+        return new BitbucketResult(response).getTasks();
     }
 
     @NotNull
@@ -263,8 +318,9 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
 
     @Override
     public String createPullRequestCommentAndTaskIfNotExists(String workspace, String repository, String pullRequestId, String commentText, String taskText) throws IOException {
-        BitbucketResult bitbucketResult = pullRequestTasks(workspace, repository, pullRequestId);
-        if (bitbucketResult.getJSONObject().toString().contains(commentText)) {
+        List<ITask> tasks = pullRequestTasks(workspace, repository, pullRequestId);
+        String result = IComment.Impl.checkCommentStartedWith(tasks, commentText);
+        if (result != null) {
             return "";
         }
         return createPullRequestCommentAndTask(workspace, repository, pullRequestId, commentText, taskText);
@@ -272,10 +328,10 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
 
     @Override
     public String createPullRequestCommentAndTask(String workspace, String repository, String pullRequestId, String commentText, String taskText) throws IOException {
-        BitbucketResult bitbucketResult = pullRequestTasks(workspace, repository, pullRequestId);
-        List<Task> tasks = bitbucketResult.getTasks();
-        for (Task task : tasks) {
-            if (task.getText().equals(taskText) && (task.getState().equals("OPEN") || task.getState().equals("UNRESOLVED"))) {
+        List<ITask> tasks = pullRequestTasks(workspace, repository, pullRequestId);
+        for (ITask task : tasks) {
+            Task bitbucketTask = (Task)task;
+            if (bitbucketTask.getText().equals(taskText) && (bitbucketTask.getState().equals("OPEN") || bitbucketTask.getState().equals("UNRESOLVED"))) {
                 return "";
             }
         }
@@ -317,8 +373,8 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public String renamePullRequest(String workspace, String repository, PullRequest pullRequest, String newTitle) throws IOException {
-        String updateTitleIfWip = (pullRequest.isWIP() ? upgradeTitleToWIP(newTitle) : newTitle).trim();
+    public String renamePullRequest(String workspace, String repository, IPullRequest pullRequest, String newTitle) throws IOException {
+        String updateTitleIfWip = (IPullRequest.Utils.isWIP(pullRequest) ? upgradeTitleToWIP(newTitle) : newTitle).trim();
 
         if (pullRequest.getTitle().equalsIgnoreCase(updateTitleIfWip)) {
             return "";
@@ -340,7 +396,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
 
 
     @Override
-    public List<Tag> getTags(String workspace, String repository) throws IOException {
+    public List<ITag> getTags(String workspace, String repository) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, buildTagsPath(workspace, repository));
         getRequest.param(getPageLimitField(), defaultLimit);
         String response = execute(getRequest);
@@ -359,7 +415,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public List<Tag> getBranches(String workspace, String repository) throws IOException {
+    public List<ITag> getBranches(String workspace, String repository) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildGetBranchesPath(workspace, repository)));
         getRequest.param(getPageLimitField(), defaultLimit);
         getRequest.param("orderBy", "MODIFICATION");
@@ -380,7 +436,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public List<Commit> getCommitsBetween(String workspace, String repository, String from, String to) throws IOException {
+    public List<ICommit> getCommitsBetween(String workspace, String repository, String from, String to) throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path(buildPathGetCommitsBetween(workspace, repository, from, to)));
         getRequest.param(getPageLimitField(), String.valueOf(defaultLimit));
         String response = execute(getRequest);
@@ -400,8 +456,8 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public List<Commit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException {
-        List<Commit> commits = new ArrayList<>();
+    public List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException {
+        List<ICommit> commits = new ArrayList<>();
         int start = getInitialStartValue();
         while (start <= 2000) {
             GenericRequest getRequest = new GenericRequest(this, buildCommitsPath(workspace, repository, branchName));
@@ -431,7 +487,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public void performCommitsFromBranch(String workspace, String repository, String branchName, Performer<Commit> performer) throws Exception {
+    public void performCommitsFromBranch(String workspace, String repository, String branchName, Performer<ICommit> performer) throws Exception {
         int prevSize = 0;
         int currentSize = 0;
         int start = getInitialStartValue();
@@ -443,7 +499,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
             getRequest.param(getNextPageField(), start);
 
             getRequest.param(getPageLimitField(), String.valueOf(defaultLimit));
-            getRequest.setIgnoreCache(true);
+            getRequest.setIgnoreCache(IGNORE_CACHE);
             start = buildNexPage(start);
             String response = execute(getRequest);
             if (response == null) {
@@ -461,7 +517,7 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     }
 
     @Override
-    public BitbucketResult getCommitDiffStat(String workspace, String repository, String commitId) throws IOException {
+    public IDiffStats getCommitDiffStat(String workspace, String repository, String commitId) throws IOException {
         String path = "";
 
         if (apiVersion == ApiVersion.V1) {
@@ -473,17 +529,28 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
         try {
             String response = execute(getRequest);
             if (response == null) {
-                return new BitbucketResult("{}");
+                return new IDiffStats.Empty();
             }
-            return new BitbucketResult(response);
+            List<IChange> changes = new BitbucketResult(response).getChanges();
+            return new IDiffStats() {
+                @Override
+                public IStats getStats() {
+                    return null;
+                }
+
+                @Override
+                public List<IChange> getChanges() {
+                    return changes;
+                }
+            };
         } catch (Exception e) {
             clearCache(getRequest);
-            return new BitbucketResult("{}");
+            return new IDiffStats.Empty();
         }
     }
 
     @Override
-    public BitbucketResult getCommitDiff(String workspace, String repository, String commitId) throws IOException {
+    public IBody getCommitDiff(String workspace, String repository, String commitId) throws IOException {
         String path = "";
 
         if (apiVersion == ApiVersion.V1) {
@@ -495,17 +562,17 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
         try {
             String response = execute(getRequest);
             if (response == null) {
-                return new BitbucketResult("{}");
+                return () -> "";
             }
-            return new BitbucketResult(response);
+            return () -> response;
         } catch (Exception e) {
             clearCache(getRequest);
-            return new BitbucketResult("{}");
+            return () -> "";
         }
     }
 
     @Override
-    public String getDiff(String workspace, String repository, String pullRequestId) throws IOException {
+    public IBody getDiff(String workspace, String repository, String pullRequestId) throws IOException {
         String path = "";
         if (apiVersion == ApiVersion.V1) {
             path = path("repositories/" + workspace + "/" + repository + "/pullrequests/" + pullRequestId + "/diff");
@@ -513,16 +580,17 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
             throw new UnsupportedOperationException();
         }
         GenericRequest getRequest = new GenericRequest(this, path);
-        return execute(getRequest);
+        String response = execute(getRequest);
+        return () -> response;
     }
 
     @Override
-    public List<File> getListOfFiles(String workspace, String repository, String branchName)  throws IOException {
+    public List<IFile> getListOfFiles(String workspace, String repository, String branchName)  throws IOException {
         GenericRequest getRequest = new GenericRequest(this, path("repositories/" + workspace + "/" + repository + "/src/" + branchName +"/?max_depth=50"));
 //        getRequest.param(getNextPageField(), 1);
         getRequest.param(getPageLimitField(), 100);
         BitbucketResult bitbucketResult = new BitbucketResult(execute(getRequest));
-        List<File> result = bitbucketResult.getFiles();
+        List<IFile> result = bitbucketResult.getFiles();
         while (bitbucketResult.getNext() != null) {
             getRequest = new GenericRequest(this, bitbucketResult.getNext());
             bitbucketResult = new BitbucketResult(execute(getRequest));
@@ -551,4 +619,6 @@ public class Bitbucket extends AtlassianRestClient implements SourceCode {
     public String getDefaultWorkspace() {
         throw new UnsupportedOperationException();
     }
+
 }
+

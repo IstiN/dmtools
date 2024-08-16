@@ -1,12 +1,11 @@
 package com.github.istin.dmtools.metrics.source;
 
 import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
-import com.github.istin.dmtools.atlassian.bitbucket.model.Activity;
-import com.github.istin.dmtools.atlassian.bitbucket.model.Approval;
-import com.github.istin.dmtools.atlassian.bitbucket.model.BitbucketResult;
-import com.github.istin.dmtools.atlassian.bitbucket.model.PullRequest;
+import com.github.istin.dmtools.common.code.SourceCode;
+import com.github.istin.dmtools.common.model.IActivity;
+import com.github.istin.dmtools.common.model.IPullRequest;
+import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.report.model.KeyTime;
-import com.github.istin.dmtools.team.Employees;
 import com.github.istin.dmtools.team.IEmployees;
 
 import java.util.ArrayList;
@@ -17,40 +16,48 @@ public class PullRequestsApprovalsMetricSource extends CommonSourceCollector {
 
     private final String workspace;
     private final String repo;
-    private final Bitbucket bitbucket;
+    private final SourceCode sourceCode;
 
-    public PullRequestsApprovalsMetricSource(String workspace, String repo, Bitbucket bitbucket, IEmployees employees) {
+    public PullRequestsApprovalsMetricSource(String workspace, String repo, SourceCode sourceCode, IEmployees employees) {
         super(employees);
         this.workspace = workspace;
         this.repo = repo;
-        this.bitbucket = bitbucket;
+        this.sourceCode = sourceCode;
     }
 
     @Override
     public List<KeyTime> performSourceCollection(boolean isPersonalized, String metricName) throws Exception {
         List<KeyTime> data = new ArrayList<>();
-        List<PullRequest> pullRequests = bitbucket.pullRequests(workspace, repo, Bitbucket.PullRequestState.STATE_MERGED, true);
-        for (PullRequest pullRequest : pullRequests) {
+        List<IPullRequest> pullRequests = sourceCode.pullRequests(workspace, repo, Bitbucket.PullRequestState.STATE_MERGED, true);
+        for (IPullRequest pullRequest : pullRequests) {
 
-            String displayName = pullRequest.getAuthor().getDisplayName();
+            String pullRequestAuthorDisplayName = pullRequest.getAuthor().getFullName();
 
-            displayName = getEmployees().transformName(displayName);
+            pullRequestAuthorDisplayName = getEmployees().transformName(pullRequestAuthorDisplayName);
+
+            if (!isTeamContainsTheName(pullRequestAuthorDisplayName)) {
+                pullRequestAuthorDisplayName = IEmployees.UNKNOWN;
+            }
 
             String pullRequestIdAsString = pullRequest.getId().toString();
-            BitbucketResult bitbucketResult = bitbucket.pullRequestActivities(workspace, repo, pullRequestIdAsString);
-            List<Activity> activities = bitbucketResult.getActivities();
-            for (Activity activity : activities) {
+            List<IActivity> activities = sourceCode.pullRequestActivities(workspace, repo, pullRequestIdAsString);
+            for (IActivity activity : activities) {
                 String action = null;
-
-                Approval approval = activity.getApproval();
+                String activityDisplayName = null;
+                IUser approval = activity.getApproval();
                 if (approval != null) {
-                    displayName = getEmployees().transformName(approval.getUser().getDisplayName());
-                    action = "Approvals";
+                    activityDisplayName = getEmployees().transformName(approval.getFullName());
+                    if (!pullRequestAuthorDisplayName.equalsIgnoreCase(activityDisplayName)) {
+                        if (!isTeamContainsTheName(activityDisplayName)) {
+                            activityDisplayName = IEmployees.UNKNOWN;
+                        }
+                        action = "Approvals";
+                    }
                 }
 
                 if (action != null) {
-                    Calendar pullRequestClosedDateAsCalendar = pullRequest.getClosedDateAsCalendar();
-                    String keyTimeOwner = isPersonalized ? displayName : metricName;
+                    Calendar pullRequestClosedDateAsCalendar = IPullRequest.Utils.getClosedDateAsCalendar(pullRequest);
+                    String keyTimeOwner = isPersonalized ? activityDisplayName : metricName;
 
                     KeyTime keyTime = new KeyTime(pullRequestIdAsString, pullRequestClosedDateAsCalendar, keyTimeOwner);
                     data.add(keyTime);

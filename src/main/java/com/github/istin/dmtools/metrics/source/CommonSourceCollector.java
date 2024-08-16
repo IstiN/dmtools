@@ -19,11 +19,20 @@ public abstract class CommonSourceCollector implements SourceCollector {
             return true;
         }
 
-        if (!employees.contains(displayName)) {
-            return true;
-        }
         return false;
     }
+
+    public boolean isTeamContainsTheName(String displayName) {
+        if (employees != null) {
+            if (employees.contains(displayName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
 
     public IEmployees getEmployees() {
         return employees;

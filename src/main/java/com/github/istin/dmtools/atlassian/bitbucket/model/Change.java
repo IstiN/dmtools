@@ -1,10 +1,11 @@
 package com.github.istin.dmtools.atlassian.bitbucket.model;
 
+import com.github.istin.dmtools.common.model.IChange;
 import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Change extends JSONModel {
+public class Change extends JSONModel implements IChange {
 
     public Change() {
     }
@@ -17,6 +18,15 @@ public class Change extends JSONModel {
         super(json);
     }
 
+    public int getLinesAdded() {
+        return getInt("lines_added");
+    }
+
+    public int getLinesRemoved() {
+        return getInt("lines_removed");
+    }
+
+    @Override
     public String getFilePath() {
         JSONObject path = getJSONObject("path");
         if (path == null) {

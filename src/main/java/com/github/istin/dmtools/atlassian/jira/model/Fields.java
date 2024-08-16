@@ -32,6 +32,7 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
     public static final String LABELS = "labels";
     public static final String ASSIGNEE = "assignee";
     public static final String CREATOR = "creator";
+    public static final String REPORTER = "reporter";
     public static final String CREATED = "created";
     public static final String UPDATED = "updated";
     public static final String DUEDATE = "duedate";
@@ -158,10 +159,17 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
         return getModel(Assignee.class, CREATOR);
     }
 
+    public Assignee getReporter() {
+        return getModel(Assignee.class, REPORTER);
+    }
+
     public Date getCreated() {
         String created = getString("created");
         Date date = null;
         try {
+            if (created == null) {
+                return null;
+            }
             date = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").parse(created);
         } catch (ParseException e) {
             return null;

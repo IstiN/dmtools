@@ -1,8 +1,8 @@
 package com.github.istin.dmtools.metrics.source;
 
 import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
-import com.github.istin.dmtools.atlassian.bitbucket.model.Commit;
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
+import com.github.istin.dmtools.common.model.ICommit;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.IEmployees;
 
@@ -27,11 +27,17 @@ public class CommitsMetricSource extends CommonSourceCollector {
     @Override
     public List<KeyTime> performSourceCollection(boolean isPersonalized, String metricName) throws Exception {
         List<KeyTime> data = new ArrayList<>();
-        bitbucket.performCommitsFromBranch(workspace, repo, branch, new AtlassianRestClient.Performer<Commit>() {
+        bitbucket.performCommitsFromBranch(workspace, repo, branch, new AtlassianRestClient.Performer<ICommit>() {
             @Override
-            public boolean perform(Commit model) {
-                String displayName = transformName(model.getAuthor().getDisplayName());
-                isNameIgnored(displayName);
+            public boolean perform(ICommit model) {
+                String displayName = transformName(model.getAuthor().getFullName());
+                if (isNameIgnored(displayName)) {
+                    return false;
+                }
+
+                if (!isTeamContainsTheName(displayName)) {
+                    displayName = IEmployees.UNKNOWN;
+                }
 
                 KeyTime keyTime = new KeyTime(model.getId(), model.getCommitterDate(), isPersonalized ? displayName : metricName);
                 data.add(keyTime);

@@ -10,6 +10,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.List;
 
 public class Changelog extends JSONModel implements IChangelog {
@@ -45,7 +46,13 @@ public class Changelog extends JSONModel implements IChangelog {
 
     @Override
     public List<? extends IHistory> getHistories() {
-        return getModels(History.class, HISTORIES);
+        List<? extends IHistory> models = getModels(History.class, HISTORIES);
+        if (models.size() > 1) {
+            if (models.get(0).getCreated().compareTo(models.get(1).getCreated()) > 0) {
+                Collections.reverse(models);
+            }
+        }
+        return models;
     }
 
     public DateInterval dateIntervalBetweenTwoStatuses(String firstStatus, String secondStatus) {

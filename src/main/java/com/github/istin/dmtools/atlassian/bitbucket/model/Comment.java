@@ -1,11 +1,13 @@
 package com.github.istin.dmtools.atlassian.bitbucket.model;
 
 import com.github.istin.dmtools.atlassian.common.model.Assignee;
+import com.github.istin.dmtools.common.model.IComment;
+import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Comment extends JSONModel {
+public class Comment extends JSONModel implements IComment {
 
     public Comment() {
     }
@@ -30,4 +32,18 @@ public class Comment extends JSONModel {
         return author;
     }
 
+    @Override
+    public IUser getAuthor() {
+        return getUser();
+    }
+
+    @Override
+    public String getBody() {
+        return getText();
+    }
+
+    @Override
+    public String getId() {
+        return "";
+    }
 }

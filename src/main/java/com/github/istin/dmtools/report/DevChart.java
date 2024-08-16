@@ -3,11 +3,20 @@ package com.github.istin.dmtools.report;
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.Employees;
+import freemarker.cache.ClassTemplateLoader;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.logging.log4j.core.config.DefaultConfiguration;
 
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,9 +84,24 @@ public class DevChart {
             ScriptEngineManager mgr = new ScriptEngineManager();
             javax.script.ScriptEngine engine = mgr.getEngineByName("graal.js");
             //
-            for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
-                Metric metric = getCustomMetricsHeaders().get(i);
-                formula = formula.replaceAll("\\$\\{" + metric.getName() + "}", ""+getCustomMetrics().get(i));
+            if (formula.endsWith(".js")) {
+                HashMap<String, String> params = new HashMap<>();
+                for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
+                    Metric metric = getCustomMetricsHeaders().get(i);
+                    params.put(metric.getName(), getCustomMetrics().get(i));
+                }
+                try {
+                    formula = readFormula(params, formula);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                } catch (TemplateException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
+                    Metric metric = getCustomMetricsHeaders().get(i);
+                    formula = formula.replaceAll("\\$\\{" + metric.getName() + "}", ""+getCustomMetrics().get(i));
+                }
             }
 
             try {
@@ -100,6 +124,22 @@ public class DevChart {
                 logger.error(e);
                 return "NaN";
             }
+        }
+
+        private String readFormula(HashMap<String, String> params, String template) throws IOException, TemplateException {
+            Configurator.initialize(new DefaultConfiguration());
+
+            Configuration cfg = new Configuration(Configuration.VERSION_2_3_27);
+            cfg.setLocalizedLookup(false);
+            cfg.setTemplateLoader(new ClassTemplateLoader(getClass().getClassLoader(), "/formula"));
+
+
+            Template temp = cfg.getTemplate( template);
+
+
+            Writer out = new StringWriter();
+            temp.process(params, out);
+            return out.toString();
         }
 
         public String getIterationName() {

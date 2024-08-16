@@ -6,5 +6,4 @@ import java.util.List;
 
 public interface SourceCollector {
     List<KeyTime> performSourceCollection(boolean isPersonalized, String metricName) throws Exception;
-
 }

@@ -167,4 +167,8 @@ public class PromptManager {
     public String createDiagrams(MultiTicketsPrompt multiTicketsPrompt) throws TemplateException, IOException{
         return stringFromTemplate(multiTicketsPrompt, "role_create_diagrams");
     }
+
+    public String makeDailyScrumReportOfUserWork(ScrumDailyPrompt scrumDailyPrompt) throws TemplateException, IOException {
+        return stringFromTemplate(scrumDailyPrompt, "scrum_daily_report");
+    }
 }

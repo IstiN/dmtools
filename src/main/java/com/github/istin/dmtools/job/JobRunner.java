@@ -8,7 +8,9 @@ import com.github.istin.dmtools.documentation.DocumentationGenerator;
 import com.github.istin.dmtools.estimations.JEstimator;
 import com.github.istin.dmtools.presale.PreSaleSupport;
 import com.github.istin.dmtools.qa.TestCasesGenerator;
+import com.github.istin.dmtools.report.productivity.DevProductivityReport;
 import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
+import com.github.istin.dmtools.sm.ScrumMasterDaily;
 
 import java.util.Arrays;
 import java.util.Base64;
@@ -24,7 +26,9 @@ public class JobRunner {
             new TestCasesGenerator(),
             new SolutionArchitectureCreator(),
             new DiagramsCreator(),
-            new CodeGenerator()
+            new CodeGenerator(),
+            new DevProductivityReport(),
+            new ScrumMasterDaily()
     );
 
     public static void main(String[] args) throws Exception {
