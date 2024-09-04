@@ -1,9 +1,10 @@
-package com.github.istin.dmtools.metrics;
+package com.github.istin.dmtools.metrics.rules;
 
 import com.github.istin.dmtools.atlassian.jira.model.Resolution;
 import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.metrics.TrackerRule;
 import com.github.istin.dmtools.report.model.KeyTime;
 
 import java.util.ArrayList;
