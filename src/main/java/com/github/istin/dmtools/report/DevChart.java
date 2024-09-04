@@ -200,7 +200,7 @@ public class DevChart {
     }
 
     public String getLevel() {
-        int level = Employees.getInstance().getLevel(devName);
+        int level = Employees.findLevelInAllInstances(devName);
         if (level == 0) {
             return "";
         }

@@ -58,7 +58,11 @@ public class GitLabPullRequest extends JSONModel implements IPullRequest {
     @Override
     public Long getClosedDate() {
         String closedAt = getString("merged_at");
-        return closedAt != null ? DateUtils.parseRallyDate(closedAt).getTime() : null;
+        Long result = closedAt != null ? DateUtils.parseRallyDate(closedAt).getTime() : null;
+        if (result == null) {
+            return getUpdatedDate();
+        }
+        return result;
     }
 
     @Override

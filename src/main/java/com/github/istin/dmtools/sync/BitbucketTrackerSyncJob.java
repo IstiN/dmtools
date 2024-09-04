@@ -14,6 +14,7 @@ import com.github.istin.dmtools.report.model.KeyTime;
 import io.github.furstenheim.CopyDown;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.List;
@@ -113,13 +114,16 @@ public class BitbucketTrackerSyncJob {
     }
 
     public static void addBitbucketCommentIfNotExists(SourceCode sourceCode, IPullRequest pullRequest, String key, ITicket ticket, String workspace, String repository) throws IOException {
-        String ticketUrl = ticket.getTicketLink();
-        String message = "[" + key + "]("+ticketUrl+")" + " " + ticket.getTicketTitle().replaceAll("\"", "") + " ";
+        String message = buildMessage(key, ticket);
         String pullRequestId = pullRequest.getId().toString();
         List<IComment> comments = sourceCode.pullRequestComments(workspace, repository, pullRequestId);
-        if (IComment.Impl.checkCommentStartedWith(comments, message) != null) {
+        if (IComment.Impl.checkCommentStartedWith(comments, message) == null) {
             sourceCode.addPullRequestComment(workspace, repository, pullRequestId, message);
         }
+    }
+
+    public static @NotNull String buildMessage(String key, ITicket ticket) throws IOException {
+        return "[" + key + "](" + ticket.getTicketLink() + ")" + " " + ticket.getTicketTitle().replaceAll("\"", "") + " ";
     }
 
 }

@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.github;
 
 import com.github.istin.dmtools.atlassian.bitbucket.model.Commit;
+import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
@@ -45,21 +46,49 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
 
     @Override
     public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
-        String path = path(String.format("repos/%s/%s/pulls?state=%s", workspace, repository, state));
-        GenericRequest getRequest = new GenericRequest(this, path);
-        String response = execute(getRequest);
-        if (response == null) {
-            return Collections.emptyList();
+        if (state.equalsIgnoreCase("merged")) {
+            state = "closed";
         }
-        return JSONModel.convertToModels(GitHubPullRequest.class, new JSONArray(response));
+        List<IPullRequest> allPullRequests = new ArrayList<>();
+        int perPage = 100; // Maximum allowed by GitHub
+        int currentPage = 1;
+
+        while (true) {
+            String path = path(String.format("repos/%s/%s/pulls?state=%s&per_page=%d&page=%d",
+                    workspace, repository, state, perPage, currentPage));
+            GenericRequest getRequest = new GenericRequest(this, path);
+            String response = execute(getRequest);
+
+            if (response == null || response.isEmpty()) {
+                break;
+            }
+
+            List<IPullRequest> pullRequests = JSONModel.convertToModels(GitHubPullRequest.class, new JSONArray(response));
+            allPullRequests.addAll(pullRequests);
+
+            if (!checkAllRequests || pullRequests.size() < perPage) {
+                // If not checking all requests, or if fewer entries than the max per page are returned, we're done
+                break;
+            }
+
+            // Move to next page
+            currentPage++;
+        }
+
+        return allPullRequests;
     }
 
     @Override
     public IPullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException {
+        String response = getPullRequestResponse(workspace, repository, pullRequestId);
+        return new GitHubPullRequest(response);
+    }
+
+    private String getPullRequestResponse(String workspace, String repository, String pullRequestId) throws IOException {
         String path = path(String.format("repos/%s/%s/pulls/%s", workspace, repository, pullRequestId));
         GenericRequest getRequest = new GenericRequest(this, path);
         String response = execute(getRequest);
-        return new GitHubPullRequest(response);
+        return response;
     }
 
     @Override
@@ -217,7 +246,68 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
 
     @Override
     public IDiffStats getPullRequestDiff(String workspace, String repository, String pullRequestID) throws IOException {
-        throw new UnsupportedOperationException("implementation  is required");
+        if (true) {
+            return new IDiffStats.Empty();
+        }
+        synchronized (isDiff) {
+            try {
+                isDiff = true;
+                try {
+                    String pullRequestResponse = getPullRequestResponse(workspace, repository, pullRequestID);
+                    return parseDiffStats(pullRequestResponse);
+                } catch (AtlassianRestClient.JiraException e) {
+                    e.printStackTrace();
+                    return new IDiffStats.Empty();
+                }
+            } finally {
+                isDiff = false;
+            }
+        }
+    }
+
+    public static IDiffStats parseDiffStats(String diff) {
+        int addedLines = 0;
+        int removedLines = 0;
+
+        String[] lines = diff.split("\n");
+
+        for (String line : lines) {
+            if (line.startsWith("+") && !line.startsWith("+++")) {
+                addedLines++;
+            } else if (line.startsWith("-") && !line.startsWith("---")) {
+                removedLines++;
+            }
+        }
+
+        int changedLines = Math.min(addedLines, removedLines);
+        int finalRemovedLines = removedLines;
+        int finalAddedLines = addedLines;
+        return new IDiffStats() {
+            @Override
+            public IStats getStats() {
+                return new IStats() {
+                    @Override
+                    public int getTotal() {
+                        return finalAddedLines + finalRemovedLines;
+                    }
+
+                    @Override
+                    public int getAdditions() {
+                        return finalAddedLines;
+                    }
+
+                    @Override
+                    public int getDeletions() {
+                        return finalRemovedLines;
+                    }
+                };
+            }
+
+            @Override
+            public List<IChange> getChanges() {
+                return Collections.emptyList();
+            }
+        };
     }
 
     private GitHubCommit getCommitAsObject(String workspace, String repository, String commitId) throws IOException {

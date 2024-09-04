@@ -7,6 +7,7 @@ import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.report.model.KeyTime;
+import com.github.istin.dmtools.team.Employees;
 import com.github.istin.dmtools.team.IEmployees;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -106,6 +107,18 @@ public class ChangelogAssessment {
             }
         }
         return null;
+    }
+
+    public static String findWhoIsResponsible(TrackerClient trackerClient, Employees employees, ITicket ticket, String ... inProgressStatuses) throws IOException {
+        Pair<String, IHistoryItem> lastAssigneeForStatus = ChangelogAssessment.findLastAssigneeForStatus(trackerClient, ticket.getKey(), ticket, employees, inProgressStatuses);
+        String result = lastAssigneeForStatus.getKey();
+        if (result == null) {
+            result = ChangelogAssessment.findWhoFromEmployeeMovedToStatus(trackerClient, ticket.getKey(), ticket, employees, inProgressStatuses);
+        }
+        if (result == null) {
+            return Employees.UNKNOWN;
+        }
+        return result;
     }
 
     public static String findWhoFromEmployeeMovedToStatus(TrackerClient trackerClient, String key, ITicket ticket,  IEmployees teamToFilter, String... targetStatuses) throws IOException {

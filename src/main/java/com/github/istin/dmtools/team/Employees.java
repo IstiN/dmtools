@@ -6,17 +6,42 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 public class Employees implements IEmployees {
+
+    private final String file;
+
+    private Set<String> unknownNames = new HashSet<>();
+
+    public static int findLevelInAllInstances(String devName) {
+        int level = getInstance().getLevel(devName);
+        if (level <= 0) {
+            Set<String> keys = roleInstances.keySet();
+            for (String key : keys) {
+                level = roleInstances.get(key).getLevel(devName);
+                if (level > 0) {
+                    return level;
+                }
+            }
+
+        }
+        return 0;
+    }
 
     @Override
     public boolean contains(String fullName) {
         init();
         int level = getLevel(fullName);
-        return level != -1;
+        boolean isContaining = level != -1;
+        if (!isContaining) {
+            unknownNames.add(fullName);
+        }
+        return isContaining;
+    }
+
+    public Set<String> getUnknownNames() {
+        return unknownNames;
     }
 
     @Override
@@ -41,25 +66,34 @@ public class Employees implements IEmployees {
     private static Map<String, Employees> roleInstances = new HashMap<>();
 
 
-    private Employees(String filterRole) {
+    private Employees(String file, String filterRole) {
+        this.file = file;
         this.filterRole = filterRole;
     }
 
     public static Employees getInstance() {
         if (instance == null) {
-            instance = new Employees(null);
+            instance = new Employees(null, null);
         }
         return instance;
     }
 
-    public static Employees getDevelopers() {
-        return getInstance("Developer");
+    public static Employees getDevelopers(String file) {
+        return getInstance(file, "Developer");
     }
 
-    public static Employees getInstance(String role) {
-        Employees employees = roleInstances.get(role);
+    public static Employees getDevelopers() {
+        return getDevelopers(null);
+    }
+
+    public static Employees getTesters() {
+        return getInstance(null, "Tester");
+    }
+
+    public static Employees getInstance(String file, String role) {
+        Employees employees = roleInstances.get(role + file);
         if (employees == null) {
-            employees = new Employees(role);
+            employees = new Employees(file, role);
             roleInstances.put(role, employees);
         }
         return employees;
@@ -84,7 +118,11 @@ public class Employees implements IEmployees {
     private void readEmployeesJSON() {
         InputStream input = null;
         try {
-            input = getClass().getResourceAsStream("/employees.json");
+            if (file == null) {
+                input = getClass().getResourceAsStream("/employees.json");
+            } else {
+                input = getClass().getResourceAsStream("/" + file);
+            }
             if (input != null) {
                 String source = convertInputStreamToString(input);
                 JSONArray sourceEmployees = new JSONArray(source);
@@ -116,7 +154,11 @@ public class Employees implements IEmployees {
     private void readAliasesJSON() {
         InputStream input = null;
         try {
-            input = getClass().getResourceAsStream("/aliases.json");
+            if (file == null) {
+                input = getClass().getResourceAsStream("/aliases.json");
+            } else {
+                input = getClass().getResourceAsStream("/"+ file.split("\\.")[0]+"_aliases.json");
+            }
             if (input != null) {
                 String source = convertInputStreamToString(input);
                 aliases = new JSONObject(source);

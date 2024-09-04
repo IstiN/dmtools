@@ -126,8 +126,9 @@ public interface SourceCode {
                         }
                     });
                 }
+            } else {
+                sourceCodes.add(gitlabSourceCode);
             }
-
         }
     }
 }
