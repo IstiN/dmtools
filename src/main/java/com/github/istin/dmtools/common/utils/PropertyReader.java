@@ -5,7 +5,13 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class PropertyReader {
-	private static final String PATH_TO_CONFIG_FILE = "/config.properties";
+
+	private static String PATH_TO_CONFIG_FILE = "/config.properties";
+
+	public static void setConfigFile(String resourcePath) {
+		PATH_TO_CONFIG_FILE = resourcePath;
+	}
+
 
 	private static Properties prop;
 

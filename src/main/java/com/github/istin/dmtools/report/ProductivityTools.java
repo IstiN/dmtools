@@ -14,6 +14,7 @@ import com.github.istin.dmtools.report.freemarker.cells.DevItemsSumCell;
 import com.github.istin.dmtools.report.freemarker.cells.DevProductivityCell;
 import com.github.istin.dmtools.report.freemarker.cells.DevStoriesSPSumCell;
 import com.github.istin.dmtools.report.model.KeyTime;
+import com.github.istin.dmtools.team.Employees;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -28,12 +29,16 @@ public class ProductivityTools {
     public static final String REPORT_NAME = "Dev Productivity";
 
     public static File generate(TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style) throws Exception {
-        DevProductivityReport productivityReport = buildReport(tracker, releaseGenerator, team, formula, jql, listOfCustomMetrics, style);
+        return generate(tracker, releaseGenerator, team, formula, jql, listOfCustomMetrics, style, null);
+    }
+
+    public static File generate(TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, Employees employees) throws Exception {
+        DevProductivityReport productivityReport = buildReport(tracker, releaseGenerator, team, formula, jql, listOfCustomMetrics, style, employees);
         return new ReportUtils().write(team + "_" + REPORT_NAME, "dev_productivity", productivityReport, null);
     }
 
     @NotNull
-    public static DevProductivityReport buildReport(final TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style) throws Exception {
+    public static DevProductivityReport buildReport(final TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, Employees employees) throws Exception {
         final Map<String, Map<String,List<KeyTime>>> customMetricsProductivityMap = new HashMap<>();
         Set<String> combinedMetrics = new HashSet<>();
         DevProductivityReport productivityReport = new DevProductivityReport();
@@ -65,10 +70,15 @@ public class ProductivityTools {
                     for (Metric m : listOfCustomMetrics) {
                         if (m.getSourceCollector() == null) {
                             List<KeyTime> productivityItem = m.getRule().check(tracker, ticket);
+                            if (employees != null) {
+                                checkEmployees(employees, productivityItem);
+                            }
                             if (productivityItem != null && !productivityItem.isEmpty()) {
-                                List<KeyTime> items = customMetricsProductivityMap.get(m.getName()).computeIfAbsent(productivityItem.get(0).getWho(), k -> new ArrayList<>());
-                                items.addAll(productivityItem);
-                                combinedMetrics.add(productivityItem.get(0).getWho());
+                                for (KeyTime keyTime : productivityItem) {
+                                    List<KeyTime> items = customMetricsProductivityMap.get(m.getName()).computeIfAbsent(keyTime.getWho(), k -> new ArrayList<>());
+                                    items.add(keyTime);
+                                    combinedMetrics.add(keyTime.getWho());
+                                }
                             }
                         }
                     }
@@ -78,7 +88,7 @@ public class ProductivityTools {
                     return false;
                 }
 
-            }, jql, tracker.getDefaultQueryFields());
+            }, jql, tracker.getExtendedQueryFields());
 
         }
         for (Metric m : listOfCustomMetrics) {
@@ -223,6 +233,15 @@ public class ProductivityTools {
         productivityReport.makeSprintShifts(releaseGenerator.getExtraSprintTimeline());
         productivityReport.shiftTimelineStarts(16);
         return productivityReport;
+    }
+
+    private static void checkEmployees(Employees employees, List<KeyTime> productivityItem) {
+        if (productivityItem != null) {
+            for (KeyTime keyTime : productivityItem) {
+                String who = keyTime.getWho();
+                keyTime.setWho(employees.transformName(who));
+            }
+        }
     }
 
     private static long getCurrentTimeForMeasurements() {

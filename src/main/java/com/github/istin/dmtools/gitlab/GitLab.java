@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.gitlab;
 
+import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
@@ -256,13 +257,26 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
     @Override
     public IDiffStats getPullRequestDiff(String workspace, String repository, String pullRequestID) throws IOException {
         String mergeRequestChanges = getMergeRequestChanges(workspace, repository, pullRequestID);
+        if (mergeRequestChanges == null) {
+            return new IDiffStats.Empty();
+        }
         return parseDiffStats(new JSONObject(mergeRequestChanges));
     }
 
+    private boolean isMRChangesError = false;
     private String getMergeRequestChanges(String workspace, String repository, String pullRequestId) throws IOException {
+        if (isMRChangesError) {
+            return null;
+        }
         String path = path(String.format("projects/%s/merge_requests/%s/changes", getEncodedProject(workspace, repository), pullRequestId));
         GenericRequest getRequest = new GenericRequest(this, path);
-        return execute(getRequest);
+        try {
+            return execute(getRequest);
+        } catch (AtlassianRestClient.JiraException e) {
+            isMRChangesError = true;
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public static IDiffStats parseDiffStats(JSONObject response) {

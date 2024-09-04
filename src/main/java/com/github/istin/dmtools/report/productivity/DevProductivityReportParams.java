@@ -1,17 +1,16 @@
 package com.github.istin.dmtools.report.productivity;
 
-import com.github.istin.dmtools.job.BaseJobParams;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class DevProductivityReportParams extends BaseJobParams {
+public class DevProductivityReportParams extends ProductivityJobParams {
 
     public static String FORMULA = "formula";
+    public static String EMPLOYEES = "employees";
     public static String REPORT_NAME = "report_name";
     public static String IS_WEIGHT = "is_weight";
     public static String STATUSES_READY_FOR_TESTING = "statuses_ready_for_testing";
-    public static String IGNORE_TICKET_PREFIXES = "ignore_ticket_prefixes";
     public static String STATUSES_IN_TESTING = "statuses_in_testing";
     public static String STATUSES_IN_DEVELOPMENT = "statuses_in_development";
     public static String INITIAL_STATUS = "initial_status";
@@ -36,6 +35,10 @@ public class DevProductivityReportParams extends BaseJobParams {
 
     public String getFormula() {
         return getString(FORMULA);
+    }
+
+    public String getEmployees() {
+        return getString(EMPLOYEES);
     }
 
     public String getReportName() {
@@ -64,10 +67,6 @@ public class DevProductivityReportParams extends BaseJobParams {
 
     public String[] getStatusesInDevelopment() {
         return getStringArray(STATUSES_IN_DEVELOPMENT);
-    }
-
-    public String[] getIgnoreTicketPrefixes() {
-        return getStringArray(IGNORE_TICKET_PREFIXES);
     }
 
     public String[] getStatusesInTesting() {

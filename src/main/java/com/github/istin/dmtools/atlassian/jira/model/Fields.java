@@ -5,6 +5,7 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -164,7 +165,12 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
     }
 
     public Date getCreated() {
-        String created = getString("created");
+        return getCreatedUtils(this);
+    }
+
+    @Nullable
+    public static Date getCreatedUtils(JSONModel model) {
+        String created = model.getString("created");
         Date date = null;
         try {
             if (created == null) {

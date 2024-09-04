@@ -60,9 +60,12 @@ public class BasicJiraClient extends JiraClient<Ticket> {
                 Fields.UPDATED,
                 Fields.CREATED,
                 Fields.CREATOR,
+                Fields.REPORTER,
+                Fields.COMPONENTS,
                 Fields.ISSUETYPE,
                 Fields.STORY_POINTS,
-                Fields.LABELS
+                Fields.LABELS,
+                Fields.PARENT
         };
     }
 

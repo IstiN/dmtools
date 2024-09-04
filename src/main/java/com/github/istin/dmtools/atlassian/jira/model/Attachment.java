@@ -6,6 +6,8 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Date;
+
 public class Attachment extends JSONModel implements IAttachment {
 
     public static final String AUTHOR = "author";
@@ -34,6 +36,10 @@ public class Attachment extends JSONModel implements IAttachment {
 
     public String getContent() {
         return getString(CONTENT);
+    }
+
+    public Date getCreated() {
+        return Fields.getCreatedUtils(this);
     }
 
     @Override

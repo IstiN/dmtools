@@ -32,8 +32,6 @@ public abstract class CommonSourceCollector implements SourceCollector {
         return false;
     }
 
-
-
     public IEmployees getEmployees() {
         return employees;
     }

@@ -33,4 +33,5 @@ public interface IDiffStats {
                 return Collections.emptyList();
             }
     }
+
 }

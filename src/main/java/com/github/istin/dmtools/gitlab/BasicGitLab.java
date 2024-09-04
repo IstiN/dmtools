@@ -54,7 +54,7 @@ public class BasicGitLab extends GitLab {
 
     @Override
     public boolean isConfigured() {
-        return BASE_PATH != null || TOKEN != null || WORKSPACE != null;
+        return BASE_PATH != null && TOKEN != null && WORKSPACE != null;
     }
 
 }

@@ -38,6 +38,9 @@ public interface IPullRequest {
 
         public static Calendar getClosedDateAsCalendar(IPullRequest pullRequest) {
             Long closedDate = pullRequest.getClosedDate();
+            if (closedDate == null) {
+                System.err.println(pullRequest);
+            }
             Calendar instance = Calendar.getInstance();
             instance.setTimeInMillis(closedDate);
             return instance;

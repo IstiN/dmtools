@@ -35,7 +35,12 @@ public class IssueType extends JSONModel {
 
     public static boolean isBug(String name) {
         String lowerCaseName = name.toLowerCase();
-        return lowerCaseName.contains("bug") || lowerCaseName.contains("defect");
+        return lowerCaseName.contains("bug") || lowerCaseName.contains("defect") || lowerCaseName.contains("incident");
+    }
+
+    public static boolean isTestCase(String name) {
+        String lowerCaseName = name.toLowerCase();
+        return lowerCaseName.contains("test") || lowerCaseName.contains("test case")  || lowerCaseName.contains("testcase");
     }
 
     public static boolean isTask(String name) {

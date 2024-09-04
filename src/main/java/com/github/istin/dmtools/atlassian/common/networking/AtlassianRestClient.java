@@ -1,18 +1,9 @@
 package com.github.istin.dmtools.atlassian.common.networking;
 
-import com.github.istin.dmtools.common.model.JSONModel;
-import com.github.istin.dmtools.common.networking.GenericRequest;
-import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.networking.AbstractRestClient;
-import okhttp3.*;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.io.FileUtils;
+import okhttp3.Request;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.SocketTimeoutException;
-import java.util.HashMap;
-import java.util.concurrent.TimeUnit;
 
 public abstract class AtlassianRestClient extends AbstractRestClient {
 
