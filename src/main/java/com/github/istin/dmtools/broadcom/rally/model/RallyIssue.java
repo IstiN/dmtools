@@ -9,6 +9,7 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.common.tracker.model.Workflow;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
@@ -286,7 +287,7 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
     public double getWeight() {
         Double storyPoints = getDouble(RallyFields.PLAN_ESTIMATE);
         if (storyPoints == null) {
-            return 1d;
+            return new PropertyReader().getDefaultTicketWeightIfNoSPs();
         }
         return storyPoints;
     }

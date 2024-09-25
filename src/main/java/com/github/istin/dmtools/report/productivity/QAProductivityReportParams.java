@@ -5,7 +5,6 @@ import org.json.JSONObject;
 
 public class QAProductivityReportParams extends ProductivityJobParams {
 
-    public static String FORMULA = "formula";
     public static String REPORT_NAME = "report_name";
     public static String IS_WEIGHT = "is_weight";
     public static final String START_DATE = "start_date";
@@ -25,10 +24,6 @@ public class QAProductivityReportParams extends ProductivityJobParams {
 
     public QAProductivityReportParams(JSONObject json) {
         super(json);
-    }
-
-    public String getFormula() {
-        return getString(FORMULA);
     }
 
     public String getReportName() {
