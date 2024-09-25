@@ -5,6 +5,7 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -206,6 +207,9 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
     }
 
     public int getStoryPoints() {
-        return getJSONObject().optInt(Fields.STORY_POINTS, -1);
+        if (IssueType.isBug(getIssueType().getName())) {
+            return 1;
+        }
+        return getJSONObject().optInt(Fields.STORY_POINTS, new PropertyReader().getDefaultTicketWeightIfNoSPs());
     }
 }

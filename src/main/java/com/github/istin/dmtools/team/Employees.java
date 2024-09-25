@@ -86,6 +86,10 @@ public class Employees implements IEmployees {
         return getDevelopers(null);
     }
 
+    public static Employees getTesters(String file) {
+        return getInstance(file, "Tester");
+    }
+
     public static Employees getTesters() {
         return getInstance(null, "Tester");
     }

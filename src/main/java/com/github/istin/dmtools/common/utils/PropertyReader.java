@@ -170,4 +170,14 @@ public class PropertyReader {
 		return getValue("FIGMA_TOKEN");
 	}
 
+	public Integer getDefaultTicketWeightIfNoSPs() {
+		String value = getValue("DEFAULT_TICKET_WEIGHT_IF_NO_SP");
+		if (value == null) {
+			return -1;
+		}
+		return Integer.parseInt(value);
+	}
+
+
+
 }

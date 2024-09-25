@@ -6,6 +6,8 @@ import org.json.JSONObject;
 
 public class ProductivityJobParams extends BaseJobParams {
 
+    public static String FORMULA = "formula";
+    public static String EMPLOYEES = "employees";
     public static String IGNORE_TICKET_PREFIXES = "ignore_ticket_prefixes";
 
     public ProductivityJobParams() {
@@ -21,5 +23,13 @@ public class ProductivityJobParams extends BaseJobParams {
 
     public String[] getIgnoreTicketPrefixes() {
         return getStringArray(IGNORE_TICKET_PREFIXES);
+    }
+
+    public String getFormula() {
+        return getString(FORMULA);
+    }
+
+    public String getEmployees() {
+        return getString(EMPLOYEES);
     }
 }

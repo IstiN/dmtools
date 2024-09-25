@@ -23,7 +23,7 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
     public void runJob(QAProductivityReportParams qaProductivityReportParams) throws Exception {
         WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(qaProductivityReportParams.getStartDate());
         String formula = qaProductivityReportParams.getFormula();
-        ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getTesters());
+        ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(qaProductivityReportParams.getEmployees()));
     }
 
     protected List<Metric> generateListOfMetrics(QAProductivityReportParams qaProductivityReportParams) throws IOException {
@@ -35,7 +35,7 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
         movedToReopened(qaProductivityReportParams, listOfCustomMetrics);
         createdTests(qaProductivityReportParams, listOfCustomMetrics);
         fieldsChanged(qaProductivityReportParams, listOfCustomMetrics);
-        ProductivityUtils.vacationDays(listOfCustomMetrics, Employees.getTesters());
+        ProductivityUtils.vacationDays(listOfCustomMetrics, Employees.getTesters(qaProductivityReportParams.getEmployees()));
 //        numberOfRejectedBugs(qaProductivityReportParams, listOfCustomMetrics);
         return listOfCustomMetrics;
     }
@@ -43,19 +43,19 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
     //
 
     protected void fieldsChanged(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
-        listOfCustomMetrics.add(new Metric("Ticket Fields Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters())));
+        listOfCustomMetrics.add(new Metric("Ticket Fields Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()))));
     }
 
     protected void createdBugs(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
-        listOfCustomMetrics.add(new Metric("Created Bugs", qaProductivityReportParams.isWeight(), new BugsCreatorsRule(qaProductivityReportParams.getBugsProjectCode(), Employees.getTesters())));
+        listOfCustomMetrics.add(new Metric("Created Bugs", qaProductivityReportParams.isWeight(), new BugsCreatorsRule(qaProductivityReportParams.getBugsProjectCode(), Employees.getTesters(qaProductivityReportParams.getEmployees()))));
     }
 
     protected void numberOfAttachments(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
-        listOfCustomMetrics.add(new Metric("Number of Attachments", qaProductivityReportParams.isWeight(), new TicketAttachmentRule(null, Employees.getTesters())));
+        listOfCustomMetrics.add(new Metric("Number of Attachments", qaProductivityReportParams.isWeight(), new TicketAttachmentRule(null, Employees.getTesters(qaProductivityReportParams.getEmployees()))));
     }
 
     protected void numberOfComponents(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
-        listOfCustomMetrics.add(new Metric("Number of Components", qaProductivityReportParams.isWeight(), new ComponentsRule(qaProductivityReportParams.getBugsProjectCode(), Employees.getTesters())));
+        listOfCustomMetrics.add(new Metric("Number of Components", qaProductivityReportParams.isWeight(), new ComponentsRule(qaProductivityReportParams.getBugsProjectCode(), Employees.getTesters(qaProductivityReportParams.getEmployees()))));
     }
 
     protected void movedToDone(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
@@ -69,7 +69,7 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
                     if (keyTimes != null && !keyTimes.isEmpty()) {
                         keyTimes = keyTimes.subList(0, 1);
                         KeyTime keyTime = keyTimes.get(0);
-                        keyTime.setWho(findResponsibleQA(jiraClient, ticket, qaProductivityReportParams.getStatusesInTesting(), qaProductivityReportParams.getStatusesDone()));
+                        keyTime.setWho(findResponsibleQA(qaProductivityReportParams, jiraClient, ticket, qaProductivityReportParams.getStatusesInTesting(), qaProductivityReportParams.getStatusesDone()));
                     }
                     return keyTimes;
                 } else {
@@ -80,10 +80,11 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
         }));
     }
 
-    public String findResponsibleQA(TrackerClient trackerClient, ITicket ticket, String[] inProgressStatuses, String[] doneStatuses) throws IOException {
-        String whoIsResponsible = ChangelogAssessment.findWhoIsResponsible(trackerClient, Employees.getTesters(), ticket, inProgressStatuses);
+    public String findResponsibleQA(QAProductivityReportParams qaProductivityReportParams, TrackerClient trackerClient, ITicket ticket, String[] inProgressStatuses, String[] doneStatuses) throws IOException {
+        Employees testers = Employees.getTesters(qaProductivityReportParams.getEmployees());
+        String whoIsResponsible = ChangelogAssessment.findWhoIsResponsible(trackerClient, testers, ticket, inProgressStatuses);
         if (whoIsResponsible.equalsIgnoreCase(Employees.UNKNOWN)) {
-            whoIsResponsible = ChangelogAssessment.findWhoIsResponsible(trackerClient, Employees.getTesters(), ticket, doneStatuses);
+            whoIsResponsible = ChangelogAssessment.findWhoIsResponsible(trackerClient, testers, ticket, doneStatuses);
         }
         return whoIsResponsible;
     }
@@ -108,7 +109,7 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
     }
 
     protected void createdTests(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
-        listOfCustomMetrics.add(new Metric("Created Tests", qaProductivityReportParams.isWeight(), new TestCasesCreatorsRule(qaProductivityReportParams.getTestCasesProjectCode(), Employees.getTesters())));
+        listOfCustomMetrics.add(new Metric("Created Tests", qaProductivityReportParams.isWeight(), new TestCasesCreatorsRule(qaProductivityReportParams.getTestCasesProjectCode(), Employees.getTesters(qaProductivityReportParams.getEmployees()))));
     }
 
 //    protected void numberOfRejectedBugs(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {

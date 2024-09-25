@@ -47,7 +47,19 @@ public class BasicJiraClient extends JiraClient<Ticket> {
 
     @Override
     public String[] getDefaultQueryFields() {
-        return new String[0];
+        return new String[] {
+                Fields.SUMMARY,
+                Fields.STATUS,
+                Fields.UPDATED,
+                Fields.CREATED,
+                Fields.CREATOR,
+                Fields.REPORTER,
+                Fields.COMPONENTS,
+                Fields.ISSUETYPE,
+                Fields.STORY_POINTS,
+                Fields.LABELS,
+                Fields.PARENT
+        };
     }
 
     @Override
