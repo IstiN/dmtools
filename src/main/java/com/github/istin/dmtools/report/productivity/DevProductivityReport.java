@@ -52,16 +52,24 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
         bugsMovedToTesting(devProductivityReportParams, listOfCustomMetrics, true, employees);
         timeSpentOnBugfixing(devProductivityReportParams, listOfCustomMetrics, employees);
         timeSpentOnStoryDevelopment(devProductivityReportParams, listOfCustomMetrics, employees);
-        pullRequests(devProductivityReportParams, listOfCustomMetrics, employees);
-        pullRequestsChanges(devProductivityReportParams, listOfCustomMetrics, employees);
-        pullRequestsComments(devProductivityReportParams, listOfCustomMetrics, employees);
-        pullRequestsApprovals(devProductivityReportParams, listOfCustomMetrics, employees);
+
+        List<SourceCode> basicSourceCodes = SourceCode.Impl.getConfiguredSourceCodes(devProductivityReportParams.getSources());
+        if (!basicSourceCodes.isEmpty()) {
+            pullRequests(devProductivityReportParams, listOfCustomMetrics, employees);
+            pullRequestsChanges(devProductivityReportParams, listOfCustomMetrics, employees);
+            pullRequestsComments(devProductivityReportParams, listOfCustomMetrics, employees);
+            pullRequestsApprovals(devProductivityReportParams, listOfCustomMetrics, employees);
+        }
         ProductivityUtils.vacationDays(listOfCustomMetrics, employees);
         return listOfCustomMetrics;
     }
 
     protected void pullRequests(DevProductivityReportParams devProductivityReportParams, List<Metric> listOfCustomMetrics, Employees developers) throws IOException {
         List<SourceCode> basicSourceCodes = SourceCode.Impl.getConfiguredSourceCodes(devProductivityReportParams.getSources());
+        if (basicSourceCodes.isEmpty()) {
+            return;
+        }
+
         List<Metric> sourceMetrics = new ArrayList<>();
         for (SourceCode sourceCode : basicSourceCodes) {
             sourceMetrics.add(
@@ -73,6 +81,9 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
 
     protected void pullRequestsChanges(DevProductivityReportParams devProductivityReportParams, List<Metric> listOfCustomMetrics, Employees developers) throws IOException {
         List<SourceCode> basicSourceCodes = SourceCode.Impl.getConfiguredSourceCodes(devProductivityReportParams.getSources());
+        if (basicSourceCodes.isEmpty()) {
+            return;
+        }
         List<Metric> sourceMetrics = new ArrayList<>();
         for (SourceCode sourceCode : basicSourceCodes) {
             sourceMetrics.add(
@@ -84,6 +95,9 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
 
     protected void pullRequestsComments(DevProductivityReportParams devProductivityReportParams, List<Metric> listOfCustomMetrics, Employees developers) throws IOException {
         List<SourceCode> basicSourceCodes = SourceCode.Impl.getConfiguredSourceCodes(devProductivityReportParams.getSources());
+        if (basicSourceCodes.isEmpty()) {
+            return;
+        }
         List<Metric> positiveSourceMetrics = new ArrayList<>();
         List<Metric> negativeSourceMetrics = new ArrayList<>();
         for (SourceCode sourceCode : basicSourceCodes) {
@@ -102,6 +116,9 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
 
     protected void pullRequestsApprovals(DevProductivityReportParams devProductivityReportParams, List<Metric> listOfCustomMetrics, Employees developers) throws IOException {
         List<SourceCode> basicSourceCodes = SourceCode.Impl.getConfiguredSourceCodes(devProductivityReportParams.getSources());
+        if (basicSourceCodes.isEmpty()) {
+            return;
+        }
         List<Metric> sourceMetrics = new ArrayList<>();
         for (SourceCode sourceCode : basicSourceCodes) {
             sourceMetrics.add(
