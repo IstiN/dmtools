@@ -159,6 +159,11 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
     }
 
     @Override
+    public String toText() {
+        return getJSONObject().toString();
+    }
+
+    @Override
     public String getTicketTitle() throws IOException {
         return getString(RallyFields._REF_OBJECT_NAME);
     }

@@ -171,4 +171,8 @@ public class PromptManager {
     public String makeDailyScrumReportOfUserWork(ScrumDailyPrompt scrumDailyPrompt) throws TemplateException, IOException {
         return stringFromTemplate(scrumDailyPrompt, "scrum_daily_report");
     }
+
+    public String askExpert(ExpertPrompt scrumDailyPrompt) throws TemplateException, IOException {
+        return stringFromTemplate(scrumDailyPrompt, "expert");
+    }
 }

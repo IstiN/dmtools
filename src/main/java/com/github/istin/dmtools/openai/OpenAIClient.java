@@ -21,7 +21,7 @@ public class OpenAIClient extends AbstractRestClient {
 
     private static final Logger logger = LogManager.getLogger(OpenAIClient.class);
 
-    public static final String API_VERSION = "2023-07-01-preview";
+    //public static final String API_VERSION = "2023-07-01-preview";
 
     private String model;
 
@@ -52,7 +52,7 @@ public class OpenAIClient extends AbstractRestClient {
 
     @Override
     public String path(String path) {
-        return getBasePath() + path + "?api-version=" + API_VERSION;
+        return getBasePath() + path;// + "?api-version=" + API_VERSION;
     }
 
     @Override

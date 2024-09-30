@@ -332,12 +332,12 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     }
 
     @Override
-    public List<? extends IComment> getComments(String ticketKey, RallyIssue ticket) throws IOException {
+    public List<? extends IComment> getComments(String ticketKey, ITicket ticket) throws IOException {
         if (ticket == null) {
             ticket = performTicket(ticketKey, getDefaultQueryFields());
         }
 
-        String ref = ticket.getRef();
+        String ref = ((RallyIssue)ticket).getRef();
         GenericRequest genericRequest = createDiscussionGetRequest(ref);
         genericRequest.setIgnoreCache(true);
         clearRequestIfExpired(genericRequest, ticket.getUpdatedAsMillis());

@@ -4,6 +4,7 @@ import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -76,6 +77,12 @@ public class Ticket extends JSONModel implements ITicket {
         } catch (IOException e) {
             throw new IllegalStateException();
         }
+    }
+
+    @Override
+    public String toText() {
+        StringBuilder fieldsAsJSON = StringUtils.transformJSONToText(new StringBuilder(), getFieldsAsJSON(), false);
+        return fieldsAsJSON.toString();
     }
 
     public String getId() {

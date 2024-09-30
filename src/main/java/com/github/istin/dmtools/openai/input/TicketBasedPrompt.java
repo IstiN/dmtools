@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.openai.input;
 
+import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
@@ -20,12 +21,15 @@ public class TicketBasedPrompt {
         this.extraTickets = extraTickets;
     }
 
-    private List<ITicket> extraTickets;
+    private List<ITicket> extraTickets = new ArrayList<>();
     private List<ITicket> testCases = new ArrayList<>();
 
-    public TicketBasedPrompt(String basePath, ITicket ticket) {
+    public TicketBasedPrompt(String basePath, TicketContext ticketContext) {
         this.basePath = basePath;
-        this.ticket = new TicketWrapper(ticket);
+        this.ticket = new TicketWrapper(ticketContext.getTicket());
+        for (ITicket extraTicket : ticketContext.getExtraTickets()) {
+            this.extraTickets.add(new TicketWrapper(extraTicket));
+        }
     }
 
     public ITicket getTicket() {

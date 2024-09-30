@@ -54,6 +54,8 @@ public interface ITicket extends Key {
 
     TicketPriority getPriorityAsEnum();
 
+    String toText() throws IOException;
+
     enum TicketPriority {
         High_Attention,
         Blocker,
@@ -212,6 +214,11 @@ public interface ITicket extends Key {
             } catch (IOException e) {
                 throw new IllegalStateException();
             }
+        }
+
+        @Override
+        public String toText() throws IOException {
+            return ticket.toText();
         }
 
         @Override

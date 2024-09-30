@@ -1,13 +1,14 @@
 package com.github.istin.dmtools.openai.input;
 
+import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.common.model.ITicket;
 
 import java.util.List;
 
 public class PullRequestReview extends TicketBasedPrompt {
 
-    public PullRequestReview(String basePath, String role, ITicket ticket) {
-        super(basePath, ticket);
+    public PullRequestReview(String basePath, String role, TicketContext ticketContext) {
+        super(basePath, ticketContext);
         this.role = role;
     }
 

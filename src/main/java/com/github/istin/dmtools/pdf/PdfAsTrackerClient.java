@@ -268,7 +268,7 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
     }
 
     @Override
-    public List<? extends IComment> getComments(String ticketKey, PdfPageAsTicket ticket) throws IOException {
+    public List<? extends IComment> getComments(String ticketKey, ITicket ticket) throws IOException {
         throw new UnsupportedOperationException();
     }
 

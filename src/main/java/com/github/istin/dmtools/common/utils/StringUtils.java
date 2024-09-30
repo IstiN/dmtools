@@ -4,6 +4,8 @@ import io.github.furstenheim.CopyDown;
 import io.github.furstenheim.Options;
 import io.github.furstenheim.OptionsBuilder;
 import org.jetbrains.annotations.Nullable;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -111,5 +113,65 @@ public class StringUtils {
             return 1;
         }
         return null;
+    }
+
+    public static StringBuilder transformJSONToText(StringBuilder textBuilder, JSONObject fields, boolean ignoreDescription) {
+        for (String field : fields.keySet()) {
+            // Skip values that contain only self links and IDs
+            if (field.toLowerCase().contains("id")
+                    || field.toLowerCase().contains("url")
+                    || field.equalsIgnoreCase("self")
+                    || field.equalsIgnoreCase("accountType")
+                    || field.equalsIgnoreCase("key")
+                    || field.equalsIgnoreCase("statusCategory")
+                    || field.equalsIgnoreCase("subtask")
+                    || field.equalsIgnoreCase("timeZone")
+                    || field.equalsIgnoreCase("hierarchyLevel")
+                    || field.equalsIgnoreCase("active")
+                    || ignoreDescription && field.equalsIgnoreCase("description")
+            ) {
+                continue;
+            }
+
+            Object fieldValue = fields.get(field);
+
+            // Skip null or empty values
+            if (fieldValue == null || fieldValue.toString().trim().isEmpty()) {
+                continue;
+            }
+
+            // For nested objects, extract relevant text information
+            if (fieldValue instanceof JSONObject) {
+                textBuilder.append(field).append(": { \n");
+                transformJSONToText(textBuilder, (JSONObject) fieldValue, true);
+                textBuilder.append("} \n");
+            } else if (fieldValue instanceof JSONArray) {
+                JSONArray jsonArray = (JSONArray) fieldValue;
+                if (jsonArray.isEmpty()) {
+                    continue;
+                }
+                textBuilder.append(field).append(": [");
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    Object arrayElement = jsonArray.get(i);
+                    if (arrayElement instanceof JSONObject) {
+                        textBuilder.append("{");
+                        transformJSONToText(textBuilder, (JSONObject) arrayElement, true);
+                        textBuilder.append("}");
+                    } else {
+                        textBuilder.append(arrayElement.toString());
+                    }
+                    if (i < jsonArray.length() - 1) {
+                        textBuilder.append(", ");
+                    }
+                }
+                textBuilder.append("]\n");
+            } else {
+                if (!fieldValue.toString().equalsIgnoreCase("null")) {
+                    textBuilder.append(field).append(": ").append(fieldValue).append("\n");
+                }
+            }
+        }
+
+        return textBuilder;
     }
 }

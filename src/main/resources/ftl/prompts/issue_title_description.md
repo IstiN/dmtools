@@ -1,4 +1,5 @@
 ```
-${(issue.ticketTitle)!""}
-${(issue.ticketDescription)!""}
+{{START TICKET DETAILS}}
+${issue.toText()}
+{{END TICKET DETAILS}}
 ```
