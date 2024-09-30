@@ -174,6 +174,11 @@ public class PdfPageAsTicket implements ITicket {
     }
 
     @Override
+    public String toText() throws IOException {
+        return getTicketTitle() + "\n" + getTicketDescription();
+    }
+
+    @Override
     public double getWeight() {
         throw new UnsupportedOperationException();
     }

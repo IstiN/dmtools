@@ -167,6 +167,11 @@ public class RemoteLink extends JSONModel implements ITicket {
     }
 
     @Override
+    public String toText() {
+        return toString();
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof ITicket) {
             return getTicketKey().equals(((ITicket) obj).getTicketKey());

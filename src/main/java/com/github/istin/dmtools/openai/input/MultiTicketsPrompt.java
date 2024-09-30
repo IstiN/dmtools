@@ -1,16 +1,13 @@
 package com.github.istin.dmtools.openai.input;
 
+import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class MultiTicketsPrompt extends TicketBasedPrompt {
 
     private String role;
     private String projectSpecifics;
-    private List<ITicket> extraTickets;
 
     private String existingContent = "";
 
@@ -18,11 +15,10 @@ public class MultiTicketsPrompt extends TicketBasedPrompt {
         return existingContent;
     }
 
-    public MultiTicketsPrompt(String basePath, String role, String projectSpecifics, ITicket ticket, List<ITicket> extraTickets, String existingContent) {
-        super(basePath, ticket);
+    public MultiTicketsPrompt(String basePath, String role, String projectSpecifics, TicketContext ticketContext, String existingContent) {
+        super(basePath, ticketContext);
         this.role = role;
         this.projectSpecifics = projectSpecifics;
-        this.extraTickets = extraTickets;
         this.existingContent = HtmlCleaner.cleanAllHtmlTags(basePath, existingContent);
     }
 
@@ -36,14 +32,10 @@ public class MultiTicketsPrompt extends TicketBasedPrompt {
 
     private ITicket content;
 
-    public MultiTicketsPrompt(String basePath, String role, String projectSpecifics, ITicket ticket, List<ITicket> extraTickets) {
-        super(basePath, ticket);
+    public MultiTicketsPrompt(String basePath, String role, String projectSpecifics, TicketContext ticketContext) {
+        super(basePath, ticketContext);
         this.role = role;
         this.projectSpecifics = projectSpecifics;
-        this.extraTickets = new ArrayList<>();
-        for (ITicket extraTicket : extraTickets) {
-            this.extraTickets.add(new TicketWrapper(extraTicket));
-        }
     }
 
     public String getRole() {
@@ -54,7 +46,4 @@ public class MultiTicketsPrompt extends TicketBasedPrompt {
         return projectSpecifics;
     }
 
-    public List<ITicket> getExtraTickets() {
-        return extraTickets;
-    }
 }

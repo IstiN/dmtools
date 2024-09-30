@@ -1,6 +1,5 @@
 package com.github.istin.dmtools.qa;
 
-import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.job.BaseJobParams;
 import org.json.JSONException;
 import org.json.JSONObject;

@@ -46,13 +46,14 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     private String basePath;
     private boolean isReadCacheGetRequestsEnabled = true;
     private boolean isWaitBeforePerform = false;
+    private long sleepTimeRequest;
     private String authorization;
     private String cacheFolderName;
-    private boolean isClearCache = true;
+    private boolean isClearCache = false;
     private String authType = "Basic";
     private Long instanceCreationTime = System.currentTimeMillis();
 
-    private boolean isLogEnabled = false;
+    private boolean isLogEnabled = true;
 
     public void setClearCache(boolean clearCache) throws IOException {
         isClearCache = clearCache;
@@ -76,6 +77,14 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         this.client = builder.build();
 
         setCacheFolderNameAndReinit("cache" + getClass().getSimpleName());
+    }
+
+    public long getSleepTimeRequest() {
+        return sleepTimeRequest;
+    }
+
+    public void setSleepTimeRequest(long sleepTimeRequest) {
+        this.sleepTimeRequest = sleepTimeRequest;
     }
 
     protected void initCache() throws IOException {
@@ -392,7 +401,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return new GenericRequest(this, path("issue/" + ticket + "/remotelink"));
     }
 
-    public GenericRequest comment(final String key, Ticket ticket) throws IOException {
+    public GenericRequest comment(final String key, ITicket ticket) throws IOException {
         GenericRequest genericRequest = new GenericRequest(this, path("issue/" + key + "/comment"));
         clearRequestIfExpired(genericRequest, ticket == null ? null : ticket.getFields().getUpdatedAsMillis());
         return genericRequest;
@@ -419,7 +428,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     @Override
-    public List<? extends IComment> getComments(String key, T ticket) throws IOException {
+    public List<? extends IComment> getComments(String key, ITicket ticket) throws IOException {
         return new CommentsResult(comment(key, ticket).execute()).getComments();
     }
 
@@ -849,7 +858,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             }
             if (isWaitBeforePerform) {
                 try {
-                    Thread.currentThread().sleep(100);
+                    Thread.currentThread().sleep(sleepTimeRequest);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -877,7 +886,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 if (isRepeatIfFails) {
                     if (isWaitBeforePerform) {
                         try {
-                            Thread.currentThread().sleep(200);
+                            Thread.currentThread().sleep(sleepTimeRequest);
                         } catch (InterruptedException socketException) {
                             socketException.printStackTrace();
                         }
@@ -912,7 +921,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         String url = genericRequest.url();
         if (isWaitBeforePerform) {
             try {
-                Thread.currentThread().sleep(200);
+                Thread.currentThread().sleep(sleepTimeRequest);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -947,7 +956,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         String url = genericRequest.url();
         if (isWaitBeforePerform) {
             try {
-                Thread.currentThread().sleep(500);
+                Thread.currentThread().sleep(sleepTimeRequest);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -975,7 +984,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         String url = genericRequest.url();
         if (isWaitBeforePerform) {
             try {
-                Thread.currentThread().sleep(500);
+                Thread.currentThread().sleep(sleepTimeRequest);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -1003,7 +1012,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         String url = genericRequest.url();
         if (isWaitBeforePerform) {
             try {
-                Thread.currentThread().sleep(500);
+                Thread.currentThread().sleep(sleepTimeRequest);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -1287,7 +1296,6 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     public String getFields(String project) throws IOException {
         GenericRequest genericRequest = new GenericRequest(this, path("issue/createmeta?projectKeys="+project+"&expand=projects.issuetypes.fields"));
-        genericRequest.setIgnoreCache(true);
         return genericRequest.execute();
     }
 

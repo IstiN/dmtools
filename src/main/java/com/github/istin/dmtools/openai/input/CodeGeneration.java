@@ -1,8 +1,8 @@
 package com.github.istin.dmtools.openai.input;
 
+import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.common.model.ICommit;
 import com.github.istin.dmtools.common.model.IFile;
-import com.github.istin.dmtools.common.model.ITicket;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,8 +11,8 @@ public class CodeGeneration extends TicketBasedPrompt {
 
     private List<ICommit> commits;
 
-    public CodeGeneration(String basePath, String role, ITicket ticket) {
-        super(basePath, ticket);
+    public CodeGeneration(String basePath, String role, TicketContext ticketContext) {
+        super(basePath, ticketContext);
         this.role = role;
     }
 

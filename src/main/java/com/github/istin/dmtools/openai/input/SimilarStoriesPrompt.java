@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.openai.input;
 
+import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.common.model.ITicket;
 
 import java.util.List;
@@ -12,13 +13,13 @@ public class SimilarStoriesPrompt extends TicketBasedPrompt {
 
     private String role;
 
-    public SimilarStoriesPrompt(String basePath, ITicket ticket, List<? extends ITicket> stories) {
-        super(basePath, ticket);
+    public SimilarStoriesPrompt(String basePath, TicketContext ticketContext, List<? extends ITicket> stories) {
+        super(basePath, ticketContext);
         this.stories = stories;
     }
 
-    public SimilarStoriesPrompt(String basePath, String role, ITicket ticket, ITicket similarTicket) {
-        super(basePath, ticket);
+    public SimilarStoriesPrompt(String basePath, String role, TicketContext ticketContext, ITicket similarTicket) {
+        super(basePath, ticketContext);
         this.similarTicket = similarTicket;
         this.role = role;
     }

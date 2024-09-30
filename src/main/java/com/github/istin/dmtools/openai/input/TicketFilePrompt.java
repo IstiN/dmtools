@@ -1,15 +1,15 @@
 package com.github.istin.dmtools.openai.input;
 
+import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.common.model.IFile;
-import com.github.istin.dmtools.common.model.ITicket;
 
 public class TicketFilePrompt extends TicketBasedPrompt {
 
     private final String role;
     private IFile file;
 
-    public TicketFilePrompt(String basePath, String role, ITicket ticket, IFile file) {
-        super(basePath, ticket);
+    public TicketFilePrompt(String basePath, String role, TicketContext ticketContext, IFile file) {
+        super(basePath, ticketContext);
         this.role = role;
         this.file = file;
     }

@@ -213,6 +213,11 @@ public class IssueLink extends JSONModel implements ITicket, Key {
         return getRelatedTicket().getPriorityAsEnum();
     }
 
+    @Override
+    public String toText() {
+        return getRelatedTicket().toText();
+    }
+
     public IssueType getTicketType() {
         Ticket inwardIssue = getInwardIssue();
         if (inwardIssue == null) {

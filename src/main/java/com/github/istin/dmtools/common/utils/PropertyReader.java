@@ -54,6 +54,52 @@ public class PropertyReader {
 	public String getJiraAuthType() {
 		return getValue("JIRA_AUTH_TYPE");
 	}
+
+	public boolean isJiraWaitBeforePerform() {
+		String value = getValue("JIRA_WAIT_BEFORE_PERFORM");
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
+	public boolean isJiraLoggingEnabled() {
+		String value = getValue("JIRA_LOGGING_ENABLED");
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
+	public boolean isJiraClearCache() {
+		String value = getValue("JIRA_CLEAR_CACHE");
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
+	public String getJiraExtraFieldsProject() {
+		return getValue("JIRA_EXTRA_FIELDS_PROJECT");
+	}
+
+	public String[] getJiraExtraFields() {
+		String value = getValue("JIRA_EXTRA_FIELDS");
+		if (value == null) {
+			return null;
+		}
+		return value.split(",");
+	}
+
+	public Long getSleepTimeRequest() {
+		String value = getValue("SLEEP_TIME_REQUEST");
+		if (value == null) {
+			return 300l;
+		}
+		return Long.parseLong(value);
+	}
+
+
 	public String getRallyToken() {
 		return getValue("RALLY_TOKEN");
 	}

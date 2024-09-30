@@ -6,7 +6,6 @@ import com.github.istin.dmtools.common.model.IChangelog;
 import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.timeline.ReportIteration;
-import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import org.json.JSONArray;
 
 import java.io.File;
@@ -51,7 +50,7 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
 
     void postCommentIfNotExists(String ticketKey, String comment) throws IOException;
 
-    List<? extends IComment> getComments(String ticketKey, T ticket) throws IOException;
+    List<? extends IComment> getComments(String ticketKey, ITicket ticket) throws IOException;
 
     void postComment(String ticketKey, String comment) throws IOException;
 

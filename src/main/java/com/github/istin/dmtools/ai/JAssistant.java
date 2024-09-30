@@ -14,12 +14,14 @@ import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.openai.input.*;
 import com.github.istin.dmtools.qa.TestCasesGeneratorParams;
+import freemarker.template.TemplateException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,7 +80,8 @@ public class JAssistant {
 
     public void generateCode(String role, TicketContext ticketContext) throws Exception {
         ITicket ticket = ticketContext.getTicket();
-        CodeGeneration codeGeneration = new CodeGeneration(trackerClient.getBasePath(), role, ticket);
+
+        CodeGeneration codeGeneration = new CodeGeneration(trackerClient.getBasePath(), role, ticketContext);
         codeGeneration.setExtraTickets(ticketContext.getExtraTickets());
         if (!IssueType.isBug(ticket.getIssueType())) {
             List<? extends ITicket> testCases = trackerClient.getTestCases(ticket);
@@ -118,7 +121,7 @@ public class JAssistant {
                 IFile file = result.get(0);
                 file.setFileContent(sourceCode.getFileContent(file.getSelfLink()));
 
-                TicketFilePrompt ticketFilePrompt = new TicketFilePrompt(trackerClient.getBasePath(), role, ticket, file);
+                TicketFilePrompt ticketFilePrompt = new TicketFilePrompt(trackerClient.getBasePath(), role, ticketContext, file);
                 ticketFilePrompt.setExtraTickets(ticketContext.getExtraTickets());
                 String request = promptManager.validatePotentiallyEffectedFile(ticketFilePrompt);
                 String isTheFileUsefull = openAIClient.chat(
@@ -171,11 +174,12 @@ public class JAssistant {
         }
     }
 
-    public void generateTestCases(ITicket ticket, List<ITicket> extraTickets, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
-        String key = ticket.getTicketKey();
+    public void generateTestCases(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
+        ITicket mainTicket = ticketContext.getTicket();
+        String key = mainTicket.getTicketKey();
 
         if (outputType.equals(TestCasesGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
-            String message = TrackerClient.Utils.checkCommentStartedWith(trackerClient, ticket.getKey(), ticket, TEST_CASES_COMMENT_PREFIX);
+            String message = TrackerClient.Utils.checkCommentStartedWith(trackerClient, mainTicket.getKey(), mainTicket, TEST_CASES_COMMENT_PREFIX);
             if (message != null) {
                 return;
             }
@@ -183,12 +187,11 @@ public class JAssistant {
 
         StringBuilder attachmentsDescription =
                 new StringBuilder();
-//         buildAttachmentsDescription(ticket);
+//         buildAttachmentsDescription(ticketContext);
 
         List<ITicket> finaResults = new ArrayList<>();
         for (ITicket testCase : listOfAllTestCases) {
-            SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(),  "", ticket, testCase);
-            similarStoriesPrompt.setExtraTickets(extraTickets);
+            SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(),  "", ticketContext, testCase);
             similarStoriesPrompt.setAttachmentsDescription(attachmentsDescription.toString());
 
             String chatRequest = promptManager.validateTestCaseRelatedToStory(similarStoriesPrompt);
@@ -197,12 +200,11 @@ public class JAssistant {
                     chatRequest);
             if (Boolean.parseBoolean(isRelatedToStory)) {
                 finaResults.add(testCase);
-                trackerClient.linkIssueWithRelationship(ticket.getTicketKey(), testCase.getKey(), Relationship.TESTS);
+                trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), testCase.getKey(), Relationship.TESTS);
             }
         }
 
-        QATestCasesPrompt qaTestCasesPrompt = new QATestCasesPrompt(trackerClient.getBasePath(), ticket, testCasesPriorities);
-        qaTestCasesPrompt.setExtraTickets(extraTickets);
+        QATestCasesPrompt qaTestCasesPrompt = new QATestCasesPrompt(trackerClient.getBasePath(), ticketContext, testCasesPriorities);
         qaTestCasesPrompt.setAttachmentsDescription(attachmentsDescription.toString());
         qaTestCasesPrompt.setTestCases(finaResults);
 
@@ -231,7 +233,7 @@ public class JAssistant {
                         fields.set("labels", new JSONArray().put("ai_generated"));
                     }
                 }));
-                trackerClient.linkIssueWithRelationship(ticket.getTicketKey(), createdTestCase.getKey(), Relationship.TESTS);
+                trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), Relationship.TESTS);
             }
         }
     }
@@ -254,70 +256,91 @@ public class JAssistant {
 
     public void generateNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO(String key) throws Exception {
         ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-        String aiRequest = promptManager.requestNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.requestNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext));
         String response = openAIClient.chat(aiRequest);
         response = openAIClient.chat(promptManager.convertToHTML(new InputPrompt(response)));
         trackerClient.postComment(key, "<p>JAI Generated Nice Looking Story In Gherkin Style And Potential Questions To PO: </p>" + response);
     }
 
     public String checkStoryIsTechnicalOrProduct(ITicket ticket) throws Exception {
-        String aiRequest = promptManager.checkTaskTechnicalOrProduct(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.checkTaskTechnicalOrProduct(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext));
         return openAIClient.chat(aiRequest);
     }
 
     public String chooseFeatureAreaForStory(ITicket ticket, String areas) throws Exception {
-        String aiRequest = promptManager.checkStoryAreas(new BAStoryAreaPrompt(trackerClient.getBasePath(), ticket, areas));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.checkStoryAreas(new BAStoryAreaPrompt(trackerClient.getBasePath(), ticketContext, areas));
         return openAIClient.chat(
                 aiRequest
         );
     }
 
     public String whatIsFeatureAreaOfStory(ITicket ticket) throws Exception {
-        String aiRequest = promptManager.whatIsFeatureAreaOfStory(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.whatIsFeatureAreaOfStory(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext));
         return openAIClient.chat(aiRequest);
     }
 
     public JSONArray whatIsFeatureAreasOfDataInput(ITicket ticket) throws Exception {
-        String aiRequest = promptManager.whatIsFeatureAreasOfDataInput(new TicketBasedPrompt(trackerClient.getBasePath(), ticket));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.whatIsFeatureAreasOfDataInput(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext));
         return new JSONArray(openAIClient.chat(aiRequest));
     }
 
     public String buildDetailedPageWithRequirementsForInputData(ITicket ticket, String existingContent) throws Exception {
-        String aiRequest = promptManager.buildDetailedPageWithRequirementsForInputData(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.buildDetailedPageWithRequirementsForInputData(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
     public String buildNiceLookingDocumentationForStory(ITicket ticket, String existingContent) throws Exception {
-        String aiRequest = promptManager.buildNiceLookingDocumentation(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.buildNiceLookingDocumentation(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
     public String buildProjectTimeline(ITicket ticket, String existingContent) throws Exception {
-        String aiRequest = promptManager.buildProjectTimelinePage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.buildProjectTimelinePage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
     public String buildTeamSetupAndLicenses(ITicket ticket, String existingContent) throws Exception {
-        String aiRequest = promptManager.buildTeamSetupAndLicensesPage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.buildTeamSetupAndLicensesPage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
     public String buildNiceLookingDocumentationForStoryWithTechnicalDetails(ITicket ticket, String existingContent) throws Exception {
-        String aiRequest = promptManager.buildNiceLookingDocumentationWithTechnicalDetails(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticket, existingContent));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String aiRequest = promptManager.buildNiceLookingDocumentationWithTechnicalDetails(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
     public Double estimateStory(String role, String key, List<? extends ITicket> existingStories, boolean isCheckDetailsOfStory) throws Exception {
         ITicket ticket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-        List<ITicket> finalResults = checkSimilarTickets(role, existingStories, isCheckDetailsOfStory, ticket, new ArrayList<>());
-        String finalAiRequest = promptManager.estimateStory(new SimilarStoriesPrompt(trackerClient.getBasePath(), ticket, finalResults));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        List<ITicket> finalResults = checkSimilarTickets(role, existingStories, isCheckDetailsOfStory, ticketContext);
+        String finalAiRequest = promptManager.estimateStory(new SimilarStoriesPrompt(trackerClient.getBasePath(), ticketContext, finalResults));
         String finalEstimations = openAIClient.chat(finalAiRequest);
         return findFirstNumberInTheString(finalEstimations);
     }
 
-    public @NotNull List<ITicket> checkSimilarTickets(String role, List<? extends ITicket> existingTickets, boolean isCheckDetailsOfStory, ITicket ticket, List<ITicket> extraTickets) throws Exception {
-        SimilarStoriesPrompt similarStoriesHighlevel = new SimilarStoriesPrompt(trackerClient.getBasePath(), ticket, existingTickets);
-        similarStoriesHighlevel.setExtraTickets(extraTickets);
+    public @NotNull List<ITicket> checkSimilarTickets(String role, List<? extends ITicket> existingTickets, boolean isCheckDetailsOfStory, TicketContext ticketContext) throws Exception {
+        SimilarStoriesPrompt similarStoriesHighlevel = new SimilarStoriesPrompt(trackerClient.getBasePath(), ticketContext, existingTickets);
         String aiRequest = promptManager.checkSimilarTickets(similarStoriesHighlevel);
         String response = openAIClient.chat(aiRequest);
         JSONArray array = new JSONArray(response);
@@ -326,7 +349,7 @@ public class JAssistant {
             String similarKey = array.getString(i);
             ITicket similarTicket = trackerClient.performTicket(similarKey, trackerClient.getExtendedQueryFields());
             if (isCheckDetailsOfStory) {
-                SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(), role, ticket, similarTicket);
+                SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(), role, ticketContext, similarTicket);
                 String chatRequest = promptManager.validateSimilarStory(similarStoriesPrompt);
                 String isSimilarStory = openAIClient.chat(
                     "gpt-35-turbo",
@@ -372,7 +395,9 @@ public class JAssistant {
         }
 
         ITicket ticket = trackerClient.performTicket(keys.get(0), trackerClient.getExtendedQueryFields());
-        PullRequestReview input = new PullRequestReview(trackerClient.getBasePath(), role, ticket);
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        PullRequestReview input = new PullRequestReview(trackerClient.getBasePath(), role, ticketContext);
         input.setTicket(ticket);
 
         if (!IssueType.isBug(ticket.getIssueType())) {
@@ -423,8 +448,9 @@ public class JAssistant {
         if (isTicketWasIdentified(prefix, ticket, LABEL_REQUIREMENTS)) {
             return;
         }
-
-        String prompt = String.valueOf(promptManager.isContentRelatedToRequirements(new TicketBasedPrompt("", ticket)));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+        String prompt = String.valueOf(promptManager.isContentRelatedToRequirements(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext)));
         Boolean isRequirements = Boolean.parseBoolean(openAIClient.chat(prompt));
         if (isRequirements) {
             trackerClient.addLabelIfNotExists(ticket, prefix + "_" + LABEL_REQUIREMENTS);
@@ -442,7 +468,10 @@ public class JAssistant {
             return;
         }
 
-        String prompt = String.valueOf(promptManager.isContentRelatedToTimeline(new TicketBasedPrompt("", ticket)));
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
+
+        String prompt = String.valueOf(promptManager.isContentRelatedToTimeline(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext)));
         Boolean isTimeline = Boolean.parseBoolean(openAIClient.chat(prompt));
         if (isTimeline) {
             trackerClient.addLabelIfNotExists(ticket, prefix + "_" + LABEL_TIMELINE);
@@ -455,8 +484,10 @@ public class JAssistant {
         if (isTicketWasIdentified(prefix, ticket, LABEL_TEAM_SETUP)) {
             return;
         }
+        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+        ticketContext.prepareContext();
 
-        String prompt = String.valueOf(promptManager.isContentRelatedToTeamSetup(new TicketBasedPrompt("", ticket)));
+        String prompt = String.valueOf(promptManager.isContentRelatedToTeamSetup(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext)));
         Boolean isTeamSetup = Boolean.parseBoolean(openAIClient.chat(prompt));
         if (isTeamSetup) {
             trackerClient.addLabelIfNotExists(ticket, prefix + "_" + LABEL_TEAM_SETUP);
@@ -470,20 +501,20 @@ public class JAssistant {
         return openAIClient.chat("gpt-4-vision-preview", prompt, pageSnapshot);
     }
 
-    public String createSolutionForTicket(TrackerClient trackerClient, String roleSpecific, String projectSpecific, ITicket ticket, List<ITicket> extraTickets) throws Exception {
-        String prompt = promptManager.saCreateSolutionForTicket(new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets));
+    public String createSolutionForTicket(TrackerClient trackerClient, String roleSpecific, String projectSpecific, TicketContext ticketContext) throws Exception {
+        String prompt = promptManager.saCreateSolutionForTicket(new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticketContext));
         return openAIClient.chat(prompt);
     }
 
-    public String buildJQLForContent(TrackerClient trackerClient, String roleSpecific, String projectSpecific, ITicket ticket, List<ITicket> extraTickets) throws Exception {
-        String requestToCreateJQL = promptManager.baBuildJqlForRequirementsSearching(new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets));
+    public String buildJQLForContent(TrackerClient trackerClient, String roleSpecific, String projectSpecific, TicketContext ticketContext) throws Exception {
+        String requestToCreateJQL = promptManager.baBuildJqlForRequirementsSearching(new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticketContext));
         String jqlToSearch = openAIClient.chat(requestToCreateJQL);
         logger.info(jqlToSearch);
         return jqlToSearch;
     }
 
-    public boolean baIsTicketRelatedToContent(TrackerClient trackerClient, String roleSpecific, String projectSpecific, ITicket ticket, List<ITicket> extraTickets, ITicket content) throws Exception {
-        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets);
+    public boolean baIsTicketRelatedToContent(TrackerClient trackerClient, String roleSpecific, String projectSpecific, TicketContext ticketContext, ITicket content) throws Exception {
+        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticketContext);
         multiTicketsPrompt.setContent(content);
         String prompt = promptManager.baIsTicketRelatedToContent(multiTicketsPrompt);
         String response = openAIClient.chat("gpt-4o-2024-05-13", prompt);
@@ -491,15 +522,15 @@ public class JAssistant {
         return Boolean.parseBoolean(response);
     }
 
-    public String buildPageWithRequirementsForInputData(ITicket ticket, List<ITicket> extraTickets, String roleSpecific, String projectSpecific, String existingContent, ITicket content) throws Exception {
-        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets, existingContent);
+    public String buildPageWithRequirementsForInputData(TicketContext ticketContext, String roleSpecific, String projectSpecific, String existingContent, ITicket content) throws Exception {
+        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticketContext, existingContent);
         multiTicketsPrompt.setContent(content);
         String aiRequest = promptManager.baCollectRequirementsForTicket(multiTicketsPrompt);
         return openAIClient.chat(aiRequest);
     }
 
-    public List<Diagram> createDiagrams(ITicket ticket, List<ITicket> extraTickets, String roleSpecific, String projectSpecific) throws Exception {
-        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticket, extraTickets);
+    public List<Diagram> createDiagrams(TicketContext ticketContext, String roleSpecific, String projectSpecific) throws Exception {
+        MultiTicketsPrompt multiTicketsPrompt = new MultiTicketsPrompt(trackerClient.getBasePath(), roleSpecific, projectSpecific, ticketContext);
         String aiRequest = promptManager.createDiagrams(multiTicketsPrompt);
         String chatResponse = openAIClient.chat("gpt-4o-2024-05-13", aiRequest);
         return JSONModel.convertToModels(Diagram.class, new JSONArray(chatResponse));
@@ -508,5 +539,18 @@ public class JAssistant {
     public String makeDailyScrumReportOfUserWork(String userName, List<com.github.istin.dmtools.sm.Change> changeList) throws Exception {
         String aiRequest = promptManager.makeDailyScrumReportOfUserWork(new ScrumDailyPrompt(userName, changeList));
         return openAIClient.chat(aiRequest);
+    }
+
+    public String makeResponseOnRequest(TicketContext ticketContext, String projectContext, String request) throws Exception {
+        ITicket ticket = ticketContext.getTicket();
+        List<IComment> comments = (List<IComment>) trackerClient.getComments(ticket.getKey(), ticket);
+        ExpertPrompt scrumDailyPrompt = new ExpertPrompt(trackerClient.getBasePath(), ticketContext, projectContext, request);
+        scrumDailyPrompt.setComments(comments);
+        String aiRequest = promptManager.askExpert(scrumDailyPrompt);
+        String chatResponse = openAIClient.chat(aiRequest);
+        if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+            chatResponse = StringUtils.convertToMarkdown(chatResponse);
+        }
+        return chatResponse;
     }
 }
