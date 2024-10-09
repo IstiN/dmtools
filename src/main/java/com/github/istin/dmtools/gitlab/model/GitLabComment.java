@@ -35,7 +35,6 @@ public class GitLabComment extends JSONModel implements IComment {
 
     /**
      * DiffNote - comment and task
-     * @return
      */
     public String getType() {
         return getString("type");
