@@ -18,7 +18,7 @@ public class WeeksReleaseGenerator implements IReleaseGenerator {
     /**
      *
      * @param startDateAsString "dd.MM.yyyy"
-     * @throws IOException
+     * @throws IOException connection errors
      */
     public WeeksReleaseGenerator(String startDateAsString) throws IOException {
         this.startDateAsString = startDateAsString;
