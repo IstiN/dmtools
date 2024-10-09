@@ -41,7 +41,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
             generateTestCases(confluenceRootPage, eachPagePrefix, ticketContext, jAssistant, conversationObserver, confluence, listOfAllTestCases, outputType, testCasesPriorities);
             trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", similar test cases are linked and new test cases are generated.");
             return false;
-        }, storiesJQL, trackerClient.getDefaultQueryFields());
+        }, storiesJQL, trackerClient.getExtendedQueryFields());
     }
 
     public static void generateTestCases(String confluenceRootPage, String eachPagePrefix, TicketContext ticketContext, JAssistant jAssistant, ConversationObserver conversationObserver, BasicConfluence confluence, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {

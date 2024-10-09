@@ -88,7 +88,7 @@ public class ProductivityTools {
                     return false;
                 }
 
-            }, jql, tracker.getExtendedQueryFields());
+            }, jql, tracker.getDefaultQueryFields());
 
         }
         for (Metric m : listOfCustomMetrics) {
