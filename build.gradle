@@ -10,6 +10,7 @@ version = "${version}"
 
 repositories {
     mavenCentral()
+    maven { url 'https://jitpack.io' }
 }
 
 compileJava {
@@ -66,6 +67,9 @@ dependencies {
     // https://mvnrepository.com/artifact/org.graalvm.js/js
     api group: 'org.graalvm.js', name: 'js', version: '22.0.0'
     api group: 'org.graalvm.js', name: 'js-scriptengine', version: '22.0.0'
+
+    // https://mvnrepository.com/artifact/com.github.mpkorstanje/simmetrics
+    api 'com.github.mpkorstanje:simmetrics-core:4.1.1'
 
 }
 

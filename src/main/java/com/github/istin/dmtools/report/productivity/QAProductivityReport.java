@@ -97,7 +97,11 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
                 if (ProductivityUtils.isIgnoreTask(qaProductivityReportParams.getIgnoreTicketPrefixes(), ticket)) return null;
                 List<KeyTime> keyTimes = super.check(jiraClient, ticket);
                 if (keyTimes != null && !keyTimes.isEmpty()) {
-                    if (!ChangelogAssessment.isFirstTimeRight(jiraClient, ticket.getTicketKey(), ticket, qaProductivityReportParams.getStatusesInDevelopment(), qaProductivityReportParams.getStatusesInTesting())) {
+                    boolean isFirstTimeRight = !ChangelogAssessment.isFirstTimeRight(jiraClient, ticket.getTicketKey(), ticket, qaProductivityReportParams.getStatusesInDevelopment(), qaProductivityReportParams.getStatusesInTesting());
+                    if (isFirstTimeRight) {
+                        keyTimes = keyTimes.subList(0, 1);
+                        KeyTime keyTime = keyTimes.get(0);
+                        keyTime.setWho(findResponsibleQA(qaProductivityReportParams, jiraClient, ticket, qaProductivityReportParams.getStatusesInTesting(), qaProductivityReportParams.getStatusesDone()));
                         return keyTimes;
                     } else {
                         return null;

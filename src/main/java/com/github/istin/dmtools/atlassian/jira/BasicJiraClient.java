@@ -5,7 +5,6 @@ import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.PropertyReader;
-import org.apache.commons.collections.ArrayStack;
 
 import java.io.IOException;
 import java.util.ArrayList;

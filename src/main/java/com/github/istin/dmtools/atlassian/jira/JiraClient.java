@@ -199,8 +199,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return (T) ticket;
     }
 
-    protected Class<T> getTicketClass() {
-        return (Class<T>) Ticket.class;
+    protected Class<? extends Ticket> getTicketClass() {
+        return Ticket.class;
     }
 
 
@@ -469,7 +469,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     public List<? extends ReportIteration> getFixVersions(final String project) throws IOException {
         GenericRequest genericRequest = new GenericRequest(this, path("project/" + project + "/versions"));
-        genericRequest.setIgnoreCache(true);
+        //genericRequest.setIgnoreCache(true);
         return JSONModel.convertToModels(FixVersion.class, new JSONArray(genericRequest.execute()));
     }
 
@@ -900,8 +900,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             Long prevTime = timeMeasurement.get(url);
             long time = System.currentTimeMillis() - 200 - prevTime;
             log(time + " " + url);
-            client.connectionPool().evictAll();
+            closeAllConnections();
         }
+    }
+
+    private void closeAllConnections() {
+        //client.connectionPool().evictAll();
     }
 
     public String getCacheFolderName() {
@@ -947,7 +951,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 return responseBodyAsString;
             }
         } finally {
-            client.connectionPool().evictAll();
+            closeAllConnections();
         }
     }
 
@@ -975,7 +979,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 return response.body() != null ? response.body().string() : null;
             }
         } finally {
-            client.connectionPool().evictAll();
+            closeAllConnections();
         }
     }
 
@@ -1003,7 +1007,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 return response.body() != null ? response.body().string() : null;
             }
         } finally {
-            client.connectionPool().evictAll();
+            closeAllConnections();
         }
     }
 
@@ -1030,7 +1034,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         ).execute()) {
             return response.body() != null ? response.body().string() : null;
         } finally {
-            client.connectionPool().evictAll();
+            closeAllConnections();
         }
     }
 
