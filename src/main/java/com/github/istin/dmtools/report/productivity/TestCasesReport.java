@@ -31,19 +31,24 @@ public class TestCasesReport extends AbstractJob<TestCasesReportParams> {
         summaryChanged(qaProductivityReportParams, listOfCustomMetrics);
         descriptionChanged(qaProductivityReportParams, listOfCustomMetrics);
         priorityChanged(qaProductivityReportParams, listOfCustomMetrics);
+        ticketLinksChanged(qaProductivityReportParams, listOfCustomMetrics);
         return listOfCustomMetrics;
     }
 
     protected void summaryChanged(TestCasesReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
-        listOfCustomMetrics.add(new Metric("Ticket Summary Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()), new String[]{"summary"}, true)));
+        listOfCustomMetrics.add(new Metric("Ticket Summary Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()), new String[]{"summary"}, true, false)));
     }
 
     protected void descriptionChanged(TestCasesReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
-        listOfCustomMetrics.add(new Metric("Ticket Description Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()), new String[]{"description"}, true)));
+        listOfCustomMetrics.add(new Metric("Ticket Description Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()), new String[]{"description"}, true, false)));
     }
 
     protected void priorityChanged(TestCasesReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
-        listOfCustomMetrics.add(new Metric("Ticket Priority Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()), new String[]{"priority"}, false)));
+        listOfCustomMetrics.add(new Metric("Ticket Priority Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()), new String[]{"priority"}, false, false)));
+    }
+
+    protected void ticketLinksChanged(TestCasesReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
+        listOfCustomMetrics.add(new Metric("Ticket Links Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()), new String[]{"link"}, false, true)));
     }
 
 

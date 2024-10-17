@@ -1,5 +1,7 @@
 package com.github.istin.dmtools.metrics.rules;
 
+import com.github.istin.dmtools.atlassian.jira.model.Ticket;
+import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.metrics.TrackerRule;
@@ -16,43 +18,59 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
     private final Employees employees;
     private final String[] filterFields;
     private boolean isSimilarity = false;
+    private boolean isCollectionIfByCreator = false;
 
     public TicketFieldsChangesRule(Employees employees) {
-        this(employees, null, false);
+        this(employees, null, false, false);
     }
 
-    public TicketFieldsChangesRule(Employees employees, String[] filterFields, boolean isSimilarity) {
+    public TicketFieldsChangesRule(Employees employees, String[] filterFields, boolean isSimilarity, boolean isCollectionIfByCreator) {
         this.employees = employees;
         this.filterFields = filterFields;
         this.isSimilarity = isSimilarity;
+        this.isCollectionIfByCreator = isCollectionIfByCreator;
     }
 
     public TicketFieldsChangesRule(String customName, Employees employees) {
-        this(customName, employees, null, false);
+        this(customName, employees, null, false, false);
     }
 
-    public TicketFieldsChangesRule(String customName, Employees employees, String[] filterFields, boolean isSimilarity) {
+    public TicketFieldsChangesRule(String customName, Employees employees, String[] filterFields, boolean isSimilarity, boolean isCollectionIfByCreator) {
         this.customName = customName;
         this.employees = employees;
         this.filterFields = filterFields;
         this.isSimilarity = isSimilarity;
+        this.isCollectionIfByCreator = isCollectionIfByCreator;
     }
 
     @Override
     public List<KeyTime> check(TrackerClient trackerClient, ITicket ticket) throws Exception {
         IChangelog changeLog = trackerClient.getChangeLog(ticket.getKey(), ticket);
+        String who = ChangelogAssessment.whoReportedTheTicket((Ticket) ticket, employees);
+
         List<IHistory> histories = (List<IHistory>) changeLog.getHistories();
         String lastAssignee = null;
         List<KeyTime> result = new ArrayList<>();
         for (IHistory history : histories) {
             IUser author = history.getAuthor();
             if (author != null && employees.contains(author.getFullName())) {
+                String authorName = employees.transformName(author.getFullName());
+                if (isCollectionIfByCreator) {
+                    if (!authorName.equalsIgnoreCase(who)) {
+                        continue;
+                    }
+                } else {
+                    if (authorName.equalsIgnoreCase(who)) {
+                        continue;
+                    }
+                }
                 List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
                 for (IHistoryItem historyItem : items) {
-                    double weight = 0.03;
+                    double weight = 1;
                     if (filterFields != null) {
                         boolean found = false;
                         String field = historyItem.getField();
+                        //System.out.println("Fields: " + field);
                         for (String fieldToMap : filterFields) {
                             if (fieldToMap.equalsIgnoreCase(field)) {
                                 found = true;
@@ -65,13 +83,22 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
                         if (isSimilarity) {
                             StringMetric metric = StringMetrics.levenshtein();
                             float similarityResult = metric.compare(historyItem.getFromAsString(), historyItem.getToAsString());
-                            System.out.println("Similarity Before: " + historyItem.getFromAsString());
-                            System.out.println("Similarity After: " + historyItem.getToAsString());
-                            System.out.println("Similarity: " + similarityResult);
+                            //System.out.println("Similarity Before: " + historyItem.getFromAsString());
+                            //System.out.println("Similarity After: " + historyItem.getToAsString());
+                            if (similarityResult > 0) {
+//                                if (field.equalsIgnoreCase("description")) {
+//                                    System.out.println("Similarity Description: " + similarityResult);
+//                                }
+                                if (field.equalsIgnoreCase("summary")) {
+                                    System.out.println("Similarity Summary: " + similarityResult);
+                                }
+                            } else {
+                                continue;
+                            }
                             weight = 1-similarityResult;
                         }
                     }
-                    KeyTime keyTime = new KeyTime(ticket.getKey(), history.getCreated(), employees.transformName(author.getFullName()));
+                    KeyTime keyTime = new KeyTime(ticket.getKey(), history.getCreated(), authorName);
                     keyTime.setWeight(weight);
                     result.add(keyTime);
                 }

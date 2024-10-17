@@ -25,11 +25,6 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
         V2
     }
 
-    public static class PullRequestState {
-        public static String STATE_MERGED = "merged";
-        public static String STATE_OPEN = "open";
-    }
-
     private ApiVersion apiVersion = ApiVersion.V1;
 
     private int defaultLimit = 50;
@@ -620,5 +615,9 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public String getPullRequestUrl(String workspace, String repository, String id) {
+        return getBasePath().replaceAll("api.", "") + "/" + workspace + "/" + repository + "/pull-requests/" + id;
+    }
 }
 

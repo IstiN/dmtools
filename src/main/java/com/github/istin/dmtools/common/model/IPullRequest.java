@@ -66,4 +66,9 @@ public interface IPullRequest {
             return instance;
         }
     }
+
+    class PullRequestState {
+        public static String STATE_MERGED = "merged";
+        public static String STATE_OPEN = "open";
+    }
 }

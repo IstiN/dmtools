@@ -69,6 +69,8 @@ public interface SourceCode {
 
     String getBasePath();
 
+    String getPullRequestUrl(String workspace, String repository, String id);
+
     class Impl {
 
         public static List<SourceCode> getConfiguredSourceCodes(JSONArray sources) throws IOException {

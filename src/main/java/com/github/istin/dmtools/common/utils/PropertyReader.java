@@ -141,23 +141,23 @@ public class PropertyReader {
 	}
 
 	public String getGithubToken() {
-		return getValue("GITHUB_TOKEN");
+		return getValue("SOURCE_GITHUB_TOKEN");
 	}
 
 	public String getGithubWorkspace() {
-		return getValue("GITHUB_WORKSPACE");
+		return getValue("SOURCE_GITHUB_WORKSPACE");
 	}
 
 	public String getGithubRepository() {
-		return getValue("GITHUB_REPOSITORY");
+		return getValue("SOURCE_GITHUB_REPOSITORY");
 	}
 
 	public String getGithubBranch() {
-		return getValue("GITHUB_BRANCH");
+		return getValue("SOURCE_GITHUB_BRANCH");
 	}
 
 	public String getGithubBasePath() {
-		return getValue("GITHUB_BASE_PATH");
+		return getValue("SOURCE_GITHUB_BASE_PATH");
 	}
 
 	public String getGitLabToken() {

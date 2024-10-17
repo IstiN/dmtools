@@ -1,6 +1,5 @@
 package com.github.istin.dmtools.metrics.source;
 
-import com.github.istin.dmtools.atlassian.bitbucket.Bitbucket;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.IDiffStats;
 import com.github.istin.dmtools.common.model.IPullRequest;
@@ -26,7 +25,7 @@ public class PullRequestsChangesMetricSource extends CommonSourceCollector {
     @Override
     public List<KeyTime> performSourceCollection(boolean isPersonalized, String metricName) throws Exception {
         List<KeyTime> data = new ArrayList<>();
-        List<IPullRequest> pullRequests = sourceCode.pullRequests(workspace, repo, Bitbucket.PullRequestState.STATE_MERGED, true);
+        List<IPullRequest> pullRequests = sourceCode.pullRequests(workspace, repo, IPullRequest.PullRequestState.STATE_MERGED, true);
         for (IPullRequest pullRequest : pullRequests) {
             String displayName = transformName(pullRequest.getAuthor().getFullName());
             if (!isTeamContainsTheName(displayName)) {

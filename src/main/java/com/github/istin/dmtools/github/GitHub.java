@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public abstract class GitHub extends AbstractRestClient implements SourceCode {
     private static final Logger logger = LogManager.getLogger(GitHub.class);
@@ -46,8 +47,11 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
 
     @Override
     public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
-        if (state.equalsIgnoreCase("merged")) {
+        boolean isMerged = state.equalsIgnoreCase(IPullRequest.PullRequestState.STATE_MERGED);
+        if (isMerged) {
             state = "closed";
+        } else if (state.equalsIgnoreCase(IPullRequest.PullRequestState.STATE_OPEN)) {
+            state = "open";
         }
         List<IPullRequest> allPullRequests = new ArrayList<>();
         int perPage = 100; // Maximum allowed by GitHub
@@ -63,7 +67,12 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
                 break;
             }
 
-            List<IPullRequest> pullRequests = JSONModel.convertToModels(GitHubPullRequest.class, new JSONArray(response));
+            List<GitHubPullRequest> pullRequests = JSONModel.convertToModels(GitHubPullRequest.class, new JSONArray(response));
+            if (isMerged) {
+                pullRequests = pullRequests.stream()
+                        .filter(GitHubPullRequest::isMerged)
+                        .collect(Collectors.toList());
+            }
             allPullRequests.addAll(pullRequests);
 
             if (!checkAllRequests || pullRequests.size() < perPage) {
@@ -377,5 +386,10 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     @Override
     public String getDefaultWorkspace() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getPullRequestUrl(String workspace, String repository, String id) {
+        return getBasePath().replaceAll("api.", "") + "/" + workspace + "/" + repository + "/pull/" + id;
     }
 }
