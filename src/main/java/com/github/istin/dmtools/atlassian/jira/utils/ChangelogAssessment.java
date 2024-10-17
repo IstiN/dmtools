@@ -150,6 +150,27 @@ public class ChangelogAssessment {
         return lastAssignee;
     }
 
+    public static String whoReportedTheTicket(Ticket ticket, Employees employees) {
+        String who = null;
+        Assignee creator = ticket.getFields().getCreator();
+        Assignee reporter = ticket.getFields().getReporter();
+        if (employees != null) {
+            String creatorDisplayName = creator.getDisplayName();
+            if (employees.contains(creatorDisplayName)) {
+                who = creatorDisplayName;
+            } else if (reporter != null) {
+                String reporterDisplayName = reporter.getDisplayName();
+                if (employees.contains(reporterDisplayName)) {
+                    who = reporterDisplayName;
+                }
+            }
+        }
+        if (who == null && employees != null) {
+            who = Employees.UNKNOWN;
+        }
+        return who;
+    }
+
     public static Pair<String, IHistoryItem> findLastAssigneeForStatus(TrackerClient trackerClient, String key, ITicket ticket, IEmployees teamToFilter, String... targetStatuses) throws IOException {
         IChangelog changeLog = trackerClient.getChangeLog(key, ticket);
         List<IHistory> histories = (List<IHistory>) changeLog.getHistories();

@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.metrics.rules;
 
-import com.github.istin.dmtools.atlassian.common.model.Assignee;
+import com.github.istin.dmtools.atlassian.jira.model.Ticket;
+import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.metrics.TrackerRule;
@@ -38,23 +39,7 @@ public class TicketCreatorsRule implements TrackerRule<ITicket> {
         Date created = ticket.getFields().getCreated();
         Calendar instance = Calendar.getInstance();
         instance.setTime(created);
-        String who = null;
-        Assignee creator = ticket.getFields().getCreator();
-        Assignee reporter = ticket.getFields().getReporter();
-        if (employees != null) {
-            String creatorDisplayName = creator.getDisplayName();
-            if (employees.contains(creatorDisplayName)) {
-                who = creatorDisplayName;
-            } else if (reporter != null) {
-                String reporterDisplayName = reporter.getDisplayName();
-                if (employees.contains(reporterDisplayName)) {
-                    who = reporterDisplayName;
-                }
-            }
-        }
-        if (who == null && employees != null) {
-            who = Employees.UNKNOWN;
-        }
+        String who = ChangelogAssessment.whoReportedTheTicket((Ticket) ticket, employees);
         return Arrays.asList(new KeyTime(ticket.getKey(), instance, customName == null ? (employees != null ? employees.transformName(who) : who) : customName) );
     }
 

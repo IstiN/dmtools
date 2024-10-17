@@ -429,4 +429,9 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         GenericRequest postRequest = new GenericRequest(this, path);
         return post(postRequest);
     }
+
+    @Override
+    public String getPullRequestUrl(String workspace, String repository, String id) {
+        return getBasePath().replaceAll("api.", "") + "/" + workspace + "/" + repository + "/-/merge_requests/" + id;
+    }
 }

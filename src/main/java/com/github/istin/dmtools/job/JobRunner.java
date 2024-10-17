@@ -12,6 +12,7 @@ import com.github.istin.dmtools.qa.TestCasesGenerator;
 import com.github.istin.dmtools.report.productivity.DevProductivityReport;
 import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
 import com.github.istin.dmtools.sm.ScrumMasterDaily;
+import com.github.istin.dmtools.sync.SourceCodeTrackerSyncJob;
 
 import java.util.Arrays;
 import java.util.Base64;
@@ -30,7 +31,8 @@ public class JobRunner {
             new CodeGenerator(),
             new DevProductivityReport(),
             new ScrumMasterDaily(),
-            new Expert()
+            new Expert(),
+            new SourceCodeTrackerSyncJob()
     );
 
     public static void main(String[] args) throws Exception {

@@ -66,4 +66,7 @@ public class GitHubPullRequest extends JSONModel implements IPullRequest {
         return DateUtils.parseIsoDate(getString("updated_at")).getTime();
     }
 
+    public boolean isMerged() {
+        return getString("merged_at") != null;
+    }
 }
