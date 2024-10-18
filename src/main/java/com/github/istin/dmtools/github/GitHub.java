@@ -175,6 +175,12 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
 
     @Override
     public String renamePullRequest(String workspace, String repository, IPullRequest pullRequest, String newTitle) throws IOException {
+        String updatedTitleIfWip = IPullRequest.Utils.upgradeTitleIfWip(pullRequest, newTitle);
+
+        if (pullRequest.getTitle().equalsIgnoreCase(updatedTitleIfWip)) {
+            return "";
+        }
+
         String path = path(String.format("repos/%s/%s/pulls/%s", workspace, repository, pullRequest.getId()));
         GenericRequest patchRequest = new GenericRequest(this, path);
         JSONObject jsonObject = new JSONObject();
