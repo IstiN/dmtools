@@ -39,8 +39,10 @@ public class BasicJiraClient extends JiraClient<Ticket> {
             Fields.REPORTER,
             Fields.COMPONENTS,
             Fields.ISSUETYPE,
+            Fields.FIXVERSIONS,
             Fields.STORY_POINTS,
             Fields.LABELS,
+            Fields.PRIORITY,
             Fields.PARENT
     };
     public static final String[] EXTENDED_QUERY_FIELDS = {
