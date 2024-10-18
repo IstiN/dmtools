@@ -369,26 +369,21 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
 
     @Override
     public String renamePullRequest(String workspace, String repository, IPullRequest pullRequest, String newTitle) throws IOException {
-        String updateTitleIfWip = (IPullRequest.Utils.isWIP(pullRequest) ? upgradeTitleToWIP(newTitle) : newTitle).trim();
+        String updatedTitleIfWip = IPullRequest.Utils.upgradeTitleIfWip(pullRequest, newTitle);
 
-        if (pullRequest.getTitle().equalsIgnoreCase(updateTitleIfWip)) {
+        if (pullRequest.getTitle().equalsIgnoreCase(updatedTitleIfWip)) {
             return "";
         }
 
         GenericRequest putRequest = new GenericRequest(this, path(buildPullRequestPath(workspace, repository, String.valueOf(pullRequest.getId()))));
         JSONObject jsonObject = new JSONObject();
 
-        jsonObject.put("title", updateTitleIfWip);
+        jsonObject.put("title", updatedTitleIfWip);
 //        jsonObject.put("version", pullRequest.getVersion());
 //        jsonObject.put("reviewers", pullRequest.getJSONObject().optJSONArray("reviewers"));
         putRequest.setBody(jsonObject.toString());
         return put(putRequest);
     }
-
-    private String upgradeTitleToWIP(String newTitle) {
-        return newTitle.startsWith("[WIP]") ? newTitle : "[WIP]"+ newTitle;
-    }
-
 
     @Override
     public List<ITag> getTags(String workspace, String repository) throws IOException {

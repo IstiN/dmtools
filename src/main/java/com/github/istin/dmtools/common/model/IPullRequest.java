@@ -25,8 +25,17 @@ public interface IPullRequest {
     Long getUpdatedDate();
 
     class Utils {
+
+        public static String upgradeTitleIfWip(IPullRequest pullRequest, String newTitle) {
+            return (IPullRequest.Utils.isWIP(pullRequest) ? IPullRequest.Utils.upgradeTitleToWIP(newTitle) : newTitle).trim();
+        }
+
         public static boolean isWIP(IPullRequest pullRequest) {
             return pullRequest.getTitle().toLowerCase().contains("[wip]");
+        }
+
+        public static String upgradeTitleToWIP(String newTitle) {
+            return newTitle.startsWith("[WIP]") ? newTitle : "[WIP]"+ newTitle;
         }
 
         public static Calendar getCreatedDateAsCalendar(IPullRequest pullRequest) {
