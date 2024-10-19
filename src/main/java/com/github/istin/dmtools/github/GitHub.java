@@ -184,7 +184,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
         String path = path(String.format("repos/%s/%s/pulls/%s", workspace, repository, pullRequest.getId()));
         GenericRequest patchRequest = new GenericRequest(this, path);
         JSONObject jsonObject = new JSONObject();
-        jsonObject.put("title", newTitle);
+        jsonObject.put("title", updatedTitleIfWip);
         patchRequest.setBody(jsonObject.toString());
         return patch(patchRequest);
     }
