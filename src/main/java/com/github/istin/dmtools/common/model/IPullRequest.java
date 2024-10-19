@@ -35,7 +35,7 @@ public interface IPullRequest {
         }
 
         public static String upgradeTitleToWIP(String newTitle) {
-            return newTitle.startsWith("[WIP]") ? newTitle : "[WIP]"+ newTitle;
+            return newTitle.startsWith("[WIP]") ? newTitle : "[WIP] "+ newTitle.trim();
         }
 
         public static Calendar getCreatedDateAsCalendar(IPullRequest pullRequest) {
