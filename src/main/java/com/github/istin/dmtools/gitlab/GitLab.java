@@ -103,6 +103,11 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
     }
 
     @Override
+    public void addPullRequestLabel(String workspace, String repository, String pullRequestId, String label) throws IOException {
+        throw new UnsupportedOperationException("implement me");
+    }
+
+    @Override
     public List<IActivity> pullRequestActivities(String workspace, String repository, String pullRequestId) throws IOException {
         List<IComment> pullRequestNotes = getPullRequestNotes(workspace, repository, pullRequestId);
         return pullRequestNotes.stream()
