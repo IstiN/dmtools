@@ -5,11 +5,9 @@ import org.json.JSONObject;
 
 public class QAProductivityReportParams extends ProductivityJobParams {
 
-    public static String REPORT_NAME = "report_name";
-    public static String IS_WEIGHT = "is_weight";
-    public static final String START_DATE = "start_date";
     public static final String BUGS_PROJECT_CODE = "bugs_project_code";
     public static final String TEST_CASES_PROJECT_CODE = "test_cases_project_code";
+
     public static String STATUSES_DONE = "statuses_done";
 
     public static String STATUSES_IN_TESTING = "statuses_in_testing";
@@ -26,14 +24,6 @@ public class QAProductivityReportParams extends ProductivityJobParams {
         super(json);
     }
 
-    public String getReportName() {
-        return getString(REPORT_NAME);
-    }
-
-    public String getStartDate() {
-        return getString(START_DATE);
-    }
-
     public String getBugsProjectCode() {
         return getString(BUGS_PROJECT_CODE);
     }
@@ -44,10 +34,6 @@ public class QAProductivityReportParams extends ProductivityJobParams {
 
     public String[] getStatusesDone() {
         return getStringArray(STATUSES_DONE);
-    }
-
-    public Boolean isWeight() {
-        return getBoolean(IS_WEIGHT);
     }
 
     public String[] getStatusesInTesting() {

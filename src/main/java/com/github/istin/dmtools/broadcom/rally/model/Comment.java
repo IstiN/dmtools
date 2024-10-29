@@ -6,6 +6,8 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Date;
+
 public class Comment extends JSONModel implements IComment {
 
     public Comment() {
@@ -32,6 +34,11 @@ public class Comment extends JSONModel implements IComment {
     @Override
     public String getId() {
         return getString("ObjectUUID");
+    }
+
+    @Override
+    public Date getCreated() {
+        throw new UnsupportedOperationException();
     }
 
     public String getRef() {

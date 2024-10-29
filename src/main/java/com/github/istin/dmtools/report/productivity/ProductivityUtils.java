@@ -5,6 +5,8 @@ import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.figma.FigmaClient;
+import com.github.istin.dmtools.metrics.FigmaCommentMetric;
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.metrics.VacationMetric;
 import com.github.istin.dmtools.team.Employees;
@@ -18,6 +20,11 @@ public class ProductivityUtils {
 
     static List<Metric> vacationDays(List<Metric> listOfCustomMetrics, Employees employees) {
         listOfCustomMetrics.add(new VacationMetric(true, true, employees));
+        return listOfCustomMetrics;
+    }
+
+    static List<Metric> figmaComments(List<Metric> listOfCustomMetrics, Employees employees, FigmaClient figmaClient, String... files) {
+        listOfCustomMetrics.add(new FigmaCommentMetric(true, employees, figmaClient, files));
         return listOfCustomMetrics;
     }
 

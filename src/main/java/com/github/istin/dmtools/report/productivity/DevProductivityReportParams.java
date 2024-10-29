@@ -31,20 +31,8 @@ public class DevProductivityReportParams extends ProductivityJobParams {
         super(json);
     }
 
-    public String getReportName() {
-        return getString(REPORT_NAME);
-    }
-
     public String getInitialStatus() {
         return getString(INITIAL_STATUS);
-    }
-
-    public String getStartDate() {
-        return getString(START_DATE);
-    }
-
-    public Boolean isWeight() {
-        return getBoolean(IS_WEIGHT);
     }
 
     public CalcWeightType getCalcWeightType() {

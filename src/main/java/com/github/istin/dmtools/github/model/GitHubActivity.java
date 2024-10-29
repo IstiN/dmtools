@@ -7,6 +7,8 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Date;
+
 public class GitHubActivity extends JSONModel implements IActivity {
 
     public enum State {
@@ -57,6 +59,11 @@ public class GitHubActivity extends JSONModel implements IActivity {
             @Override
             public String getId() {
                 return String.valueOf(getLong("id"));
+            }
+
+            @Override
+            public Date getCreated() {
+                return null;
             }
         };
     }

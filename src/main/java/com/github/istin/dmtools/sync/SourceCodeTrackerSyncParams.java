@@ -12,6 +12,7 @@ public class SourceCodeTrackerSyncParams extends JSONModel {
     public static final String PRIORITY_DEFAULT_ICON = "priority_default_icon";
     public static final String IN_PROGRESS_REOPENED_STATUSES = "in_progress_reopened_statuses";
     public static final String IS_CHECK_ALL_PULL_REQUESTS = "is_check_all_pull_requests";
+    public static final String ADD_PULL_REQUEST_LABELS_AS_ISSUE_TYPE = "add_pull_request_labels_as_issue_type";
     public static final String ON_PULL_REQUEST_CREATED_STATUSES_MAPPING = "on_pull_request_created_statuses_mapping";
     public static final String ON_PULL_REQUEST_MERGED_STATUSES_MAPPING = "on_pull_request_merged_statuses_mapping";
     public static final String ON_PULL_REQUEST_CREATED_DEFAULT_STATUS = "on_pull_request_created_default_status";
@@ -73,6 +74,10 @@ public class SourceCodeTrackerSyncParams extends JSONModel {
         return getBoolean(IS_CHECK_ALL_PULL_REQUESTS);
     }
 
+    public boolean getAddPullRequestLabelsAsIssueType() {
+        return getBoolean(ADD_PULL_REQUEST_LABELS_AS_ISSUE_TYPE);
+    }
+
     public JSONModel getOnPullRequestCreatedStatusesMapping() {
         return new JSONModel(getJSONObject(ON_PULL_REQUEST_CREATED_STATUSES_MAPPING));
     }
@@ -126,6 +131,11 @@ public class SourceCodeTrackerSyncParams extends JSONModel {
 
     public SourceCodeTrackerSyncParams setCheckAllPullRequests(boolean checkAllPullRequests) {
         set(IS_CHECK_ALL_PULL_REQUESTS, checkAllPullRequests);
+        return this;
+    }
+
+    public SourceCodeTrackerSyncParams setAddPullRequestLabelsAsIssueType(boolean addPullRequestLabelsAsIssueType) {
+        set(ADD_PULL_REQUEST_LABELS_AS_ISSUE_TYPE, addPullRequestLabelsAsIssueType);
         return this;
     }
 

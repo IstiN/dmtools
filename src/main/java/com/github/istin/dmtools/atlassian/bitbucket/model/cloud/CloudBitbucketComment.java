@@ -7,6 +7,8 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Date;
+
 public class CloudBitbucketComment extends JSONModel implements IComment {
 
     public CloudBitbucketComment() {
@@ -33,6 +35,11 @@ public class CloudBitbucketComment extends JSONModel implements IComment {
     @Override
     public String getId() {
         return String.valueOf(getLong("id"));
+    }
+
+    @Override
+    public Date getCreated() {
+        throw new UnsupportedOperationException();
     }
 
 }

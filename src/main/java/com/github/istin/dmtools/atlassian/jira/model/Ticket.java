@@ -33,6 +33,10 @@ public class Ticket extends JSONModel implements ITicket {
         return getFields().getStoryPoints();
     }
 
+    public boolean areStoryPointsSet() {
+        return getFields().getJSONObject().optInt(Fields.STORY_POINTS, -1) != -1;
+    }
+
     @Override
     public String getKey() {
         return getString("key");

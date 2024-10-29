@@ -33,11 +33,12 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
         return getBasePath() + "/" + path;
     }
 
+    private final Object lock = new Object();
     private volatile Boolean isDiff = false;
 
     @Override
     public synchronized Request.Builder sign(Request.Builder builder) {
-        synchronized (isDiff) {
+        synchronized (lock) {
             return builder
                     .header("Authorization", "Bearer " + authorization)
                     .header("Accept", isDiff ? "application/vnd.github.diff" : "application/vnd.github.v3+json")
@@ -201,6 +202,16 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     }
 
     @Override
+    public void addPullRequestLabel(String workspace, String repository, String pullRequestId, String label) throws IOException {
+        String path = path(String.format("repos/%s/%s/issues/%s/labels", workspace, repository, pullRequestId));
+        GenericRequest postRequest = new GenericRequest(this, path);
+        JSONArray labelsArray = new JSONArray();
+        labelsArray.put(label);
+        postRequest.setBody(labelsArray.toString());
+        post(postRequest);
+    }
+
+    @Override
     public List<IRepository> getRepositories(String namespace) throws IOException {
         throw new UnsupportedOperationException("implement me");
     }
@@ -264,7 +275,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
         if (true) {
             return new IDiffStats.Empty();
         }
-        synchronized (isDiff) {
+        synchronized (lock) {
             try {
                 isDiff = true;
                 try {
@@ -331,7 +342,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     }
 
     private String getCommitAsDiff(String workspace, String repository, String commitId) throws IOException {
-        synchronized (isDiff) {
+        synchronized (lock) {
             try {
                 isDiff = true;
                 return getCommit(workspace, repository, commitId);

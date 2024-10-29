@@ -9,7 +9,9 @@ import com.github.istin.dmtools.estimations.JEstimator;
 import com.github.istin.dmtools.expert.Expert;
 import com.github.istin.dmtools.presale.PreSaleSupport;
 import com.github.istin.dmtools.qa.TestCasesGenerator;
+import com.github.istin.dmtools.report.productivity.BAProductivityReport;
 import com.github.istin.dmtools.report.productivity.DevProductivityReport;
+import com.github.istin.dmtools.report.productivity.QAProductivityReport;
 import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
 import com.github.istin.dmtools.sm.ScrumMasterDaily;
 import com.github.istin.dmtools.sync.SourceCodeTrackerSyncJob;
@@ -30,6 +32,8 @@ public class JobRunner {
             new DiagramsCreator(),
             new CodeGenerator(),
             new DevProductivityReport(),
+            new BAProductivityReport(),
+            new QAProductivityReport(),
             new ScrumMasterDaily(),
             new Expert(),
             new SourceCodeTrackerSyncJob()
