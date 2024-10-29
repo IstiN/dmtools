@@ -262,7 +262,7 @@ public class Status extends JSONModel {
             return true;
         }
         String name = getName();
-        if (name.equals(IN_QA) || name.equals(READY_FOR_TESTING) || name.equals(QA_BLOCKED)
+        if (name.equals(IN_QA) || name.equals(TESTING) || name.equals(READY_FOR_TESTING) || name.equals(QA_BLOCKED)
                 || name.equals(READY_FOR_RETEST) || name.equals(IN_SYSTEM_TEST)) {
             return true;
         }

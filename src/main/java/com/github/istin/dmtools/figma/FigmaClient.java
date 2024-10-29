@@ -1,19 +1,25 @@
 package com.github.istin.dmtools.figma;
 
 import com.github.istin.dmtools.atlassian.confluence.ContentUtils;
+import com.github.istin.dmtools.common.model.IComment;
+import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.ImageUtils;
+import com.github.istin.dmtools.figma.model.FigmaComment;
+import com.github.istin.dmtools.github.model.GitHubComment;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.Request;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlToImageFile {
 
@@ -133,4 +139,69 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
         }
         return downloadImage(imageOfSource);
     }
+
+    // Mock method to get all teams
+    public JSONArray getAllTeams() throws Exception {
+        String url = path("teams");  // Replace with actual endpoint
+        String response = execute(new GenericRequest(this, url));
+        JSONObject jsonResponse = new JSONObject(response);
+        return jsonResponse.getJSONArray("teams");
+    }
+
+    public void getAllCommentsForAllTeams() throws Exception {
+        JSONArray teams = getAllTeams();
+        for (int i = 0; i < teams.length(); i++) {
+            JSONObject team = teams.getJSONObject(i);
+            String teamId = team.getString("id");
+            logger.info("Processing team: " + team.getString("name"));
+
+            // Call getAllCommentsForTeam for each team
+            getAllCommentsForTeam(teamId);
+        }
+    }
+
+    public void getAllCommentsForTeam(String teamId) throws Exception {
+        JSONArray projects = getProjects(teamId);
+        for (int i = 0; i < projects.length(); i++) {
+            JSONObject project = projects.getJSONObject(i);
+            String projectId = project.getString("id");
+            JSONArray files = getFiles(projectId);
+
+            for (int j = 0; j < files.length(); j++) {
+                JSONObject file = files.getJSONObject(j);
+                String fileKey = file.getString("key");
+                List<IComment> comments = getComments(fileKey);
+
+                for (int k = 0; k < comments.size(); k++) {
+                    IComment comment = comments.get(k);
+                    logger.info("Comment: " + comment.toString());
+                }
+            }
+        }
+    }
+
+    // Get all projects within a team
+    public JSONArray getProjects(String teamId) throws Exception {
+        String url = path("teams/" + teamId + "/projects");
+        String response = execute(new GenericRequest(this, url));
+        JSONObject jsonResponse = new JSONObject(response);
+        return jsonResponse.getJSONArray("projects");
+    }
+
+    // Get all files within a project
+    public JSONArray getFiles(String projectId) throws Exception {
+        String url = path("projects/" + projectId + "/files");
+        String response = execute(new GenericRequest(this, url));
+        JSONObject jsonResponse = new JSONObject(response);
+        return jsonResponse.getJSONArray("files");
+    }
+
+    // Get all comments in a file
+    public List<IComment> getComments(String fileKey) throws Exception {
+        String url = path("files/" + fileKey + "/comments");
+        String response = execute(new GenericRequest(this, url));
+        JSONObject jsonResponse = new JSONObject(response);
+        return JSONModel.convertToModels(FigmaComment.class, jsonResponse.getJSONArray("comments"));
+    }
+
 }

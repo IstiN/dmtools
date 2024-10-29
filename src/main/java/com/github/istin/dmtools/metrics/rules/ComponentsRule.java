@@ -22,7 +22,7 @@ public class ComponentsRule extends TicketCreatorsRule {
     public List<KeyTime> check(TrackerClient jiraClient, ITicket ticket) throws Exception {
         List<KeyTime> keyTimes = super.check(jiraClient, ticket);
         double weight = ticket.getFields().getComponents().size();
-        if (weight > 0) {
+        if (keyTimes != null && weight > 0) {
             keyTimes.get(0).setWeight(round(0.5 * Math.max(weight - 1, 1), 2));
             return keyTimes;
         } else {

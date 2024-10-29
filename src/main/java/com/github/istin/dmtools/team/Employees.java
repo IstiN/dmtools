@@ -10,6 +10,9 @@ import java.util.*;
 
 public class Employees implements IEmployees {
 
+    public static final String ROLE_TESTER = "Tester";
+    public static final String ROLE_DEVELOPER = "Developer";
+    public static final String ROLE_BUSINESS_ANALYST = "Business Analyst";
     private final String file;
 
     private Set<String> unknownNames = new HashSet<>();
@@ -79,19 +82,27 @@ public class Employees implements IEmployees {
     }
 
     public static Employees getDevelopers(String file) {
-        return getInstance(file, "Developer");
+        return getInstance(file, ROLE_DEVELOPER);
     }
 
     public static Employees getDevelopers() {
         return getDevelopers(null);
     }
 
+    public static Employees getBusinessAnalysts(String file) {
+        return getInstance(file, ROLE_BUSINESS_ANALYST);
+    }
+
+    public static Employees getBusinessAnalysts() {
+        return getBusinessAnalysts(null);
+    }
+
     public static Employees getTesters(String file) {
-        return getInstance(file, "Tester");
+        return getInstance(file, ROLE_TESTER);
     }
 
     public static Employees getTesters() {
-        return getInstance(null, "Tester");
+        return getInstance(null, ROLE_TESTER);
     }
 
     public static Employees getInstance(String file, String role) {
