@@ -45,6 +45,10 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Extract Tag Name
+        id: extract_tag
+        run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -52,5 +56,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/libs/*-all.jar
-          asset_name: dmtools-${{ github.ref }}-all.jar
+          asset_name: dmtools-${{ env.tag_name }}-all.jar
           asset_content_type: application/java-archive
