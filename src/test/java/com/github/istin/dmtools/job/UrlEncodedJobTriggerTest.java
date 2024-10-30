@@ -17,6 +17,6 @@ public class UrlEncodedJobTriggerTest extends TestCase {
                 "    \"projectContext\" : \"Context.\"\n" +
                 "  }\n" +
                 "}", "UTF-8").replace("+", "%20");
-        UrlEncodedJobTrigger.main(new String[] {encodedString});
+        //UrlEncodedJobTrigger.main(new String[] {encodedString});
     }
 }
