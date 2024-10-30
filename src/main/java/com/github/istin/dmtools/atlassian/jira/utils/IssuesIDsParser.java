@@ -53,10 +53,15 @@ public class IssuesIDsParser {
         // It looks for word boundaries or URL prefixes before the JIRA key pattern
         String jiraKeyPattern = "(?:\\b|\\/browse\\/)[A-Z]+-\\d+\\b";
 
+        Set<String> keys = new HashSet<>();
+        if (text == null) {
+            return keys;
+        }
+
         Pattern pattern = Pattern.compile(jiraKeyPattern);
         Matcher matcher = pattern.matcher(text);
 
-        Set<String> keys = new HashSet<>();
+
         while (matcher.find()) {
             String found = matcher.group();
             // If the match is part of a URL, extract the JIRA key part after '/browse/'
