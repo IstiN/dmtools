@@ -5,7 +5,7 @@ import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.documentation.DocumentationEditor;
-import com.github.istin.dmtools.documentation.area.TicketAreaMapperViaConfluence;
+import com.github.istin.dmtools.documentation.area.KeyAreaMapperViaConfluence;
 import com.github.istin.dmtools.documentation.area.TicketDocumentationHistoryTrackerViaConfluence;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.openai.BasicOpenAI;
@@ -90,7 +90,7 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
 
         JSONObject jsonObject = documentationEditor.buildExistingAreasStructureForConfluence(confluenceRootPage, rootRequirementsPageName);
         Set<String> keys = jsonObject.keySet();
-        TicketAreaMapperViaConfluence ticketAreaMapper = new TicketAreaMapperViaConfluence(confluenceRootPage, rootRequirementsPageName, confluence);
+        KeyAreaMapperViaConfluence ticketAreaMapper = new KeyAreaMapperViaConfluence(confluenceRootPage, rootRequirementsPageName, confluence);
         List<PdfPageAsTicket> dataInputTicketsWithRequirements = rfpInputTracker.searchAndPerform("labels=" + prefix + "_" + JAssistant.LABEL_REQUIREMENTS, new String[]{});
         if (keys.isEmpty()) {
             buildKeyAreas(rootRequirementsPageName, confluence, rfpInputTracker, documentationEditor, dataInputTicketsWithRequirements, ticketAreaMapper);
@@ -153,8 +153,8 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
                  */
     }
 
-    private static void buildKeyAreas(String rootRequirementsPageName, BasicConfluence confluence, PdfAsTrackerClient rfpInputTracker, DocumentationEditor documentationEditor, List<PdfPageAsTicket> dataInputTicketsWithRequirements, TicketAreaMapperViaConfluence ticketAreaMapper) throws Exception {
-        JSONArray draftFeatureAreas = documentationEditor.buildDraftFeatureAreasByDataInput(dataInputTicketsWithRequirements);
+    private static void buildKeyAreas(String rootRequirementsPageName, BasicConfluence confluence, PdfAsTrackerClient rfpInputTracker, DocumentationEditor documentationEditor, List<PdfPageAsTicket> dataInputTicketsWithRequirements, KeyAreaMapperViaConfluence ticketAreaMapper) throws Exception {
+        JSONArray draftFeatureAreas = documentationEditor.buildDraftFeatureAreasByDataInput(dataInputTicketsWithRequirements, null);
         draftFeatureAreas = documentationEditor.cleanFeatureAreas(draftFeatureAreas);
         System.out.println(draftFeatureAreas);
         JSONObject optimizedFeatureAreas = documentationEditor.createFeatureAreasTree(draftFeatureAreas);

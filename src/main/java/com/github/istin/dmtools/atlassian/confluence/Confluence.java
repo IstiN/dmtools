@@ -14,6 +14,8 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Confluence extends AtlassianRestClient {
@@ -29,8 +31,48 @@ public class Confluence extends AtlassianRestClient {
         return getBasePath() + "/rest/api/" + path;
     }
 
+    public List<Content> contentsByUrls(String ... urlStrings) throws IOException {
+        List<Content> result = new ArrayList<>();
+        for (String url : urlStrings) {
+            result.add(contentByUrl(url));
+        }
+        return result;
+    }
+
+    public Content contentByUrl(String urlString) throws IOException {
+        URL url = new URL(urlString);
+
+        // Split the path into segments
+        String[] pathSegments = url.getPath().split("/");
+
+        // Assuming the structure is always the same: /spaces/{spaceID}/pages/{pageID}/{pageName}
+        if (pathSegments.length > 5) {
+            String contentId = pathSegments[5]; // Index 2 corresponds to the space ID
+            return contentById(contentId);
+        } else {
+            throw new UnsupportedOperationException("unknown url format");
+        }
+    }
+
+    public Content contentById(String contentId) throws IOException {
+        // Construct the path using the content ID and expand needed fields
+        GenericRequest content = new GenericRequest(this, path("content/" + contentId + "?expand=body.storage,ancestors,version"));
+
+        // Execute the request
+        String response = execute(content);
+
+        try {
+            // Parse and return the result
+            return new Content(response);
+        } catch (Exception e) {
+            // Log any exceptions and the response for easier debugging
+            logger.error(response);
+            throw e;
+        }
+    }
+
     public ContentResult content(String title, String space) throws IOException {
-        GenericRequest content = new GenericRequest(this, path("content?expand=body.storage,ancestors"));
+        GenericRequest content = new GenericRequest(this, path("content?expand=body.storage,ancestors,version"));
         content.param("title", title);
         content.param("spaceKey", space);
         String response = execute(content);
@@ -94,6 +136,7 @@ public class Confluence extends AtlassianRestClient {
     }
 
     public Content updatePage(String contentId, String title, String parentId, String body, String space, String historyComment) throws IOException {
+        body = body.replaceAll("<br>", "\n").replaceAll("<br/>", "\n");
         logger.info("{} {} {} {} {} {}", contentId, title, parentId, body, space, historyComment);
         Content oldContent = new Content(new GenericRequest(this, path("content/" + contentId + "?expand=version")).execute());
         body = HtmlCleaner.convertLinksUrlsToConfluenceFormat(body);

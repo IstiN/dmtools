@@ -19,5 +19,5 @@ Follow the rules:
 10. You can't use ```, html markdowns.
 11. You must use only existing areas.
 Story Description:
-<#assign issue = ticket>
-<#include "issue_title_description.md">
+<#assign textInput = input>
+<#include "text_input.md">

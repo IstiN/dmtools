@@ -30,11 +30,11 @@ public class PromptManager {
         return stringFromTemplate(input, "ba_recognize_story_areas");
     }
 
-    public String whatIsFeatureAreaOfStory(TicketBasedPrompt input) throws IOException, TemplateException {
+    public String whatIsFeatureAreaOfStory(TextInputPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "ba_what_is_feature_area_of_story");
     }
 
-    public String whatIsFeatureAreasOfDataInput(TicketBasedPrompt input) throws IOException, TemplateException {
+    public String whatIsFeatureAreasOfDataInput(TextInputPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "ba_what_is_feature_areas_of_data_input");
     }
 
@@ -50,8 +50,12 @@ public class PromptManager {
         return stringFromTemplate(input, "ba_nice_looking_documentation_with_technical_details");
     }
 
-    public String buildNiceLookingDocumentation(TicketBasedPrompt input) throws IOException, TemplateException {
+    public String buildNiceLookingDocumentation(NiceLookingDocumentationPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "ba_nice_looking_documentation");
+    }
+
+    public String buildDorBasedOnExistingStories(NiceLookingDocumentationPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "ba_dor_based_on_existing_stories");
     }
 
     public String buildProjectTimelinePage(NiceLookingDocumentationPrompt input) throws IOException, TemplateException {

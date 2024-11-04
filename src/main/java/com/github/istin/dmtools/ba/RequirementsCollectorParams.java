@@ -1,12 +1,12 @@
 package com.github.istin.dmtools.ba;
 
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.job.BaseJobParams;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class RequirementsCollectorParams extends JSONModel {
+public class RequirementsCollectorParams extends BaseJobParams {
 
-    public static final String STORIES_JQL = "storiesJql";
     public static final String LABEL_NAME_TO_MARK_AS_REVIEWED = "labelNameToMarkAsReviewed";
     public static final String ROLE_SPECIFIC = "roleSpecific";
     public static final String PROJECT_SPECIFIC = "projectSpecific";
@@ -22,10 +22,6 @@ public class RequirementsCollectorParams extends JSONModel {
 
     public RequirementsCollectorParams(JSONObject json) {
         super(json);
-    }
-
-    public String getStoriesJql() {
-        return getString(STORIES_JQL);
     }
 
     public String getLabelNameToMarkAsReviewed() {

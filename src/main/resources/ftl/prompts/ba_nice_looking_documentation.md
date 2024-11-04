@@ -22,6 +22,6 @@ ${existingContent}
 {Existing documentation page}
 
 {New Story Description}
-<#assign issue = ticket>
-<#include "issue_title_description.md">
+<#assign textInput = input>
+<#include "text_input.md">
 {New Story Description}

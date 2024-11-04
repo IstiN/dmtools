@@ -1,8 +1,11 @@
 package com.github.istin.dmtools.report.productivity;
 
+import com.github.istin.dmtools.excel.model.ExcelMetricConfig;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.List;
 
 public class DevProductivityReportParams extends ProductivityJobParams {
 
@@ -15,6 +18,7 @@ public class DevProductivityReportParams extends ProductivityJobParams {
     public static final String SOURCES = "sources";
     public static final String START_DATE = "start_date";
     public static final String CALC_WEIGHT_TYPE = "calc_weight_type";
+    public static final String EXCEL_METRICS_PARAMS = "excel_metrics_params";
 
     public enum CalcWeightType {
         TIME_SPENT, STORY_POINTS
@@ -54,4 +58,17 @@ public class DevProductivityReportParams extends ProductivityJobParams {
     public JSONArray getSources() {
         return getJSONArray(SOURCES);
     }
+
+    public void setExcelMetricsParams(ExcelMetricConfig ... configs) {
+        JSONArray array = new JSONArray();
+        for (ExcelMetricConfig excelMetricConfig : configs) {
+            array.put(excelMetricConfig.getJSONObject());
+        }
+        set(EXCEL_METRICS_PARAMS, array);
+    }
+
+    public List<ExcelMetricConfig> getExcelMetricsParams() {
+        return getModels(ExcelMetricConfig.class, EXCEL_METRICS_PARAMS);
+    }
+
 }

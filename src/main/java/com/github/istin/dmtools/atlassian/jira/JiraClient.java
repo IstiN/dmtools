@@ -1284,8 +1284,26 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     @Override
-    public boolean isValidImageUrl(String url) {
-        return url.startsWith(getBasePath()) && (url.endsWith("png") || url.endsWith("jpg") || url.endsWith("jpeg"));
+    public boolean isValidImageUrl(String url) throws IOException {
+        return url.startsWith(getBasePath()) && ((url.endsWith("png") || url.endsWith("jpg") || url.endsWith("jpeg")) || isImageAttachment(url));
+    }
+
+    public boolean isImageAttachment(String attachmentUrl) throws IOException {
+        Request request = sign(new Request.Builder()
+                .url(attachmentUrl)).build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("Unexpected code " + response);
+            }
+
+            // Get the content type from the HTTP header
+            String contentType = response.header("Content-Type");
+            // Immediately close the body since we're only interested in headers
+            response.body().close();
+            // Check if the content type indicates an image
+            return contentType != null && contentType.startsWith("image/");
+        }
     }
 
     @Override

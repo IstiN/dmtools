@@ -1,13 +1,13 @@
 package com.github.istin.dmtools.openai.input;
 
-import com.github.istin.dmtools.ai.TicketContext;
+import com.github.istin.dmtools.common.model.ToText;
 
-public class BAStoryAreaPrompt extends TicketBasedPrompt {
+public class BAStoryAreaPrompt extends TextInputPrompt {
 
     private String areas;
 
-    public BAStoryAreaPrompt(String basePath, TicketContext ticketContext, String areas) {
-        super(basePath, ticketContext);
+    public BAStoryAreaPrompt(String basePath, ToText toText, String areas) {
+        super(basePath, toText);
         this.areas = areas;
     }
 

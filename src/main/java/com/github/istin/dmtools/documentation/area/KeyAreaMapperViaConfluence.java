@@ -2,13 +2,13 @@ package com.github.istin.dmtools.documentation.area;
 
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
-import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.model.Key;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import org.json.JSONObject;
 
 import java.io.IOException;
 
-public class TicketAreaMapperViaConfluence implements ITicketAreaMapper {
+public class KeyAreaMapperViaConfluence implements KeyAreaMapper {
 
     public static final String TICKET_TO_AREA_MAPPING = " Ticket To Area Mapping";
     private final String areaPrefix;
@@ -19,18 +19,18 @@ public class TicketAreaMapperViaConfluence implements ITicketAreaMapper {
     private Content ticketsMappingContent;
     private Content rootContent;
 
-    public TicketAreaMapperViaConfluence(String areaPrefix, String rootPageName, BasicConfluence confluence) {
+    public KeyAreaMapperViaConfluence(String areaPrefix, String rootPageName, BasicConfluence confluence) {
         this.areaPrefix = areaPrefix;
         this.rootPageName = rootPageName;
         this.confluence = confluence;
     }
 
     @Override
-    public String getAreaForTicket(ITicket ticket) throws IOException {
+    public String getAreaForTicket(Key key) throws IOException {
         if (ticketsToAreasMapping == null) {
             init();
         }
-        return ticketsToAreasMapping.optString(ticket.getKey());
+        return ticketsToAreasMapping.optString(key.getKey());
     }
 
     private void init() throws IOException {
@@ -42,8 +42,8 @@ public class TicketAreaMapperViaConfluence implements ITicketAreaMapper {
     }
 
     @Override
-    public void setAreaForTicket(ITicket ticket, String area) throws IOException {
-        ticketsToAreasMapping.put(ticket.getTicketKey(), area);
+    public void setAreaForTicket(Key key, String area) throws IOException {
+        ticketsToAreasMapping.put(key.getKey(), area);
         confluence.updatePage(ticketsMappingContent.getId(), ticketsToAreaMappingTitle, rootContent.getId(), ticketsToAreasMapping.toString());
     }
 
