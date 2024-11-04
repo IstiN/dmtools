@@ -16,6 +16,6 @@ You must follow the rules:
 Please review the data input provided below and identify the relevant feature areas according to the rules stated:
 
 {data input}
-<#assign issue = ticket>
-<#include "issue_title_description.md">
+<#assign textInput = input>
+<#include "text_input.md">
 {data input}

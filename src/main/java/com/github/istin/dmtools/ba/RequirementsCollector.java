@@ -25,7 +25,7 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
     private static final Logger logger = LogManager.getLogger(RequirementsCollector.class);
     @Override
     public void runJob(RequirementsCollectorParams params) throws Exception {
-        runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getStoriesJql(), params.getExcludeJQL(), params.getLabelNameToMarkAsReviewed(), params.getEachPagePrefix());
+        runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getInputJQL(), params.getExcludeJQL(), params.getLabelNameToMarkAsReviewed(), params.getEachPagePrefix());
     }
 
     public static void runJob(String roleSpecific, String projectSpecific, String storiesJql, String excludeJQL, String labelNameToMarkAsReviewed, String eachPagePrefix) throws Exception {

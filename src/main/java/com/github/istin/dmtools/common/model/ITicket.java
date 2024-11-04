@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 
-public interface ITicket extends Key {
+public interface ITicket extends Key, TicketLink, ToText {
 
     String getStatus() throws IOException;
 
@@ -21,8 +21,6 @@ public interface ITicket extends Key {
     String getTicketKey();
 
     String getIssueType() throws IOException;
-
-    String getTicketLink();
 
     String getPriority() throws IOException;
 
@@ -53,8 +51,6 @@ public interface ITicket extends Key {
     List<? extends IAttachment> getAttachments();
 
     TicketPriority getPriorityAsEnum();
-
-    String toText() throws IOException;
 
     enum TicketPriority {
         High_Attention,

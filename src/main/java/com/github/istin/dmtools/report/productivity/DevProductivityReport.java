@@ -9,6 +9,8 @@ import com.github.istin.dmtools.common.timeline.Release;
 import com.github.istin.dmtools.common.timeline.WeeksReleaseGenerator;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.excel.ExcelMetric;
+import com.github.istin.dmtools.excel.model.ExcelMetricConfig;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.metrics.*;
 import com.github.istin.dmtools.metrics.rules.TicketMovedToStatusRule;
@@ -61,6 +63,13 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
             pullRequestsApprovals(devProductivityReportParams, listOfCustomMetrics, employees);
         }
         ProductivityUtils.vacationDays(listOfCustomMetrics, employees);
+
+        List<ExcelMetricConfig> excelMetricsParams = devProductivityReportParams.getExcelMetricsParams();
+        if (excelMetricsParams != null && !excelMetricsParams.isEmpty()) {
+            for (ExcelMetricConfig excelMetricConfig : excelMetricsParams) {
+                listOfCustomMetrics.add(new ExcelMetric(excelMetricConfig.getMetricName(), employees, excelMetricConfig.getFileName(), excelMetricConfig.getWhoColumn(), excelMetricConfig.getWhenColumn(), excelMetricConfig.getWeightColumn()));
+            }
+        }
         return listOfCustomMetrics;
     }
 

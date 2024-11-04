@@ -3,11 +3,13 @@ package com.github.istin.dmtools.documentation;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
+import com.github.istin.dmtools.atlassian.confluence.Confluence;
+import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.documentation.area.TicketAreaMapperViaConfluence;
+import com.github.istin.dmtools.documentation.area.KeyAreaMapperViaConfluence;
 import com.github.istin.dmtools.documentation.area.TicketDocumentationHistoryTrackerViaConfluence;
 import com.github.istin.dmtools.figma.BasicFigmaClient;
 import com.github.istin.dmtools.figma.FigmaClient;
@@ -49,7 +51,7 @@ public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorPa
 
         JAssistant jAssistant = new JAssistant(tracker, null, openAIClient, promptManager);
 
-        TicketAreaMapperViaConfluence ticketAreaMapper = new TicketAreaMapperViaConfluence(eachPagePrefix, confluenceRootPage, confluence);
+        KeyAreaMapperViaConfluence ticketAreaMapper = new KeyAreaMapperViaConfluence(eachPagePrefix, confluenceRootPage, confluence);
         DocumentationEditor documentationEditor = new DocumentationEditor(jAssistant, tracker,  confluence, eachPagePrefix);
 
         JSONObject optimizedFeatureAreas;
@@ -95,6 +97,12 @@ public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorPa
                         throw new RuntimeException(e);
                     }
                 }))
+                .collect(Collectors.toList());
+    }
+
+    public static @NotNull List<Content> retrievePages(Confluence confluence, String... urls) throws Exception {
+        List<Content> contents = confluence.contentsByUrls(urls);
+        return contents.stream().sorted(Comparator.comparingLong(content -> content.getLastModifiedDate().getTime()))
                 .collect(Collectors.toList());
     }
 

@@ -21,6 +21,6 @@ ${existingContent}
 {Existing documentation page}
 
 {Input Data}
-<#assign issue = ticket>
-<#include "issue_title_description.md">
+<#assign textInput = input>
+<#include "text_input.md">
 {Input Data}

@@ -1,13 +1,18 @@
 package com.github.istin.dmtools.atlassian.confluence.model;
 
 import com.github.istin.dmtools.common.model.JSONModel;
-import org.json.JSONArray;
+import com.github.istin.dmtools.common.model.Key;
+import com.github.istin.dmtools.common.model.TicketLink;
+import com.github.istin.dmtools.common.model.ToText;
+import com.github.istin.dmtools.common.utils.DateUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 
-public class Content extends JSONModel {
+public class Content extends JSONModel implements Key, TicketLink, ToText {
 
     public static final String ID = "id";
     public static final String TITLE = "title";
@@ -48,6 +53,10 @@ public class Content extends JSONModel {
         return getJSONObject(VERSION).getInt("number");
     }
 
+    public Date getLastModifiedDate() {
+        return DateUtils.parseIsoDate2(getJSONObject(VERSION).optString("when"));
+    }
+
     public String getViewUrl(String basePath) {
         return basePath + getJSONObject("_links").getString("webui");
     }
@@ -58,5 +67,27 @@ public class Content extends JSONModel {
             return ancestors.get(ancestors.size()-1).getId();
         }
         return null;
+    }
+
+    @Override
+    public String getTicketLink() {
+        return getViewUrl(getJSONObject("_links").getString("base"));
+    }
+
+    @Override
+    public String toText() throws IOException {
+        return getStorage().getValue();
+    }
+
+    @Override
+    public double getWeight() {
+        return getStorage().getValue().length() / 1000d;
+    }
+
+    @Override
+    public String getKey() {
+        String space = getJSONObject().optJSONObject("_expandable").optString("space");
+        String[] split = space.split("/");
+        return split[split.length - 1] + "-" + getId();
     }
 }

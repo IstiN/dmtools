@@ -172,16 +172,7 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
     @Nullable
     public static Date getCreatedUtils(JSONModel model) {
         String created = model.getString("created");
-        Date date = null;
-        try {
-            if (created == null) {
-                return null;
-            }
-            date = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").parse(created);
-        } catch (ParseException e) {
-            return null;
-        }
-        return date;
+        return DateUtils.parseJiraDate2(created);
     }
 
     public Date getUpdated() {
@@ -189,13 +180,7 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
         if (created == null) {
             return null;
         }
-        Date date = null;
-        try {
-            date = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").parse(created);
-        } catch (ParseException e) {
-            return null;
-        }
-        return date;
+        return DateUtils.parseJiraDate2(created);
     }
 
     public Long getUpdatedAsMillis() {

@@ -5,6 +5,7 @@ import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,9 +27,9 @@ public class TicketBasedPrompt {
 
     public TicketBasedPrompt(String basePath, TicketContext ticketContext) {
         this.basePath = basePath;
-        this.ticket = new TicketWrapper(ticketContext.getTicket());
+        this.ticket = new TicketWrapper(basePath, ticketContext.getTicket());
         for (ITicket extraTicket : ticketContext.getExtraTickets()) {
-            this.extraTickets.add(new TicketWrapper(extraTicket));
+            this.extraTickets.add(new TicketWrapper(basePath, extraTicket));
         }
     }
 
@@ -37,7 +38,7 @@ public class TicketBasedPrompt {
     }
 
     public void setTicket(ITicket ticket) {
-        this.ticket = new TicketWrapper(ticket);
+        this.ticket = new TicketWrapper(basePath, ticket);
     }
 
 
@@ -46,20 +47,23 @@ public class TicketBasedPrompt {
     }
 
     public void addTestCase(ITicket testCase) {
-        testCases.add(new TicketWrapper(testCase));
+        testCases.add(new TicketWrapper(basePath, testCase));
     }
 
     public void setTestCases(List<? extends ITicket> testCases) {
         this.testCases.clear();
         for (ITicket testCase : testCases) {
-            this.testCases.add(new TicketWrapper(testCase));
+            this.testCases.add(new TicketWrapper(basePath, testCase));
         }
     }
 
-    public class TicketWrapper extends ITicket.Wrapper {
+    public static class TicketWrapper extends ITicket.Wrapper {
 
-        public TicketWrapper(ITicket ticket) {
+        private final String basePath;
+
+        public TicketWrapper(String basePath, ITicket ticket) {
             super(ticket);
+            this.basePath = basePath;
         }
 
         @Override
@@ -71,17 +75,20 @@ public class TicketBasedPrompt {
                     ticketDescription = ticketDescription + ("\n" + attachment.getName() + " " + attachment.getUrl());
                 }
             }
-            ticketDescription = ticketDescription + "\n" + attachmentsDescription;
             return HtmlCleaner.cleanAllHtmlTags(basePath, ticketDescription);
         }
 
+        @Override
+        public String toText() throws IOException {
+            String text = super.toText();
+            List<? extends IAttachment> attachments = getWrapped().getAttachments();
+            if (attachments != null && !attachments.isEmpty()) {
+                for (IAttachment attachment : attachments) {
+                    text = text + ("\n" + attachment.getName() + " " + attachment.getUrl());
+                }
+            }
+            return HtmlCleaner.cleanAllHtmlTags(basePath, text);
+        }
     }
 
-    public String getAttachmentsDescription() {
-        return attachmentsDescription;
-    }
-
-    public void setAttachmentsDescription(String attachmentsDescription) {
-        this.attachmentsDescription = attachmentsDescription;
-    }
 }

@@ -2,13 +2,20 @@ package com.github.istin.dmtools.common.utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
+
 public class DateUtils {
 
+
+    private static final String ISO_DATE_FORMAT2 = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
     private static final String ISO_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
     public static final String BITBUCKET_CLOUD_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS";
     public static final String BITBUCKET_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssXXX";
@@ -217,6 +224,39 @@ public class DateUtils {
             return dateFormat.parse(isoDate);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Invalid ISO 8601 date: " + isoDate, e);
+        }
+    }
+
+    public static Date parseIsoDate2(String isoDate) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat(ISO_DATE_FORMAT2, Locale.US);
+        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        try {
+            return dateFormat.parse(isoDate);
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Invalid ISO 8601 date: " + isoDate, e);
+        }
+    }
+
+    public static Date parseJiraDate2(String dateString) {
+        try {
+            if (dateString == null) {
+                return null;
+            }
+            // Adjust the time zone formatting from "+0200" to "+02:00"
+            if (dateString.matches(".*\\+\\d{4}$")) {
+                dateString = dateString.substring(0, dateString.length() - 2) + ":" + dateString.substring(dateString.length() - 2);
+            }
+            // Parse the ISO 8601 string to an OffsetDateTime
+            OffsetDateTime offsetDateTime = OffsetDateTime.parse(dateString, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
+            // Convert OffsetDateTime to Instant
+            Instant instant = offsetDateTime.toInstant();
+
+            // Convert Instant to Date
+            return Date.from(instant);
+
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Invalid ISO 8601 date: " + dateString, e);
         }
     }
 

@@ -7,12 +7,13 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.File;
+import java.io.IOException;
 
 public class ContentUtils {
 
     public interface UrlToImageFile {
 
-        boolean isValidImageUrl(String url);
+        boolean isValidImageUrl(String url) throws IOException;
 
         File convertUrlToFile(String href) throws Exception;
     }
@@ -26,6 +27,7 @@ public class ContentUtils {
         // Iterate over each anchor tag
         for (Element anchor : anchorTags) {
             String href = anchor.attr("href");
+            System.out.println("image url : " + href);
             String text = anchor.text();
 
             for (UrlToImageFile urlToImageFile : urlToImageFiles) {

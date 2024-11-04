@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.job;
 
 
+import com.github.istin.dmtools.ba.BusinessAnalyticDORGeneration;
 import com.github.istin.dmtools.ba.RequirementsCollector;
 import com.github.istin.dmtools.dev.CodeGenerator;
 import com.github.istin.dmtools.diagram.DiagramsCreator;
@@ -33,6 +34,7 @@ public class JobRunner {
             new CodeGenerator(),
             new DevProductivityReport(),
             new BAProductivityReport(),
+            new BusinessAnalyticDORGeneration(),
             new QAProductivityReport(),
             new ScrumMasterDaily(),
             new Expert(),

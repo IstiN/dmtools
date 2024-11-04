@@ -14,14 +14,12 @@ import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.openai.input.*;
 import com.github.istin.dmtools.qa.TestCasesGeneratorParams;
-import freemarker.template.TemplateException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -185,14 +183,9 @@ public class JAssistant {
             }
         }
 
-        StringBuilder attachmentsDescription =
-                new StringBuilder();
-//         buildAttachmentsDescription(ticketContext);
-
         List<ITicket> finaResults = new ArrayList<>();
         for (ITicket testCase : listOfAllTestCases) {
             SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(),  "", ticketContext, testCase);
-            similarStoriesPrompt.setAttachmentsDescription(attachmentsDescription.toString());
 
             String chatRequest = promptManager.validateTestCaseRelatedToStory(similarStoriesPrompt);
             String isRelatedToStory = openAIClient.chat(
@@ -205,7 +198,6 @@ public class JAssistant {
         }
 
         QATestCasesPrompt qaTestCasesPrompt = new QATestCasesPrompt(trackerClient.getBasePath(), ticketContext, testCasesPriorities);
-        qaTestCasesPrompt.setAttachmentsDescription(attachmentsDescription.toString());
         qaTestCasesPrompt.setTestCases(finaResults);
 
         if (outputType.equals(TestCasesGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
@@ -271,61 +263,50 @@ public class JAssistant {
         return openAIClient.chat(aiRequest);
     }
 
-    public String chooseFeatureAreaForStory(ITicket ticket, String areas) throws Exception {
-        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-        ticketContext.prepareContext();
-        String aiRequest = promptManager.checkStoryAreas(new BAStoryAreaPrompt(trackerClient.getBasePath(), ticketContext, areas));
+    public String chooseFeatureAreaForStory(ToText inputText, String areas) throws Exception {
+        String aiRequest = promptManager.checkStoryAreas(new BAStoryAreaPrompt(trackerClient.getBasePath(), inputText, areas));
         return openAIClient.chat(
                 aiRequest
         );
     }
 
-    public String whatIsFeatureAreaOfStory(ITicket ticket) throws Exception {
-        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-        ticketContext.prepareContext();
-        String aiRequest = promptManager.whatIsFeatureAreaOfStory(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext));
+    public String whatIsFeatureAreaOfStory(ToText ticket) throws Exception {
+        String aiRequest = promptManager.whatIsFeatureAreaOfStory(new TextInputPrompt(trackerClient.getBasePath(), ticket));
         return openAIClient.chat(aiRequest);
     }
 
-    public JSONArray whatIsFeatureAreasOfDataInput(ITicket ticket) throws Exception {
-        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-        ticketContext.prepareContext();
-        String aiRequest = promptManager.whatIsFeatureAreasOfDataInput(new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext));
+    public JSONArray whatIsFeatureAreasOfDataInput(ToText textInput) throws Exception {
+        String aiRequest = promptManager.whatIsFeatureAreasOfDataInput(new TextInputPrompt(trackerClient.getBasePath(), textInput));
         return new JSONArray(openAIClient.chat(aiRequest));
     }
 
-    public String buildDetailedPageWithRequirementsForInputData(ITicket ticket, String existingContent) throws Exception {
-        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-        ticketContext.prepareContext();
-        String aiRequest = promptManager.buildDetailedPageWithRequirementsForInputData(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
+    public String buildDetailedPageWithRequirementsForInputData(ToText inputData, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildDetailedPageWithRequirementsForInputData(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), inputData, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
-    public String buildNiceLookingDocumentationForStory(ITicket ticket, String existingContent) throws Exception {
-        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-        ticketContext.prepareContext();
-        String aiRequest = promptManager.buildNiceLookingDocumentation(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
+    public String buildNiceLookingDocumentationForStory(ToText inputData, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildNiceLookingDocumentation(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), inputData, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
-    public String buildProjectTimeline(ITicket ticket, String existingContent) throws Exception {
-        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-        ticketContext.prepareContext();
-        String aiRequest = promptManager.buildProjectTimelinePage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
+    public String buildDORGenerationForStory(ToText inputData, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildDorBasedOnExistingStories(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), inputData, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
-    public String buildTeamSetupAndLicenses(ITicket ticket, String existingContent) throws Exception {
-        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-        ticketContext.prepareContext();
-        String aiRequest = promptManager.buildTeamSetupAndLicensesPage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
+    public String buildProjectTimeline(ToText input, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildProjectTimelinePage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), input, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
-    public String buildNiceLookingDocumentationForStoryWithTechnicalDetails(ITicket ticket, String existingContent) throws Exception {
-        TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-        ticketContext.prepareContext();
-        String aiRequest = promptManager.buildNiceLookingDocumentationWithTechnicalDetails(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), ticketContext, existingContent));
+    public String buildTeamSetupAndLicenses(ToText input, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildTeamSetupAndLicensesPage(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), input, existingContent));
+        return openAIClient.chat(aiRequest);
+    }
+
+    public String buildNiceLookingDocumentationForStoryWithTechnicalDetails(ToText input, String existingContent) throws Exception {
+        String aiRequest = promptManager.buildNiceLookingDocumentationWithTechnicalDetails(new NiceLookingDocumentationPrompt(trackerClient.getBasePath(), input, existingContent));
         return openAIClient.chat(aiRequest);
     }
 
@@ -544,9 +525,9 @@ public class JAssistant {
     public String makeResponseOnRequest(TicketContext ticketContext, String projectContext, String request) throws Exception {
         ITicket ticket = ticketContext.getTicket();
         List<IComment> comments = (List<IComment>) trackerClient.getComments(ticket.getKey(), ticket);
-        ExpertPrompt scrumDailyPrompt = new ExpertPrompt(trackerClient.getBasePath(), ticketContext, projectContext, request);
-        scrumDailyPrompt.setComments(comments);
-        String aiRequest = promptManager.askExpert(scrumDailyPrompt);
+        ExpertPrompt expertPrompt = new ExpertPrompt(trackerClient.getBasePath(), ticketContext, projectContext, request);
+        expertPrompt.setComments(comments);
+        String aiRequest = promptManager.askExpert(expertPrompt);
         String chatResponse = openAIClient.chat(aiRequest);
         if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
             chatResponse = StringUtils.convertToMarkdown(chatResponse);

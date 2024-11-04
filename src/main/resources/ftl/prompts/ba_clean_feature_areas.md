@@ -21,6 +21,7 @@ Your response must be:
 * JSONArray. Example of AI Response: ["area1", "area2", ... , "areaN"]
 * without html, body, head, title tags
 * without wrapping ```
+* exclude markdowns from response
 
 
 Input feature areas: ${input}

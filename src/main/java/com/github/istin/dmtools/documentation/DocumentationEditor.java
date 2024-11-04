@@ -2,14 +2,18 @@ package com.github.istin.dmtools.documentation;
 
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
+import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.ContentUtils;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.model.Key;
+import com.github.istin.dmtools.common.model.TicketLink;
+import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.documentation.area.ITicketAreaMapper;
 import com.github.istin.dmtools.documentation.area.ITicketDocumentationHistoryTracker;
-import com.github.istin.dmtools.documentation.area.TicketAreaMapperViaConfluence;
+import com.github.istin.dmtools.documentation.area.KeyAreaMapper;
+import com.github.istin.dmtools.documentation.area.KeyAreaMapperViaConfluence;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -52,10 +56,10 @@ public class DocumentationEditor {
         return areas;
     }
 
-    public JSONArray buildDraftFeatureAreasByDataInput(List<? extends ITicket> ticketsAsInput) throws Exception {
-        JSONArray areas = new JSONArray();
-        for (ITicket story : ticketsAsInput) {
-            JSONArray recognizedAreas = jAssistant.whatIsFeatureAreasOfDataInput(story);
+    public JSONArray buildDraftFeatureAreasByDataInput(List<? extends ToText> textsAsInput, JSONArray existingAreas) throws Exception {
+        JSONArray areas = existingAreas == null ? new JSONArray() : existingAreas;
+        for (ToText inputText : textsAsInput) {
+            JSONArray recognizedAreas = jAssistant.whatIsFeatureAreasOfDataInput(inputText);
             for (int i = 0; i < recognizedAreas.length(); i++) {
                 String recognizedArea = recognizedAreas.getString(i);
                 boolean alreadyExists = false;
@@ -74,12 +78,12 @@ public class DocumentationEditor {
         return areas;
     }
 
-    public void markTicketsByArea(List<? extends ITicket> ticketsAsInput, JSONArray topAreas, boolean isAllowedToIntroduceNewArea) throws Exception {
+    public <T  extends Key & ToText & TicketLink> void markTicketsByArea(List<T> ticketsAsInput, JSONArray topAreas, boolean isAllowedToIntroduceNewArea) throws Exception {
         int i = 0;
-        Map<String, List<? extends ITicket>> storiesPerArea = new HashMap<>();
+        Map<String, List<T>> storiesPerArea = new HashMap<>();
 
         Set<String> areas = new HashSet<>();
-        for (ITicket story : ticketsAsInput) {
+        for (T story : ticketsAsInput) {
             try {
                 String area = null;
 //                String areaFromComments = TrackerClient.Utils.checkCommentStartedWith(tracker, story.getKey(), story, areaPrefix +":");
@@ -106,7 +110,7 @@ public class DocumentationEditor {
 
                 logger.info(area);
 
-                List<ITicket> storiesFromArea = (List<ITicket>) storiesPerArea.getOrDefault(area, new ArrayList<>());
+                List<T> storiesFromArea = storiesPerArea.getOrDefault(area, new ArrayList<>());
                 storiesFromArea.add(story);
                 storiesPerArea.put(area, storiesFromArea);
             } finally {
@@ -132,12 +136,12 @@ public class DocumentationEditor {
         }
     }
 
-    private static void printTicketsPerArea(Map<String, List<? extends ITicket>> storiesPerArea, String area) throws IOException {
-        List<? extends ITicket> rallyIssues = storiesPerArea.get(area);
-        if (rallyIssues != null) {
+    private static <T  extends Key & ToText & TicketLink> void printTicketsPerArea(Map<String, List<T>> storiesPerArea, String area) throws IOException {
+        List<T> list = storiesPerArea.get(area);
+        if (list != null) {
             logger.info(area);
-            for (ITicket story : rallyIssues) {
-                logger.info("      {}", story.getTicketLink());
+            for (T ticket : list) {
+                logger.info("      {}", ticket.getTicketLink());
             }
         }
     }
@@ -150,18 +154,18 @@ public class DocumentationEditor {
         return jAssistant.cleanFeatureAreas(areas.toString());
     }
 
-    public void buildConfluenceStructure(JSONObject featureAreas, List<? extends ITicket> ticketsAsInput, String rootContent, BasicConfluence confluence, ITicketAreaMapper ticketAreaMapper) throws Exception {
+    public <T  extends Key & ToText & TicketLink> void buildConfluenceStructure(JSONObject featureAreas, List<T> ticketsAsInput, String rootContent, BasicConfluence confluence, KeyAreaMapper ticketAreaMapper) throws Exception {
         Content root = confluence.findContent(rootContent);
-        Map<String, List<? extends ITicket>> storiesPerArea = new HashMap<>();
+        Map<String, List<T>> storiesPerArea = new HashMap<>();
         int i = 0;
-        for (ITicket story : ticketsAsInput) {
+        for (T story : ticketsAsInput) {
             try {
                 String area = ticketAreaMapper.getAreaForTicket(story);
                 if (area == null || area.isEmpty()) {
                     area = jAssistant.chooseFeatureAreaForStory(story, featureAreas.toString());
                     ticketAreaMapper.setAreaForTicket(story, area);
                 }
-                List<ITicket> storiesFromArea = (List<ITicket>) storiesPerArea.getOrDefault(area, new ArrayList<>());
+                List<T> storiesFromArea = storiesPerArea.getOrDefault(area, new ArrayList<>());
                 storiesFromArea.add(story);
                 storiesPerArea.put(area, storiesFromArea);
 
@@ -177,14 +181,14 @@ public class DocumentationEditor {
             JSONObject subAreas = featureAreas.getJSONObject(area);
             Set<String> subAreasKeys = subAreas.keySet();
             if (subAreasKeys.isEmpty()) {
-                List<? extends ITicket> rallyIssues = storiesPerArea.get(area);
-                if (rallyIssues != null && !rallyIssues.isEmpty()) {
+                List<T> list = storiesPerArea.get(area);
+                if (list != null && !list.isEmpty()) {
                     confluence.findOrCreate(areaPrefix + " " + area, root.getId(), "");
                     printTicketsPerArea(storiesPerArea, area);
                 }
             } else {
                 for (String subArea : subAreasKeys) {
-                    List<? extends ITicket> rallyIssues = storiesPerArea.get(subArea);
+                    List<T> rallyIssues = storiesPerArea.get(subArea);
                     if (rallyIssues != null && !rallyIssues.isEmpty()) {
                         Content mainArea = confluence.findOrCreate(areaPrefix + " " + area, root.getId(), "");
                         confluence.findOrCreate(areaPrefix + " " + subArea, mainArea.getId(), "");
@@ -197,24 +201,43 @@ public class DocumentationEditor {
 
     }
 
-    public void buildPagesForTickets(List<? extends ITicket> tickets, String prefix, String rootPage, BasicConfluence confluence, ITicketAreaMapper ticketAreaMapper, ITicketDocumentationHistoryTracker ticketDocumentationHistoryTracker, boolean isSkipTechnicalDetails) throws Exception {
+    public <T extends ITicket> void buildPagesForTickets(List<T> tickets, String prefix, String rootPage, BasicConfluence confluence, KeyAreaMapper ticketAreaMapper, ITicketDocumentationHistoryTracker ticketDocumentationHistoryTracker, boolean isSkipTechnicalDetails) throws Exception {
         Content rootContent = confluence.findContent(rootPage);
         int i = 0;
-        for (ITicket ticket : tickets) {
+        for (T ticket : tickets) {
             String areaForTicket = ticketAreaMapper.getAreaForTicket(ticket);
             if (areaForTicket != null && !areaForTicket.isEmpty()) {
                 String pageName = prefix + " " + areaForTicket;
+                TicketContext ticketContext = new TicketContext(tracker, ticket);
+                ticketContext.prepareContext();
                 extendDocumentationPageWithTicket(confluence, ticketDocumentationHistoryTracker, ticket, pageName, rootContent, source -> isSkipTechnicalDetails ?
-                        jAssistant.buildNiceLookingDocumentationForStory(ticket, source)
+                        jAssistant.buildNiceLookingDocumentationForStory(ticketContext, source)
                         :
-                        jAssistant.buildNiceLookingDocumentationForStoryWithTechnicalDetails(ticket, source));
+                        jAssistant.buildNiceLookingDocumentationForStoryWithTechnicalDetails(ticketContext, source));
             }
             logger.info(" ========= Progress {} from {}", i, tickets.size());
             i++;
         }
     }
 
-    public void buildDetailedPageWithRequirementsForInputData(List<? extends ITicket> tickets, String prefix, String rootPage, BasicConfluence confluence, ITicketAreaMapper ticketAreaMapper, ITicketDocumentationHistoryTracker ticketDocumentationHistoryTracker, boolean isSkipTechnicalDetails) throws Exception {
+    public <T extends Key & TicketLink & ToText> void buildPagesForOtherAnyContent(List<T> inputs, String prefix, String rootPage, BasicConfluence confluence, KeyAreaMapper ticketAreaMapper, ITicketDocumentationHistoryTracker ticketDocumentationHistoryTracker, boolean isSkipTechnicalDetails) throws Exception {
+        Content rootContent = confluence.findContent(rootPage);
+        int i = 0;
+        for (T input : inputs) {
+            String areaForTicket = ticketAreaMapper.getAreaForTicket(input);
+            if (areaForTicket != null && !areaForTicket.isEmpty()) {
+                String pageName = prefix + " " + areaForTicket;
+                extendDocumentationPageWithTicket(confluence, ticketDocumentationHistoryTracker, input, pageName, rootContent, source -> isSkipTechnicalDetails ?
+                        jAssistant.buildNiceLookingDocumentationForStory(input, source)
+                        :
+                        jAssistant.buildNiceLookingDocumentationForStoryWithTechnicalDetails(input, source));
+            }
+            logger.info(" ========= Progress {} from {}", i, inputs.size());
+            i++;
+        }
+    }
+
+    public void buildDetailedPageWithRequirementsForInputData(List<? extends ITicket> tickets, String prefix, String rootPage, BasicConfluence confluence, KeyAreaMapper ticketAreaMapper, ITicketDocumentationHistoryTracker ticketDocumentationHistoryTracker, boolean isSkipTechnicalDetails) throws Exception {
         Content rootContent = confluence.findContent(rootPage);
         int i = 0;
         for (ITicket ticket : tickets) {
@@ -233,8 +256,8 @@ public class DocumentationEditor {
         String askAI(String source) throws Exception;
     }
 
-    public void extendDocumentationPageWithTicket(BasicConfluence confluence, ITicketDocumentationHistoryTracker ticketDocumentationHistoryTracker, ITicket ticket, String pageName, Content rootContent, DelegateToAI delegateToAI) throws Exception {
-        boolean ticketWasAddedToPage = ticketDocumentationHistoryTracker.isTicketWasAddedToPage(ticket, pageName);
+    public <T extends Key & TicketLink> void extendDocumentationPageWithTicket(BasicConfluence confluence, ITicketDocumentationHistoryTracker ticketDocumentationHistoryTracker, T keyTicketLink, String pageName, Content rootContent, DelegateToAI delegateToAI) throws Exception {
+        boolean ticketWasAddedToPage = ticketDocumentationHistoryTracker.isTicketWasAddedToPage(keyTicketLink, pageName);
         if (!ticketWasAddedToPage) {
             Content content = confluence.findOrCreate(pageName, rootContent.getId(), "");
             String newPageSource = delegateToAI.askAI(content.getStorage().getValue());
@@ -243,8 +266,8 @@ public class DocumentationEditor {
                 conversationObserver.printAndClear();
             }
             String parentId = content.getParentId();
-            confluence.updatePage(content.getId(), content.getTitle(), parentId, newPageSource, confluence.getDefaultSpace(), ticket.getKey() + " " + ticket.getTicketLink());
-            ticketDocumentationHistoryTracker.addTicketToPageHistory(ticket, pageName);
+            confluence.updatePage(content.getId(), content.getTitle(), parentId, newPageSource, confluence.getDefaultSpace(), keyTicketLink.getKey() + " " + keyTicketLink.getTicketLink());
+            ticketDocumentationHistoryTracker.addTicketToPageHistory(keyTicketLink, pageName);
         }
     }
 
@@ -253,7 +276,7 @@ public class DocumentationEditor {
         JSONObject jsonObject = new JSONObject();
         for (Content content : results) {
             logger.info(content.getTitle());
-            if (content.getTitle().contains(TicketAreaMapperViaConfluence.TICKET_TO_AREA_MAPPING)) {
+            if (content.getTitle().contains(KeyAreaMapperViaConfluence.TICKET_TO_AREA_MAPPING)) {
                 continue;
             }
 
