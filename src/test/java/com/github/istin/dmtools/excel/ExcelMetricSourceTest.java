@@ -31,13 +31,13 @@ public class ExcelMetricSourceTest extends TestCase {
         });
 
         // Initialize ExcelMetricSource using the test file
-        excelMetricSource = new ExcelMetricSource(employees, "/Test_Excel.xlsx", "Employee", "Date", "Amount");
+        excelMetricSource = new ExcelMetricSource(employees, "/Test_Excel.xlsx", "Employee", "Date", "Amount", 1.0d);
     }
 
     @Test
     public void testPerformSourceCollection() throws Exception {
         // Perform the collection
-        List<KeyTime> keyTimes = excelMetricSource.performSourceCollection(false, "metricName");
+        List<KeyTime> keyTimes = excelMetricSource.performSourceCollection(true, "metricName");
 
         // Assertions to verify the content of keyTimes
         assertNotNull(keyTimes);

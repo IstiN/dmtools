@@ -67,7 +67,7 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
         List<ExcelMetricConfig> excelMetricsParams = devProductivityReportParams.getExcelMetricsParams();
         if (excelMetricsParams != null && !excelMetricsParams.isEmpty()) {
             for (ExcelMetricConfig excelMetricConfig : excelMetricsParams) {
-                listOfCustomMetrics.add(new ExcelMetric(excelMetricConfig.getMetricName(), employees, excelMetricConfig.getFileName(), excelMetricConfig.getWhoColumn(), excelMetricConfig.getWhenColumn(), excelMetricConfig.getWeightColumn()));
+                listOfCustomMetrics.add(new ExcelMetric(excelMetricConfig.getMetricName(), employees, excelMetricConfig.getFileName(), excelMetricConfig.getWhoColumn(), excelMetricConfig.getWhenColumn(), excelMetricConfig.getWeightColumn(), excelMetricConfig.getWeightMultiplier()));
             }
         }
         return listOfCustomMetrics;
