@@ -3,16 +3,14 @@ package com.github.istin.dmtools.atlassian.jira.model;
 import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.tracker.model.Status;
+import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.utils.PropertyReader;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -65,7 +63,7 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
     }
 
     public Calendar getDueDate() {
-        return DateUtils.parseJiraCalendar(getDueDateAsString());
+        return DateUtils.calendar(DateUtils.smartParseDate(getDueDateAsString()));
     }
 
     public String getDueDateAsString() {
@@ -172,7 +170,7 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
     @Nullable
     public static Date getCreatedUtils(JSONModel model) {
         String created = model.getString("created");
-        return DateUtils.parseJiraDate2(created);
+        return DateUtils.smartParseDate(created);
     }
 
     public Date getUpdated() {
@@ -180,7 +178,7 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
         if (created == null) {
             return null;
         }
-        return DateUtils.parseJiraDate2(created);
+        return DateUtils.smartParseDate(created);
     }
 
     public Long getUpdatedAsMillis() {
