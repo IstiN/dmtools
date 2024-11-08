@@ -20,13 +20,15 @@ public class ExcelMetricSource extends CommonSourceCollector {
     private final String whoColumn;
     private final String whenColumn;
     private final String weightColumn;
+    private final double weightMultiplier;
 
-    public ExcelMetricSource(IEmployees employees, String fileName, String whoColumn, String whenColumn, String weightColumn) {
+    public ExcelMetricSource(IEmployees employees, String fileName, String whoColumn, String whenColumn, String weightColumn, double weightMultiplier) {
         super(employees);
         this.fileName = fileName;
         this.whoColumn = whoColumn;
         this.whenColumn = whenColumn;
         this.weightColumn = weightColumn;
+        this.weightMultiplier = weightMultiplier;
     }
 
     @Override
@@ -102,7 +104,7 @@ public class ExcelMetricSource extends CommonSourceCollector {
                                     }
 
                                     KeyTime keyTime = new KeyTime(fileName + "_" + index, cal, employeeName);
-                                    keyTime.setWeight(weight);
+                                    keyTime.setWeight(weight * weightMultiplier);
                                     keyTimes.add(keyTime);
                                 } else {
                                     // Handle null cell, if necessary

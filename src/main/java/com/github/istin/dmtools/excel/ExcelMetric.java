@@ -5,8 +5,8 @@ import com.github.istin.dmtools.team.IEmployees;
 
 public class ExcelMetric extends Metric {
 
-    public ExcelMetric(String metricName, IEmployees employees, String fileName, String whoColumn, String whenColumn, String weightColumn) {
-        super(metricName, true, true, null, new ExcelMetricSource(employees, fileName, whoColumn, whenColumn, weightColumn));
+    public ExcelMetric(String metricName, IEmployees employees, String fileName, String whoColumn, String whenColumn, String weightColumn, double weightMultiplier) {
+        super(metricName, true, true, null, new ExcelMetricSource(employees, fileName, whoColumn, whenColumn, weightColumn, weightMultiplier));
     }
 
 }

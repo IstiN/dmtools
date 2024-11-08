@@ -11,6 +11,7 @@ public class ExcelMetricConfig extends JSONModel {
     public static final String WHO_COLUMN = "whoColumn";
     public static final String WHEN_COLUMN = "whenColumn";
     public static final String WEIGHT_COLUMN = "weightColumn";
+    public static final String WEIGHT_MULTIPLIER = "weightMultiplier";
 
     public ExcelMetricConfig() {
     }
@@ -43,6 +44,14 @@ public class ExcelMetricConfig extends JSONModel {
         return getString(WEIGHT_COLUMN);
     }
 
+    public double getWeightMultiplier() {
+        Double multiplier = getDouble(WEIGHT_MULTIPLIER);
+        if (multiplier == null) {
+            return 1.0d;
+        }
+        return multiplier;
+    }
+
     public ExcelMetricConfig setMetricName(String metricName) {
         set(METRIC_NAME, metricName);
         return this;
@@ -65,6 +74,11 @@ public class ExcelMetricConfig extends JSONModel {
 
     public ExcelMetricConfig setWeightColumn(String weightColumn) {
         set(WEIGHT_COLUMN, weightColumn);
+        return this;
+    }
+
+    public ExcelMetricConfig setWeightMultiplier(double weightMultiplier) {
+        set(WEIGHT_MULTIPLIER, weightMultiplier);
         return this;
     }
 }
