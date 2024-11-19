@@ -82,8 +82,12 @@ public class PromptManager {
         return stringFromTemplate(input, "developer_validate_similar_story");
     }
 
-    public String validateTestCaseRelatedToStory(SimilarStoriesPrompt input) throws IOException, TemplateException {
+    public String validateTestCaseRelatedToStory(TicketBasedPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "qa_validate_testcase_related_to_story");
+    }
+
+    public String validateTestCasesAreRelatedToStory(TicketBasedPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "qa_validate_testcases_are_related_to_story");
     }
 
     public String requestGenerateCodeForTicket(CodeGeneration input) throws IOException, TemplateException {

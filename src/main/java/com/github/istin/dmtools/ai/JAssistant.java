@@ -36,13 +36,23 @@ public class JAssistant {
 
     private static String CODE_AI_MODEL;
 
+    private static String TEST_AI_MODEL;
+
     static {
         PropertyReader propertyReader = new PropertyReader();
         String codeAIModel = propertyReader.getCodeAIModel();
+        String defaultModel = propertyReader.getOpenAIModel();
         if (codeAIModel == null || codeAIModel.isEmpty()) {
-            CODE_AI_MODEL = propertyReader.getOpenAIModel();
+            CODE_AI_MODEL = defaultModel;
         } else {
             CODE_AI_MODEL = codeAIModel;
+        }
+
+        String testAIModel = propertyReader.getTestAIModel();
+        if (testAIModel == null || testAIModel.isEmpty()) {
+            TEST_AI_MODEL = defaultModel;
+        } else {
+            TEST_AI_MODEL = testAIModel;
         }
     }
 
@@ -172,6 +182,7 @@ public class JAssistant {
         }
     }
 
+
     public void generateTestCases(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
         ITicket mainTicket = ticketContext.getTicket();
         String key = mainTicket.getTicketKey();
@@ -183,31 +194,19 @@ public class JAssistant {
             }
         }
 
-        List<ITicket> finaResults = new ArrayList<>();
-        for (ITicket testCase : listOfAllTestCases) {
-            SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(),  "", ticketContext, testCase);
-
-            String chatRequest = promptManager.validateTestCaseRelatedToStory(similarStoriesPrompt);
-            String isRelatedToStory = openAIClient.chat(
-                    "gpt-35-turbo",
-                    chatRequest);
-            if (Boolean.parseBoolean(isRelatedToStory)) {
-                finaResults.add(testCase);
-                trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), testCase.getKey(), Relationship.TESTS);
-            }
-        }
+        List<ITicket> finaResults = findAndLinkSimilarTestCasesBySummary(ticketContext, listOfAllTestCases, true);
 
         QATestCasesPrompt qaTestCasesPrompt = new QATestCasesPrompt(trackerClient.getBasePath(), ticketContext, testCasesPriorities);
         qaTestCasesPrompt.setTestCases(finaResults);
 
         if (outputType.equals(TestCasesGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
             String aiRequest = promptManager.requestTestCasesForStoryAsHTML(qaTestCasesPrompt);
-            String response = openAIClient.chat(aiRequest);
+            String response = openAIClient.chat(TEST_AI_MODEL, aiRequest);
             String comment = TEST_CASES_COMMENT_PREFIX + response;
             trackerClient.postComment(key, comment);
         } else {
             String aiRequest = promptManager.requestTestCasesForStoryAsJSONArray(qaTestCasesPrompt);
-            String response = openAIClient.chat(aiRequest);
+            String response = openAIClient.chat(TEST_AI_MODEL, aiRequest);
             JSONArray array = new JSONArray(response);
             for (int i = 0; i < array.length(); i++) {
                 JSONObject jsonObject = array.getJSONObject(i);
@@ -228,6 +227,62 @@ public class JAssistant {
                 trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), Relationship.TESTS);
             }
         }
+    }
+
+    @NotNull
+    public List<ITicket> findAndLinkSimilarTestCasesByDetails(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, boolean isLink) throws Exception {
+        List<ITicket> finaResults = new ArrayList<>();
+        for (ITicket testCase : listOfAllTestCases) {
+            SimilarStoriesPrompt similarStoriesPrompt = new SimilarStoriesPrompt(trackerClient.getBasePath(),  "", ticketContext, testCase);
+
+            String chatRequest = promptManager.validateTestCaseRelatedToStory(similarStoriesPrompt);
+            String isRelatedToStory = openAIClient.chat(
+                    "gpt-35-turbo",
+                    chatRequest);
+            if (Boolean.parseBoolean(isRelatedToStory)) {
+                String isConfirmed = openAIClient.chat(
+                        TEST_AI_MODEL,
+                        chatRequest);
+                if (Boolean.parseBoolean(isConfirmed)) {
+                    finaResults.add(testCase);
+                    if (isLink) {
+                        trackerClient.linkIssueWithRelationship(ticketContext.getTicket().getTicketKey(), testCase.getKey(), Relationship.TESTS);
+                    }
+                }
+            }
+        }
+        return finaResults;
+    }
+
+    @NotNull
+    public List<ITicket> findAndLinkSimilarTestCasesBySummary(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, boolean isLink) throws Exception {
+        List<ITicket> finaResults = new ArrayList<>();
+        int batchSize = 50;
+        for (int i = 0; i < listOfAllTestCases.size(); i += batchSize) {
+            List<? extends ITicket> batch = listOfAllTestCases.subList(i, Math.min(i + batchSize, listOfAllTestCases.size()));
+            TicketBasedPrompt similarStoriesPrompt = new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext);
+            similarStoriesPrompt.setTestCases(batch);
+            String chatRequest = promptManager.validateTestCasesAreRelatedToStory(similarStoriesPrompt);
+            JSONArray testCaseKeys = new JSONArray(openAIClient.chat(TEST_AI_MODEL, chatRequest));
+            //find relevant test case from batch
+            for (int j = 0; j < testCaseKeys.length(); j++) {
+                String testCaseKey = testCaseKeys.getString(j);
+                ITicket testCase = batch.stream().filter(t -> t.getKey().equals(testCaseKey)).findFirst().orElse(null);
+                if (testCase != null) {
+                    String doubleCheckRequest = promptManager.validateTestCaseRelatedToStory(new SimilarStoriesPrompt(trackerClient.getBasePath(), "", ticketContext, testCase));
+                    String isConfirmed = openAIClient.chat(
+                            TEST_AI_MODEL,
+                            doubleCheckRequest);
+                    if (Boolean.parseBoolean(isConfirmed)) {
+                        finaResults.add(testCase);
+                        if (isLink) {
+                            trackerClient.linkIssueWithRelationship(ticketContext.getTicket().getTicketKey(), testCase.getKey(), Relationship.TESTS);
+                        }
+                    }
+                }
+            }
+        }
+        return finaResults;
     }
 
     public @NotNull StringBuilder buildAttachmentsDescription(ITicket ticket) throws Exception {

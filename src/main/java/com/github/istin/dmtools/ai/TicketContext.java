@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.ai;
 
+import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
@@ -32,7 +33,11 @@ public class TicketContext implements ToText {
                     continue;
                 }
 
-                extraTickets.add(trackerClient.performTicket(key, trackerClient.getExtendedQueryFields()));
+                try {
+                    extraTickets.add(trackerClient.performTicket(key, trackerClient.getExtendedQueryFields()));
+                } catch (AtlassianRestClient.JiraException e) {
+
+                }
             }
         }
     }

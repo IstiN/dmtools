@@ -42,6 +42,7 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
         ProductivityTools.generate(trackerClient, releaseGenerator, team, formula, inputJQL, generateListOfMetrics(devProductivityReportParams, employees), Release.Style.BY_SPRINTS);
         Set<String> unknownNames = employees.getUnknownNames();
         System.out.println("Unknown Names");
+        System.out.println(unknownNames.size());
         System.out.println(unknownNames);
     }
 
