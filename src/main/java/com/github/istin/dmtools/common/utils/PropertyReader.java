@@ -208,6 +208,10 @@ public class PropertyReader {
 		return getValue("CODE_AI_MODEL");
 	}
 
+	public String getTestAIModel() {
+		return getValue("TEST_AI_MODEL");
+	}
+
 	public String getFigmaBasePath() {
 		return getValue("FIGMA_BASE_PATH");
 	}
