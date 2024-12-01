@@ -16,6 +16,7 @@ import com.github.istin.dmtools.team.Employees;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class QAProductivityReport extends AbstractJob<QAProductivityReportParams> {
 
@@ -23,7 +24,12 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
     public void runJob(QAProductivityReportParams qaProductivityReportParams) throws Exception {
         WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(qaProductivityReportParams.getStartDate());
         String formula = qaProductivityReportParams.getFormula();
-        ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(qaProductivityReportParams.getEmployees()));
+        Employees testers = Employees.getTesters(qaProductivityReportParams.getEmployees());
+        ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, testers, qaProductivityReportParams.getIgnoreTicketPrefixes());
+        Set<String> unknownNames = testers.getUnknownNames();
+        System.out.println("Unknown Names");
+        System.out.println(unknownNames.size());
+        System.out.println(unknownNames);
     }
 
     protected List<Metric> generateListOfMetrics(QAProductivityReportParams qaProductivityReportParams) throws IOException {
@@ -63,7 +69,6 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
         listOfCustomMetrics.add(new Metric("Stories Moved To Done", weight, new TicketMovedToStatusRule(qaProductivityReportParams.getStatusesDone(), null, false) {
             @Override
             public List<KeyTime> check(TrackerClient jiraClient, ITicket ticket) throws Exception {
-                if (ProductivityUtils.isIgnoreTask(qaProductivityReportParams.getIgnoreTicketPrefixes(), ticket)) return null;
                 if (ProductivityUtils.isStory(qaProductivityReportParams, ticket)) {
                     List<KeyTime> keyTimes = super.check(jiraClient, ticket);
                     if (keyTimes != null && !keyTimes.isEmpty()) {

@@ -16,18 +16,20 @@ public class PullRequestsApprovalsMetricSource extends CommonSourceCollector {
     private final String workspace;
     private final String repo;
     private final SourceCode sourceCode;
+    private final Calendar startDate;
 
-    public PullRequestsApprovalsMetricSource(String workspace, String repo, SourceCode sourceCode, IEmployees employees) {
+    public PullRequestsApprovalsMetricSource(String workspace, String repo, SourceCode sourceCode, IEmployees employees, Calendar startDate) {
         super(employees);
         this.workspace = workspace;
         this.repo = repo;
         this.sourceCode = sourceCode;
+        this.startDate = startDate;
     }
 
     @Override
     public List<KeyTime> performSourceCollection(boolean isPersonalized, String metricName) throws Exception {
         List<KeyTime> data = new ArrayList<>();
-        List<IPullRequest> pullRequests = sourceCode.pullRequests(workspace, repo, IPullRequest.PullRequestState.STATE_MERGED, true);
+        List<IPullRequest> pullRequests = sourceCode.pullRequests(workspace, repo, IPullRequest.PullRequestState.STATE_MERGED, true, startDate);
         for (IPullRequest pullRequest : pullRequests) {
 
             String pullRequestAuthorDisplayName = pullRequest.getAuthor().getFullName();

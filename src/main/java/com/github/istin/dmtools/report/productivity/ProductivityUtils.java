@@ -71,7 +71,7 @@ public class ProductivityUtils {
             return false;
         }
         for (String ignoreTicketPrefix : ignoreTicketPrefixes) {
-            if (cleanedText.startsWith(ignoreTicketPrefix)) {
+            if (cleanedText.toLowerCase().startsWith(ignoreTicketPrefix.toLowerCase())) {
                 return true;
             }
         }

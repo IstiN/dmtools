@@ -103,7 +103,7 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
     }
 
     public static void checkAndSyncPullRequests(SourceCode sourceCode, String workspace, String repository, String pullRequestState, IssuesIDsParser issuesIDsParser, TrackerClient tracker, Function<String, String> priorityToIcon, StatusSyncDelegate statusSyncDelegate, boolean checkAllPullRequests, boolean addPullRequestLabels, String... inProgressReopenedStatuses) throws IOException {
-        List<IPullRequest> bitbucketPullRequests = sourceCode.pullRequests(workspace, repository, pullRequestState, checkAllPullRequests);
+        List<IPullRequest> bitbucketPullRequests = sourceCode.pullRequests(workspace, repository, pullRequestState, checkAllPullRequests, null);
         for (IPullRequest pullRequest : bitbucketPullRequests) {
             List<String> keys = issuesIDsParser.parseIssues(pullRequest.getTitle(), pullRequest.getSourceBranchName(), pullRequest.getDescription());
             boolean wasRenamed = false;

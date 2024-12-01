@@ -19,6 +19,7 @@ public class DevProductivityReportParams extends ProductivityJobParams {
     public static final String START_DATE = "start_date";
     public static final String CALC_WEIGHT_TYPE = "calc_weight_type";
     public static final String EXCEL_METRICS_PARAMS = "excel_metrics_params";
+    public static final String COMMENTS_REGEX_RESPONSIBLE = "comment_regex_responsible";
 
     public enum CalcWeightType {
         TIME_SPENT, STORY_POINTS
@@ -33,6 +34,15 @@ public class DevProductivityReportParams extends ProductivityJobParams {
 
     public DevProductivityReportParams(JSONObject json) {
         super(json);
+    }
+
+    public DevProductivityReportParams setCommentsRegexResponsible(String regex) {
+        set(COMMENTS_REGEX_RESPONSIBLE, regex);
+        return this;
+    }
+
+    public String getCommentsRegexResponsible() {
+        return getString(COMMENTS_REGEX_RESPONSIBLE);
     }
 
     public String getInitialStatus() {

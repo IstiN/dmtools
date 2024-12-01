@@ -6,6 +6,7 @@ import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import com.github.istin.dmtools.openai.model.AIResponse;
 import com.github.istin.dmtools.openai.model.Choice;
+import com.github.istin.dmtools.openai.utils.AIResponseParser;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -131,6 +132,30 @@ public class OpenAIClient extends AbstractRestClient {
         return content;
     }
 
+    public JSONArray chatAsJSONArray(String model, String message) throws Exception {
+        return AIResponseParser.parseResponseAsJSONArray(chat(model, message, null));
+    }
+
+    public JSONArray chatAsJSONArray(String message) throws Exception {
+        return chatAsJSONArray(model, message);
+    }
+
+    public JSONObject chatAsJSONObject(String model, String message) throws Exception {
+        return AIResponseParser.parseResponseAsJSONObject(chat(model, message, null));
+    }
+
+    public JSONObject chatAsJSONObject(String message) throws Exception {
+        return chatAsJSONObject(model, message);
+    }
+
+    public boolean chatAsBoolean(String model, String message) throws Exception {
+        return AIResponseParser.parseBooleanResponse(chat(model, message, null));
+    }
+
+    public boolean chatAsBoolean(String message) throws Exception {
+        return chatAsBoolean(model, message);
+    }
+
     public String chat(String model, String message) throws Exception {
         return chat(model, message, null);
     }
@@ -138,10 +163,10 @@ public class OpenAIClient extends AbstractRestClient {
     @Override
     protected @NotNull String buildHashForPostRequest(GenericRequest genericRequest, String url) {
         String adjustedUrl =
-                url.replaceAll("gpt-4-0125-preview", "gpt-4-turbo-2024-04-09")
-                        .replaceAll("gpt-4-32k", "gpt-4-turbo-2024-04-09")
-                        .replaceAll("gpt-4-1106-preview", "gpt-4-turbo-2024-04-09")
-                        .replaceAll("gpt-35-turbo", "gpt-4-turbo-2024-04-09")
+//                url.replaceAll("gpt-4-0125-preview", "gpt-4-turbo-2024-04-09")
+//                        .replaceAll("gpt-4-32k", "gpt-4-turbo-2024-04-09")
+//                        .replaceAll("gpt-4-1106-preview", "gpt-4-turbo-2024-04-09")
+        url.replaceAll("gpt-35-turbo", "gpt-4-turbo-2024-04-09")
                 ;
         return adjustedUrl + genericRequest.getBody();
     }

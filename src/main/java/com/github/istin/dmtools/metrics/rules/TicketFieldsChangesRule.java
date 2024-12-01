@@ -4,6 +4,7 @@ import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.metrics.TrackerRule;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.Employees;
@@ -19,6 +20,7 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
     private final String[] filterFields;
     private boolean isSimilarity = false;
     private boolean isCollectionIfByCreator = false;
+    private double ticketFieldsChangedDivider;
 
     public TicketFieldsChangesRule(Employees employees) {
         this(employees, null, false, false);
@@ -29,6 +31,7 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
         this.filterFields = filterFields;
         this.isSimilarity = isSimilarity;
         this.isCollectionIfByCreator = isCollectionIfByCreator;
+        this.ticketFieldsChangedDivider = new PropertyReader().getTicketFieldsChangedDivider();
     }
 
     public TicketFieldsChangesRule(String customName, Employees employees) {
@@ -41,6 +44,7 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
         this.filterFields = filterFields;
         this.isSimilarity = isSimilarity;
         this.isCollectionIfByCreator = isCollectionIfByCreator;
+        this.ticketFieldsChangedDivider = new PropertyReader().getTicketFieldsChangedDivider();
     }
 
     @Override
@@ -99,7 +103,7 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
                         }
                     }
                     KeyTime keyTime = new KeyTime(ticket.getKey(), history.getCreated(), authorName);
-                    keyTime.setWeight(weight);
+                    keyTime.setWeight(isSimilarity ? weight : weight / ticketFieldsChangedDivider);
                     result.add(keyTime);
                 }
             }
