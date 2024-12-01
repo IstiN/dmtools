@@ -13,6 +13,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 
@@ -51,7 +52,7 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
     }
 
     @Override
-    public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
+    public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests, Calendar startDate) throws IOException {
         List<IPullRequest> result = new ArrayList<>();
         int start = getInitialStartValue();
         String stateConverted = apiVersion == ApiVersion.V1 ? state : state.toUpperCase();
@@ -86,6 +87,9 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
                 logger.info("pull requests response first item: {}", values.get(0).getId());
             }
             result.addAll(values);
+            if (startDate != null && !result.isEmpty() && result.getLast().getCreatedDate() < startDate.getTimeInMillis()) {
+                break;
+            }
         }
 
         return result;

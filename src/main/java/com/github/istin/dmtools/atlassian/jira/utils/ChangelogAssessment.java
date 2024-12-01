@@ -64,7 +64,11 @@ public class ChangelogAssessment {
                             if (toString.equalsIgnoreCase(status)) {
                                 Calendar created = history.getCreated();
                                 String displayName = history.getAuthor().getFullName();
-                                result.add(new KeyTime(key, created, customName != null ? customName : displayName));
+                                KeyTime keyTime = new KeyTime(key, created, customName != null ? customName : displayName);
+                                if (isSetWeight) {
+                                    keyTime.setWeight(ticket.getWeight());
+                                }
+                                result.add(keyTime);
                             }
                         }
                     }
@@ -82,7 +86,11 @@ public class ChangelogAssessment {
                     if (creator == null) {
                         creator = firstAuthor;
                     }
-                    result.add(new KeyTime(key, createdCalendar, creator != null ? creator.getFullName() : null));
+                    KeyTime keyTime = new KeyTime(key, createdCalendar, creator != null ? creator.getFullName() : null);
+                    if (isSetWeight) {
+                        keyTime.setWeight(ticket.getWeight());
+                    }
+                    result.add(keyTime);
                 }
             }
         }

@@ -21,7 +21,7 @@ public class TestCasesReport extends AbstractJob<TestCasesReportParams> {
     public void runJob(TestCasesReportParams qaProductivityReportParams) throws Exception {
         WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(qaProductivityReportParams.getStartDate());
         String formula = qaProductivityReportParams.getFormula();
-        ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(qaProductivityReportParams.getEmployees()));
+        ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(qaProductivityReportParams.getEmployees()), qaProductivityReportParams.getIgnoreTicketPrefixes());
     }
 
     protected List<Metric> generateListOfMetrics(TestCasesReportParams qaProductivityReportParams) throws IOException {

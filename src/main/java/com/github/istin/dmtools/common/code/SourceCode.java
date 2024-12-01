@@ -9,11 +9,12 @@ import org.json.JSONArray;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public interface SourceCode {
 
-    List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException;
+    List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests, Calendar startDate) throws IOException;
 
     IPullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException;
 

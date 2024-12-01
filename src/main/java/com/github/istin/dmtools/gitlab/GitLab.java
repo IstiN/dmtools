@@ -16,6 +16,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -44,7 +45,7 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
     }
 
     @Override
-    public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
+    public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests, Calendar startDate) throws IOException {
         List<IPullRequest> allPullRequests = new ArrayList<>();
         int page = 1;
         int perPage = 100; // Adjust as needed, GitLab default is 20, max is 100
@@ -62,7 +63,9 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
 
             List<IPullRequest> pullRequests = JSONModel.convertToModels(GitLabPullRequest.class, new JSONArray(response));
             allPullRequests.addAll(pullRequests);
-
+            if (startDate != null && !pullRequests.isEmpty() && pullRequests.getLast().getCreatedDate() < startDate.getTimeInMillis()) {
+                break;
+            }
             if (!checkAllRequests || pullRequests.size() < perPage) {
                 // Stop if we are not checking all requests or if there are fewer pull requests than the perPage limit
                 break;

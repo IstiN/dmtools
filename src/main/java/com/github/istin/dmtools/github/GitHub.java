@@ -5,6 +5,7 @@ import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.github.model.*;
 import com.github.istin.dmtools.job.JobRunner;
 import com.github.istin.dmtools.networking.AbstractRestClient;
@@ -14,8 +15,10 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,6 +26,12 @@ import java.util.stream.Collectors;
 public abstract class GitHub extends AbstractRestClient implements SourceCode {
     private static final Logger logger = LogManager.getLogger(GitHub.class);
     private static final String API_VERSION = "v3";
+    private static final boolean IS_READ_PULL_REQUEST_DIFF;
+
+    static {
+        PropertyReader propertyReader = new PropertyReader();
+        IS_READ_PULL_REQUEST_DIFF = propertyReader.isReadPullRequestDiff();
+    }
 
     public GitHub(String basePath, String authorization) throws IOException {
         super(basePath, authorization);
@@ -47,7 +56,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     }
 
     @Override
-    public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests) throws IOException {
+    public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests, Calendar startDate) throws IOException {
         boolean isMerged = state.equalsIgnoreCase(IPullRequest.PullRequestState.STATE_MERGED);
         if (isMerged) {
             state = "closed";
@@ -68,7 +77,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
                 break;
             }
 
-            List<GitHubPullRequest> pullRequests = JSONModel.convertToModels(GitHubPullRequest.class, new JSONArray(response));
+            JSONArray pullRequestsInResponse = new JSONArray(response);
+            List<GitHubPullRequest> pullRequests = JSONModel.convertToModels(GitHubPullRequest.class, pullRequestsInResponse);
             if (isMerged) {
                 pullRequests = pullRequests.stream()
                         .filter(GitHubPullRequest::isMerged)
@@ -76,7 +86,11 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
             }
             allPullRequests.addAll(pullRequests);
 
-            if (!checkAllRequests || pullRequests.size() < perPage) {
+            if (startDate != null && !pullRequests.isEmpty() && pullRequests.getLast().getCreatedDate() < startDate.getTimeInMillis()) {
+                break;
+            }
+
+            if (!checkAllRequests || pullRequestsInResponse.length() < perPage) {
                 // If not checking all requests, or if fewer entries than the max per page are returned, we're done
                 break;
             }
@@ -92,6 +106,13 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     public IPullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException {
         String response = getPullRequestResponse(workspace, repository, pullRequestId);
         return new GitHubPullRequest(response);
+    }
+
+    public String triggerAction(String workspace, String repository, JSONObject params) throws IOException {
+        String path = path(String.format("repos/%s/%s/dispatches", workspace, repository));
+        GenericRequest postRequest = new GenericRequest(this, path);
+        postRequest.setBody(params.toString());
+        return post(postRequest);
     }
 
     private String getPullRequestResponse(String workspace, String repository, String pullRequestId) throws IOException {
@@ -272,7 +293,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
 
     @Override
     public IDiffStats getPullRequestDiff(String workspace, String repository, String pullRequestID) throws IOException {
-        if (true) {
+        if (IS_READ_PULL_REQUEST_DIFF) {
             return new IDiffStats.Empty();
         }
         synchronized (lock) {
@@ -369,6 +390,30 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
                 return response;
             }
         };
+    }
+
+    public String getSingleFileContent(String workspace, String repository, String branchName, String filePath) throws IOException {
+        String path = path(String.format("repos/%s/%s/contents/%s", workspace, repository, filePath));
+        GenericRequest getRequest = new GenericRequest(this, path);
+
+        // Add a query parameter for the branch
+        getRequest.param("ref", branchName);
+
+        String response = execute(getRequest);
+        if (response == null) {
+            throw new FileNotFoundException("File not found: " + filePath);
+        }
+
+        JSONObject jsonResponse = new JSONObject(response);
+        String content = jsonResponse.optString("content", "");
+        String encoding = jsonResponse.optString("encoding", "");
+
+        if ("base64".equalsIgnoreCase(encoding)) {
+            return JobRunner.decodeBase64(content.replaceAll("\\r\\n|\\r|\\n", ""));
+        } else {
+            // If it's not base64 encoded, return the content as is
+            return content;
+        }
     }
 
     @Override

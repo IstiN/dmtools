@@ -228,6 +228,36 @@ public class PropertyReader {
 		return Integer.parseInt(value);
 	}
 
+	public Double getLinesOfCodeDivider() {
+		String value = getValue("LINES_OF_CODE_DIVIDER");
+		if (value == null) {
+			return 1d;
+		}
+		return Double.parseDouble(value);
+	}
+
+	public Double getTimeSpentOnDivider() {
+		String value = getValue("TIME_SPENT_ON_DIVIDER");
+		if (value == null) {
+			return 1d;
+		}
+		return Double.parseDouble(value);
+	}
+
+	public Double getTicketFieldsChangedDivider() {
+		String value = getValue("TICKET_FIELDS_CHANGED_DIVIDER");
+		if (value == null) {
+			return 1d;
+		}
+		return Double.parseDouble(value);
+	}
 
 
+	public boolean isReadPullRequestDiff() {
+		String value = getValue("IS_READ_PULL_REQUEST_DIFF");
+		if (value == null) {
+			return true;
+		}
+		return Boolean.parseBoolean(value);
+	}
 }

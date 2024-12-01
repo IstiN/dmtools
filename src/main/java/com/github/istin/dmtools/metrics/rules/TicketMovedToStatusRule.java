@@ -61,15 +61,15 @@ public class TicketMovedToStatusRule implements TrackerRule<ITicket> {
         if (toCheckResolutionForDone && statuses[0].equalsIgnoreCase("done")) {
             if (resolution != null) {
                 if (!resolution.isRejected()) {
-                    return ChangelogAssessment.findDatesWhenTicketWasInStatus(customName, false, jiraClient, ticket.getKey(), ticket, statuses);
+                    return ChangelogAssessment.findDatesWhenTicketWasInStatus(customName, true, jiraClient, ticket.getKey(), ticket, statuses);
                 } else {
                     return new ArrayList<>();
                 }
             } else {
-                return ChangelogAssessment.findDatesWhenTicketWasInStatus(customName, false, jiraClient, ticket.getKey(), ticket, statuses);
+                return ChangelogAssessment.findDatesWhenTicketWasInStatus(customName, true, jiraClient, ticket.getKey(), ticket, statuses);
             }
         } else {
-            return ChangelogAssessment.findDatesWhenTicketWasInStatus(customName, false, jiraClient, ticket.getKey(), ticket, statuses);
+            return ChangelogAssessment.findDatesWhenTicketWasInStatus(customName, true, jiraClient, ticket.getKey(), ticket, statuses);
         }
     }
 

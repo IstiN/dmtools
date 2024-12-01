@@ -14,6 +14,7 @@ import com.github.istin.dmtools.report.freemarker.cells.DevItemsSumCell;
 import com.github.istin.dmtools.report.freemarker.cells.DevProductivityCell;
 import com.github.istin.dmtools.report.freemarker.cells.DevStoriesSPSumCell;
 import com.github.istin.dmtools.report.model.KeyTime;
+import com.github.istin.dmtools.report.productivity.ProductivityUtils;
 import com.github.istin.dmtools.team.Employees;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,17 +29,17 @@ public class ProductivityTools {
     private static final Logger logger = LogManager.getLogger(ProductivityTools.class);
     public static final String REPORT_NAME = "Dev Productivity";
 
-    public static File generate(TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style) throws Exception {
-        return generate(tracker, releaseGenerator, team, formula, jql, listOfCustomMetrics, style, null);
+    public static File generate(TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, String[] ignorePrefixes) throws Exception {
+        return generate(tracker, releaseGenerator, team, formula, jql, listOfCustomMetrics, style, null, ignorePrefixes);
     }
 
-    public static File generate(TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, Employees employees) throws Exception {
-        DevProductivityReport productivityReport = buildReport(tracker, releaseGenerator, team, formula, jql, listOfCustomMetrics, style, employees);
+    public static File generate(TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, Employees employees, String[] ignorePrefixes) throws Exception {
+        DevProductivityReport productivityReport = buildReport(tracker, releaseGenerator, team, formula, jql, listOfCustomMetrics, style, employees, ignorePrefixes);
         return new ReportUtils().write(team + "_" + REPORT_NAME, "dev_productivity", productivityReport, null);
     }
 
     @NotNull
-    public static DevProductivityReport buildReport(final TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, Employees employees) throws Exception {
+    public static DevProductivityReport buildReport(final TrackerClient tracker, IReleaseGenerator releaseGenerator, String team, String formula, String jql, List<Metric> listOfCustomMetrics, Release.Style style, Employees employees, String[] ignorePrefixes) throws Exception {
         final Map<String, Map<String,List<KeyTime>>> customMetricsProductivityMap = new HashMap<>();
         Set<String> combinedMetrics = new HashSet<>();
         DevProductivityReport productivityReport = new DevProductivityReport();
@@ -67,6 +68,8 @@ public class ProductivityTools {
                 @Override
                 public boolean perform(ITicket ticket) throws Exception {
                     //custom metrics
+                    if (ProductivityUtils.isIgnoreTask(ignorePrefixes, ticket)) return false;
+
                     for (Metric m : listOfCustomMetrics) {
                         if (m.getSourceCollector() == null) {
                             List<KeyTime> productivityItem = m.getRule().check(tracker, ticket);
