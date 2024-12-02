@@ -62,6 +62,8 @@ public class StringUtils {
         CopyDown converter = new CopyDown(options);
         String markdown = converter.convert(document.body().html());
 
+        markdown = markdown.replaceAll("\\\\\\[", "[");
+        markdown = markdown.replaceAll("\\\\\\]", "]");
         // Replace ** with * for bold text
         markdown = markdown.replaceAll("\\*\\*", "*");
 
