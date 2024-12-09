@@ -42,6 +42,11 @@ jobs:
           path: build/reports/tests/test
           retention-days: 7
 
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Create a Release
         id: create_release
         uses: actions/create-release@v1
