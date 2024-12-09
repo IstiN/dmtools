@@ -34,11 +34,11 @@ public class PullRequestReview extends TicketBasedPrompt {
         this.diff = diff;
     }
 
-    public List<? extends ITicket> getTestCases() {
+    public List<? extends ITicket> getExistingTickets() {
         return testCases;
     }
 
-    public void setTestCases(List<? extends ITicket> testCases) {
-        this.testCases = testCases;
+    public void setExistingTickets(List<? extends ITicket> existingTickets) {
+        this.testCases = existingTickets;
     }
 }

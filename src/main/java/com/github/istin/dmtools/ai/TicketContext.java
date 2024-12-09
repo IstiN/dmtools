@@ -14,10 +14,23 @@ import java.util.Set;
 
 public class TicketContext implements ToText {
 
+    public static interface OnTicketDetailsRequest {
+        ITicket getTicketDetails(String key) throws IOException;
+    }
+
     private final TrackerClient<? extends ITicket> trackerClient;
     private final ITicket ticket;
+    private OnTicketDetailsRequest onTicketDetailsRequest;
 
     private List<ITicket> extraTickets = new ArrayList<>();
+
+    public OnTicketDetailsRequest getOnTicketDetailsRequest() {
+        return onTicketDetailsRequest;
+    }
+
+    public void setOnTicketDetailsRequest(OnTicketDetailsRequest onTicketDetailsRequest) {
+        this.onTicketDetailsRequest = onTicketDetailsRequest;
+    }
 
     public TicketContext(TrackerClient<? extends ITicket> trackerClient, ITicket ticket) {
         this.trackerClient = trackerClient;
@@ -34,7 +47,14 @@ public class TicketContext implements ToText {
                 }
 
                 try {
-                    extraTickets.add(trackerClient.performTicket(key, trackerClient.getExtendedQueryFields()));
+                    ITicket e = null;
+                    if (onTicketDetailsRequest != null) {
+                        e = onTicketDetailsRequest.getTicketDetails(key);
+                    }
+                    if (e == null) {
+                        e = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
+                    }
+                    extraTickets.add(e);
                 } catch (AtlassianRestClient.JiraException e) {
 
                 }

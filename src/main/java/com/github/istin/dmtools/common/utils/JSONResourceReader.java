@@ -23,7 +23,7 @@ public class JSONResourceReader  {
     private static Map<String, JSONResourceReader> jsonConfigs = new HashMap<>();
 
 
-    private JSONResourceReader(String file) {
+    JSONResourceReader(String file) {
         this.file = file;
         readJSON();
     }
@@ -32,7 +32,7 @@ public class JSONResourceReader  {
         return jsonConfigs.computeIfAbsent(file, JSONResourceReader::new);
     }
 
-    private void readJSON() {
+    void readJSON() {
         InputStream input = null;
         try {
             input = getClass().getResourceAsStream("/" + file);
@@ -55,7 +55,7 @@ public class JSONResourceReader  {
 
     public static final int DEFAULT_BUFFER_SIZE = 8192;
 
-    private static String convertInputStreamToString(InputStream is) throws IOException {
+    static String convertInputStreamToString(InputStream is) throws IOException {
 
         ByteArrayOutputStream result = new ByteArrayOutputStream();
         byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];

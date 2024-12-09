@@ -4,15 +4,18 @@ import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Relationship;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
+import com.github.istin.dmtools.ba.UserStoryGeneratorParams;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.common.utils.StringUtils;
+import com.github.istin.dmtools.dev.UnitTestsGeneratorParams;
 import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.openai.input.*;
+import com.github.istin.dmtools.openai.utils.AIResponseParser;
 import com.github.istin.dmtools.qa.TestCasesGeneratorParams;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,6 +34,7 @@ public class JAssistant {
     private static final Logger logger = LogManager.getLogger(JAssistant.class);
     public static final String ME = JAssistant.class.getSimpleName();
     public static final String TEST_CASES_COMMENT_PREFIX = "<p>JAI Generated Test Cases: </p>";
+    public static final String USER_STORIES_COMMENT_PREFIX = "<p>JAI Generated User Stories: </p>";
     public static final String LABEL_REQUIREMENTS = "requirements";
     public static final String LABEL_TIMELINE = "timeline";
     public static final String LABEL_TEAM_SETUP = "team_setup";
@@ -93,7 +98,7 @@ public class JAssistant {
         codeGeneration.setExtraTickets(ticketContext.getExtraTickets());
         if (!IssueType.isBug(ticket.getIssueType())) {
             List<? extends ITicket> testCases = trackerClient.getTestCases(ticket);
-            codeGeneration.setTestCases(testCases);
+            codeGeneration.setExistingTickets(testCases);
         }
 
         List<IFile> finalResults = new ArrayList<>();
@@ -181,6 +186,108 @@ public class JAssistant {
         }
     }
 
+    public JSONArray generateUserStories(TicketContext ticketContext, List<? extends ITicket> listOfLinkedUserStories, String projectCode, String issueType, String acceptanceCriteriaField, String relationship, String outputType, String priorities) throws Exception {
+        ITicket mainTicket = ticketContext.getTicket();
+        String key = mainTicket.getTicketKey();
+
+        if (outputType.equals(UserStoryGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
+            String message = TrackerClient.Utils.checkCommentStartedWith(trackerClient, mainTicket.getKey(), mainTicket, USER_STORIES_COMMENT_PREFIX);
+            if (message != null) {
+                return null;
+            }
+        }
+
+        TicketCreationPrompt userStoryCreationPrompt = new TicketCreationPrompt(trackerClient.getBasePath(), ticketContext, priorities);
+        userStoryCreationPrompt.setExistingTickets(listOfLinkedUserStories);
+
+        if (outputType.equals(UserStoryGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
+            String aiRequest = promptManager.generateUserStoriesAsHTML(userStoryCreationPrompt);
+            String response = openAIClient.chat(aiRequest);
+            String comment = USER_STORIES_COMMENT_PREFIX + response;
+            trackerClient.postComment(key, comment);
+        } else {
+            String aiRequest = promptManager.generateUserStoriesAsJSONArray(userStoryCreationPrompt);
+            JSONArray array = openAIClient.chatAsJSONArray(aiRequest);
+            if (!array.isEmpty()) {
+                createUserStories(projectCode, issueType, acceptanceCriteriaField, relationship, array, mainTicket);
+            } else {
+                String aiResponseToUpdateUserStories = promptManager.updateUserStoriesAsJSONArray(userStoryCreationPrompt);
+                JSONArray objects = openAIClient.chatAsJSONArray(aiResponseToUpdateUserStories);
+                updateUserStories(acceptanceCriteriaField, objects);
+                return objects;
+            }
+        }
+        return null;
+    }
+
+    private void updateUserStories(String acceptanceCriteriaField, JSONArray objects) throws IOException {
+        for (int i = 0; i < objects.length(); i++) {
+            JSONObject jsonObject = objects.getJSONObject(i);
+            String storyKey = jsonObject.getString("key");
+            String summary = jsonObject.getString("summary");
+            String description = jsonObject.getString("description");
+            String acceptanceCriteria = jsonObject.getString("acceptanceCriteria");
+            if (acceptanceCriteriaField == null) {
+                description += "\n\n" + acceptanceCriteria;
+            }
+            if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+                description = StringUtils.convertToMarkdown(description);
+            }
+            String finalDescription = description;
+            trackerClient.updateTicket(storyKey, new TrackerClient.FieldsInitializer() {
+                @Override
+                public void init(TrackerClient.TrackerTicketFields fields) {
+                    if (acceptanceCriteriaField != null) {
+                        if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+                            fields.set(acceptanceCriteriaField, StringUtils.convertToMarkdown(acceptanceCriteria));
+                        } else {
+                            fields.set(acceptanceCriteriaField, acceptanceCriteria);
+                        }
+                    }
+                    fields.set("description", finalDescription);
+                    fields.set("summary", summary);
+                }
+            });
+        }
+    }
+
+    private void createUserStories(String projectCode, String issueType, String acceptanceCriteriaField, String relationship, JSONArray array, ITicket mainTicket) throws IOException {
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject jsonObject = array.getJSONObject(i);
+            String description = jsonObject.getString("description");
+            String acceptanceCriteria = jsonObject.getString("acceptanceCriteria");
+            if (acceptanceCriteriaField == null) {
+                description += "\n\n" + acceptanceCriteria;
+            }
+            if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+                description = StringUtils.convertToMarkdown(description);
+            }
+            Ticket createdUserStories = new Ticket(trackerClient.createTicketInProject(projectCode, issueType, jsonObject.getString("summary"), description, new TrackerClient.FieldsInitializer() {
+                @Override
+                public void init(TrackerClient.TrackerTicketFields fields) {
+                    fields.set("priority",
+                            new JSONObject().put("name", jsonObject.getString("priority"))
+                    );
+                    fields.set("labels", new JSONArray().put("ai_generated"));
+                    if (acceptanceCriteriaField != null) {
+                        if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+                            fields.set(acceptanceCriteriaField, StringUtils.convertToMarkdown(acceptanceCriteria));
+                        } else {
+                            fields.set(acceptanceCriteriaField, acceptanceCriteria);
+                        }
+                    }
+                    if (relationship != null && relationship.equalsIgnoreCase("parent")) {
+                        if (mainTicket instanceof Ticket) {
+                            fields.set("parent", ((Ticket) mainTicket).getJSONObject());
+                        }
+                    }
+                }
+            }));
+            if (relationship != null && !relationship.equalsIgnoreCase("parent")) {
+                trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdUserStories.getKey(), relationship);
+            }
+        }
+    }
 
     public void generateTestCases(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
         ITicket mainTicket = ticketContext.getTicket();
@@ -195,8 +302,8 @@ public class JAssistant {
 
         List<ITicket> finaResults = findAndLinkSimilarTestCasesBySummary(ticketContext, listOfAllTestCases, true);
 
-        QATestCasesPrompt qaTestCasesPrompt = new QATestCasesPrompt(trackerClient.getBasePath(), ticketContext, testCasesPriorities);
-        qaTestCasesPrompt.setTestCases(finaResults);
+        TicketCreationPrompt qaTestCasesPrompt = new TicketCreationPrompt(trackerClient.getBasePath(), ticketContext, testCasesPriorities);
+        qaTestCasesPrompt.setExistingTickets(finaResults);
 
         if (outputType.equals(TestCasesGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT)) {
             String aiRequest = promptManager.requestTestCasesForStoryAsHTML(qaTestCasesPrompt);
@@ -259,7 +366,7 @@ public class JAssistant {
         for (int i = 0; i < listOfAllTestCases.size(); i += batchSize) {
             List<? extends ITicket> batch = listOfAllTestCases.subList(i, Math.min(i + batchSize, listOfAllTestCases.size()));
             TicketBasedPrompt similarStoriesPrompt = new TicketBasedPrompt(trackerClient.getBasePath(), ticketContext);
-            similarStoriesPrompt.setTestCases(batch);
+            similarStoriesPrompt.setExistingTickets(batch);
             String chatRequest = promptManager.validateTestCasesAreRelatedToStory(similarStoriesPrompt);
             JSONArray testCaseKeys = openAIClient.chatAsJSONArray(TEST_AI_MODEL, chatRequest);
             //find relevant test case from batch
@@ -435,7 +542,7 @@ public class JAssistant {
 
         if (!IssueType.isBug(ticket.getIssueType())) {
             List<? extends ITicket> testCases = trackerClient.getTestCases(ticket);
-            input.setTestCases(testCases);
+            input.setExistingTickets(testCases);
         }
 
         input.setRole(role);
@@ -579,5 +686,15 @@ public class JAssistant {
             chatResponse = StringUtils.convertToMarkdown(chatResponse);
         }
         return chatResponse;
+    }
+
+    public String generateUnitTest(String fileContent, String className, String packageName, String testTemplate, UnitTestsGeneratorParams params) throws Exception {
+        TestGeneration testGeneration = new TestGeneration(fileContent, className, packageName, testTemplate, params);
+        String finalAIRequest = promptManager.requestTestGeneration(testGeneration);
+        String finalResponse = openAIClient.chat(
+                CODE_AI_MODEL,
+                finalAIRequest);
+        List<String> codeExamples = AIResponseParser.parseCodeExamples(finalResponse);
+        return codeExamples.get(0);
     }
 }

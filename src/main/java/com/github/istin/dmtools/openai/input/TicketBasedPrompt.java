@@ -23,7 +23,7 @@ public class TicketBasedPrompt {
     }
 
     private List<ITicket> extraTickets = new ArrayList<>();
-    private List<ITicket> testCases = new ArrayList<>();
+    private List<ITicket> existingTickets = new ArrayList<>();
 
     public TicketBasedPrompt(String basePath, TicketContext ticketContext) {
         this.basePath = basePath;
@@ -42,18 +42,18 @@ public class TicketBasedPrompt {
     }
 
 
-    public List<? extends ITicket> getTestCases() {
-        return testCases;
+    public List<? extends ITicket> getExistingTickets() {
+        return existingTickets;
     }
 
-    public void addTestCase(ITicket testCase) {
-        testCases.add(new TicketWrapper(basePath, testCase));
+    public void addExistingTicket(ITicket existingTicket) {
+        existingTickets.add(new TicketWrapper(basePath, existingTicket));
     }
 
-    public void setTestCases(List<? extends ITicket> testCases) {
-        this.testCases.clear();
-        for (ITicket testCase : testCases) {
-            this.testCases.add(new TicketWrapper(basePath, testCase));
+    public void setExistingTickets(List<? extends ITicket> existingTickets) {
+        this.existingTickets.clear();
+        for (ITicket ticket : existingTickets) {
+            this.existingTickets.add(new TicketWrapper(basePath, ticket));
         }
     }
 

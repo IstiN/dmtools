@@ -4,6 +4,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class AIResponseParser {
 
     public static boolean parseBooleanResponse(String response) throws IllegalArgumentException {
@@ -48,5 +53,58 @@ public class AIResponseParser {
         }
     }
 
+    public static List<String> parseCodeExamples(String response, String startDelimiter, String endDelimiter) throws IllegalArgumentException {
+        List<String> codeExamples = new ArrayList<>();
+        if (response == null || response.isEmpty()) {
+            throw new IllegalArgumentException("Response text cannot be null or empty.");
+        }
+        if (startDelimiter == null || endDelimiter == null) {
+            throw new IllegalArgumentException("Delimiters cannot be null.");
+        }
+
+        // Pattern to match code blocks including the language identifier
+        Pattern pattern = Pattern.compile(Pattern.quote(startDelimiter) + "(?:\\w+\\s*)?(.*?)" + Pattern.quote(endDelimiter), Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(response);
+
+        while (matcher.find()) {
+            String codeBlock = matcher.group(1).trim();
+
+            // Remove any leading newline if present
+            if (codeBlock.startsWith("\n")) {
+                codeBlock = codeBlock.substring(1);
+            }
+
+            // Remove any trailing newline if present
+            if (codeBlock.endsWith("\n")) {
+                codeBlock = codeBlock.substring(0, codeBlock.length() - 1);
+            }
+
+            // Clean markdowns from start and end
+            codeBlock = cleanMarkdowns(codeBlock);
+
+            if (!codeBlock.isEmpty()) {
+                codeExamples.add(codeBlock);
+            }
+        }
+
+        if (codeExamples.isEmpty()) {
+            throw new IllegalArgumentException("No valid code blocks found between the specified delimiters.");
+        }
+
+        return codeExamples;
+    }
+
+    private static String cleanMarkdowns(String codeBlock) {
+        // Remove markdown code block indicators from start and end
+        codeBlock = codeBlock.replaceAll("^```\\w*\\s*", "");
+        codeBlock = codeBlock.replaceAll("```\\s*$", "");
+
+        // Remove any leading or trailing whitespace
+        return codeBlock.trim();
+    }
+
+    public static List<String> parseCodeExamples(String response) {
+        return parseCodeExamples(response, "@jai_generated_code", "@jai_generated_code");
+    }
 
 }
