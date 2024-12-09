@@ -12,7 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -72,17 +72,19 @@ public class SourceCodeReaderTest {
         logger.info("File names: " + fileNameValues);
         logger.info("File contents: " + fileContentValues);
 
-        // Verify Java file
-        assertEquals("", folderPathValues.get(0)); // Relative to tempDir, root path is empty
-        assertEquals("", packageNameValues.get(0)); // Root directory, so package is empty
-        assertEquals("TestClass.java", fileNameValues.get(0));
-        assertEquals("public class TestClass {}", fileContentValues.get(0));
+        // Check if both expected files are present
+        assertTrue("TestClass.java should be in the results", fileNameValues.contains("TestClass.java"));
+        assertTrue("notes.txt should be in the results", fileNameValues.contains("notes.txt"));
 
-        // Verify Text file
-        assertEquals("", folderPathValues.get(1)); // Relative to tempDir, root path is empty
-        assertEquals("", packageNameValues.get(1));
-        assertEquals("notes.txt", fileNameValues.get(1));
-        assertEquals("This is a text file.", fileContentValues.get(1));
+        // Check folder paths and package names
+        assertEquals(Arrays.asList("", ""), folderPathValues);
+        assertEquals(Arrays.asList("", ""), packageNameValues);
+
+        // Check file contents (order-independent)
+        assertTrue("File contents should include Java class content",
+                fileContentValues.contains("public class TestClass {}"));
+        assertTrue("File contents should include text file content",
+                fileContentValues.contains("This is a text file."));
 
         logger.info("All assertions passed");
 
