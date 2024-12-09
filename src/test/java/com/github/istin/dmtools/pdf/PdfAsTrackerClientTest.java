@@ -2,36 +2,45 @@ package com.github.istin.dmtools.pdf;
 
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.pdf.model.PdfPageAsTicket;
-import junit.framework.TestCase;
+import org.junit.Before;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-public class PdfAsTrackerClientTest extends TestCase {
+import static org.junit.Assert.*;
 
+public class PdfAsTrackerClientTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(PdfAsTrackerClientTest.class);
     private PdfAsTrackerClient pdfAsTrackerClient;
 
-    @Override
+    @Before
     public void setUp() throws Exception {
-        super.setUp();
         pdfAsTrackerClient = new PdfAsTrackerClient("test_data/test_pdf_sources");
     }
 
+    @Test
     public void testMain() throws Exception {
         List<PdfPageAsTicket> pdfPageAsTickets = pdfAsTrackerClient.searchAndPerform(null, null);
-        for (PdfPageAsTicket tickets : pdfPageAsTickets) {
-            System.out.println(tickets.getKey());
-            System.out.println(tickets.getTicketDescription());
-            System.out.println(tickets.getPageSnapshot());
-            List<? extends IAttachment> attachments = tickets.getAttachments();
-            System.out.println("attachments");
+        assertNotNull("PDF page tickets should not be null", pdfPageAsTickets);
+
+        for (PdfPageAsTicket ticket : pdfPageAsTickets) {
+            logger.info("Key: {}", ticket.getKey());
+            logger.info("Description: {}", ticket.getTicketDescription());
+            logger.info("Page snapshot: {}", ticket.getPageSnapshot());
+            List<? extends IAttachment> attachments = ticket.getAttachments();
+            logger.info("Attachments:");
             for (IAttachment attachment : attachments) {
-                System.out.println(attachment.getUrl());
+                logger.info("  {}", attachment.getUrl());
             }
         }
-        if (pdfPageAsTickets.isEmpty()) return;
 
-        PdfPageAsTicket pdfPageAsTicket = pdfPageAsTickets.get(0);
-        pdfAsTrackerClient.addLabelIfNotExists(pdfPageAsTicket, "test label");
-        pdfAsTrackerClient.deleteLabelInTicket(pdfPageAsTicket, "test label");
+        if (!pdfPageAsTickets.isEmpty()) {
+            PdfPageAsTicket pdfPageAsTicket = pdfPageAsTickets.get(0);
+            pdfAsTrackerClient.addLabelIfNotExists(pdfPageAsTicket, "test label");
+            pdfAsTrackerClient.deleteLabelInTicket(pdfPageAsTicket, "test label");
+        }
     }
 }

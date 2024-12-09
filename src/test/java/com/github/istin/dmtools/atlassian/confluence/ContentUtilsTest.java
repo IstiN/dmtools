@@ -2,7 +2,6 @@ package com.github.istin.dmtools.atlassian.confluence;
 
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.confluence.model.Storage;
-import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -10,10 +9,11 @@ import org.mockito.MockitoAnnotations;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-public class ContentUtilsTest extends TestCase {
+public class ContentUtilsTest {
 
     @Mock
     BasicConfluence basicConfluence;
@@ -28,8 +28,8 @@ public class ContentUtilsTest extends TestCase {
     Storage storage;
 
     @Before
-    public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
