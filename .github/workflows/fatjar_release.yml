@@ -34,6 +34,13 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew clean build shadowJar
 
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: Test Results
+          path: build/reports/tests/test
+
       - name: Create a Release
         id: create_release
         uses: actions/create-release@v1
