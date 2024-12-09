@@ -36,10 +36,11 @@ jobs:
 
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
-          name: Test Results
+          name: test-results
           path: build/reports/tests/test
+          retention-days: 7
 
       - name: Create a Release
         id: create_release
