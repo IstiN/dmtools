@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.times;
@@ -17,6 +18,7 @@ import static org.mockito.Mockito.verify;
 
 public class SourceCodeReaderTest {
 
+    private static final Logger logger = Logger.getLogger(SourceCodeReaderTest.class.getName());
     private FileContentListener mockListener;
     private SourceCodeReader sourceCodeReader;
     private static final List<String> TEST_EXTENSIONS = Arrays.asList(".java", ".txt");
@@ -28,6 +30,7 @@ public class SourceCodeReaderTest {
         tempDir = Files.createTempDirectory("sourceReaderTest");
         // Create a 'src' directory structure within the temp directory
         Files.createDirectories(tempDir.resolve("src/com/github/istin/dmtools/file"));
+        logger.info("Temporary directory created at: " + tempDir.toString());
     }
 
     @Test
@@ -38,9 +41,13 @@ public class SourceCodeReaderTest {
         Path tempFileJava = Files.createFile(tempDir.resolve("TestClass.java"));
         Path tempFileTxt = Files.createFile(tempDir.resolve("notes.txt"));
 
+        logger.info("Created test files: " + tempFileJava + ", " + tempFileTxt);
+
         // Write dummy content to files
         Files.writeString(tempFileJava, "public class TestClass {}");
         Files.writeString(tempFileTxt, "This is a text file.");
+
+        logger.info("Written content to test files");
 
         // Action: Read source files
         sourceCodeReader.readSourceFiles(mockListener);
@@ -59,6 +66,12 @@ public class SourceCodeReaderTest {
         List<String> fileNameValues = fileNameCaptor.getAllValues();
         List<String> fileContentValues = fileContentCaptor.getAllValues();
 
+        logger.info("Captured values:");
+        logger.info("Folder paths: " + folderPathValues);
+        logger.info("Package names: " + packageNameValues);
+        logger.info("File names: " + fileNameValues);
+        logger.info("File contents: " + fileContentValues);
+
         // Verify Java file
         assertEquals("", folderPathValues.get(0)); // Relative to tempDir, root path is empty
         assertEquals("", packageNameValues.get(0)); // Root directory, so package is empty
@@ -70,6 +83,8 @@ public class SourceCodeReaderTest {
         assertEquals("", packageNameValues.get(1));
         assertEquals("notes.txt", fileNameValues.get(1));
         assertEquals("This is a text file.", fileContentValues.get(1));
+
+        logger.info("All assertions passed");
 
         // Cleanup: Delete temporary files and directories
         Files.deleteIfExists(tempFileJava);
@@ -83,11 +98,13 @@ public class SourceCodeReaderTest {
                     .forEach(path -> {
                         try {
                             Files.delete(path);
+                            logger.info("Deleted: " + path);
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            logger.warning("Failed to delete: " + path + ". Error: " + e.getMessage());
                         }
                     });
         }
-    }
 
+        logger.info("Test cleanup completed");
+    }
 }
