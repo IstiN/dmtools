@@ -1,6 +1,8 @@
 # dmtools
 Delivery Management Tools
 
+[![codecov](https://codecov.io/gh/IstiN/dmtools/branch/main/graph/badge.svg)](https://codecov.io/gh/IstiN/dmtools)
+
 # Build jar
 gradle shadowJar
 
