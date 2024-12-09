@@ -3,7 +3,7 @@ Description of ${ticket.issueType}:
 <#assign issue = ticket>
 <#include "issue_title_description.md">
 List of test cases:
-<#list testCases as issue>
+<#list existingTickets as issue>
 <#include "issue_title_description.md">
 </#list>
 It's important to generate UnitTests for the code if it's missed. There is pull request diff:

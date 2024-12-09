@@ -15,7 +15,7 @@ ${(issue.ticketKey)!""}
 {Task Description}
 
 List of test cases:
-<#list testCases as issue>
+<#list existingTickets as issue>
 <#include "issue_title_description.md">
 </#list>
 

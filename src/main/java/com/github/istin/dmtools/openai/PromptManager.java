@@ -94,8 +94,28 @@ public class PromptManager {
         return stringFromTemplate(input, "developer_generate_code");
     }
 
+    public String requestTestGeneration(TestGeneration input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "developer_generate_test");
+    }
+
     public String convertToHTML(InputPrompt input) throws IOException, TemplateException {
         return stringFromTemplate(input, "convert_to_html");
+    }
+
+    public String generateUserStoriesAsHTML(TicketBasedPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "ba_story_generation_html");
+    }
+
+    public String generateUserStoriesAsJSONArray(TicketBasedPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "ba_story_generation_json");
+    }
+
+    public String updateUserStoriesAsHTML(TicketBasedPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "ba_story_update_html");
+    }
+
+    public String updateUserStoriesAsJSONArray(TicketBasedPrompt input) throws IOException, TemplateException {
+        return stringFromTemplate(input, "ba_story_update_json");
     }
 
     public String requestTestCasesForStoryAsHTML(TicketBasedPrompt input) throws IOException, TemplateException {

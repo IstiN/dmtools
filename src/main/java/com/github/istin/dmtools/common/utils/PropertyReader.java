@@ -13,7 +13,7 @@ public class PropertyReader {
 	}
 
 
-	private static Properties prop;
+	static Properties prop;
 
 	public String getValue(String propertyKey) {
 		if (prop == null) {

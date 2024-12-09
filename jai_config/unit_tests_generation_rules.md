@@ -1,35 +1,10 @@
-plugins {
-    id 'java-library'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id 'jacoco'
-}
+You can use only the list of frameworks from existing dependencies
 
-apply plugin: 'maven-publish'
-
-group = 'com.github.istin'
-version = "${version}"
-
-repositories {
-    mavenCentral()
-    maven { url 'https://jitpack.io' }
-}
-
-jacocoTestReport {
-    reports {
-        xml.required = true
-        html.required = true
-    }
-}
-
-test {
-    finalizedBy jacocoTestReport
-}
-
-dependencies {
+```
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:5.14.2'
     testImplementation 'org.mockito:mockito-inline:5.2.0'
-
+    
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.8.2")
 
     api 'org.json:json:20231013'
@@ -72,51 +47,37 @@ dependencies {
 
     // https://mvnrepository.com/artifact/com.github.mpkorstanje/simmetrics
     api 'com.github.mpkorstanje:simmetrics-core:4.1.1'
+```
 
-}
+You must avoid exceptions like:
+```
+The used MockMaker SubclassByteBuddyMockMaker does not support the creation of static mocks
 
-test {
-    useJUnitPlatform()
-}
+Mockito's inline mock maker supports static mocks based on the Instrumentation API.
+You can simply enable this mock mode, by placing the 'mockito-inline' artifact where you are currently using 'mockito-core'.
+Note that Mockito's inline mock maker is not supported on Android.
+org.mockito.exceptions.base.MockitoException: 
+The used MockMaker SubclassByteBuddyMockMaker does not support the creation of static mocks
 
+Mockito's inline mock maker supports static mocks based on the Instrumentation API.
+You can simply enable this mock mode, by placing the 'mockito-inline' artifact where you are currently using 'mockito-core'.
+Note that Mockito's inline mock maker is not supported on Android.
+```
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId = 'com.github.istin'
-            artifactId = 'dmtools'
-            version = "v${version}"
-            from components.java
-
-            pom {
-                description = 'DM Tools Library'
-            }
-        }
-    }
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = "https://maven.pkg.github.com/IstiN/dmtools"
-            credentials {
-                username = System.getenv("USERNAME")
-                password = System.getenv("TOKEN")
-            }
-        }
-    }
-}
-
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-}
-
-shadowJar {
-    // Configure the shadow JAR task as needed
-    archiveBaseName.set('dmtools')
-    archiveVersion.set('v'+version)
-    archiveClassifier.set('all')
-    archiveExtension.set('jar')
-    // Optionally specify main class
-     manifest {
-         attributes 'Main-Class': 'com.github.istin.dmtools.job.JobRunner'
-     }
-}
+You must avoid exceptions like:
+```
+is a *void method* and it *cannot* be stubbed with a *return value*!
+Voids are usually stubbed with Throwables:
+doThrow(exception).when(mock).someVoidMethod();
+If you need to set the void method to do nothing you can use:
+doNothing().when(mock).someVoidMethod();
+For more information, check out the javadocs for Mockito.doNothing().
+***
+If you're unsure why you're getting above error read on.
+Due to the nature of the syntax above problem might occur because:
+1. The method you are trying to stub is *overloaded*. Make sure you are calling the right overloaded version.
+2. Somewhere in your test you are stubbing *final methods*. Sorry, Mockito does not verify/stub final methods.
+3. A spy is stubbed using when(spy.foo()).then() syntax. It is safer to stub spies -
+    - with doReturn|Throw() family of methods. More in javadocs for Mockito.spy() method.
+4. Mocking methods declared on non-public parent classes is not supported.
+```

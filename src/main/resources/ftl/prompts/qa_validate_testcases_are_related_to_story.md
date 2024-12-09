@@ -15,7 +15,7 @@ ${(issue.ticketKey)!""}
 {new story}
 
 {existing test cases}
-<#list testCases as testCase>
+<#list existingTickets as testCase>
 ${testCase.ticketKey} ${testCase.ticketTitle}
 </#list>
 {existing test cases}

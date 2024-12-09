@@ -7,14 +7,14 @@ Your task is to write test cases and follow to the rules:
 5. Words must be bold formatted: Given, When, Then, And.
 6. Don't write test cases for visual design (UI) checks 
 7. Use 'User' instead of 'I' in scenarios.  
-8. Each generated Test Case must include priority from the list: ${testCasesPriorities}.
+8. Each generated Test Case must include priority from the list: ${priorities}.
 9. Don't create duplicates, check {existing test cases list}.
 10. If {existing test cases list} block is empty you must generate new test cases.
 11. Don't introduce additional Test Cases which are not related to {story description} especially if it can confuse readers.
 12. Don't create new test cases if current list of test cases cover the {story description}
 
 {start block of existing test cases list linked to the story}
-<#list testCases as issue>
+<#list existingTickets as issue>
 <#include "issue_title_description.md">
 </#list>
 {end block of existing test cases list linked to the story}

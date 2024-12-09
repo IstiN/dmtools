@@ -13,7 +13,7 @@ public class PdfAsTrackerClientTest extends TestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        pdfAsTrackerClient = new PdfAsTrackerClient("/path/to/pdffiles");
+        pdfAsTrackerClient = new PdfAsTrackerClient("test_data/test_pdf_sources");
     }
 
     public void testMain() throws Exception {
