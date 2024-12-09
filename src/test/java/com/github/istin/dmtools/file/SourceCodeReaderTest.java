@@ -8,8 +8,7 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
 
 import static org.junit.Assert.*;
@@ -35,7 +34,7 @@ public class SourceCodeReaderTest {
 
     @Test
     public void testReadSourceFiles_withMatchingExtensions() throws Exception {
-        sourceCodeReader = new SourceCodeReader(TEST_EXTENSIONS, tempDir); // Use tempDir as root
+        sourceCodeReader = new SourceCodeReader(TEST_EXTENSIONS, tempDir);
 
         // Setup: Create files for testing
         Path tempFileJava = Files.createFile(tempDir.resolve("TestClass.java"));
@@ -72,19 +71,30 @@ public class SourceCodeReaderTest {
         logger.info("File names: " + fileNameValues);
         logger.info("File contents: " + fileContentValues);
 
-        // Check if both expected files are present
-        assertTrue("TestClass.java should be in the results", fileNameValues.contains("TestClass.java"));
-        assertTrue("notes.txt should be in the results", fileNameValues.contains("notes.txt"));
+        // Check number of files processed
+        assertEquals("Number of files processed should be 2", 2, fileNameValues.size());
+
+        // Check if both expected files are present using a Set
+        Set<String> expectedFileNames = new HashSet<>(Arrays.asList("TestClass.java", "notes.txt"));
+        assertEquals("Processed files should match expected files", expectedFileNames, new HashSet<>(fileNameValues));
+
+        // Ensure 'src' directory is not processed
+        assertFalse("'src' directory should not be processed", fileNameValues.contains("src"));
 
         // Check folder paths and package names
-        assertEquals(Arrays.asList("", ""), folderPathValues);
-        assertEquals(Arrays.asList("", ""), packageNameValues);
+        for (String folderPath : folderPathValues) {
+            assertEquals("Folder path should be empty", "", folderPath);
+        }
+        for (String packageName : packageNameValues) {
+            assertEquals("Package name should be empty", "", packageName);
+        }
 
         // Check file contents (order-independent)
+        Set<String> fileContentSet = new HashSet<>(fileContentValues);
         assertTrue("File contents should include Java class content",
-                fileContentValues.contains("public class TestClass {}"));
+                fileContentSet.contains("public class TestClass {}"));
         assertTrue("File contents should include text file content",
-                fileContentValues.contains("This is a text file."));
+                fileContentSet.contains("This is a text file."));
 
         logger.info("All assertions passed");
 
