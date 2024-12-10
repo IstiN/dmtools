@@ -197,7 +197,7 @@ public class JSONModel {
      * @param key the key
      * @return the boolean, default Boolean.FALSE
      */
-    protected final Boolean getBoolean(final String key) {
+    public final Boolean getBoolean(final String key) {
         try {
             if (!jo.isNull(key)) {
                 return jo.getBoolean(key);
@@ -231,7 +231,7 @@ public class JSONModel {
      * @param key the key
      * @return the jSON object
      */
-    protected final JSONObject getJSONObject(final String key) {
+    public final JSONObject getJSONObject(final String key) {
         try {
             if (!jo.isNull(key)) {
                 return jo.getJSONObject(key);

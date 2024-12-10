@@ -30,7 +30,7 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
             public void onFileRead(String folderPath, String packageName, String fileName, String fileContent) throws Exception {
                 try {
                     String packageFilter = params.getPackageFilter();
-                    if (packageFilter != null && packageFilter.equalsIgnoreCase(packageName)) {
+                    if (packageFilter != null && packageName.startsWith(packageFilter)) {
                         String baseFileName = fileName.substring(0, fileName.lastIndexOf('.'));
                         String testFileName = baseFileName + "Test.java"; // Assuming Java test files
 
@@ -47,7 +47,7 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
         });
     }
 
-    private void createTestFileSkeleton(String fileContent, Path testFilePath, String className, String packageName, UnitTestsGeneratorParams params, JAssistant jAssistant) throws Exception {
+    protected void createTestFileSkeleton(String fileContent, Path testFilePath, String className, String packageName, UnitTestsGeneratorParams params, JAssistant jAssistant) throws Exception {
         Files.createDirectories(testFilePath.getParent());
         String testClassContent = generateTestClassSkeleton(fileContent, className, packageName, params, jAssistant);
         if (testClassContent != null) {
@@ -56,7 +56,7 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
         }
     }
 
-    private String generateTestClassSkeleton(String fileContent, String className, String packageName, UnitTestsGeneratorParams params, JAssistant jAssistant) throws Exception {
+    protected String generateTestClassSkeleton(String fileContent, String className, String packageName, UnitTestsGeneratorParams params, JAssistant jAssistant) throws Exception {
         String testTemplate = params.getTestTemplate();
         if (testTemplate == null || testTemplate.isEmpty()) {
             // Default template if none provided
@@ -81,7 +81,7 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
         params.setSrcFolder("src/main/java");
         params.setRootTestsFolder("src/test/java");
         params.setFileExtensions(new String[]{".java"});
-        params.setPackageFilter("com.github.istin.dmtools.common.utils");
+        params.setPackageFilter("com.github.istin.dmtools");
         params.setTestTemplate(
                 "package ${PACKAGE_NAME};\n\n" +
                         "import org.junit.Test;\n\n" +

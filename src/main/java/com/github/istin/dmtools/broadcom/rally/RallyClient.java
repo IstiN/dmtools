@@ -194,7 +194,7 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
         }
     }
 
-    private String updateTicketWithTags(String ticketRef, JSONObject updateBody) throws IOException {
+    protected String updateTicketWithTags(String ticketRef, JSONObject updateBody) throws IOException {
         // This method should send a request to Rally's REST API to update the ticket, associating it with the newly added tags.
         // Placeholder for the actual implementation
         logger.info("Updating ticket {} with tags: {}", ticketRef, updateBody.toString());

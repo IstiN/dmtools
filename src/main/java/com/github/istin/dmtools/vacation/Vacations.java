@@ -245,7 +245,7 @@ public class Vacations {
 
     public static final int DEFAULT_BUFFER_SIZE = 8192;
 
-    private static String convertInputStreamToString(InputStream is) throws IOException {
+    protected static String convertInputStreamToString(InputStream is) throws IOException {
 
         ByteArrayOutputStream result = new ByteArrayOutputStream();
         byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];

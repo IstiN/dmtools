@@ -52,7 +52,7 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
         }, storiesJql, trackerClient.getExtendedQueryFields());
     }
 
-    private static String makeSearchAndCollectRequirementsToPage(TrackerClient<? extends ITicket> trackerClient, JAssistant jAssistant, String jqlToSearch, String excludeJQL, TicketContext featureContext,  String roleSpecific, String projectSpecific, String eachPagePrefix) throws Exception {
+    protected static String makeSearchAndCollectRequirementsToPage(TrackerClient<? extends ITicket> trackerClient, JAssistant jAssistant, String jqlToSearch, String excludeJQL, TicketContext featureContext, String roleSpecific, String projectSpecific, String eachPagePrefix) throws Exception {
         List<Key> keys = new ArrayList<>();
         keys.add(featureContext.getTicket());
         keys.addAll(featureContext.getExtraTickets());

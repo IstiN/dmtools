@@ -83,7 +83,7 @@ public class DiagramsDrawer {
         }
     }
 
-    private String stringFromTemplate(Object input) throws IOException, TemplateException {
+    protected String stringFromTemplate(Object input) throws IOException, TemplateException {
         Configurator.initialize(new DefaultConfiguration());
 
         Configuration cfg = new Configuration(Configuration.VERSION_2_3_27);

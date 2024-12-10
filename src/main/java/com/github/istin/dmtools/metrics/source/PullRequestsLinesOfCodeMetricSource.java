@@ -76,7 +76,7 @@ public class PullRequestsLinesOfCodeMetricSource extends CommonSourceCollector {
         if (source.endsWith(".config.dart")) {
             return false;
         }
-        boolean isSwaggerGenFile = source.startsWith("packages/horizon_services/lib/swagger_generated_code/");
+        boolean isSwaggerGenFile = source.contains("swagger_generated_code/");
         if (isSwaggerGenFile && source.endsWith("swagger.chopper.dart")) {
             return false;
         }

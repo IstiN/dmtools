@@ -82,7 +82,7 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
         }
     }
 
-    private static void moveToStatus(TrackerClient tracker, String[] statusesMapping, String key, String defaultStatus) throws IOException {
+    protected static void moveToStatus(TrackerClient tracker, String[] statusesMapping, String key, String defaultStatus) throws IOException {
         if (statusesMapping != null) {
             for (String status : statusesMapping) {
                 tracker.moveToStatus(key, status);
@@ -160,7 +160,7 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
         return wasRenamed;
     }
 
-    private static void renamePullRequest(String workspace, String repo, SourceCode sourceCode, IPullRequest pullRequest, ITicket ticket, Function<String, String> priorityToIcon, boolean addPullRequestLabels) throws IOException {
+    protected static void renamePullRequest(String workspace, String repo, SourceCode sourceCode, IPullRequest pullRequest, ITicket ticket, Function<String, String> priorityToIcon, boolean addPullRequestLabels) throws IOException {
         String summary = ticket.getTicketTitle();
         String issueType = ticket.getIssueType();
         if (addPullRequestLabels) {
@@ -175,7 +175,7 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
         sourceCode.renamePullRequest(workspace, repo, pullRequest,  priority + " " + issueType + " " + ticket.getKey() + " " + summary);
     }
 
-    private static void addTrackerCommentIfNotExists(SourceCode sourceCode, String workspace, String repository, TrackerClient tracker, IPullRequest pullRequest, String key) throws IOException {
+    protected static void addTrackerCommentIfNotExists(SourceCode sourceCode, String workspace, String repository, TrackerClient tracker, IPullRequest pullRequest, String key) throws IOException {
         String url = sourceCode.getPullRequestUrl(workspace, repository, String.valueOf(pullRequest.getId()));
         String author = pullRequest.getAuthor().getFullName();
         if (tracker.getTextType() == TrackerClient.TextType.HTML) {

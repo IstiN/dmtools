@@ -78,7 +78,7 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
         return ImageUtils.convertToBase64(imageFile, "png");
     }
 
-    private String parseFileId(String url) {
+    protected String parseFileId(String url) {
         try {
             URI uri = new URI(url);
             String path = uri.getPath();
@@ -91,7 +91,7 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
         }
     }
 
-    private static String extractValueByParameter(String url, String paramName) {
+    protected static String extractValueByParameter(String url, String paramName) {
         try {
             URI uri = new URI(url);
             String query = uri.getQuery();

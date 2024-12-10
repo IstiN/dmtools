@@ -58,7 +58,7 @@ public class Employees implements IEmployees {
     }
 
 
-    private JSONArray employees;
+    protected JSONArray employees;
 
     private JSONObject aliases;
 
@@ -123,7 +123,7 @@ public class Employees implements IEmployees {
         }
     }
 
-    private void init() {
+    protected void init() {
         if (employees == null) {
             readEmployeesJSON();
             readAliasesJSON();
@@ -229,7 +229,7 @@ public class Employees implements IEmployees {
         return false;
     }
 
-    private String convertNameIfAlias(String queryEmployeeName) {
+    protected String convertNameIfAlias(String queryEmployeeName) {
         if (aliases == null) {
             return queryEmployeeName;
         }
@@ -251,7 +251,7 @@ public class Employees implements IEmployees {
 
     public static final int DEFAULT_BUFFER_SIZE = 8192;
 
-    private static String convertInputStreamToString(InputStream is) throws IOException {
+    protected static String convertInputStreamToString(InputStream is) throws IOException {
 
         ByteArrayOutputStream result = new ByteArrayOutputStream();
         byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];

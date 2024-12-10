@@ -55,7 +55,7 @@ public class IssueLink extends JSONModel implements ITicket, Key {
         return inwardRelationshipIn(TESTED_BY) && getInwardIssue().getFields().getIssueType().isTest();
     }
 
-    private boolean inwardRelationshipIn(String ... relationships) {
+    protected boolean inwardRelationshipIn(String... relationships) {
         for (String relationship : relationships) {
             if (relationship.equalsIgnoreCase(getInwardType()) && getInwardIssue() != null) {
                 return true;
