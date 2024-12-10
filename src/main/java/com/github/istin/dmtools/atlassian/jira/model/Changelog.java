@@ -15,8 +15,8 @@ import java.util.List;
 
 public class Changelog extends JSONModel implements IChangelog {
 
-    private static final String MAX_RESULTS = "maxResults";
-    private static final String TOTAL = "total";
+    public static final String MAX_RESULTS = "maxResults";
+    public static final String TOTAL = "total";
     public static final String HISTORIES = "histories";
     public static final String ERROR_MESSAGES = "errorMessages";
 

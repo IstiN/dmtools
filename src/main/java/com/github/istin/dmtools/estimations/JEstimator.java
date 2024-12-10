@@ -129,7 +129,7 @@ public class JEstimator extends AbstractJob<JEstimatorParams> {
         publishReport(mainReport);
     }
 
-    private static Double parseFromFile(File file) throws IOException {
+    protected static Double parseFromFile(File file) throws IOException {
         String htmlContent = FileUtils.readFileToString(file, "UTF-8");
         Document doc = Jsoup.parse(htmlContent);
 
@@ -159,7 +159,7 @@ public class JEstimator extends AbstractJob<JEstimatorParams> {
         return number;
     };
 
-    private static void estimateTicket(AIEstimatedTicket aiEstimatedTicket, List<AIEstimatedTicket> tickets, JAssistant jAssistant, ConversationObserver conversationObserver) throws Exception {
+    protected static void estimateTicket(AIEstimatedTicket aiEstimatedTicket, List<AIEstimatedTicket> tickets, JAssistant jAssistant, ConversationObserver conversationObserver) throws Exception {
         List<AIEstimatedTicket> listWithoutSource = tickets.stream().filter(ticket -> !ticket.getKey().equalsIgnoreCase(aiEstimatedTicket.getKey())).collect(Collectors.toList());
         Double developerEstimation = jAssistant.estimateStory("Developer", aiEstimatedTicket.getKey(), listWithoutSource, false);
         aiEstimatedTicket.setAiEstimation(developerEstimation);
@@ -178,7 +178,7 @@ public class JEstimator extends AbstractJob<JEstimatorParams> {
         publishReport(genericReport);
     }
 
-    private static void publishReport(GenericReport genericReport) throws IOException, TemplateException {
+    protected static void publishReport(GenericReport genericReport) throws IOException, TemplateException {
         String name = genericReport.getName();
         new ReportUtils().write(name, "table_report", genericReport, null);
     }

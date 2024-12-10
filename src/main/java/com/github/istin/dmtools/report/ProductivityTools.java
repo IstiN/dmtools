@@ -238,7 +238,7 @@ public class ProductivityTools {
         return productivityReport;
     }
 
-    private static void checkEmployees(Employees employees, List<KeyTime> productivityItem) {
+    protected static void checkEmployees(Employees employees, List<KeyTime> productivityItem) {
         if (productivityItem != null) {
             for (KeyTime keyTime : productivityItem) {
                 String who = keyTime.getWho();
@@ -247,11 +247,11 @@ public class ProductivityTools {
         }
     }
 
-    private static long getCurrentTimeForMeasurements() {
+    protected static long getCurrentTimeForMeasurements() {
         return System.currentTimeMillis();
     }
 
-    private static long measureTime(String action, long timeStart) {
+    protected static long measureTime(String action, long timeStart) {
         long newTime = getCurrentTimeForMeasurements();
         long timeSpend = newTime - timeStart;
         if (timeSpend > 10) {
@@ -261,7 +261,7 @@ public class ProductivityTools {
     }
 
 
-    private static void addToDevChart(List<Metric> metrics, ReportIteration reportIteration, IReleaseGenerator releaseGenerator, Metric metric, KeyTime keyTime, DevChart devChart, String formula) {
+    protected static void addToDevChart(List<Metric> metrics, ReportIteration reportIteration, IReleaseGenerator releaseGenerator, Metric metric, KeyTime keyTime, DevChart devChart, String formula) {
         List<DevChart.ReportIterationData> reportIterationDataList = devChart.reportIterationDataList;
         DevChart.ReportIterationData reportIterationData = null;
         long timeStart = getCurrentTimeForMeasurements();
@@ -314,7 +314,7 @@ public class ProductivityTools {
         timeStart = measureTime("add all keyTimes", timeStart);
     }
 
-    private static GenericRow findRow(List<GenericRow> rows, String dev) {
+    protected static GenericRow findRow(List<GenericRow> rows, String dev) {
         for (GenericRow genericRow : rows) {
             String text = genericRow.getCells().get(0).getText();
             if (text != null && text.equals(dev)) {

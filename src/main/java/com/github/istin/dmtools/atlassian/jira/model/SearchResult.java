@@ -9,8 +9,8 @@ import java.util.List;
 
 public class SearchResult extends JSONModel {
 
-    private static final String MAX_RESULTS = "maxResults";
-    private static final String TOTAL = "total";
+    static final String MAX_RESULTS = "maxResults";
+    static final String TOTAL = "total";
     public static final String ISSUES = "issues";
     public static final String ERROR_MESSAGES = "errorMessages";
 

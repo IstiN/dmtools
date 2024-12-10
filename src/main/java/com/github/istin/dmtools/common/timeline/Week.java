@@ -14,6 +14,14 @@ public class Week implements ReportIteration {
 
     private Date endDate;
 
+    public void setStartDate(Date startDate) {
+        this.startDate = startDate;
+    }
+
+    public void setEndDate(Date endDate) {
+        this.endDate = endDate;
+    }
+
     public static List<Week> createBasedOnSprint(Sprint sprint) {
         Date startDate = sprint.getStartDate();
         Calendar calendar = Calendar.getInstance();

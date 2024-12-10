@@ -26,7 +26,7 @@ import java.util.List;
 
 public class JobRunner {
 
-    private static List<Job> JOBS = Arrays.asList(
+    protected static List<Job> JOBS = Arrays.asList(
             new PreSaleSupport(),
             new DocumentationGenerator(),
             new RequirementsCollector(),
