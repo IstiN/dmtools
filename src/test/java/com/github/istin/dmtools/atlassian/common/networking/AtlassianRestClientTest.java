@@ -3,13 +3,11 @@ package com.github.istin.dmtools.atlassian.common.networking;
 import okhttp3.Request;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 public class AtlassianRestClientTest {
@@ -41,7 +39,7 @@ public class AtlassianRestClientTest {
     public void testJiraException() {
         String message = "Error message";
         String body = "Error body";
-        AtlassianRestClient.JiraException exception = new AtlassianRestClient.JiraException(message, body);
+        AtlassianRestClient.RestClientException exception = new AtlassianRestClient.RestClientException(message, body);
 
         assertEquals(message, exception.getMessage());
         assertEquals(body, exception.getBody());

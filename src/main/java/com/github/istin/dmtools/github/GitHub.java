@@ -10,6 +10,7 @@ import com.github.istin.dmtools.github.model.*;
 import com.github.istin.dmtools.job.JobRunner;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
@@ -260,19 +261,50 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     }
 
     @Override
-    public List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException {
-        String path = path(String.format("repos/%s/%s/commits?sha=%s", workspace, repository, branchName));
-        GenericRequest getRequest = new GenericRequest(this, path);
-        String response = execute(getRequest);
-        if (response == null) {
-            return Collections.emptyList();
+    public List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName, String startDate, String endDate) throws IOException {
+        List<ICommit> allCommits = new ArrayList<>();
+        int page = 1;
+        boolean hasMoreData = true;
+        int perPage = 100; // Set a default value for perPage
+
+        while (hasMoreData) {
+            // Build the URL with optional date filtering and pagination
+            StringBuilder path = new StringBuilder(String.format("repos/%s/%s/commits?sha=%s", workspace, repository, branchName));
+
+            if (startDate != null && !startDate.isEmpty()) {
+                path.append("&since=").append(startDate).append("T00:00:00Z");
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                path.append("&until=").append(endDate).append("T23:59:59Z");
+            }
+
+            // Add pagination parameters
+            path.append("&page=").append(page)
+                    .append("&per_page=").append(perPage);
+
+            GenericRequest getRequest = new GenericRequest(this, path(path.toString()));
+            String response = execute(getRequest);
+
+            if (response == null || response.isEmpty()) {
+                break;
+            }
+
+            List<ICommit> commits = JSONModel.convertToModels(GitHubCommit.class, new JSONArray(response));
+
+            if (commits.isEmpty()) {
+                hasMoreData = false;
+            } else {
+                allCommits.addAll(commits);
+                page++;
+            }
         }
-        return JSONModel.convertToModels(GitHubCommit.class, new JSONArray(response));
+
+        return allCommits;
     }
 
     @Override
     public void performCommitsFromBranch(String workspace, String repository, String branchName, Performer<ICommit> performer) throws Exception {
-        List<ICommit> commits = getCommitsFromBranch(workspace, repository, branchName);
+        List<ICommit> commits = getCommitsFromBranch(workspace, repository, branchName, null, null);
         for (ICommit commit : commits) {
             if (performer.perform(commit)) {
                 break;
@@ -302,7 +334,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
                 try {
                     String pullRequestResponse = getPullRequestResponse(workspace, repository, pullRequestID);
                     return parseDiffStats(pullRequestResponse);
-                } catch (AtlassianRestClient.JiraException e) {
+                } catch (AtlassianRestClient.RestClientException e) {
                     e.printStackTrace();
                     return new IDiffStats.Empty();
                 }
@@ -453,5 +485,79 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     @Override
     public String getPullRequestUrl(String workspace, String repository, String id) {
         return getBasePath().replaceAll("api.", "") + "/" + workspace + "/" + repository + "/pull/" + id;
+    }
+
+    @Override
+    public List<IFile> searchFiles(String workspace, String repository, String query) throws IOException, InterruptedException {
+        List<IFile> allFiles = new ArrayList<>();
+        int perPage = 100; // GitHub's max items per page
+        int page = 1;
+        int maxResults = 1000; // Limit on the total number of items
+
+        while (allFiles.size() < maxResults) {
+            String encodedQuery = java.net.URLEncoder.encode(query, "UTF-8");
+            String path = path(String.format("search/code?q=%s+repo:%s/%s&per_page=%d&page=%d",
+                    encodedQuery, workspace, repository, perPage, page));
+
+            GenericRequest getRequest = new GenericRequest(this, path);
+            String response = null;
+
+            try {
+                response = execute(getRequest);
+            } catch (RateLimitException rateLimitException) {
+                Response errorResponse = rateLimitException.getResponse();
+                String resetTimeStr = errorResponse.header("X-RateLimit-Reset");
+
+                if (resetTimeStr != null) {
+                    long resetTime = Long.parseLong(resetTimeStr) * 1000; // Convert seconds to milliseconds
+                    long currentTime = System.currentTimeMillis();
+                    long waitTime = resetTime - currentTime;
+
+                    if (waitTime > 0) {
+                        logger.warn("Rate limit reached. Waiting for " + (waitTime / 1000) + " seconds.");
+                        Thread.sleep(waitTime + 1000);
+                    }
+                } else {
+                    logger.warn("Rate limit reached. Default waiting for 60 seconds.");
+                    Thread.sleep(60000);
+                }
+                response = execute(getRequest);
+            }
+
+            if (response == null) {
+                break;
+            }
+
+            JSONObject jsonResponse = new JSONObject(response);
+            JSONArray items = jsonResponse.getJSONArray("items");
+
+            if (items.length() == 0) {
+                break;
+            }
+
+            List<IFile> pageFiles = JSONModel.convertToModels(GitHubFile.class, items);
+            allFiles.addAll(pageFiles);
+
+            if (allFiles.size() >= maxResults || items.length() < perPage) {
+                // Trim the list if necessary
+                if (allFiles.size() > maxResults) {
+                    return allFiles.subList(0, maxResults);
+                }
+                break;
+            }
+
+            page++;
+        }
+
+        return allFiles;
+    }
+
+    private boolean isRateLimited(JSONObject response) {
+        if (response.has("rate")) {
+            JSONObject rate = response.getJSONObject("rate");
+            int remaining = rate.getInt("remaining");
+            return remaining == 0;
+        }
+        return false;
     }
 }

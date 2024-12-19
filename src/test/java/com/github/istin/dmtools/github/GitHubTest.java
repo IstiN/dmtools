@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.github;
 
 import com.github.istin.dmtools.common.model.*;
+import com.github.istin.dmtools.common.networking.GenericRequest;
 import okhttp3.Request;
 import org.json.JSONObject;
 import org.junit.Before;
@@ -109,4 +110,30 @@ public class GitHubTest {
         String url = gitHub.getPullRequestUrl(workspace, repository, id);
         assertNotNull(url);
     }
+
+    @Test
+    public void testSearchFiles() throws IOException, InterruptedException {
+        String workspace = "testWorkspace";
+        String repository = "testRepo";
+        String query = "README";
+
+        // Mock the response from the execute method
+        String mockResponse = "{ \"items\": [ { \"name\": \"README.md\", \"path\": \"README.md\", \"url\": \"https://api.github.com/repos/testWorkspace/testRepo/contents/README.md\" } ], \"total_count\": 1 }";
+
+        // Mock the execute method to return the mock response
+        doAnswer(invocation -> {
+            GenericRequest request = invocation.getArgument(0);
+            // Assuming request validation, you might log/print this to debug issues
+            System.out.println("Executing request: " + request.url());
+            return mockResponse;
+        }).when(gitHub).execute(any(GenericRequest.class));
+
+        List<IFile> files = gitHub.searchFiles(workspace, repository, query);
+
+        // Verifying the result
+        assertNotNull(files);
+        assertEquals(1, files.size());
+        assertEquals("README.md", files.get(0).getPath());
+    }
+
 }

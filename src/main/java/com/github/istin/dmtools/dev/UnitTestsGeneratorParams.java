@@ -13,7 +13,11 @@ public class UnitTestsGeneratorParams extends BaseJobParams {
     public static final String ROOT_TESTS_FOLDER = "rootTestsFolder";
     public static final String FILE_EXTENSIONS = "fileExtensions";
     public static final String TEST_TEMPLATE = "testTemplate";
+    public static final String TEST_FILE_NAME_POSTFIX = "testFileNamePostfix";
     public static final String PACKAGE_FILTER = "packageFilter";
+    public static final String EXCLUDE_CLASSES = "excludeClasses";
+    public static final String EXCLUDE_PATTERN = "excludePattern";
+    public static final String VALIDATION_COMMAND = "validationCommand";
     public static final String ROLE = "role";
     public static final String RULES = "rules";
 
@@ -53,8 +57,24 @@ public class UnitTestsGeneratorParams extends BaseJobParams {
         return getString(ROLE);
     }
 
+    public String getExcludePattern() {
+        return getString(EXCLUDE_PATTERN);
+    }
+
+    public String getTestFileNamePostfix() {
+        return getString(TEST_FILE_NAME_POSTFIX);
+    }
+
     public String getRules() {
         return getString(RULES);
+    }
+
+    public String getValidationCommand() {
+        return getString(VALIDATION_COMMAND);
+    }
+
+    public String[] getExcludeClasses() {
+        return getStringArray(EXCLUDE_CLASSES);
     }
 
     public UnitTestsGeneratorParams setSrcFolder(String src) {
@@ -72,8 +92,13 @@ public class UnitTestsGeneratorParams extends BaseJobParams {
         return this;
     }
 
-    public UnitTestsGeneratorParams setFileExtensions(String[] extensions) {
+    public UnitTestsGeneratorParams setFileExtensions(String... extensions) {
         set(FILE_EXTENSIONS, new JSONArray(Arrays.asList(extensions)));
+        return this;
+    }
+
+    public UnitTestsGeneratorParams setExcludeClasses(String... classes) {
+        set(EXCLUDE_CLASSES, new JSONArray(Arrays.asList(classes)));
         return this;
     }
 
@@ -87,8 +112,23 @@ public class UnitTestsGeneratorParams extends BaseJobParams {
         return this;
     }
 
+    public UnitTestsGeneratorParams setTestFileNamePostfix(String testFileNamePostfix) {
+        set(TEST_FILE_NAME_POSTFIX, testFileNamePostfix);
+        return this;
+    }
+
+    public UnitTestsGeneratorParams setExcludePattern(String excludePattern) {
+        set(EXCLUDE_PATTERN, excludePattern);
+        return this;
+    }
+
     public UnitTestsGeneratorParams setRules(String rules) {
         set(RULES, rules);
+        return this;
+    }
+
+    public UnitTestsGeneratorParams setValidationCommand(String validationCommand) {
+        set(VALIDATION_COMMAND, validationCommand);
         return this;
     }
 }

@@ -237,7 +237,7 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
     }
 
     @Override
-    public List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException {
+    public List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName, String startDate, String endDate) throws IOException {
         String path = path(String.format("projects/%s/repository/commits?ref_name=%s", getEncodedProject(workspace, repository), branchName));
         GenericRequest getRequest = new GenericRequest(this, path);
         String response = execute(getRequest);
@@ -249,7 +249,7 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
 
     @Override
     public void performCommitsFromBranch(String workspace, String repository, String branchName, Performer<ICommit> performer) throws Exception {
-        List<ICommit> commits = getCommitsFromBranch(workspace, repository, branchName);
+        List<ICommit> commits = getCommitsFromBranch(workspace, repository, branchName, null, null);
         for (ICommit commit : commits) {
             if (performer.perform(commit)) {
                 break;
@@ -280,7 +280,7 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         GenericRequest getRequest = new GenericRequest(this, path);
         try {
             return execute(getRequest);
-        } catch (AtlassianRestClient.JiraException e) {
+        } catch (AtlassianRestClient.RestClientException e) {
             isMRChangesError = true;
             e.printStackTrace();
             return null;
@@ -441,5 +441,10 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
     @Override
     public String getPullRequestUrl(String workspace, String repository, String id) {
         return getBasePath().replaceAll("api.", "") + "/" + workspace + "/" + repository + "/-/merge_requests/" + id;
+    }
+
+    @Override
+    public List<IFile> searchFiles(String workspace, String repository, String query) throws IOException {
+        throw new UnsupportedOperationException("Implement Me.");
     }
 }

@@ -171,9 +171,9 @@ public class SourceCodeTest {
     @Test
     public void testGetCommitsFromBranch() throws IOException {
         List<ICommit> mockCommits = new ArrayList<>();
-        when(sourceCodeMock.getCommitsFromBranch(anyString(), anyString(), anyString())).thenReturn(mockCommits);
+        when(sourceCodeMock.getCommitsFromBranch(anyString(), anyString(), anyString(), anyString(), anyString())).thenReturn(mockCommits);
 
-        List<ICommit> result = sourceCodeMock.getCommitsFromBranch("workspace", "repository", "branchName");
+        List<ICommit> result = sourceCodeMock.getCommitsFromBranch("workspace", "repository", "branchName", "2024-01-15", "2024-01-16");
         assertEquals(mockCommits, result);
     }
 

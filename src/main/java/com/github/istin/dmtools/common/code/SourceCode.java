@@ -46,7 +46,7 @@ public interface SourceCode {
 
     List<ICommit> getCommitsBetween(String workspace, String repository, String from, String to) throws IOException;
 
-    List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException;
+    List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName, String startDate, String endDate) throws IOException;
 
     void performCommitsFromBranch(String workspace, String repository, String branchName, AbstractRestClient.Performer<ICommit> performer) throws Exception;
 
@@ -73,6 +73,8 @@ public interface SourceCode {
     String getBasePath();
 
     String getPullRequestUrl(String workspace, String repository, String id);
+
+    List<IFile> searchFiles(String workspace, String repository, String query) throws IOException, InterruptedException;
 
     class Impl {
 

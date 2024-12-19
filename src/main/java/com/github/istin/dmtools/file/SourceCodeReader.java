@@ -39,7 +39,7 @@ public class SourceCodeReader {
                         if (fileName.endsWith(extension)) {
                             try {
                                 String content = new String(Files.readAllBytes(file));
-                                String folderPath = rootFolder.relativize(directory).toString();
+                                String folderPath = rootFolder.relativize(file.getParent()).toString();
                                 String packageName = extractPackageName(content);
 
                                 listener.onFileRead(folderPath, packageName, fileName, content);

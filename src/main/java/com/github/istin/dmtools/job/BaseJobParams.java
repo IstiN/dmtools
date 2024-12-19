@@ -9,6 +9,7 @@ public class BaseJobParams extends JSONModel {
     public static final String INPUT_JQL = "inputJql";
     public static final String INITIATOR = "initiator";
     public static final String CONFLUENCE_PAGES = "confluencePages";
+    public static final String MODEL = "model";
 
     public BaseJobParams() {
     }
@@ -29,6 +30,10 @@ public class BaseJobParams extends JSONModel {
         return getString(INITIATOR);
     }
 
+    public String getModel() {
+        return getString(MODEL);
+    }
+
     public String[] getConfluencePages() {
         return getStringArray(CONFLUENCE_PAGES);
     }
@@ -45,6 +50,11 @@ public class BaseJobParams extends JSONModel {
 
     public BaseJobParams setInitiator(String initiator) {
         set(INITIATOR, initiator);
+        return this;
+    }
+
+    public BaseJobParams setModel(String model) {
+        set(MODEL, model);
         return this;
     }
 

@@ -124,7 +124,7 @@ public class JAssistant {
 
         JSONArray filePaths = getListOfEffectedFilesFromFiles(codeGeneration, filesOnly);
 
-        List<ICommit> commitsFromBranch = sourceCode.getCommitsFromBranch(sourceCode.getDefaultWorkspace(), sourceCode.getDefaultRepository(), sourceCode.getDefaultBranch());
+        List<ICommit> commitsFromBranch = sourceCode.getCommitsFromBranch(sourceCode.getDefaultWorkspace(), sourceCode.getDefaultRepository(), sourceCode.getDefaultBranch(), null, null);
         JSONArray filePathsFromCommits = getListOfEffectedFilesFromCommits(sourceCode, sourceCode.getDefaultWorkspace(), sourceCode.getDefaultRepository(), codeGeneration, commitsFromBranch);
         filePaths.putAll(filePathsFromCommits);
         for (int i = 0; i < filePaths.length(); i++) {
