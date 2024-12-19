@@ -90,4 +90,34 @@ public interface RestClient {
             return imageExtension;
         }
     }
+
+    class RestClientException extends IOException {
+
+        public static final String BACKUP_503 = "backup:503";
+        public static final String NO_SUCH_PARENT_EPICS = "No issues have a parent epic with key or name:400";
+        private final String body;
+
+        public RestClientException(String message, String body) {
+            super(message);
+            this.body = body;
+        }
+
+        public String getBody() {
+            return body;
+        }
+    }
+
+    class RateLimitException extends RestClientException{
+
+        private final Response response;
+
+        public RateLimitException(String message, String body, Response response) {
+            super(message, body);
+            this.response = response;
+        }
+
+        public Response getResponse() {
+            return response;
+        }
+    }
 }

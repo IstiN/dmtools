@@ -1,6 +1,8 @@
 package com.github.istin.dmtools.openai;
 
 import com.github.istin.dmtools.openai.input.*;
+import com.github.istin.dmtools.prompt.IPromptTemplateReader;
+import com.github.istin.dmtools.prompt.PromptContext;
 import freemarker.cache.ClassTemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -12,7 +14,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 
-public class PromptManager {
+public class PromptManager implements IPromptTemplateReader {
 
     public String checkPotentiallyEffectedFilesForTicket(CodeGeneration input) throws IOException, TemplateException {
         return stringFromTemplate(input, "developer_check_potentially_effected_files");
@@ -143,11 +145,15 @@ public class PromptManager {
     }
 
     private String stringFromTemplate(Object input, String template) throws IOException, TemplateException {
+        return stringFromTemplate(this, input, template);
+    }
+
+    public static String stringFromTemplate(Object o, Object input, String template) throws IOException, TemplateException {
         Configurator.initialize(new DefaultConfiguration());
 
         Configuration cfg = new Configuration(Configuration.VERSION_2_3_27);
         cfg.setLocalizedLookup(false);
-        cfg.setTemplateLoader(new ClassTemplateLoader(getClass().getClassLoader(), "/ftl"));
+        cfg.setTemplateLoader(new ClassTemplateLoader(o.getClass().getClassLoader(), "/ftl"));
 
 
         Template temp = cfg.getTemplate("prompts/" + template + ".md");
@@ -202,5 +208,10 @@ public class PromptManager {
 
     public String askExpert(ExpertPrompt scrumDailyPrompt) throws TemplateException, IOException {
         return stringFromTemplate(scrumDailyPrompt, "expert");
+    }
+
+    @Override
+    public String read(String promptName, PromptContext context) throws Exception {
+        return stringFromTemplate(context, promptName);
     }
 }

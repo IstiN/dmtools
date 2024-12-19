@@ -55,7 +55,7 @@ public class TicketContext implements ToText {
                         e = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
                     }
                     extraTickets.add(e);
-                } catch (AtlassianRestClient.JiraException e) {
+                } catch (AtlassianRestClient.RestClientException e) {
 
                 }
             }

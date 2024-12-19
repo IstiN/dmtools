@@ -1,7 +1,5 @@
 package com.github.istin.dmtools.networking;
 
-import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
-import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
 import okhttp3.*;
@@ -76,15 +74,17 @@ public abstract class AbstractRestClient implements RestClient {
         int code = response.code();
         String body = response.body() != null ? response.body().string() : "";
         if (code == 503) {
-            return new IOException(AtlassianRestClient.BACKUP_503);
+            return new IOException(RestClientException.BACKUP_503);
         } else if (code == 400) {
             if (body.contains("No issues have a parent epic with key or name")) {
-                return new IOException(AtlassianRestClient.NO_SUCH_PARENT_EPICS);
+                return new IOException(RestClientException.NO_SUCH_PARENT_EPICS);
             }
+        } else if (body.contains("rate")) {
+            return new RateLimitException("rate limit", body, response);
         }
         String responseError = "printAndCreateException error: " + request.url() + "\n" + body + "\n" + response.message() + "\n" + code;
         logger.error(responseError);
-        return new AtlassianRestClient.JiraException(responseError, body);
+        return new RestClient.RestClientException(responseError, body);
     }
 
     public void setClearCache(boolean clearCache) throws IOException {
@@ -157,7 +157,7 @@ public abstract class AbstractRestClient implements RestClient {
             }
             if (isWaitBeforePerform) {
                 try {
-                    Thread.currentThread().sleep(100);
+                    Thread.currentThread().sleep(2000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -342,6 +342,10 @@ public abstract class AbstractRestClient implements RestClient {
         } finally {
             client.connectionPool().evictAll();
         }
+    }
+
+    public void setWaitBeforePerform(boolean waitBeforePerform) {
+        isWaitBeforePerform = waitBeforePerform;
     }
 
     public interface Performer<T> {

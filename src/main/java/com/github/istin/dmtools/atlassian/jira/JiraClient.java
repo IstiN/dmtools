@@ -386,7 +386,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         } catch (JSONException e) {
             clearCache(subtasks);
             throw e;
-        } catch (AtlassianRestClient.JiraException e) {
+        } catch (AtlassianRestClient.RestClientException e) {
             subtasksCallIsNotSupported = true;
             e.getMessage().contains("404");
             return Collections.emptyList();
@@ -607,7 +607,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         try {
             return search("project = " + project + " and " + getEpicNameCf() + " = '" + StringEscapeUtils.escapeHtml4(summary) + "' and issueType = epic", 0, new String[]{Fields.SUMMARY});
         } catch (IOException e) {
-            if (e.getMessage().equalsIgnoreCase(AtlassianRestClient.NO_SUCH_PARENT_EPICS)) {
+            if (e.getMessage().equalsIgnoreCase(RestClientException.NO_SUCH_PARENT_EPICS)) {
                 return new SearchResult();
             } else {
                 throw e;
@@ -772,7 +772,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 clearRequestIfExpired(jiraRequest, instanceCreationTime);
             }
             return execute(url, true, jiraRequest.isIgnoreCache());
-        } catch (AtlassianRestClient.JiraException e) {
+        } catch (AtlassianRestClient.RestClientException e) {
             String body = e.getBody();
             if (body != null && body.contains("does not exist for field 'key'")) {
                 Pattern pattern = Pattern.compile("'(\\w+-\\d+)'");  // matching pattern for key value

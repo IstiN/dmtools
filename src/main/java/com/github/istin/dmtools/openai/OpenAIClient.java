@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.openai;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.ImageUtils;
@@ -18,7 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-public class OpenAIClient extends AbstractRestClient {
+public class OpenAIClient extends AbstractRestClient implements AI {
 
     private static final Logger logger = LogManager.getLogger(OpenAIClient.class);
 
@@ -68,10 +69,12 @@ public class OpenAIClient extends AbstractRestClient {
         return 700;
     }
 
+    @Override
     public String chat(String message) throws Exception {
         return chat(model, message);
     }
 
+    @Override
     public String chat(String model, String message, File imageFile) throws Exception {
         logger.info("-------- message to ai --------");
         logger.info(message);
@@ -132,8 +135,13 @@ public class OpenAIClient extends AbstractRestClient {
         return content;
     }
 
+    @Override
+    public String chat(String model, String message, List<File> files) throws Exception {
+        return chat(model, message, files != null && !files.isEmpty() ? files.getFirst() : null);
+    }
+
     public JSONArray chatAsJSONArray(String model, String message) throws Exception {
-        return AIResponseParser.parseResponseAsJSONArray(chat(model, message, null));
+        return AIResponseParser.parseResponseAsJSONArray(chat(model, message, (File) null));
     }
 
     public JSONArray chatAsJSONArray(String message) throws Exception {
@@ -141,7 +149,7 @@ public class OpenAIClient extends AbstractRestClient {
     }
 
     public JSONObject chatAsJSONObject(String model, String message) throws Exception {
-        return AIResponseParser.parseResponseAsJSONObject(chat(model, message, null));
+        return AIResponseParser.parseResponseAsJSONObject(chat(model, message, (File) null));
     }
 
     public JSONObject chatAsJSONObject(String message) throws Exception {
@@ -149,7 +157,7 @@ public class OpenAIClient extends AbstractRestClient {
     }
 
     public boolean chatAsBoolean(String model, String message) throws Exception {
-        return AIResponseParser.parseBooleanResponse(chat(model, message, null));
+        return AIResponseParser.parseBooleanResponse(chat(model, message, (File) null));
     }
 
     public boolean chatAsBoolean(String message) throws Exception {
@@ -157,7 +165,7 @@ public class OpenAIClient extends AbstractRestClient {
     }
 
     public String chat(String model, String message) throws Exception {
-        return chat(model, message, null);
+        return chat(model, message, (File) null);
     }
 
     @Override

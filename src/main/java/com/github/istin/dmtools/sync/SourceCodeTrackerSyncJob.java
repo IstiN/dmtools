@@ -118,7 +118,7 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
         ITicket ticket = null;
         try {
             ticket = tracker.performTicket(key, tracker.getDefaultQueryFields());
-        } catch (AtlassianRestClient.JiraException ignored) {
+        } catch (AtlassianRestClient.RestClientException ignored) {
             ignored.printStackTrace();
         }
         if (ticket == null) {

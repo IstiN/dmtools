@@ -2,6 +2,7 @@ package com.github.istin.dmtools.dev;
 
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
+import com.github.istin.dmtools.common.utils.CommandLineUtils;
 import com.github.istin.dmtools.file.FileContentListener;
 import com.github.istin.dmtools.file.SourceCodeReader;
 import com.github.istin.dmtools.job.AbstractJob;
@@ -14,13 +15,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
 
     @Override
     public void runJob(UnitTestsGeneratorParams params) throws Exception {
         List<String> extensionsList = Arrays.asList(params.getFileExtensions());
-        SourceCodeReader sourceCodeReader = new SourceCodeReader(extensionsList);
+        String[] excludeClasses = params.getExcludeClasses();
+        SourceCodeReader sourceCodeReader = new SourceCodeReader(extensionsList, Paths.get(params.getSrcFolder()));
         ConversationObserver conversationObserver = new ConversationObserver();
         BasicOpenAI openAI = new BasicOpenAI(conversationObserver);
         PromptManager promptManager = new PromptManager();
@@ -30,21 +34,64 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
             public void onFileRead(String folderPath, String packageName, String fileName, String fileContent) throws Exception {
                 try {
                     String packageFilter = params.getPackageFilter();
-                    if (packageFilter != null && packageName.startsWith(packageFilter)) {
+                    if (packageFilter == null || packageName.startsWith(packageFilter)) {
                         String baseFileName = fileName.substring(0, fileName.lastIndexOf('.'));
-                        String testFileName = baseFileName + "Test.java"; // Assuming Java test files
+                        if (shouldExclude(baseFileName, excludeClasses) || shouldExcludeByPattern(baseFileName, params.getExcludePattern())) {
+                            return;
+                        }
+                        System.out.println(folderPath + " " + fileName);
 
-                        Path testFilePath = Paths.get(params.getRootTestsFolder(), packageName.replace('.', '/'), testFileName);
+                        String testFileName = baseFileName + params.getTestFileNamePostfix();
+                        String rootTestsFolder = params.getRootTestsFolder();
+                        Path testFilePath;
+                        if (rootTestsFolder == null) {
+                            //assuming if target dir is not set use same dir as file hosted
+                            testFilePath = Paths.get(params.getSrcFolder(), folderPath, testFileName);
+                        } else {
+                            testFilePath = Paths.get(rootTestsFolder, packageName.replace('.', '/'), testFileName);
+                        }
 
                         if (!Files.exists(testFilePath)) {
                             createTestFileSkeleton(fileContent, testFilePath, baseFileName, packageName, params, jAssistant);
                         }
                     }
-                } catch (IOException e) {
+                } catch (Exception e) {
                     // Handle exceptions appropriately
                 }
             }
         });
+    }
+
+    private boolean shouldExcludeByPattern(String baseFileName, String excludePattern) {
+        if (excludePattern == null) {
+            return false;
+        }
+        try {
+            Pattern pattern = Pattern.compile(excludePattern);
+            return pattern.matcher(baseFileName).matches();
+        } catch (PatternSyntaxException e) {
+            // Handle invalid regex pattern syntax here (optional)
+            System.err.println("Invalid regex pattern: " + excludePattern);
+            return false;
+        }
+    }
+
+    public static boolean shouldExclude(String baseFileName, String[] excludeClasses) {
+        if (excludeClasses == null || baseFileName == null) {
+            return false;
+        }
+
+        // Convert the baseFileName to lower case for case-insensitive comparison
+        String lowerCaseBaseFileName = baseFileName.toLowerCase();
+
+        // Use a for-each loop to check each class name in the excludeClasses array
+        for (String excludeClass : excludeClasses) {
+            if (lowerCaseBaseFileName.equals(excludeClass.toLowerCase())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected void createTestFileSkeleton(String fileContent, Path testFilePath, String className, String packageName, UnitTestsGeneratorParams params, JAssistant jAssistant) throws Exception {
@@ -76,12 +123,14 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main2(String[] args) throws Exception {
         UnitTestsGeneratorParams params = new UnitTestsGeneratorParams();
         params.setSrcFolder("src/main/java");
         params.setRootTestsFolder("src/test/java");
-        params.setFileExtensions(new String[]{".java"});
+        params.setFileExtensions(".java");
         params.setPackageFilter("com.github.istin.dmtools");
+        params.setExcludeClasses("UnitTestsGenerator");
+        params.setTestFileNamePostfix("Test.java");
         params.setTestTemplate(
                 "package ${PACKAGE_NAME};\n\n" +
                         "import org.junit.Test;\n\n" +
@@ -102,7 +151,7 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
         generator.runJob(params);
     }
 
-    private static String readRulesFromFile(String filePath) throws IOException {
+    public static String readRulesFromFile(String filePath) throws IOException {
         try {
             return new String(Files.readAllBytes(Paths.get(filePath)));
         } catch (IOException e) {

@@ -15,10 +15,14 @@ public class AIResponseParser {
         // Convert response to lowercase to handle case insensitivity
         String trimmedResponse = response.trim().toLowerCase();
 
-        // Check for a valid boolean value in the response
-        if (trimmedResponse.contains("true")) {
+        // Find the first occurrence of "true" or "false"
+        int trueIndex = trimmedResponse.indexOf("true");
+        int falseIndex = trimmedResponse.indexOf("false");
+
+        // Determine which comes first
+        if (trueIndex != -1 && (falseIndex == -1 || trueIndex < falseIndex)) {
             return true;
-        } else if (trimmedResponse.contains("false")) {
+        } else if (falseIndex != -1) {
             return false;
         } else {
             throw new IllegalArgumentException("No valid boolean value found in the response.");

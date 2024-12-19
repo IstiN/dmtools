@@ -4,7 +4,6 @@ import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.dev.UnitTestsGeneratorParams;
 import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.qa.TestCasesGeneratorParams;
@@ -13,6 +12,7 @@ import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -272,7 +272,7 @@ public class JAssistantTest {
     @Test
     public void testCombineTextAndImage() throws Exception {
         when(promptManagerMock.combineTextAndImage(any())).thenReturn("AI Request");
-        when(openAIClientMock.chat(anyString(), anyString(), any())).thenReturn("Combined Text and Image");
+        when(openAIClientMock.chat(anyString(), anyString(), (File) any())).thenReturn("Combined Text and Image");
 
         String result = jAssistant.combineTextAndImage("text", new java.io.File("image.png"));
 

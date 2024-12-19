@@ -5,12 +5,12 @@ import com.github.istin.dmtools.ba.BusinessAnalyticDORGeneration;
 import com.github.istin.dmtools.ba.RequirementsCollector;
 import com.github.istin.dmtools.ba.UserStoryGenerator;
 import com.github.istin.dmtools.dev.CodeGenerator;
+import com.github.istin.dmtools.dev.CommitsTriage;
 import com.github.istin.dmtools.dev.UnitTestsGenerator;
 import com.github.istin.dmtools.diagram.DiagramsCreator;
 import com.github.istin.dmtools.documentation.DocumentationGenerator;
 import com.github.istin.dmtools.estimations.JEstimator;
 import com.github.istin.dmtools.expert.Expert;
-import com.github.istin.dmtools.openai.input.TestGeneration;
 import com.github.istin.dmtools.presale.PreSaleSupport;
 import com.github.istin.dmtools.qa.TestCasesGenerator;
 import com.github.istin.dmtools.report.productivity.BAProductivityReport;
@@ -43,7 +43,8 @@ public class JobRunner {
             new Expert(),
             new SourceCodeTrackerSyncJob(),
             new UserStoryGenerator(),
-            new UnitTestsGenerator()
+            new UnitTestsGenerator(),
+            new CommitsTriage()
     );
 
     public static void main(String[] args) throws Exception {

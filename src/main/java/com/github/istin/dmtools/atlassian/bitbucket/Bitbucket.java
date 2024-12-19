@@ -455,7 +455,7 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
     }
 
     @Override
-    public List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName) throws IOException {
+    public List<ICommit> getCommitsFromBranch(String workspace, String repository, String branchName, String startDate, String endDate) throws IOException {
         List<ICommit> commits = new ArrayList<>();
         int start = getInitialStartValue();
         while (start <= 2000) {
@@ -622,6 +622,11 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
     @Override
     public String getPullRequestUrl(String workspace, String repository, String id) {
         return getBasePath().replaceAll("api.", "") + "/" + workspace + "/" + repository + "/pull-requests/" + id;
+    }
+
+    @Override
+    public List<IFile> searchFiles(String workspace, String repository, String query) throws IOException {
+        throw new UnsupportedOperationException("Implement Me.");
     }
 }
 
