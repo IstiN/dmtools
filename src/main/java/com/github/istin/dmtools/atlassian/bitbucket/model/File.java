@@ -1,9 +1,12 @@
 package com.github.istin.dmtools.atlassian.bitbucket.model;
 
 import com.github.istin.dmtools.common.model.IFile;
+import com.github.istin.dmtools.common.model.ITextMatch;
 import com.github.istin.dmtools.common.model.JSONModel;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.List;
 
 public class File extends JSONModel implements IFile {
 
@@ -51,5 +54,10 @@ public class File extends JSONModel implements IFile {
     @Override
     public void setFileContent(String fileContent) {
         this.fileContent = fileContent;
+    }
+
+    @Override
+    public List<ITextMatch> getTextMatches() {
+        return List.of();
     }
 }

@@ -1,5 +1,7 @@
 package com.github.istin.dmtools.common.model;
 
+import java.util.List;
+
 public interface IFile {
 
     String getPath();
@@ -13,4 +15,6 @@ public interface IFile {
     String getFileContent();
 
     void setFileContent(String fileContent);
+
+    List<ITextMatch> getTextMatches();
 }

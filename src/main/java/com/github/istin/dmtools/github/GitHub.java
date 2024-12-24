@@ -43,17 +43,12 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
         return getBasePath() + "/" + path;
     }
 
-    private final Object lock = new Object();
-    private volatile Boolean isDiff = false;
-
     @Override
     public synchronized Request.Builder sign(Request.Builder builder) {
-        synchronized (lock) {
-            return builder
-                    .header("Authorization", "Bearer " + authorization)
-                    .header("Accept", isDiff ? "application/vnd.github.diff" : "application/vnd.github.v3+json")
-                    .header("Content-Type", "application/json");
-        }
+        return builder
+                .header("Authorization", "Bearer " + authorization)
+                .header("Accept","application/vnd.github.v3+json")
+                .header("Content-Type", "application/json");
     }
 
     @Override
@@ -105,7 +100,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
 
     @Override
     public IPullRequest pullRequest(String workspace, String repository, String pullRequestId) throws IOException {
-        String response = getPullRequestResponse(workspace, repository, pullRequestId);
+        String response = getPullRequestResponse(workspace, repository, pullRequestId, false);
         return new GitHubPullRequest(response);
     }
 
@@ -116,11 +111,17 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
         return post(postRequest);
     }
 
-    private String getPullRequestResponse(String workspace, String repository, String pullRequestId) throws IOException {
+    private String getPullRequestResponse(String workspace, String repository, String pullRequestId, boolean isDiff) throws IOException {
         String path = path(String.format("repos/%s/%s/pulls/%s", workspace, repository, pullRequestId));
         GenericRequest getRequest = new GenericRequest(this, path);
-        String response = execute(getRequest);
-        return response;
+        if (isDiff) {
+            addDiffHeader(getRequest);
+        }
+        return execute(getRequest);
+    }
+
+    private static void addDiffHeader(GenericRequest getRequest) {
+        getRequest.header("Accept", "application/vnd.github.diff");
     }
 
     @Override
@@ -325,22 +326,15 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
 
     @Override
     public IDiffStats getPullRequestDiff(String workspace, String repository, String pullRequestID) throws IOException {
-        if (IS_READ_PULL_REQUEST_DIFF) {
+        if (!IS_READ_PULL_REQUEST_DIFF) {
             return new IDiffStats.Empty();
         }
-        synchronized (lock) {
-            try {
-                isDiff = true;
-                try {
-                    String pullRequestResponse = getPullRequestResponse(workspace, repository, pullRequestID);
-                    return parseDiffStats(pullRequestResponse);
-                } catch (AtlassianRestClient.RestClientException e) {
-                    e.printStackTrace();
-                    return new IDiffStats.Empty();
-                }
-            } finally {
-                isDiff = false;
-            }
+        try {
+            String pullRequestResponse = getPullRequestResponse(workspace, repository, pullRequestID, true);
+            return parseDiffStats(pullRequestResponse);
+        } catch (AtlassianRestClient.RestClientException e) {
+            e.printStackTrace();
+            return new IDiffStats.Empty();
         }
     }
 
@@ -390,24 +384,20 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     }
 
     private GitHubCommit getCommitAsObject(String workspace, String repository, String commitId) throws IOException {
-        String response = getCommit(workspace, repository, commitId);
+        String response = getCommit(workspace, repository, commitId, false);
         return new GitHubCommit(response);
     }
 
     private String getCommitAsDiff(String workspace, String repository, String commitId) throws IOException {
-        synchronized (lock) {
-            try {
-                isDiff = true;
-                return getCommit(workspace, repository, commitId);
-            } finally {
-                isDiff = false;
-            }
-        }
+        return getCommit(workspace, repository, commitId, true);
     }
 
-    private String getCommit(String workspace, String repository, String commitId) throws IOException {
+    private String getCommit(String workspace, String repository, String commitId, boolean isDiff) throws IOException {
         String path = path(String.format("repos/%s/%s/commits/%s", workspace, repository, commitId));
         GenericRequest getRequest = new GenericRequest(this, path);
+        if (isDiff) {
+            addDiffHeader(getRequest);
+        }
         return execute(getRequest);
     }
 
@@ -500,6 +490,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
                     encodedQuery, workspace, repository, perPage, page));
 
             GenericRequest getRequest = new GenericRequest(this, path);
+            getRequest.header("Accept", "application/vnd.github.v3.text-match+json");
             String response = null;
 
             try {

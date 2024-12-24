@@ -1,18 +1,29 @@
 package com.github.istin.dmtools.common.networking;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GenericRequest {
 
     private final RestClient restClient;
     private final StringBuilder url;
+    @Getter
     private String body;
 
     private String fieldsKey = "fields";
 
+    @Getter
+    @Setter
     private boolean ignoreCache = false;
+
+    @Getter
+    private Map<String, String> headers = new HashMap<>();
 
     public GenericRequest(RestClient restClient, String url) {
         this.restClient = restClient;
@@ -25,12 +36,9 @@ public class GenericRequest {
         this.fieldsKey = fieldsKey;
     }
 
-    public boolean isIgnoreCache() {
-        return ignoreCache;
-    }
-
-    public void setIgnoreCache(boolean ignoreCache) {
-        this.ignoreCache = ignoreCache;
+    public GenericRequest header(String key, String value) {
+        headers.put(key, value);
+        return this;
     }
 
     public GenericRequest fields(String... fields) {
@@ -93,10 +101,6 @@ public class GenericRequest {
     public GenericRequest setBody(String body) {
         this.body = body;
         return this;
-    }
-
-    public String getBody() {
-        return body;
     }
 
 }
