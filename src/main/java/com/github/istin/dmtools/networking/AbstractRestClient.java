@@ -135,15 +135,22 @@ public abstract class AbstractRestClient implements RestClient {
     @Override
     public String execute(GenericRequest genericRequest) throws IOException {
         String url = genericRequest.url();
-        return execute(url, true, genericRequest.isIgnoreCache());
+        return execute(url, true, genericRequest.isIgnoreCache(), genericRequest);
     }
 
     @Override
     public String execute(String url) throws IOException {
-        return execute(url, true, false);
+        return execute(url, true, false, new GenericRequest(this, url));
     }
 
-    private String execute(String url, boolean isRepeatIfFails, boolean isIgnoreCache) throws IOException {
+    private Request.Builder applyHeaders(Request.Builder builder, GenericRequest genericRequest) {
+        for (String key : genericRequest.getHeaders().keySet()) {
+            builder.header(key, genericRequest.getHeaders().get(key));
+        }
+        return builder;
+    }
+
+    private String execute(String url, boolean isRepeatIfFails, boolean isIgnoreCache, GenericRequest genericRequest) throws IOException {
         try {
             timeMeasurement.put(url, System.currentTimeMillis());
             if (isCacheGetRequestsEnabled && !isIgnoreCache) {
@@ -164,8 +171,8 @@ public abstract class AbstractRestClient implements RestClient {
             }
 
             try {
-                Request request = sign(new Request.Builder())
-                        .header("User-Agent", "DMTools")
+                Request request = applyHeaders(sign(new Request.Builder())
+                        .header("User-Agent", "DMTools"), genericRequest)
                         .url(url)
                         .build();
                 try (Response response = client.newCall(request).execute()) {
@@ -193,7 +200,7 @@ public abstract class AbstractRestClient implements RestClient {
                             socketException.printStackTrace();
                         }
                     }
-                    return execute(url, false, isIgnoreCache);
+                    return execute(url, false, isIgnoreCache, genericRequest);
                 } else {
                     throw e;
                 }
@@ -238,10 +245,10 @@ public abstract class AbstractRestClient implements RestClient {
         }
 
         RequestBody body = RequestBody.create(JSON, genericRequest.getBody());
-        try (Response response = client.newCall(sign(
+        try (Response response = client.newCall(applyHeaders(sign(
                 new Request.Builder())
                 .url(url)
-                .header("User-Agent", "DMTools")
+                .header("User-Agent", "DMTools"), genericRequest)
                 .post(body)
                 .build()
         ).execute()) {
@@ -277,10 +284,10 @@ public abstract class AbstractRestClient implements RestClient {
         }
 
         RequestBody body = RequestBody.create(JSON, genericRequest.getBody());
-        try (Response response = client.newCall(sign(
+        try (Response response = client.newCall(applyHeaders(sign(
                 new Request.Builder())
                 .url(url)
-                .header("User-Agent", "DMTools")
+                .header("User-Agent", "DMTools"), genericRequest)
                 .put(body)
                 .build()
         ).execute()) {
@@ -302,10 +309,10 @@ public abstract class AbstractRestClient implements RestClient {
         }
 
         RequestBody body = RequestBody.create(JSON, genericRequest.getBody());
-        try (Response response = client.newCall(sign(
+        try (Response response = client.newCall(applyHeaders(sign(
                 new Request.Builder())
                 .url(url)
-                .header("User-Agent", "DMTools")
+                .header("User-Agent", "DMTools"), genericRequest)
                 .patch(body)
                 .build()
         ).execute()) {
@@ -331,10 +338,10 @@ public abstract class AbstractRestClient implements RestClient {
         if (jiraRequestBody != null) {
             body = RequestBody.create(JSON, jiraRequestBody);
         }
-        try (Response response = client.newCall(sign(
+        try (Response response = client.newCall(applyHeaders(sign(
                 new Request.Builder())
                 .url(url)
-                .header("User-Agent", "DMTools")
+                .header("User-Agent", "DMTools"), genericRequest)
                 .delete(body)
                 .build()
         ).execute()) {
