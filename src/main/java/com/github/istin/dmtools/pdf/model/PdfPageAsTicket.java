@@ -144,6 +144,11 @@ public class PdfPageAsTicket implements ITicket {
     }
 
     @Override
+    public List<? extends ReportIteration> getIterations() {
+        return List.of();
+    }
+
+    @Override
     public double getProgress() throws IOException {
         throw new UnsupportedOperationException();
     }

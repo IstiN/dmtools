@@ -462,8 +462,8 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
     }
 
     @Override
-    public File getCachedFile(GenericRequest request) {
-        String url = request.url();
+    public File getCachedFile(GenericRequest genericRequest) {
+        String url = genericRequest.url();
         String value = DigestUtils.md5Hex(url);
         String imageExtension = Impl.getFileImageExtension(url);
         return new File(getCacheFolderName() + "/" + value + imageExtension);

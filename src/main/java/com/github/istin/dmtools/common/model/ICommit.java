@@ -16,6 +16,8 @@ public interface ICommit {
 
     Calendar getCommitterDate();
 
+    String getUrl();
+
     class Utils {
 
         public static Calendar getComitterDate(ICommit commit) {

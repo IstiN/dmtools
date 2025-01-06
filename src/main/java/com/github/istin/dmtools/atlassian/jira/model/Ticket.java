@@ -55,6 +55,11 @@ public class Ticket extends JSONModel implements ITicket {
         return null;
     }
 
+    @Override
+    public List<? extends ReportIteration> getIterations() {
+        return getFields().getFixVersions();
+    }
+
     public String getIterationName() {
         ReportIteration iteration = getIteration();
         if (iteration != null) {

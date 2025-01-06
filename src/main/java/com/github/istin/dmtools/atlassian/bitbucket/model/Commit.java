@@ -70,4 +70,9 @@ public class Commit extends JSONModel implements ICommit {
         return Utils.getComitterDate(this);
     }
 
+    @Override
+    public String getUrl() {
+        return "url is not supported";
+    }
+
 }

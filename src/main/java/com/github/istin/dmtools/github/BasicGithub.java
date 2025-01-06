@@ -1,31 +1,39 @@
 package com.github.istin.dmtools.github;
 
 import com.github.istin.dmtools.common.code.SourceCode;
+import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.github.istin.dmtools.common.utils.PropertyReader;
 
 import java.io.IOException;
 
 public class BasicGithub extends GitHub {
 
-    private static final String BASE_PATH;
-    private static final String TOKEN;
-    private static final String WORKSPACE;
-    private static final String REPOSITORY;
-    private static final String BRANCH;
+    private static SourceCodeConfig DEFAULT_CONFIG;
+
+    private SourceCodeConfig config;
 
     static {
         PropertyReader propertyReader = new PropertyReader();
-        BASE_PATH = propertyReader.getGithubBasePath();
-        TOKEN = propertyReader.getGithubToken();
-        WORKSPACE = propertyReader.getGithubWorkspace();
-        REPOSITORY = propertyReader.getGithubRepository();
-        BRANCH = propertyReader.getGithubBranch();
+        DEFAULT_CONFIG = SourceCodeConfig.builder()
+                .branchName(propertyReader.getGithubBranch())
+                .repoName(propertyReader.getGithubRepository())
+                .workspaceName(propertyReader.getGithubWorkspace())
+                .type(SourceCodeConfig.Type.GITHUB)
+                .auth(propertyReader.getGithubToken())
+                .path(propertyReader.getGithubBasePath())
+                .build();
     }
 
 
     public BasicGithub() throws IOException {
-        super(BASE_PATH, TOKEN);
+        this(DEFAULT_CONFIG);
     }
+
+    public BasicGithub(SourceCodeConfig config) throws IOException {
+        super(config.getPath(), config.getAuth());
+        this.config = config;
+    }
+
 
     private static BasicGithub instance;
 
@@ -39,22 +47,26 @@ public class BasicGithub extends GitHub {
 
     @Override
     public String getDefaultRepository() {
-        return REPOSITORY;
+        return config.getRepoName();
     }
 
     @Override
     public String getDefaultBranch() {
-        return BRANCH;
+        return config.getBranchName();
     }
 
     @Override
     public String getDefaultWorkspace() {
-        return WORKSPACE;
+        return config.getWorkspaceName();
     }
 
     @Override
     public boolean isConfigured() {
-        return BASE_PATH != null || TOKEN != null || REPOSITORY != null || BRANCH != null || WORKSPACE != null;
+        return config.isConfigured();
     }
 
+    @Override
+    public SourceCodeConfig getDefaultConfig() {
+        return DEFAULT_CONFIG;
+    }
 }

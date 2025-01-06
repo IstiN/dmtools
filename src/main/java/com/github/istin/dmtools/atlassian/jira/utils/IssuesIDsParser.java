@@ -1,5 +1,7 @@
 package com.github.istin.dmtools.atlassian.jira.utils;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -13,6 +15,10 @@ import java.util.regex.Pattern;
 public class IssuesIDsParser {
     private static final Logger logger = LogManager.getLogger(IssuesIDsParser.class);
     private Pattern r;
+
+    @Getter
+    @Setter
+    private IssuesIDsParserParams params;
 
     public IssuesIDsParser(String... keywords) {
         StringBuilder patternBuilder = new StringBuilder();
@@ -37,6 +43,7 @@ public class IssuesIDsParser {
                 Matcher m = r.matcher(line.trim());
                 while (m.find()) {
                     String ticketKey = m.group();
+                    ticketKey = transformTicketKey(ticketKey);
                     if (!result.contains(ticketKey)) {
                         result.add(ticketKey);
                     } else {
@@ -46,6 +53,28 @@ public class IssuesIDsParser {
             }
         }
         return result;
+    }
+
+    private String transformTicketKey(String ticketKey) {
+        if (params != null) {
+            switch (params.getTransformation()) {
+                case UPPERCASE:
+                    ticketKey = ticketKey.toUpperCase();
+                    break;
+                case LOWERCASE:
+                    ticketKey = ticketKey.toLowerCase();
+                    break;
+                case NONE:
+                default:
+                    break;
+            }
+        }
+        if (params.getReplaceCharacters() != null) {
+            for (int i = 0; i < params.getReplaceCharacters().length; i++) {
+                ticketKey = ticketKey.replaceAll(params.getReplaceCharacters()[i], params.getReplaceValues()[i]);
+            }
+        }
+        return ticketKey;
     }
 
     public static Set<String> extractAllJiraIDs(String text) {

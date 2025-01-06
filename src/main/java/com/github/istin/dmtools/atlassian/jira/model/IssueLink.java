@@ -199,6 +199,11 @@ public class IssueLink extends JSONModel implements ITicket, Key {
     }
 
     @Override
+    public List<? extends ReportIteration> getIterations() {
+        return getRelatedTicket().getIterations();
+    }
+
+    @Override
     public double getProgress() throws IOException {
         return new ITicket.ITicketProgress.Impl().calc(this);
     }

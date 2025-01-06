@@ -67,8 +67,8 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
     }
 
     @Override
-    public File getCachedFile(GenericRequest jiraRequest) {
-        String url = jiraRequest.url();
+    public File getCachedFile(GenericRequest genericRequest) {
+        String url = genericRequest.url();
         String value = DigestUtils.md5Hex(url);
         return new File(getCacheFolderName() + "/" + value + ((url.contains("images") ? ".png" : "")));
     }

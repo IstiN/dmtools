@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractRestClient implements RestClient {
@@ -121,10 +122,9 @@ public abstract class AbstractRestClient implements RestClient {
             }
         }
     }
-    public File getCachedFile(GenericRequest jiraRequest) {
-        String value = DigestUtils.md5Hex(jiraRequest.url());
-        File cachedFile = new File(getCacheFolderName() + "/" + value);
-        return cachedFile;
+    public File getCachedFile(GenericRequest genericRequest) {
+        String value = getCacheFileName(genericRequest);
+        return new File(getCacheFolderName() + "/" + value);
     }
 
     @Override
@@ -154,7 +154,7 @@ public abstract class AbstractRestClient implements RestClient {
         try {
             timeMeasurement.put(url, System.currentTimeMillis());
             if (isCacheGetRequestsEnabled && !isIgnoreCache) {
-                String value = DigestUtils.md5Hex(url);
+                String value = getCacheFileName(genericRequest);
                 File cache = new File(getCacheFolderName());
                 cache.mkdirs();
                 File cachedFile = new File(getCacheFolderName() + "/" + value);
@@ -179,7 +179,7 @@ public abstract class AbstractRestClient implements RestClient {
                     if (response.isSuccessful()) {
                         String result = response.body() != null ? response.body().string() : null;
                         if (isCacheGetRequestsEnabled) {
-                            String value = DigestUtils.md5Hex(url);
+                            String value = getCacheFileName(genericRequest);
                             File cache = new File(getCacheFolderName());
                             cache.mkdirs();
                             File cachedFile = new File(getCacheFolderName() + "/" + value);
@@ -213,6 +213,21 @@ public abstract class AbstractRestClient implements RestClient {
         }
     }
 
+    @NotNull
+    protected String getCacheFileName(GenericRequest genericRequest) {
+        StringBuilder hashValue = new StringBuilder(genericRequest.url());
+        if (genericRequest.getBody() != null) {
+            hashValue.append(genericRequest.getBody());
+        }
+        Map<String, String> headers = genericRequest.getHeaders();
+        if (!headers.isEmpty()) {
+            for (String key : headers.keySet()) {
+                hashValue.append(key).append(":").append(headers.get(key));
+            }
+        }
+        return DigestUtils.md5Hex(hashValue.toString());
+    }
+
     protected String getCacheFolderName() {
         return "cache" + getClass().getSimpleName();
     }
@@ -230,7 +245,7 @@ public abstract class AbstractRestClient implements RestClient {
         }
 
         if (isCachePostRequestsEnabled && !genericRequest.isIgnoreCache()) {
-            String value = DigestUtils.md5Hex(buildHashForPostRequest(genericRequest, url));
+            String value = getCacheFileName(genericRequest);
             File cache = new File(getCacheFolderName());
             cache.mkdirs();
             File cachedFile = new File(getCacheFolderName() + "/" + value);
@@ -255,7 +270,7 @@ public abstract class AbstractRestClient implements RestClient {
             String responseAsString = response.body().string();
             if (response.isSuccessful()) {
                 if (isCachePostRequestsEnabled) {
-                    String value = DigestUtils.md5Hex(buildHashForPostRequest(genericRequest, url));
+                    String value = getCacheFileName(genericRequest);
                     File cache = new File(getCacheFolderName());
                     cache.mkdirs();
                     File cachedFile = new File(getCacheFolderName() + "/" + value);

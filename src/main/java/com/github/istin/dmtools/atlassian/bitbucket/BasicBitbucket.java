@@ -1,34 +1,45 @@
 package com.github.istin.dmtools.atlassian.bitbucket;
 
 import com.github.istin.dmtools.common.code.SourceCode;
+import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.github.istin.dmtools.common.utils.PropertyReader;
 
 import java.io.IOException;
 
 public class BasicBitbucket extends Bitbucket {
 
-    private static final String BASE_PATH;
-    private static final String TOKEN;
-    private static final String WORKSPACE;
-    private static final String REPOSITORY;
-    private static final String BRANCH;
-    private static final Bitbucket.ApiVersion API_VERSION;
+    private static SourceCodeConfig DEFAULT_CONFIG;
+
+    private SourceCodeConfig config;
 
     static {
         PropertyReader propertyReader = new PropertyReader();
-        BASE_PATH = propertyReader.getBitbucketBasePath();
-        TOKEN = propertyReader.getBitbucketToken();
         String bitbucketApiVersion = propertyReader.getBitbucketApiVersion();
-        API_VERSION = bitbucketApiVersion == null ? null : Bitbucket.ApiVersion.valueOf(bitbucketApiVersion);
-        WORKSPACE = propertyReader.getBitbucketWorkspace();
-        REPOSITORY = propertyReader.getBitbucketRepository();
-        BRANCH = propertyReader.getBitbucketBranch();
+        DEFAULT_CONFIG = SourceCodeConfig.builder()
+                .branchName(propertyReader.getBitbucketBranch())
+                .repoName(propertyReader.getBitbucketRepository())
+                .workspaceName(propertyReader.getBitbucketWorkspace())
+                .type(SourceCodeConfig.Type.BITBUCKET)
+                .auth(propertyReader.getBitbucketToken())
+                .path(propertyReader.getBitbucketBasePath())
+                .apiVersion(bitbucketApiVersion == null ? null : Bitbucket.ApiVersion.valueOf(bitbucketApiVersion).toString())
+                .build();
     }
 
+
     public BasicBitbucket() throws IOException {
-        super(BASE_PATH, TOKEN);
-        setApiVersion(API_VERSION);
+        this(DEFAULT_CONFIG);
     }
+
+    public BasicBitbucket(SourceCodeConfig config) throws IOException {
+        super(config.getPath(), config.getAuth());
+        this.config = config;
+        String apiVersion = config.getApiVersion();
+        if (apiVersion != null) {
+            setApiVersion(ApiVersion.valueOf(apiVersion));
+        }
+    }
+
 
     private static BasicBitbucket instance;
 
@@ -39,23 +50,30 @@ public class BasicBitbucket extends Bitbucket {
         return instance;
     }
 
+
     @Override
     public String getDefaultRepository() {
-        return REPOSITORY;
+        return config.getRepoName();
     }
 
     @Override
     public String getDefaultBranch() {
-        return BRANCH;
+        return config.getBranchName();
     }
 
     @Override
     public String getDefaultWorkspace() {
-        return WORKSPACE;
+        return config.getWorkspaceName();
     }
 
     @Override
     public boolean isConfigured() {
-        return BASE_PATH != null || TOKEN != null || REPOSITORY != null || BRANCH != null || WORKSPACE != null || API_VERSION != null;
+        return config.isConfigured() && config.getApiVersion() != null;
     }
+
+    @Override
+    public SourceCodeConfig getDefaultConfig() {
+        return config;
+    }
+
 }

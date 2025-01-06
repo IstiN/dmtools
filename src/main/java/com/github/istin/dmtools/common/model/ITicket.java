@@ -46,6 +46,8 @@ public interface ITicket extends Key, TicketLink, ToText {
 
     ReportIteration getIteration();
 
+    List<? extends ReportIteration> getIterations();
+
     double getProgress() throws IOException;
 
     List<? extends IAttachment> getAttachments();
@@ -191,6 +193,11 @@ public interface ITicket extends Key, TicketLink, ToText {
         @Override
         public ReportIteration getIteration() {
             return null;
+        }
+
+        @Override
+        public List<ReportIteration> getIterations() {
+            return List.of();
         }
 
         @Override

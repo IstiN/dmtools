@@ -61,4 +61,8 @@ public class GitHubCommit extends JSONModel implements ICommit, IDiffStats {
         return Utils.getComitterDate(this);
     }
 
+    @Override
+    public String getUrl() {
+        return getString("html_url");
+    }
 }
