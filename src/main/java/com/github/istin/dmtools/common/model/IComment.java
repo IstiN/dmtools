@@ -10,7 +10,6 @@ public interface IComment extends IBody {
     IUser getAuthor();
     String getId();
     Date getCreated();
-
     class Impl {
         public static String checkCommentStartedWith(List<? extends IBody> comments, String commentPrefix) throws IOException {
             String cleanedPrefix = HtmlCleaner.cleanAllHtmlTags("", commentPrefix.replaceAll("\\\\\"", ""));

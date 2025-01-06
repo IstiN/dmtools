@@ -6,6 +6,7 @@ import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.common.tracker.model.Workflow;
 import com.github.istin.dmtools.common.utils.DateUtils;
@@ -55,6 +56,11 @@ public class RallyIssue extends JSONModel implements ITicket, Comparable<RallyIs
 
     public Iteration getIteration() {
         return getModel(Iteration.class, RallyFields.ITERATION);
+    }
+
+    @Override
+    public List<? extends ReportIteration> getIterations() {
+        return List.of(getIteration());
     }
 
     public String getFormattedId() {

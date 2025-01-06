@@ -62,4 +62,9 @@ public class GitLabCommit extends JSONModel implements ICommit, IDiffStats {
         return Utils.getComitterDate(this);
     }
 
+    @Override
+    public String getUrl() {
+        return "url is not supported";
+    }
+
 }

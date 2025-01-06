@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.common.code;
 
 import com.github.istin.dmtools.atlassian.bitbucket.BasicBitbucket;
+import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.github.BasicGithub;
 import com.github.istin.dmtools.gitlab.BasicGitLab;
@@ -75,6 +76,8 @@ public interface SourceCode {
     String getPullRequestUrl(String workspace, String repository, String id);
 
     List<IFile> searchFiles(String workspace, String repository, String query) throws IOException, InterruptedException;
+
+    SourceCodeConfig getDefaultConfig();
 
     class Impl {
 

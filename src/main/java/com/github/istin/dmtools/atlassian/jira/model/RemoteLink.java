@@ -152,6 +152,11 @@ public class RemoteLink extends JSONModel implements ITicket {
     }
 
     @Override
+    public List<? extends ReportIteration> getIterations() {
+        return List.of();
+    }
+
+    @Override
     public double getProgress() throws IOException {
         return new ITicket.ITicketProgress.Impl().calc(this);
     }

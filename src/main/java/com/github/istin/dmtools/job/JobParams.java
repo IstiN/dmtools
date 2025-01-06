@@ -3,8 +3,11 @@ package com.github.istin.dmtools.job;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.documentation.DocumentationGeneratorParams;
 import com.github.istin.dmtools.estimations.JEstimatorParams;
+import com.google.gson.Gson;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.Objects;
 
 public class JobParams extends JSONModel {
 
@@ -36,7 +39,12 @@ public class JobParams extends JSONModel {
     }
 
     public Object getParamsByClass(Class clazz) {
-        return getModel(clazz, PARAMS);
+        if (JSONModel.class.isAssignableFrom(clazz)) {
+            return getModel(clazz, PARAMS);
+        } else {
+            Gson gson = new Gson();
+            return gson.fromJson(Objects.requireNonNull(getJSONObject(PARAMS)).toString(), clazz);
+        }
     }
 
     public void setParams(JSONModel model) {

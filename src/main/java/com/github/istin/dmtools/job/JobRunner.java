@@ -18,6 +18,7 @@ import com.github.istin.dmtools.report.productivity.DevProductivityReport;
 import com.github.istin.dmtools.report.productivity.QAProductivityReport;
 import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
 import com.github.istin.dmtools.sm.ScrumMasterDaily;
+import com.github.istin.dmtools.sync.SourceCodeCommitTrackerSyncJob;
 import com.github.istin.dmtools.sync.SourceCodeTrackerSyncJob;
 
 import java.util.Arrays;
@@ -42,6 +43,7 @@ public class JobRunner {
             new ScrumMasterDaily(),
             new Expert(),
             new SourceCodeTrackerSyncJob(),
+            new SourceCodeCommitTrackerSyncJob(),
             new UserStoryGenerator(),
             new UnitTestsGenerator(),
             new CommitsTriage()
