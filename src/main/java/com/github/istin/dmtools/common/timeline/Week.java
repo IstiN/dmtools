@@ -1,5 +1,7 @@
 package com.github.istin.dmtools.common.timeline;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -58,7 +60,12 @@ public class Week implements ReportIteration {
 
     @Override
     public boolean isReleased() {
-        return getEndDate().getTime() < System.currentTimeMillis();
+        return getEndDate().getTime() < getCurrentTime();
+    }
+
+    @VisibleForTesting
+    long getCurrentTime() {
+        return System.currentTimeMillis();
     }
 
     public String getEndDateAsString() {
