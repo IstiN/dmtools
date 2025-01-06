@@ -72,8 +72,10 @@ public class WeekTest {
 
         assertTrue(week.isReleased());
 
-        calendar.set(2025, Calendar.JANUARY, 1);
-        week.setEndDate(calendar.getTime());
+        Calendar instance = Calendar.getInstance();
+        instance.setTimeInMillis(week.getCurrentTime());
+        instance.add(Calendar.DATE, 1);
+        week.setEndDate(instance.getTime());
 
         assertFalse(week.isReleased());
     }

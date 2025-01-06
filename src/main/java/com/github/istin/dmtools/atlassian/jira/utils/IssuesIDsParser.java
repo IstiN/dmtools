@@ -69,7 +69,7 @@ public class IssuesIDsParser {
                     break;
             }
         }
-        if (params.getReplaceCharacters() != null) {
+        if (params != null && params.getReplaceCharacters() != null) {
             for (int i = 0; i < params.getReplaceCharacters().length; i++) {
                 ticketKey = ticketKey.replaceAll(params.getReplaceCharacters()[i], params.getReplaceValues()[i]);
             }
