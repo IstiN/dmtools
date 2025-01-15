@@ -68,11 +68,16 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
             validateJson(jsonBody);
             genericRequest.setBody(jsonBody);
             // Debug: Print the JSON body for verification
-            System.out.println("Prepared JSON Body: " + jsonBody);
+            System.out.println("Request to AI: " + jsonBody);
         }
 
         String aiResponse = genericRequest.post();
-        return parseResponseByPath(aiResponse, responseJsonPath);
+        System.out.println("Response From AI: " + aiResponse);
+        try {
+            return parseResponseByPath(aiResponse, responseJsonPath);
+        } catch (JSONException e) {
+            return "";
+        }
     }
 
     private String replacePlaceholders(String template, Map<String, String> values) {
@@ -85,9 +90,6 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
 
     private void validateJson(String jsonBody) {
         try {
-            System.out.println("DEBUG: JSONBODY STARTS");
-            System.out.println(jsonBody);
-            System.out.println("DEBUG: JSONBODY ENDS");
             JsonParser.parseString(jsonBody);
         } catch (JsonSyntaxException e) {
             throw new RuntimeException("Invalid JSON after replacement: " + e.getMessage(), e);
@@ -123,37 +125,33 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
 
     // Utility method for parsing JSON response using a path
     private String parseResponseByPath(String jsonResponse, String path) {
-        try {
-            JSONObject jsonObject = new JSONObject(jsonResponse);
-            String[] parts = path.split("\\.");
-            Object currentObject = jsonObject;
+        JSONObject jsonObject = new JSONObject(jsonResponse);
+        String[] parts = path.split("\\.");
+        Object currentObject = jsonObject;
 
-            for (String part : parts) {
-                if (part.contains("[")) {
-                    String base = part.substring(0, part.indexOf('['));
-                    int index = Integer.parseInt(part.substring(part.indexOf('[') + 1, part.indexOf(']')));
+        for (String part : parts) {
+            if (part.contains("[")) {
+                String base = part.substring(0, part.indexOf('['));
+                int index = Integer.parseInt(part.substring(part.indexOf('[') + 1, part.indexOf(']')));
 
-                    if (currentObject instanceof JSONObject) {
-                        JSONArray array = ((JSONObject) currentObject).getJSONArray(base);
-                        currentObject = array.get(index);
-                    } else if (currentObject instanceof JSONArray) {
-                        currentObject = ((JSONArray) currentObject).get(index);
-                    } else {
-                        throw new JSONException("Unexpected object type");
-                    }
+                if (currentObject instanceof JSONObject) {
+                    JSONArray array = ((JSONObject) currentObject).getJSONArray(base);
+                    currentObject = array.get(index);
+                } else if (currentObject instanceof JSONArray) {
+                    currentObject = ((JSONArray) currentObject).get(index);
                 } else {
-                    if (currentObject instanceof JSONObject) {
-                        currentObject = ((JSONObject) currentObject).get(part);
-                    } else {
-                        throw new JSONException("Expected JSONObject, found " + currentObject.getClass().getSimpleName());
-                    }
+                    throw new JSONException("Unexpected object type");
+                }
+            } else {
+                if (currentObject instanceof JSONObject) {
+                    currentObject = ((JSONObject) currentObject).get(part);
+                } else {
+                    throw new JSONException("Expected JSONObject, found " + currentObject.getClass().getSimpleName());
                 }
             }
-
-            return currentObject.toString();
-        } catch (JSONException e) {
-            throw new RuntimeException("Failed to parse response by path: " + path, e);
         }
+
+        return currentObject.toString();
     }
 
     @Override
@@ -191,10 +189,6 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
                 commandParts.add(match.replace("\"", ""));
             }
         }
-
-        // Debug output
-        System.out.println("Curl Command Parts: " + commandParts);
-        System.out.println("Data Part: " + dataPart);
 
         // Extract URL
         if (commandParts.size() < 2) {
