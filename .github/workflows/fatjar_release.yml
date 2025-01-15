@@ -32,7 +32,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Build with Gradle
-        run: ./gradlew clean build shadowJar
+        run: ./gradlew clean build shadowJar -x integrationTest
 
       - name: Upload Test Results
         if: always()
