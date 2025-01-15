@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class SourceCodeConfig {
 
+    public static final String _KEY = "source_code_config";
+
     public static final String BRANCH_NAME = "branch_name";
     public static final String REPO_NAME = "repo_name";
     public static final String WORKSPACE_NAME = "workspace_name";

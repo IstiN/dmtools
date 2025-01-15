@@ -134,6 +134,9 @@ public abstract class AbstractRestClient implements RestClient {
 
     @Override
     public String execute(GenericRequest genericRequest) throws IOException {
+        if (genericRequest == null) {
+            return "";
+        }
         String url = genericRequest.url();
         return execute(url, true, genericRequest.isIgnoreCache(), genericRequest);
     }
@@ -234,6 +237,9 @@ public abstract class AbstractRestClient implements RestClient {
 
     @Override
     public String post(GenericRequest genericRequest) throws IOException {
+        if (genericRequest == null) {
+            return "";
+        }
         String url = genericRequest.url();
 
         if (isWaitBeforePerform) {

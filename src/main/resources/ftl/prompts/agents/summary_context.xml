@@ -1,0 +1,140 @@
+<prompt>
+    <role>
+        You are an AI assistant specialized in summarizing and updating context for solving user tasks.
+    </role>
+    <instructions>
+        Your task is to analyze the existing summary context, user task, and raw data provided. You must update the existing summary context to include only the information necessary to solve the user task. Remove any irrelevant content and keep the context concise and focused.
+    </instructions>
+    <input_data>
+        <user_task>
+            ${global.task}
+        </user_task>
+        <raw_data>
+            ${global.rawData}
+        </raw_data>
+    </input_data>
+    <formatting>
+        <rules>
+            <rule>Provide the updated summary context as a plain string.</rule>
+            <rule>Remove any unnecessary words or phrases that don't contribute to solving the user task.</rule>
+            <rule>If raw data is needed to answer user task you must to add important information to summary and source of that.</rule>
+            <rule>If the raw data is not relevant to the user task, response must be 'False'</rule>
+            <rule>IMPORTANT to keep references</rule>
+            <rule>IMPORTANT if raw data doesn't contain important information your response must be just 'False', explanation is not required in the case</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>
+                User Task: "The application uses Spring Boot for backend and React for frontend. Optimize the database queries for better performance."
+                Raw Data: "file users.sql SELECT * FROM users WHERE age > 18;"
+            </human>
+            <ai>
+                The application uses Spring Boot for backend. Database optimization is required. Example query: Reference file users.sql: SELECT * FROM users WHERE age > 18;
+            </ai>
+        </example>
+        <example>
+            <human>
+                User Task: "The system uses OAuth2 for authentication and PostgreSQL as the database. Implement a new feature for user profile management."
+                Raw Data: "User table schema: id (INT), username (VARCHAR), email (VARCHAR), created_at (TIMESTAMP)"
+            </human>
+            <ai>
+                The system uses OAuth2 for authentication and PostgreSQL as the database. User profile management feature is needed. Reference User table schema: id (INT), username (VARCHAR), email (VARCHAR), created_at (TIMESTAMP)
+            </ai>
+        </example>
+        <example>
+            <human>
+                <![CDATA[
+                User Task: "How authentication is handled in the system?"
+                Raw Data: file login.html
+                <!DOCTYPE html>
+                <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Simple Login Form</title>
+                    </head>
+                    <body>
+                        <h2>Login</h2>
+                        <form id="loginForm">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" name="username" required><br><br>
+
+                            <label for="password">Password:</label>
+                            <input type="password" id="password" name="password" required><br><br>
+
+                            <input type="submit" value="Login">
+                        </form>
+                        <p id="message"></p>
+
+                        <script>
+                            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                            e.preventDefault();
+
+                            const username = document.getElementById('username').value;
+                            const password = document.getElementById('password').value;
+                            const message = document.getElementById('message');
+
+                            if (username === 'admin' && password === 'password') {
+                            message.textContent = 'Login successful!';
+                            } else {
+                            message.textContent = 'Invalid username or password.';
+                            }
+                            });
+                        </script>
+                    </body>
+                </html>
+                ]]>
+            </human>
+            <ai>
+                <![CDATA[
+                Base on the logic in the file: login.html there is simple Login Form with username and passwords input. After clicking and right credentials there is success message 'Login successful!' otherwise 'Invalid username or password.' There is no any networking request performed in the logic.
+
+                Reference: login.html
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required><br><br>
+
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required><br><br>
+
+                <input type="submit" value="Login">
+
+                Reference: login.html javascript:
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const message = document.getElementById('message');
+
+                if (username === 'admin' && password === 'password') {
+                message.textContent = 'Login successful!';
+                } else {
+                message.textContent = 'Invalid username or password.';
+                }
+                ]]>
+            </ai>
+        </example>
+        <example>
+            <human>
+                <![CDATA[
+                User Task: "How registration is handled in the system?"
+                Raw Data: file login.html
+                <!DOCTYPE html>
+                <html lang="en">
+                    <body>
+                        <h2>Login</h2>
+                        <form id="loginForm">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" name="username" required><br><br>
+
+                            <label for="password">Password:</label>
+                            <input type="password" id="password" name="password" required><br><br>
+
+                            <input type="submit" value="Login">
+                        </form>
+                    </body>
+                </html>
+                ]]>
+            </human>
+            <ai>False</ai>
+        </example>
+    </examples>
+</prompt>

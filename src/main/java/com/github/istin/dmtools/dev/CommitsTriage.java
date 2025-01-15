@@ -41,7 +41,7 @@ public class CommitsTriage extends AbstractJob<CommitsTriageParams> {
 
     @Override
     public void runJob(CommitsTriageParams params) throws Exception {
-        SourceCode sourceCode = sourceCodeFactory.createSourceCode(params.getSourceType());
+        SourceCode sourceCode = sourceCodeFactory.createSourceCodes(params.getSourceType());
 
         trackerClient.searchAndPerform(ticket -> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);

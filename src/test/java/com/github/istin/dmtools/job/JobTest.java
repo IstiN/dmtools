@@ -2,8 +2,10 @@ package com.github.istin.dmtools.job;
 
 import org.junit.Test;
 import org.mockito.Mockito;
+
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class JobTest {
 
