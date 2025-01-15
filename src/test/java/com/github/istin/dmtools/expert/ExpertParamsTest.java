@@ -1,14 +1,12 @@
 package com.github.istin.dmtools.expert;
 
+import com.google.gson.Gson;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
-import org.json.JSONObject;
-import org.json.JSONException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.*;
 
 public class ExpertParamsTest {
 
@@ -45,20 +43,15 @@ public class ExpertParamsTest {
 
     @Test
     public void testGetOutputTypeDefault() {
-        assertEquals(ExpertParams.OUTPUT_TYPE_COMMENT, expertParams.getOutputType());
+        assertEquals(ExpertParams.OutputType.comment, expertParams.getOutputType());
     }
 
     @Test
     public void testGetOutputType() {
-        expertParams.setOutputType(ExpertParams.OUTPUT_TYPE_FIELD);
-        assertEquals(ExpertParams.OUTPUT_TYPE_FIELD, expertParams.getOutputType());
+        expertParams.setOutputType(ExpertParams.OutputType.field);
+        assertEquals(ExpertParams.OutputType.field, expertParams.getOutputType());
     }
 
-    @Test
-    public void testSetOutputType() {
-        expertParams.setOutputType("CustomOutputType");
-        assertEquals("CustomOutputType", expertParams.getOutputType());
-    }
 
     @Test
     public void testGetFieldName() {
@@ -75,7 +68,8 @@ public class ExpertParamsTest {
     @Test
     public void testConstructorWithJsonString() throws JSONException {
         String jsonString = "{\"projectContext\":\"JsonProjectContext\",\"request\":\"JsonRequest\"}";
-        ExpertParams params = new ExpertParams(jsonString);
+        Gson gson = new Gson();
+        ExpertParams params = gson.fromJson(jsonString, ExpertParams.class);
         assertEquals("JsonProjectContext", params.getProjectContext());
         assertEquals("JsonRequest", params.getRequest());
     }
@@ -85,7 +79,8 @@ public class ExpertParamsTest {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("projectContext", "JsonObjectProjectContext");
         jsonObject.put("request", "JsonObjectRequest");
-        ExpertParams params = new ExpertParams(jsonObject);
+        Gson gson = new Gson();
+        ExpertParams params = gson.fromJson(jsonObject.toString(), ExpertParams.class);
         assertEquals("JsonObjectProjectContext", params.getProjectContext());
         assertEquals("JsonObjectRequest", params.getRequest());
     }

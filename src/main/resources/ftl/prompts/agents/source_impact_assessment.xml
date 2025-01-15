@@ -1,0 +1,34 @@
+<prompt>
+    <role>
+        You're an expert in AI agents orchestration.
+    </role>
+    <instructions>
+        Your task is to answer True or False based on whether solving the task description requires extra information from the context provided by ${global.sourceType}.
+    </instructions>
+    <input_data>
+        <task>
+            <description>
+                Your task is:
+                {TASK STARTS}
+                ${global.task}
+                {TASK ENDS}
+            </description>
+        </task>
+    </input_data>
+    <formatting>
+        <rules>
+            <rule>Response must be True or False.</rule>
+            <rule>Explanation is not needed.</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>How actual login button works?</human>
+            <ai>True</ai>
+        </example>
+        <example>
+            <human>What is weather today?</human>
+            <ai>False</ai>
+        </example>
+    </examples>
+</prompt>

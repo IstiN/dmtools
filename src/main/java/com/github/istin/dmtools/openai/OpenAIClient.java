@@ -7,7 +7,8 @@ import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import com.github.istin.dmtools.openai.model.AIResponse;
 import com.github.istin.dmtools.openai.model.Choice;
-import com.github.istin.dmtools.openai.utils.AIResponseParser;
+import lombok.Getter;
+import lombok.Setter;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,18 +24,10 @@ public class OpenAIClient extends AbstractRestClient implements AI {
 
     private static final Logger logger = LogManager.getLogger(OpenAIClient.class);
 
-    //public static final String API_VERSION = "2023-07-01-preview";
+    private final String model;
 
-    private String model;
-
-    public ConversationObserver getConversationObserver() {
-        return conversationObserver;
-    }
-
-    public void setConversationObserver(ConversationObserver conversationObserver) {
-        this.conversationObserver = conversationObserver;
-    }
-
+    @Getter
+    @Setter
     private ConversationObserver conversationObserver;
 
     public OpenAIClient(String basePath, String authorization, String model) throws IOException {
@@ -76,6 +69,9 @@ public class OpenAIClient extends AbstractRestClient implements AI {
 
     @Override
     public String chat(String model, String message, File imageFile) throws Exception {
+        if (model == null) {
+            model = this.model;
+        }
         logger.info("-------- message to ai --------");
         logger.info(message);
         logger.info("-------- start chat ai --------");
@@ -124,7 +120,7 @@ public class OpenAIClient extends AbstractRestClient implements AI {
                 content = "";
             }
         } else {
-            content = choices.get(0).getMessage().getContent();
+            content = choices.getFirst().getMessage().getContent();
         }
         if (conversationObserver != null) {
             conversationObserver.addMessage(new ConversationObserver.Message(model, content));
@@ -140,29 +136,6 @@ public class OpenAIClient extends AbstractRestClient implements AI {
         return chat(model, message, files != null && !files.isEmpty() ? files.getFirst() : null);
     }
 
-    public JSONArray chatAsJSONArray(String model, String message) throws Exception {
-        return AIResponseParser.parseResponseAsJSONArray(chat(model, message, (File) null));
-    }
-
-    public JSONArray chatAsJSONArray(String message) throws Exception {
-        return chatAsJSONArray(model, message);
-    }
-
-    public JSONObject chatAsJSONObject(String model, String message) throws Exception {
-        return AIResponseParser.parseResponseAsJSONObject(chat(model, message, (File) null));
-    }
-
-    public JSONObject chatAsJSONObject(String message) throws Exception {
-        return chatAsJSONObject(model, message);
-    }
-
-    public boolean chatAsBoolean(String model, String message) throws Exception {
-        return AIResponseParser.parseBooleanResponse(chat(model, message, (File) null));
-    }
-
-    public boolean chatAsBoolean(String message) throws Exception {
-        return chatAsBoolean(model, message);
-    }
 
     public String chat(String model, String message) throws Exception {
         return chat(model, message, (File) null);

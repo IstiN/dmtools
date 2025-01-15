@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class IssuesIDsParserParams {
 
+    public static final String _KEY = "issues_ids_parser_params";
+
     public enum Transformation {
         NONE,
         UPPERCASE,

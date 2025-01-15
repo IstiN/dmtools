@@ -48,6 +48,7 @@ public class GitHubTest {
         JSONObject params = new JSONObject();
 
         String response = gitHub.triggerAction(workspace, repository, params);
+        when(gitHub.post(any())).thenReturn("");
         assertNotNull(response);
     }
 
@@ -60,6 +61,7 @@ public class GitHubTest {
         String text = "Test comment";
 
         String response = gitHub.addPullRequestComment(workspace, repository, pullRequestId, text);
+        when(gitHub.post(any())).thenReturn("");
         assertNotNull(response);
     }
 
@@ -70,7 +72,7 @@ public class GitHubTest {
         String repository = "testRepo";
         String pullRequestId = "1";
         String label = "bug";
-
+        when(gitHub.post(any())).thenReturn("");
         gitHub.addPullRequestLabel(workspace, repository, pullRequestId, label);
     }
 
@@ -81,7 +83,7 @@ public class GitHubTest {
         String workspace = "testWorkspace";
         String repository = "testRepo";
         String pullRequestID = "1";
-
+        when(gitHub.execute((GenericRequest) any())).thenReturn("");
         IDiffStats diffStats = gitHub.getPullRequestDiff(workspace, repository, pullRequestID);
         assertNotNull(diffStats);
     }

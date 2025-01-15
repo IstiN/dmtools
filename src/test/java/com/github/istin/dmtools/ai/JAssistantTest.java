@@ -24,14 +24,14 @@ public class JAssistantTest {
     private JAssistant jAssistant;
     private TrackerClient<ITicket> trackerClientMock;
     private List<SourceCode> sourceCodesMock;
-    private OpenAIClient openAIClientMock;
+    private AI openAIClientMock;
     private PromptManager promptManagerMock;
 
     @Before
     public void setUp() {
         trackerClientMock = mock(TrackerClient.class);
         sourceCodesMock = new ArrayList<>();
-        openAIClientMock = mock(OpenAIClient.class);
+        openAIClientMock = mock(AI.class);
         promptManagerMock = mock(PromptManager.class);
         jAssistant = new JAssistant(trackerClientMock, sourceCodesMock, openAIClientMock, promptManagerMock);
     }
@@ -73,7 +73,7 @@ public class JAssistantTest {
         when(ticketContextMock.getTicket()).thenReturn(ticketMock);
         when(ticketMock.getTicketKey()).thenReturn("TICKET-1");
         when(promptManagerMock.validateTestCasesAreRelatedToStory(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsJSONArray(anyString(), anyString())).thenReturn(new JSONArray());
+        when(openAIClientMock.chat(anyString(), anyString())).thenReturn(new JSONArray().toString());
 
         List<ITicket> result = jAssistant.findAndLinkSimilarTestCasesBySummary(ticketContextMock, new ArrayList<>(), true);
 
@@ -131,7 +131,7 @@ public class JAssistantTest {
     public void testWhatIsFeatureAreasOfDataInput() throws Exception {
         ToText textInputMock = mock(ToText.class);
         when(promptManagerMock.whatIsFeatureAreasOfDataInput(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsJSONArray(anyString())).thenReturn(new JSONArray());
+        when(openAIClientMock.chat(any(), anyString(), (File)any())).thenReturn(new JSONArray().toString());
 
         JSONArray result = jAssistant.whatIsFeatureAreasOfDataInput(textInputMock);
 
@@ -209,7 +209,7 @@ public class JAssistantTest {
         ITicket ticketMock = mock(ITicket.class);
         when(trackerClientMock.performTicket(anyString(), any())).thenReturn(ticketMock);
         when(promptManagerMock.checkSimilarTickets(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsJSONArray(anyString())).thenReturn(new JSONArray());
+        when(openAIClientMock.chat(any(), anyString(), (File)any())).thenReturn(new JSONArray().toString());
 
         List<ITicket> result = jAssistant.checkSimilarTickets("role", new ArrayList<>(), true, new TicketContext(trackerClientMock, ticketMock));
 
@@ -219,7 +219,7 @@ public class JAssistantTest {
     @Test
     public void testCreateFeatureAreasTree() throws Exception {
         when(promptManagerMock.createFeatureAreasTree(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsJSONObject(anyString())).thenReturn(new JSONObject());
+        when(openAIClientMock.chat(any(), anyString(), (File) any())).thenReturn(new JSONObject().toString());
 
         JSONObject result = jAssistant.createFeatureAreasTree("inputAreas");
 
@@ -229,7 +229,7 @@ public class JAssistantTest {
     @Test
     public void testCleanFeatureAreas() throws Exception {
         when(promptManagerMock.cleanFeatureAreas(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsJSONArray(anyString())).thenReturn(new JSONArray());
+        when(openAIClientMock.chat(any(), anyString(), (File) any())).thenReturn(new JSONArray().toString());
 
         JSONArray result = jAssistant.cleanFeatureAreas("inputAreas");
 
@@ -240,7 +240,7 @@ public class JAssistantTest {
     public void testIdentifyIsContentRelatedToRequirementsAndMarkViaLabel() throws Exception {
         ITicket ticketMock = mock(ITicket.class);
         when(promptManagerMock.isContentRelatedToRequirements(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsBoolean(anyString())).thenReturn(true);
+        when(openAIClientMock.chat(any(), anyString())).thenReturn("true");
 
         jAssistant.identifyIsContentRelatedToRequirementsAndMarkViaLabel("prefix", ticketMock);
 
@@ -251,7 +251,7 @@ public class JAssistantTest {
     public void testIdentifyIsContentRelatedToTimelineAndMarkViaLabel() throws Exception {
         ITicket ticketMock = mock(ITicket.class);
         when(promptManagerMock.isContentRelatedToTimeline(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsBoolean(anyString())).thenReturn(true);
+        when(openAIClientMock.chat(any(), anyString())).thenReturn("true");
 
         jAssistant.identifyIsContentRelatedToTimelineAndMarkViaLabel("prefix", ticketMock);
 
@@ -262,7 +262,7 @@ public class JAssistantTest {
     public void testIdentifyIsContentRelatedToTeamSetupAndMarkViaLabel() throws Exception {
         ITicket ticketMock = mock(ITicket.class);
         when(promptManagerMock.isContentRelatedToTeamSetup(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsBoolean(anyString())).thenReturn(true);
+        when(openAIClientMock.chat(any(), anyString())).thenReturn("true");
 
         jAssistant.identifyIsContentRelatedToTeamSetupAndMarkViaLabel("prefix", ticketMock);
 
@@ -306,7 +306,7 @@ public class JAssistantTest {
         TicketContext ticketContextMock = mock(TicketContext.class);
         ITicket contentMock = mock(ITicket.class);
         when(promptManagerMock.baIsTicketRelatedToContent(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsBoolean(anyString())).thenReturn(true);
+        when(openAIClientMock.chat(any(), anyString())).thenReturn("true");
 
         boolean result = jAssistant.baIsTicketRelatedToContent(trackerClientMock, "roleSpecific", "projectSpecific", ticketContextMock, contentMock);
 
@@ -329,7 +329,7 @@ public class JAssistantTest {
     public void testCreateDiagrams() throws Exception {
         TicketContext ticketContextMock = mock(TicketContext.class);
         when(promptManagerMock.createDiagrams(any())).thenReturn("AI Request");
-        when(openAIClientMock.chatAsJSONArray(anyString())).thenReturn(new JSONArray());
+        when(openAIClientMock.chat(any(), anyString(), (File) any())).thenReturn(new JSONArray().toString());
 
         List<Diagram> result = jAssistant.createDiagrams(ticketContextMock, "roleSpecific", "projectSpecific");
 

@@ -156,7 +156,19 @@ public class PromptManager implements IPromptTemplateReader {
         cfg.setTemplateLoader(new ClassTemplateLoader(o.getClass().getClassLoader(), "/ftl"));
 
 
-        Template temp = cfg.getTemplate("prompts/" + template + ".md");
+        Template temp;
+        try {
+            // First, try to load the .md file
+            temp = cfg.getTemplate("prompts/" + template + ".md");
+        } catch (IOException e) {
+            // If .md file is not found, try to load the .xml file
+            try {
+                temp = cfg.getTemplate("prompts/" + template + ".xml");
+            } catch (IOException ex) {
+                // If both .md and .xml files are not found, throw an exception
+                throw new IOException("Template file not found: " + template + " (neither .md nor .xml)", ex);
+            }
+        }
 
 
         Writer out = new StringWriter();

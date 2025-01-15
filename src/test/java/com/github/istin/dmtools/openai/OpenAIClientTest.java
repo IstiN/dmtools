@@ -77,8 +77,8 @@ public class OpenAIClientTest {
         OpenAIClient spyClient = Mockito.spy(openAIClient);
         JSONArray jsonArray = new JSONArray();
         doReturn(jsonArray.toString()).when(spyClient).chat(MODEL, "message", (File) null);
-        JSONArray response = spyClient.chatAsJSONArray("message");
-        assertEquals(jsonArray.toString(), response.toString());
+        String response = spyClient.chat("message");
+        assertEquals(jsonArray.toString(), response);
     }
 
     @Test
@@ -86,15 +86,15 @@ public class OpenAIClientTest {
         OpenAIClient spyClient = Mockito.spy(openAIClient);
         JSONObject jsonObject = new JSONObject();
         doReturn(jsonObject.toString()).when(spyClient).chat(MODEL, "message", (File) null);
-        JSONObject response = spyClient.chatAsJSONObject("message");
-        assertEquals(jsonObject.toString(), response.toString());
+        String response = spyClient.chat("message");
+        assertEquals(jsonObject.toString(), response);
     }
 
     @Test
     public void testChatAsBoolean() throws Exception {
         OpenAIClient spyClient = Mockito.spy(openAIClient);
         doReturn("true").when(spyClient).chat(MODEL, "message", (File) null);
-        boolean response = spyClient.chatAsBoolean("message");
+        boolean response = Boolean.parseBoolean(spyClient.chat("message"));
         assertTrue(response);
     }
 

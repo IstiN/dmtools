@@ -204,6 +204,30 @@ public class PropertyReader {
 		return getValue("OPEN_AI_MODEL");
 	}
 
+	public String getCurlAIBathPath() {
+		return getValue("CURL_AI_BATH_PATH");
+	}
+
+	public String getCurlAIAuth() {
+		return getValue("CURL_AI_AUTH");
+	}
+
+	public String getCurlAIModel() {
+		return getValue("CURL_AI_MODEL");
+	}
+
+	public String getCurlAiResponseJsonPath() {
+		return getValue("CURL_AI_RESPONSE_JSON_PATH");
+	}
+
+	public String getCurlAIUrlTemplate() {
+		return getValue("CURL_AI_URL_TEMPLATE");
+	}
+
+	public String getCurlAIBodyTemplate() {
+		return getValue("CURL_AI_BODY_TEMPLATE");
+	}
+
 	public String getCodeAIModel() {
 		return getValue("CODE_AI_MODEL");
 	}

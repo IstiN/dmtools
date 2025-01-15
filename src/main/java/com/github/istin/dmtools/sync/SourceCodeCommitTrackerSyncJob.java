@@ -8,29 +8,18 @@ import com.github.istin.dmtools.common.model.IDiffStats;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
-import org.json.JSONArray;
 
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
 public class SourceCodeCommitTrackerSyncJob extends AbstractJob<SourceCodeCommitTrackerSyncParams> {
     @Override
     public void runJob(SourceCodeCommitTrackerSyncParams sourceCodeCommitTrackerSyncParams) throws Exception {
-        SourceCodeConfig sourceCodeConfig = sourceCodeCommitTrackerSyncParams.getSourceCodeConfig();
-        SourceCodeFactory sourceCodeFactory = new SourceCodeFactory();
-        List<SourceCode> sourceCodes = null;
-        if (sourceCodeConfig == null) {
-            sourceCodes = SourceCode.Impl.getConfiguredSourceCodes(new JSONArray());
-        } else {
-            sourceCodes = new ArrayList<>();
-            sourceCodes.add(sourceCodeFactory.createSourceCode(sourceCodeConfig));
-        }
+        SourceCodeConfig[] sourceCodeConfigs = sourceCodeCommitTrackerSyncParams.getSourceCodeConfig();
+        List<SourceCode> sourceCodes = new SourceCodeFactory().createSourceCodes(sourceCodeConfigs);
 
         for (SourceCode sourceCode : sourceCodes) {
-            if (sourceCodeConfig == null) {
-                sourceCodeConfig = sourceCode.getDefaultConfig();
-            }
+            SourceCodeConfig sourceCodeConfig = sourceCode.getDefaultConfig();
             String defaultWorkspace = sourceCode.getDefaultWorkspace();
             String defaultRepository = sourceCode.getDefaultRepository();
             SourceCodeCommitTrackerSyncParams.SyncType syncType = sourceCodeCommitTrackerSyncParams.getSyncType();

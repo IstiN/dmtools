@@ -18,6 +18,6 @@ public class SourceCodeModule {
 
     @Provides
     SourceCode provideSourceCode(SourceCodeFactory factory, CommitsTriageParams params) {
-        return factory.createSourceCode(params.getSourceType());
+        return factory.createSourceCodes(params.getSourceType());
     }
 }
