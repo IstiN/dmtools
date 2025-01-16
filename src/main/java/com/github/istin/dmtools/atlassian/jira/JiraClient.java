@@ -1267,6 +1267,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     public String tag(String notifierId) {
+        if (notifierId.contains("~")) {
+            return "[" + notifierId + "]";
+        }
         return "[~accountid:" + notifierId + "]";
     }
 
