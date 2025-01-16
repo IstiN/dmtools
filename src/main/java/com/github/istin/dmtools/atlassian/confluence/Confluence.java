@@ -15,6 +15,8 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,11 +47,23 @@ public class Confluence extends AtlassianRestClient {
         // Split the path into segments
         String[] pathSegments = url.getPath().split("/");
 
-        // Assuming the structure is always the same: /spaces/{spaceID}/pages/{pageID}/{pageName}
-        if (pathSegments.length > 5) {
-            String contentId = pathSegments[5]; // Index 2 corresponds to the space ID
+        // Check for spaces path format: /spaces/{spaceID}/pages/{pageID}/{pageName}
+        if (pathSegments.length > 5 && "spaces".equals(pathSegments[1])) {
+            String contentId = pathSegments[5];  // Index 5 corresponds to the page ID
             return contentById(contentId);
-        } else {
+        }
+        // Check for display format variant: /display/~{userIdentifier}/{pageName}
+        else if (pathSegments.length > 3 && "display".equals(pathSegments[1])) {
+            String userIdentifier = pathSegments[2];
+            String pageName = pathSegments[3];
+
+            // Decode the pageName to replace any encoded characters
+            pageName = URLDecoder.decode(pageName, StandardCharsets.UTF_8.name());
+
+            // Assuming you have a method to retrieve content by user and page name
+            return content(pageName, userIdentifier).getContents().get(0);
+        }
+        else {
             throw new UnsupportedOperationException("unknown url format");
         }
     }
