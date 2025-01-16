@@ -1,38 +1,55 @@
 package com.github.istin.dmtools.qa;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
+import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.di.DaggerTestCasesGeneratorComponent;
 import com.github.istin.dmtools.job.AbstractJob;
-import com.github.istin.dmtools.openai.BasicOpenAI;
-import com.github.istin.dmtools.openai.PromptManager;
+import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.report.freemarker.GenericCell;
 import com.github.istin.dmtools.report.freemarker.GenericReport;
 import com.github.istin.dmtools.report.freemarker.GenericRow;
 
+import javax.inject.Inject;
 import java.util.List;
 
 public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
+
+    @Inject
+    TrackerClient<? extends ITicket> trackerClient;
+
+    @Inject
+    Confluence confluence;
+
+    @Inject
+    AI ai;
+
+    @Inject
+    IPromptTemplateReader promptTemplateReader;
+
+    public TestCasesGenerator() {
+        DaggerTestCasesGeneratorComponent.create().inject(this);
+    }
 
     @Override
     public void runJob(TestCasesGeneratorParams params) throws Exception {
         runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getStoriesJQL(), params.getExistingTestCasesJQL(), params.getOutputType(), params.getTestCasesPriorities(), params.getInitiator());
     }
 
-    public static void runJob(String confluenceRootPage, String eachPagePrefix, String storiesJQL, String existingTestCasesJQL, String outputType, String testCasesPriorities, String initiator) throws Exception {
+    public void runJob(String confluenceRootPage, String eachPagePrefix, String storiesJQL, String existingTestCasesJQL, String outputType, String testCasesPriorities, String initiator) throws Exception {
         BasicConfluence confluence = BasicConfluence.getInstance();
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
 
         ConversationObserver conversationObserver = new ConversationObserver();
-        BasicOpenAI openAI = new BasicOpenAI(conversationObserver);
-        PromptManager promptManager = new PromptManager();
 
-        JAssistant jAssistant = new JAssistant(trackerClient, null, openAI, promptManager);
+        JAssistant jAssistant = new JAssistant(trackerClient, null, ai, promptTemplateReader);
 
         trackerClient.searchAndPerform(ticket -> {
             List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(existingTestCasesJQL, new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
