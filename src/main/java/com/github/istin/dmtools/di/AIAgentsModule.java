@@ -32,4 +32,19 @@ public class AIAgentsModule {
         return new RequestSimplifierAgent();
     }
 
+    @Provides
+    TestCaseGeneratorAgent provideTestCaseGeneratorAgent() {
+        return new TestCaseGeneratorAgent();
+    }
+
+    @Provides
+    RelatedTestCasesAgent provideRelatedTestCasesAgent() {
+        return new RelatedTestCasesAgent();
+    }
+
+    @Provides
+    RelatedTestCaseAgent provideRelatedTestCaseAgent() {
+        return new RelatedTestCaseAgent();
+    }
+
 }

@@ -1,12 +1,11 @@
 package com.github.istin.dmtools.expert;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.ConfluencePagesContext;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.ai.agent.*;
-import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
-import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.common.code.SourceCode;
@@ -70,9 +69,6 @@ public class Expert extends AbstractJob<ExpertParams> {
         String inputJQL = expertParams.getInputJql();
         String fieldName = expertParams.getFieldName();
 
-
-        BasicConfluence confluence = BasicConfluence.getInstance();
-
         if (projectContext.startsWith("https://")) {
             projectContext = confluence.contentByUrl(projectContext).getStorage().getValue();
         }
@@ -80,11 +76,7 @@ public class Expert extends AbstractJob<ExpertParams> {
         StringBuilder requestWithContext = new StringBuilder();
         requestWithContext.append(request).append("\n");
         if (confluencePages != null) {
-            List<Content> contents = confluence.contentsByUrls(confluencePages);
-            requestWithContext.append("Existing confluence pages\n");
-            for (Content content : contents) {
-                requestWithContext.append(content.getTitle()).append("\n").append(content.getStorage().getValue()).append("\n");
-            }
+            requestWithContext.append(new ConfluencePagesContext(confluencePages, confluence).toText());
         }
 
         JAssistant jAssistant = new JAssistant(trackerClient, null, ai, promptTemplateReader);
@@ -116,7 +108,11 @@ public class Expert extends AbstractJob<ExpertParams> {
         String fullTask = structuredRequest.toString();
         StringBuffer filesContextSummary = new StringBuffer();
         if (sourceImpactAssessmentAgent.run(new SourceImpactAssessmentAgent.Params("source codebase", fullTask))) {
-            JSONArray keywords = keywordGeneratorAgent.run(new KeywordGeneratorAgent.Params(fullTask, ""));
+            String keywordsBlacklist = expertParams.getKeywordsBlacklist();
+            if (keywordsBlacklist.startsWith("https://")) {
+                keywordsBlacklist = confluence.contentByUrl(keywordsBlacklist).getStorage().getValue();
+            }
+            JSONArray keywords = keywordGeneratorAgent.run(new KeywordGeneratorAgent.Params(fullTask, keywordsBlacklist));
             Map<String, List<IFile>> mapping = new HashMap<>();
             List<IFile> allFiles = new ArrayList<>();
             Set<String> checkedFiles = new HashSet<>();
@@ -132,6 +128,7 @@ public class Expert extends AbstractJob<ExpertParams> {
                     }
 
                     int counterOfInvalidResponses = 0;
+                    int filesCounter = 0;
                     for (IFile file : files) {
                         String selfLink = file.getSelfLink();
                         if (checkedFiles.contains(selfLink)) {
@@ -161,10 +158,16 @@ public class Expert extends AbstractJob<ExpertParams> {
                         }
                         checkedFiles.add(selfLink);
                         System.out.println("progress: " + i + " " + keyword + " Details " + checkedInDetails + " Checked Files " + checkedFiles.size() + " From " + files.size() + " " + filesContextSummary);
+                        filesCounter++;
                         if (i != 0 && counterOfInvalidResponses > 10) {
                             //search query is not valid
                             break;
                         }
+
+                        if (filesCounter >= expertParams.getFilesLimit()) {
+                            break;
+                        }
+
                         //if files context it's enough to answer question break the loop
                     }
 

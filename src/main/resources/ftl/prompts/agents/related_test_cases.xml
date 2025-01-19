@@ -1,0 +1,82 @@
+<prompt>
+    <role>
+        You're a highly skilled software testing engineer specializing in reviewing tests.
+    </role>
+    <instructions>
+        Your task is to check if the {new story} is related to the already created {existing test cases}.
+
+        IMPORTANT Rules:
+        1. Your response must be JSON Array of keys of test case if it's related to the story, otherwise empty array.
+    </instructions>
+    <input_data>
+        <new_story>
+            ${global.newStory}
+        </new_story>
+        <existing_test_cases>
+            ${global.existingTestCases}
+        </existing_test_cases>
+        <important_rules>
+            ${global.extraRules}
+        </important_rules>
+    </input_data>
+    <formatting>
+        <rules>
+            <rule>Your answer must be JSONArray</rule>
+            <rule>Maximum amount of keys is 20</rule>
+            <rule>Do not include ticket title in json array response.</rule>
+            <rule>Do not wrap the response in ```.</rule>
+            <rule>Don't skip project code.</rule>
+            <rule>Don't use ```, html markdowns.</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>
+                {new story}
+                PROJ-123
+                Title: Implement user registration
+                Description: As a new user, I want to be able to register an account so that I can access the application.
+                {new story}
+
+                {existing test cases}
+                TEST-001 User Login Test
+                TEST-002 Password Reset Test
+                TEST-003 User Profile Update Test
+                {existing test cases}
+            </human>
+            <ai>["TEST-001"]</ai>
+        </example>
+        <example>
+            <human>
+                {new story}
+                PROJ-456
+                Title: Add product search functionality
+                Description: Implement a search feature that allows users to find products quickly based on keywords.
+                {new story}
+
+                {existing test cases}
+                TEST-004 Product Listing Test
+                TEST-005 Shopping Cart Test
+                TEST-006 Checkout Process Test
+                {existing test cases}
+            </human>
+            <ai>["TEST-004"]</ai>
+        </example>
+        <example>
+            <human>
+                {new story}
+                PROJ-789
+                Title: Update system logging
+                Description: Implement a new logging system to improve error tracking and system performance monitoring.
+                {new story}
+
+                {existing test cases}
+                TEST-007 User Registration Test
+                TEST-008 Product Review Test
+                TEST-009 Order Tracking Test
+                {existing test cases}
+            </human>
+            <ai>[]</ai>
+        </example>
+    </examples>
+</prompt>

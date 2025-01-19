@@ -3,7 +3,10 @@
         You're an expert in keyword generation and search optimization.
     </role>
     <instructions>
-        Your task is to generate 1-3 word keywords based on the user's request. The keywords should be suitable for searching information in different sources.
+        It's important to recognize 1-2 keywords (IDEAL only 1 word) which best describe the core task in the request, and these must be first.
+        Focus strictly on the core task mentioned in the user request, ignoring any project-specific details or broader context.
+        Do not include project names, company names, or specific project identifiers in the keywords.
+        Generate keywords that would be useful for searching about the task in general, not just in the specific context provided.
     </instructions>
     <input_data>
         <user_request>${global.task}</user_request>
@@ -17,7 +20,7 @@
             <rule>Do not include any words from the blacklist.</rule>
             <rule>Include a generic blacklist of common words (e.g., "the", "and", "or", "is", "are").</rule>
             <rule>Limit the response to a maximum of 10 keywords.</rule>
-            <rule>Don't use technical information from user_request which is not related to Task to generate keywords</rule>
+            <rule>Don't use technical information from user_request which is not directly related to the core task. This includes project names, methodologies, or broader concepts not specific to the task.</rule>
         </rules>
     </formatting>
     <examples>
@@ -28,6 +31,11 @@
         <example>
             <human>Generate keywords for "Best practices for sustainable urban planning"</human>
             <ai>["urban", "sustainable urbanism", "green cities", "eco-friendly planning", "urban sustainability", "smart growth", "sustainable development", "urban ecology", "green infrastructure", "sustainable transportation", "urban resilience"]</ai>
+        </example>
+        <example>
+            <human>Generate keywords for "Implement a machine learning model for predictive maintenance in the XYZ Corporation's manufacturing process"</human>
+            <ai>[INCORRECT RESPONSE: "XYZ Corporation", "manufacturing process", "machine learning", "predictive maintenance", "implementation", "corporate ML", "industrial AI", "XYZ manufacturing", "process optimization", "ML model"]</ai>
+            <explanation>This response incorrectly includes the company name "XYZ Corporation" and uses overly broad terms like "machine learning" and "implementation". It also includes project-specific details like "manufacturing process" instead of focusing solely on the core task of predictive maintenance.</explanation>
         </example>
     </examples>
 </prompt>

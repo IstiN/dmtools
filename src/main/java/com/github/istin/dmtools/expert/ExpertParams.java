@@ -15,6 +15,7 @@ public class ExpertParams extends Params {
     public static final String REQUEST = "request";
     public static final String OUTPUT_TYPE = "outputType";
     public static final String FIELD_NAME = "fieldName";
+    public static final String KEYWORDS_BLACKLIST = "keywordsBlacklist";
 
     public enum OutputType {
         comment, field
@@ -28,6 +29,9 @@ public class ExpertParams extends Params {
 
     @SerializedName(FIELD_NAME)
     private String fieldName;
+
+    @SerializedName(KEYWORDS_BLACKLIST)
+    private String keywordsBlacklist;
 
     @SerializedName(OUTPUT_TYPE)
     private OutputType outputType = OutputType.comment;
