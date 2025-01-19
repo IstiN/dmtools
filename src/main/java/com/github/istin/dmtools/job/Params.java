@@ -16,6 +16,7 @@ public class Params {
     public static final String CONFLUENCE_PAGES = "confluencePages";
     public static final String MODEL = "model";
     public static final String IS_CODE_AS_SOURCE = "isCodeAsSource";
+    public static final String FILES_LIMIT = "filesLimit";
 
     @SerializedName(INPUT_JQL)
     private String inputJql;
@@ -31,6 +32,9 @@ public class Params {
 
     @SerializedName(CONFLUENCE_PAGES)
     private String[] confluencePages;
+
+    @SerializedName(FILES_LIMIT)
+    private int filesLimit = 100;
 
     @SerializedName(SourceCodeConfig._KEY)
     private SourceCodeConfig[] sourceCodeConfig;

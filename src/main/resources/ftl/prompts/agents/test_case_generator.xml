@@ -1,0 +1,62 @@
+<prompt>
+    <role>
+        You're a highly skilled software testing engineer specialising in designing tests.
+    </role>
+    <instructions>
+        Your task is to write test cases and follow these rules:
+        1. Make sure Description is nice looking with html tags inside, skip html, head and body tags and don't use class attribute. Use tag for each test case.
+        2. Use only following tags in Description: <p>, <strong>, <em>, <u>, <s>, <a>, <code>, <pre>, <table>, <tr>, <th>, <td>.
+        3. Each generated Test Case must include priority from the list: {priorities}.
+        4. Don't create duplicates, check {existing_test_cases}.
+        5. If ${global.existingTestCases} block is empty you must generate new test cases.
+        6. Don't introduce additional Test Cases which are not related to {story_description} especially if it can confuse readers.
+        7. Don't create new test cases if current list of test cases cover the {story_description}
+    </instructions>
+    <input_data>
+        <story_description>
+            Generate Test Cases for the specific Story:
+            ${global.storyDescription}
+            Ensure your feedback is constructive and professional.
+        </story_description>
+        <priorities>
+            ${global.priorities}
+        </priorities>
+        <existing_test_cases>
+            ${global.existingTestCases}
+        </existing_test_cases>
+        <important_rules>
+            ${global.extraRules}
+        </important_rules>
+    </input_data>
+    <formatting>
+        <rules>
+            <rule>Return results as a JSON array with JSON objects inside.</rule>
+            <rule>Each JSON object must include 'priority', 'summary', and 'description'.</rule>
+            <rule>The output must be in plain JSON format without any additional text, formatting, or markdown.</rule>
+            <rule>If there are no new test cases, return an empty JSON array.</rule>
+            <rule>No other responses are possible.</rule>
+            <rule>Don't use ```, json markdowns.</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>Generate test cases for a login feature</human>
+            <ai>[
+                {
+                "priority": "High",
+                "summary": "As a user I can log in with valid credentials to access my account",
+                "description": "<strong>Given</strong> the user is on the login page<br><strong>When</strong> the user enters valid username and password<br><strong>And</strong> clicks the login button<br><strong>Then</strong> the user should be successfully logged in<br><strong>And</strong> redirected to the dashboard"
+                },
+                {
+                "priority": "Medium",
+                "summary": "As a user I can see an error message when entering invalid credentials",
+                "description": "<strong>Given</strong> the user is on the login page<br><strong>When</strong> the user enters an invalid username or password<br><strong>And</strong> clicks the login button<br><strong>Then</strong> an error message should be displayed<br><strong>And</strong> the user should remain on the login page"
+                }
+                ]</ai>
+        </example>
+        <example>
+            <human>Generate test cases for a feature that already has comprehensive test coverage</human>
+            <ai>[]</ai>
+        </example>
+    </examples>
+</prompt>

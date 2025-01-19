@@ -47,9 +47,16 @@ public class Confluence extends AtlassianRestClient {
         // Split the path into segments
         String[] pathSegments = url.getPath().split("/");
 
+        int spacesIndex = -1;
+        for (String pathSegment : pathSegments) {
+            spacesIndex++;
+            if ("spaces".equals(pathSegment)) {
+                break;
+            }
+        }
         // Check for spaces path format: /spaces/{spaceID}/pages/{pageID}/{pageName}
-        if (pathSegments.length > 5 && "spaces".equals(pathSegments[1])) {
-            String contentId = pathSegments[5];  // Index 5 corresponds to the page ID
+        if (spacesIndex != -1 && pathSegments.length > 5) {
+            String contentId = pathSegments[spacesIndex + 3];  // Index 5 corresponds to the page ID
             return contentById(contentId);
         }
         // Check for display format variant: /display/~{userIdentifier}/{pageName}

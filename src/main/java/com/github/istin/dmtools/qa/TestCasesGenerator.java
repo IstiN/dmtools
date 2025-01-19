@@ -1,23 +1,28 @@
 package com.github.istin.dmtools.qa;
 
 import com.github.istin.dmtools.ai.AI;
-import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.JAssistant;
+import com.github.istin.dmtools.ai.ConfluencePagesContext;
 import com.github.istin.dmtools.ai.TicketContext;
-import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
+import com.github.istin.dmtools.ai.agent.RelatedTestCaseAgent;
+import com.github.istin.dmtools.ai.agent.RelatedTestCasesAgent;
+import com.github.istin.dmtools.ai.agent.TestCaseGeneratorAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
-import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
+import com.github.istin.dmtools.atlassian.jira.model.Relationship;
+import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.di.DaggerTestCasesGeneratorComponent;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.openai.input.TicketBasedPrompt;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
-import com.github.istin.dmtools.report.freemarker.GenericCell;
-import com.github.istin.dmtools.report.freemarker.GenericReport;
-import com.github.istin.dmtools.report.freemarker.GenericRow;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
@@ -34,53 +39,94 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
     @Inject
     IPromptTemplateReader promptTemplateReader;
 
+    @Inject
+    TestCaseGeneratorAgent testCaseGeneratorAgent;
+
+    @Inject
+    RelatedTestCasesAgent relatedTestCasesAgent;
+
+    @Inject
+    RelatedTestCaseAgent relatedTestCaseAgent;
+
+
     public TestCasesGenerator() {
         DaggerTestCasesGeneratorComponent.create().inject(this);
     }
 
     @Override
     public void runJob(TestCasesGeneratorParams params) throws Exception {
-        runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getStoriesJQL(), params.getExistingTestCasesJQL(), params.getOutputType(), params.getTestCasesPriorities(), params.getInitiator());
-    }
-
-    public void runJob(String confluenceRootPage, String eachPagePrefix, String storiesJQL, String existingTestCasesJQL, String outputType, String testCasesPriorities, String initiator) throws Exception {
-        BasicConfluence confluence = BasicConfluence.getInstance();
-        TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
-
-        ConversationObserver conversationObserver = new ConversationObserver();
-
-        JAssistant jAssistant = new JAssistant(trackerClient, null, ai, promptTemplateReader);
-
         trackerClient.searchAndPerform(ticket -> {
-            List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(existingTestCasesJQL, new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
+            List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext();
-            generateTestCases(confluenceRootPage, eachPagePrefix, ticketContext, jAssistant, conversationObserver, confluence, listOfAllTestCases, outputType, testCasesPriorities);
-            trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", similar test cases are linked and new test cases are generated.");
+            String additionalRules = new ConfluencePagesContext(params.getConfluencePages(), confluence).toText();
+            generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params);
+            trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
             return false;
-        }, storiesJQL, trackerClient.getExtendedQueryFields());
+        }, params.getInputJql(), trackerClient.getExtendedQueryFields());
     }
 
-    public static void generateTestCases(String confluenceRootPage, String eachPagePrefix, TicketContext ticketContext, JAssistant jAssistant, ConversationObserver conversationObserver, BasicConfluence confluence, List<? extends ITicket> listOfAllTestCases, String outputType, String testCasesPriorities) throws Exception {
-        jAssistant.generateTestCases(ticketContext, listOfAllTestCases, outputType, testCasesPriorities);
-        List<ConversationObserver.Message> messages = conversationObserver.getMessages();
-        if (confluenceRootPage == null || eachPagePrefix == null || confluenceRootPage.isEmpty() || eachPagePrefix.isEmpty()) {
-            messages.clear();
-            return;
-        }
+    public void generateTestCases(TicketContext ticketContext, String extraRules, List<? extends ITicket> listOfAllTestCases, TestCasesGeneratorParams params) throws Exception {
+        ITicket mainTicket = ticketContext.getTicket();
+        String key = mainTicket.getTicketKey();
 
-        if (!messages.isEmpty()) {
-            GenericReport genericReport = new GenericReport();
-            genericReport.setIsNotWiki(false);
-            genericReport.setName(eachPagePrefix + " " + ticketContext.getTicket().getKey());
-            for (ConversationObserver.Message message : messages) {
-                GenericRow row = new GenericRow(false);
-                row.getCells().add(new GenericCell("<b>" + message.getAuthor() + "</b>"));
-                row.getCells().add(new GenericCell(message.getText()));
-                genericReport.getRows().add(row);
+        List<ITicket> finaResults = findAndLinkSimilarTestCasesBySummary(ticketContext, listOfAllTestCases, true, params.getRelatedTestCasesRules());
+
+        List<TestCaseGeneratorAgent.TestCase> newTestCases = testCaseGeneratorAgent.run(new TestCaseGeneratorAgent.Params(params.getTestCasesPriorities(), finaResults.toString(), ticketContext.toText(), extraRules));
+
+        if (params.getOutputType().equals(TestCasesGeneratorParams.OutputType.comment)) {
+            StringBuilder comment = new StringBuilder();
+            for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
+                comment.append("Summary: ").append(testCase.getSummary()).append("<br>");
+                comment.append("Priority: ").append(testCase.getPriority()).append("<br>");
+                comment.append("Description: ").append(testCase.getDescription()).append("<br>");
             }
-            conversationObserver.printAndClear();
-            confluence.publishPageToDefaultSpace(confluenceRootPage, eachPagePrefix, genericReport);
+            trackerClient.postComment(key, comment.toString());
+        } else {
+            for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
+                String projectCode = key.split("-")[0];
+                String description = testCase.getDescription();
+                if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+                    description = StringUtils.convertToMarkdown(description);
+                }
+                Ticket createdTestCase = new Ticket(trackerClient.createTicketInProject(projectCode, "Test Case", testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
+                    @Override
+                    public void init(TrackerClient.TrackerTicketFields fields) {
+                        fields.set("priority",
+                                new JSONObject().put("name", testCase.getPriority())
+                        );
+                        fields.set("labels", new JSONArray().put("ai_generated"));
+                    }
+                }));
+                trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), Relationship.TESTS);
+            }
         }
+    }
+
+    @NotNull
+    public List<ITicket> findAndLinkSimilarTestCasesBySummary(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink) throws Exception {
+        List<ITicket> finaResults = new ArrayList<>();
+        String extraRelatedTestCaseRulesFromConfluence = new ConfluencePagesContext(new String[]{relatedTestCasesRulesLink}, confluence).toText();
+        int batchSize = 50;
+        for (int i = 0; i < listOfAllTestCases.size(); i += batchSize) {
+            List<? extends ITicket> batch = listOfAllTestCases.subList(i, Math.min(i + batchSize, listOfAllTestCases.size()));
+
+            JSONArray testCaseKeys = relatedTestCasesAgent.run(new RelatedTestCasesAgent.Params(ticketContext.toText(), batch.toString(), extraRelatedTestCaseRulesFromConfluence));
+            //find relevant test case from batch
+            for (int j = 0; j < testCaseKeys.length(); j++) {
+                String testCaseKey = testCaseKeys.getString(j);
+                ITicket testCase = batch.stream().filter(t -> t.getKey().equals(testCaseKey)).findFirst().orElse(null);
+                if (testCase != null) {
+                    boolean isConfirmed = relatedTestCaseAgent.run(new RelatedTestCaseAgent.Params(ticketContext.toText(), testCase.toText(), extraRelatedTestCaseRulesFromConfluence));
+                    if (isConfirmed) {
+                        finaResults.add(testCase);
+                        if (isLink) {
+                            trackerClient.linkIssueWithRelationship(ticketContext.getTicket().getTicketKey(), testCase.getKey(), Relationship.TESTS);
+                        }
+                    }
+                }
+            }
+        }
+        return finaResults;
     }
 }

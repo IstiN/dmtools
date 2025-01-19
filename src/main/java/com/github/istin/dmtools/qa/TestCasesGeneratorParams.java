@@ -1,53 +1,32 @@
 package com.github.istin.dmtools.qa;
 
-import com.github.istin.dmtools.job.BaseJobParams;
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.github.istin.dmtools.job.Params;
+import com.google.gson.annotations.SerializedName;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public class TestCasesGeneratorParams extends BaseJobParams {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TestCasesGeneratorParams extends Params {
 
-    public static final String STORIES_JQL = "storiesJql";
     public static final String EXISTING_TEST_CASES_JQL = "existingTestCasesJql";
-    public static final String CONFLUENCE_ROOT_PAGE = "confluenceRootPage";
-    public static final String EACH_PAGE_PREFIX = "eachPagePrefix";
     public static final String OUTPUT_TYPE = "outputType";
     public static final String TEST_CASES_PRIORITIES = "testCasesPriorities";
+    public static final String RELATED_TEST_CASES_RULES = "relatedTestCasesRules";
 
-    public static final String OUTPUT_TYPE_TRACKER_COMMENT = "trackerComment";
-    public static final String OUTPUT_TYPE_TRACKER_TESTCASES_CREATION = "creation";
-
-    public TestCasesGeneratorParams() {
+    public enum OutputType {
+        comment, creation
     }
 
-    public TestCasesGeneratorParams(String json) throws JSONException {
-        super(json);
-    }
+    @SerializedName(EXISTING_TEST_CASES_JQL)
+    private String existingTestCasesJql;
+    @SerializedName(TEST_CASES_PRIORITIES)
+    private String testCasesPriorities;
+    @SerializedName(RELATED_TEST_CASES_RULES)
+    private String relatedTestCasesRules;
 
-    public TestCasesGeneratorParams(JSONObject json) {
-        super(json);
-    }
-
-    public String getConfluenceRootPage() {
-        return getString(CONFLUENCE_ROOT_PAGE);
-    }
-
-    public String getEachPagePrefix() {
-        return getString(EACH_PAGE_PREFIX);
-    }
-
-    public String getStoriesJQL() {
-        return getString(STORIES_JQL);
-    }
-
-    public String getExistingTestCasesJQL() {
-        return getString(EXISTING_TEST_CASES_JQL);
-    }
-
-    public String getOutputType() {
-        return getString(OUTPUT_TYPE);
-    }
-
-    public String getTestCasesPriorities() {
-        return getString(TEST_CASES_PRIORITIES);
-    }
+    @SerializedName(OUTPUT_TYPE)
+    private OutputType outputType = OutputType.comment;
 }

@@ -4,9 +4,7 @@ import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
-import com.github.istin.dmtools.qa.TestCasesGeneratorParams;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Before;
@@ -50,36 +48,6 @@ public class JAssistantTest {
 
         verify(trackerClientMock).addLabelIfNotExists(any(), eq("ai_generated_code"));
     }
-
-
-    @Test
-    public void testGenerateTestCases() throws Exception {
-        TicketContext ticketContextMock = mock(TicketContext.class);
-        ITicket ticketMock = mock(ITicket.class);
-        when(ticketContextMock.getTicket()).thenReturn(ticketMock);
-        when(ticketMock.getTicketKey()).thenReturn("TICKET-1");
-        when(promptManagerMock.requestTestCasesForStoryAsHTML(any())).thenReturn("AI Request");
-        when(openAIClientMock.chat(anyString(), anyString())).thenReturn("AI Response");
-
-        jAssistant.generateTestCases(ticketContextMock, new ArrayList<>(), TestCasesGeneratorParams.OUTPUT_TYPE_TRACKER_COMMENT, "priorities");
-
-        verify(trackerClientMock).postComment(anyString(), contains("JAI Generated Test Cases: "));
-    }
-
-    @Test
-    public void testFindAndLinkSimilarTestCasesBySummary() throws Exception {
-        TicketContext ticketContextMock = mock(TicketContext.class);
-        ITicket ticketMock = mock(ITicket.class);
-        when(ticketContextMock.getTicket()).thenReturn(ticketMock);
-        when(ticketMock.getTicketKey()).thenReturn("TICKET-1");
-        when(promptManagerMock.validateTestCasesAreRelatedToStory(any())).thenReturn("AI Request");
-        when(openAIClientMock.chat(anyString(), anyString())).thenReturn(new JSONArray().toString());
-
-        List<ITicket> result = jAssistant.findAndLinkSimilarTestCasesBySummary(ticketContextMock, new ArrayList<>(), true);
-
-        assertTrue(result.isEmpty());
-    }
-
 
     @Test
     public void testGenerateNiceLookingStoryInGherkinStyleAndPotentialQuestionsToPO() throws Exception {
