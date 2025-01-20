@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.report.productivity;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -30,6 +31,11 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
         System.out.println("Unknown Names");
         System.out.println(unknownNames.size());
         System.out.println(unknownNames);
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 
     protected List<Metric> generateListOfMetrics(QAProductivityReportParams qaProductivityReportParams) throws IOException {

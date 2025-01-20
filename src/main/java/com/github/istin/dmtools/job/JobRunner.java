@@ -1,6 +1,8 @@
 package com.github.istin.dmtools.job;
 
 
+import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.ba.BusinessAnalyticDORGeneration;
 import com.github.istin.dmtools.ba.RequirementsCollector;
 import com.github.istin.dmtools.ba.UserStoryGenerator;
@@ -53,8 +55,23 @@ public class JobRunner {
         JobParams jobParams = new JobParams(new String(decodeBase64(args[0])));
         for (Job job : JOBS) {
             if (job.getName().equalsIgnoreCase(jobParams.getName())) {
-                job.runJob(jobParams.getParamsByClass(job.getParamsClass()));
+                Object paramsByClass = jobParams.getParamsByClass(job.getParamsClass());
+                initMetadata(job, paramsByClass);
+                job.runJob(paramsByClass);
                 return;
+            }
+        }
+    }
+
+    public static void initMetadata(Job job, Object paramsByClass) {
+        if (paramsByClass instanceof Params) {
+            Metadata metadata = ((Params) paramsByClass).getMetadata();
+            if (metadata != null) {
+                metadata.init(job);
+            }
+            AI ai = job.getAi();
+            if (ai != null) {
+                ai.setMetadata(metadata);
             }
         }
     }

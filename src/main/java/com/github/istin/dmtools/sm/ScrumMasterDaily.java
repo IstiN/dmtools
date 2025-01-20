@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.sm;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
@@ -115,4 +116,8 @@ public class ScrumMasterDaily extends AbstractJob<ScrumMasterDailyParams> {
         confluence.updatePage(content, BasicConfluence.macroCloudHTML(finalPageDescription.toString()));
     }
 
+    @Override
+    public AI getAi() {
+        return null;
+    }
 }

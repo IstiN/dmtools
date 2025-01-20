@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.sync;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
@@ -80,6 +81,11 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
                     sourceCodeTrackerSyncParams.getAddPullRequestLabelsAsIssueType(), sourceCodeTrackerSyncParams.getInProgressReopenedStatuses()
             );
         }
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 
     protected static void moveToStatus(TrackerClient tracker, String[] statusesMapping, String key, String defaultStatus) throws IOException {

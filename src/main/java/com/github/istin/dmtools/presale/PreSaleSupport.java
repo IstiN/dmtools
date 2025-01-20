@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.presale;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
@@ -162,4 +163,8 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
         documentationEditor.buildConfluenceStructure(optimizedFeatureAreas, dataInputTicketsWithRequirements, rootRequirementsPageName, confluence, ticketAreaMapper);
     }
 
+    @Override
+    public AI getAi() {
+        return null;
+    }
 }

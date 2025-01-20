@@ -15,8 +15,8 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.di.DaggerTestCasesGeneratorComponent;
 import com.github.istin.dmtools.job.AbstractJob;
-import com.github.istin.dmtools.openai.input.TicketBasedPrompt;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -34,6 +34,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
     Confluence confluence;
 
     @Inject
+    @Getter
     AI ai;
 
     @Inject

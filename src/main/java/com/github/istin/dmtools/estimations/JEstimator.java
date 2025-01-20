@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.estimations;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
@@ -28,6 +29,12 @@ import java.util.stream.Collectors;
 
 public class JEstimator extends AbstractJob<JEstimatorParams> {
     private static final Logger logger = LogManager.getLogger(JEstimator.class);
+
+    @Override
+    public AI getAi() {
+        return null;
+    }
+
     public static class AIEstimatedTicket extends ITicket.Wrapper {
 
         private String storyPointsField;

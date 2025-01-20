@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.dev;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.ai.TicketContext;
@@ -23,6 +24,11 @@ public class CodeGenerator extends AbstractJob<CodeGeneratorParams> {
     @Override
     public void runJob(CodeGeneratorParams params) throws Exception {
         runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getInputJQL(), params.getInitiator(), params.getRole(), params.getSources());
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 
     public static void runJob(String confluenceRootPage, String eachPagePrefix, String inputJQL, String initiator, String role, JSONArray sources) throws Exception {

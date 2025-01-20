@@ -3,11 +3,14 @@ package com.github.istin.dmtools.ai.curl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.networking.AbstractRestClient;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import lombok.Setter;
 import okhttp3.Request;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -26,6 +29,8 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
     private final String responseJsonPath;
     private String model;
     private final ObjectMapper objectMapper;
+    @Setter
+    private Metadata metadata;
 
     public CUrlAIClient(String basePath, String authorization, String curlUrlTemplate, String bodyTemplate, String responseJsonPath, String model) throws IOException {
         super(basePath, authorization);
@@ -66,6 +71,11 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
 
             // Validate JSON (optional, but good practice)
             validateJson(jsonBody);
+            if (metadata != null) {
+                JSONObject jsonObject = new JSONObject(jsonBody);
+                jsonObject.put("metadata", new JSONObject(new Gson().toJson(metadata)));
+                jsonBody = jsonObject.toString();
+            }
             genericRequest.setBody(jsonBody);
             // Debug: Print the JSON body for verification
             System.out.println("Request to AI: " + jsonBody);

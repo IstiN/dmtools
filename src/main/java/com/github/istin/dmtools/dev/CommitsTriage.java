@@ -16,6 +16,7 @@ import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.prompt.Prompt;
 import com.github.istin.dmtools.prompt.PromptContext;
 import kotlin.Pair;
+import lombok.Getter;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ public class CommitsTriage extends AbstractJob<CommitsTriageParams> {
     TrackerClient<? extends ITicket> trackerClient;
 
     @Inject
+    @Getter
     AI ai;
 
     @Inject
