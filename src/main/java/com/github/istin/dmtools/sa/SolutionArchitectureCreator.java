@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.sa;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.ai.TicketContext;
@@ -38,5 +39,10 @@ public class SolutionArchitectureCreator extends AbstractJob<SolutionArchitectur
                 return false;
             }
         }, storiesJql, trackerClient.getExtendedQueryFields());
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 }

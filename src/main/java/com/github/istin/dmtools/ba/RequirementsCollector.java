@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.ba;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.ai.TicketContext;
@@ -119,5 +120,10 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
             }, searchQuery, trackerClient.getExtendedQueryFields());
         }
         return researchPageName;
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 }

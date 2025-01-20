@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.sync;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
@@ -55,5 +56,10 @@ public class SourceCodeCommitTrackerSyncJob extends AbstractJob<SourceCodeCommit
             }
         }
         //System.out.println(commitsFromBranch);
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 }

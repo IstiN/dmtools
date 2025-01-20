@@ -2,11 +2,13 @@ package com.github.istin.dmtools.openai;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
+import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import com.github.istin.dmtools.openai.model.AIResponse;
 import com.github.istin.dmtools.openai.model.Choice;
+import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.Setter;
 import okhttp3.Request;
@@ -25,6 +27,9 @@ public class OpenAIClient extends AbstractRestClient implements AI {
     private static final Logger logger = LogManager.getLogger(OpenAIClient.class);
 
     private final String model;
+
+    @Setter
+    private Metadata metadata;
 
     @Getter
     @Setter
@@ -105,9 +110,13 @@ public class OpenAIClient extends AbstractRestClient implements AI {
                     .put("role", "user")
                     .put("content", message));
         }
-        postRequest.setBody(new JSONObject()
+        JSONObject jsonObject = new JSONObject()
                 .put("temperature", 0.1)
-                .put("messages", messages).toString());
+                .put("messages", messages);
+        if (metadata != null) {
+            jsonObject.put("metadata", new JSONObject(new Gson().toJson(metadata)));
+        }
+        postRequest.setBody(jsonObject.toString());
         String response = post(postRequest);
         logger.info(response);
         List<Choice> choices = new AIResponse(response).getChoices();

@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.report.productivity;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -25,6 +26,11 @@ public class BAProductivityReport extends AbstractJob<BAProductivityReportParams
         WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(baProductivityReportParams.getStartDate());
         String formula = baProductivityReportParams.getFormula();
         ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, baProductivityReportParams.getReportName() + (baProductivityReportParams.isWeight() ? "_sp" : ""), formula, baProductivityReportParams.getInputJQL(), generateListOfMetrics(baProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getBusinessAnalysts(baProductivityReportParams.getEmployees()), baProductivityReportParams.getIgnoreTicketPrefixes());
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 
     protected List<Metric> generateListOfMetrics(BAProductivityReportParams baProductivityReportParams) throws IOException {

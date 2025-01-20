@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.job;
 
+import com.github.istin.dmtools.ai.AI;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -10,6 +11,11 @@ public class AbstractJobTest {
         @Override
         public void runJob(String s) throws Exception {
 
+        }
+
+        @Override
+        public AI getAi() {
+            return null;
         }
         // No additional implementation needed for testing
     }
@@ -39,6 +45,11 @@ public class AbstractJobTest {
             @Override
             public void runJob(Object o) throws Exception {
 
+            }
+
+            @Override
+            public AI getAi() {
+                return null;
             }
             // No type parameter specified
         }

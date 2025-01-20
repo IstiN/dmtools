@@ -1,4 +1,5 @@
 package com.github.istin.dmtools.job;
+
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
@@ -25,4 +26,5 @@ public abstract class AbstractJob<Params> implements Job<Params>{
         }
         throw new IllegalArgumentException("Class does not have a template parameter.");
     }
+
 }

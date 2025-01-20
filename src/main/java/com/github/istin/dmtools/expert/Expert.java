@@ -18,6 +18,7 @@ import com.github.istin.dmtools.di.DaggerExpertComponent;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
+import lombok.Getter;
 import org.json.JSONArray;
 
 import javax.inject.Inject;
@@ -32,6 +33,7 @@ public class Expert extends AbstractJob<ExpertParams> {
     Confluence confluence;
 
     @Inject
+    @Getter
     AI ai;
 
     @Inject

@@ -1,9 +1,6 @@
 package com.github.istin.dmtools.diagram;
 
-import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.Diagram;
-import com.github.istin.dmtools.ai.JAssistant;
-import com.github.istin.dmtools.ai.TicketContext;
+import com.github.istin.dmtools.ai.*;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -50,4 +47,8 @@ public class DiagramsCreator extends AbstractJob<DiagramsCreatorParams> {
         }, storiesJql, trackerClient.getExtendedQueryFields());
     }
 
+    @Override
+    public AI getAi() {
+        return null;
+    }
 }

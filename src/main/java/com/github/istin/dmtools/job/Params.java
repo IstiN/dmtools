@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.job;
 
+import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
@@ -17,6 +18,7 @@ public class Params {
     public static final String MODEL = "model";
     public static final String IS_CODE_AS_SOURCE = "isCodeAsSource";
     public static final String FILES_LIMIT = "filesLimit";
+    public static final String METADATA = "metadata";
 
     @SerializedName(INPUT_JQL)
     private String inputJql;
@@ -35,6 +37,9 @@ public class Params {
 
     @SerializedName(FILES_LIMIT)
     private int filesLimit = 100;
+
+    @SerializedName(METADATA)
+    private Metadata metadata;
 
     @SerializedName(SourceCodeConfig._KEY)
     private SourceCodeConfig[] sourceCodeConfig;

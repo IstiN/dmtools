@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.ai;
 
+import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.openai.utils.AIResponseParser;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -8,6 +9,8 @@ import java.io.File;
 import java.util.List;
 
 public interface AI {
+
+    void setMetadata(Metadata metadata);
 
     String chat(String message) throws Exception;
 

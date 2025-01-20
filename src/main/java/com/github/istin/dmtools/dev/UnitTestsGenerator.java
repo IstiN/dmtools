@@ -1,8 +1,8 @@
 package com.github.istin.dmtools.dev;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
-import com.github.istin.dmtools.common.utils.CommandLineUtils;
 import com.github.istin.dmtools.file.FileContentListener;
 import com.github.istin.dmtools.file.SourceCodeReader;
 import com.github.istin.dmtools.job.AbstractJob;
@@ -60,6 +60,11 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
                 }
             }
         });
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 
     private boolean shouldExcludeByPattern(String baseFileName, String excludePattern) {

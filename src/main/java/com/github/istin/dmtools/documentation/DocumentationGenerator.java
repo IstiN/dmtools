@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.documentation;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
@@ -106,4 +107,8 @@ public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorPa
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public AI getAi() {
+        return null;
+    }
 }

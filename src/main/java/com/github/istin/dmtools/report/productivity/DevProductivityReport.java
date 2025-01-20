@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.report.productivity;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
@@ -48,6 +49,11 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
         System.out.println("Unknown Names");
         System.out.println(unknownNames.size());
         System.out.println(unknownNames);
+    }
+
+    @Override
+    public AI getAi() {
+        return null;
     }
 
 
