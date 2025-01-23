@@ -15,6 +15,7 @@ public class TestCasesGeneratorParams extends Params {
     public static final String OUTPUT_TYPE = "outputType";
     public static final String TEST_CASES_PRIORITIES = "testCasesPriorities";
     public static final String RELATED_TEST_CASES_RULES = "relatedTestCasesRules";
+    public static final String TEST_CASE_ISSUE_TYPE = "testCaseIssueType";
 
     public enum OutputType {
         comment, creation
@@ -26,6 +27,8 @@ public class TestCasesGeneratorParams extends Params {
     private String testCasesPriorities;
     @SerializedName(RELATED_TEST_CASES_RULES)
     private String relatedTestCasesRules;
+    @SerializedName(TEST_CASE_ISSUE_TYPE)
+    private String testCaseIssueType = "Test Case";
 
     @SerializedName(OUTPUT_TYPE)
     private OutputType outputType = OutputType.comment;
