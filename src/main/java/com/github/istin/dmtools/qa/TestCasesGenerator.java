@@ -90,7 +90,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
                 if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
                     description = StringUtils.convertToMarkdown(description);
                 }
-                Ticket createdTestCase = new Ticket(trackerClient.createTicketInProject(projectCode, "Test Case", testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
+                Ticket createdTestCase = new Ticket(trackerClient.createTicketInProject(projectCode, params.getTestCaseIssueType(), testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
                     @Override
                     public void init(TrackerClient.TrackerTicketFields fields) {
                         fields.set("priority",
