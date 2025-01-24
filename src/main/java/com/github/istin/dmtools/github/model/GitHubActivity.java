@@ -65,6 +65,7 @@ public class GitHubActivity extends JSONModel implements IActivity {
             public Date getCreated() {
                 return null;
             }
+
         };
     }
 
