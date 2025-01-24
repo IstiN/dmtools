@@ -1,14 +1,16 @@
 package com.github.istin.dmtools.github.model;
 
 import com.github.istin.dmtools.common.model.IComment;
+import com.github.istin.dmtools.common.model.IDiffHunk;
 import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.utils.DateUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Date;
 
-public class GitHubComment extends JSONModel implements IComment {
+public class GitHubComment extends JSONModel implements IComment, IDiffHunk {
 
     public GitHubComment() {
     }
@@ -38,7 +40,12 @@ public class GitHubComment extends JSONModel implements IComment {
 
     @Override
     public Date getCreated() {
-        throw new UnsupportedOperationException();
+        return DateUtils.parseIsoDate(getString(   "created_at"));
+    }
+
+    @Override
+    public String getDiffHunk() {
+        return getString("diff_hunk");
     }
 
 }
