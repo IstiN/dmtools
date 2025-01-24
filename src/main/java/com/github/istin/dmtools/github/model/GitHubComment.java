@@ -1,10 +1,10 @@
 package com.github.istin.dmtools.github.model;
 
 import com.github.istin.dmtools.common.model.IComment;
-import com.github.istin.dmtools.common.model.IDiffHunk;
 import com.github.istin.dmtools.common.model.IUser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.common.model.IDiffHunk;
 import org.json.JSONException;
 import org.json.JSONObject;
 
