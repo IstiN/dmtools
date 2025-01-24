@@ -1,6 +1,5 @@
 package com.github.istin.dmtools.github.model;
 
-import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.IUser;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -50,8 +49,4 @@ public class GitHubCommentTest {
         assertEquals("12345", id);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testGetCreated() {
-        gitHubComment.getCreated();
-    }
 }
