@@ -129,11 +129,13 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
         String path = path(String.format("repos/%s/%s/pulls/%s/comments", workspace, repository, pullRequestId));
         GenericRequest getRequest = new GenericRequest(this, path);
         String response = execute(getRequest);
+        List<IComment> result = new ArrayList<>();
         if (response == null) {
-            return new ArrayList<>();
+            return result;
         }
         List<IComment> comments = JSONModel.convertToModels(GitHubComment.class, new JSONArray(response));
-        comments.addAll(pullRequestCommentsFromIssue(workspace, repository, pullRequestId));
+        result.addAll(comments);
+        result.addAll(pullRequestCommentsFromIssue(workspace, repository, pullRequestId));
         comments.sort((c1, c2) -> c1.getCreated().compareTo(c2.getCreated()));
         return comments;
     }
