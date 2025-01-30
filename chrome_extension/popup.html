@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your AI Agents</title>
+    <style>
+        body {
+            width: 300px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            font-size: 14px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+<textarea id="requestInput" placeholder="Enter request input"></textarea>
+<button id="readUrlButton">Ask AI Expert</button>
+<button id="generateTestCasesButton">Generate Test Cases</button>
+<button id="alertTextContentButton">Alert Text Content</button>
+<button id="openSettingsButton">Open Settings</button>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,10 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "URL Reader and Page Content Alert",
+  "name": "DMTools Agents",
   "version": "1.0",
   "description": "Reads the URL of the current tab and shows it in an alert. Also, alerts the text content of the current page.",
   "permissions": [
-    "activeTab", "scripting"
+    "activeTab",
+    "scripting",
+    "storage"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -13,5 +15,6 @@
       "48": "icon.png",
       "128": "icon.png"
     }
-  }
+  },
+  "options_page": "settings.html"
 }

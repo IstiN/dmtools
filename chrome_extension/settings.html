@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Settings</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f0f2f5;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 20px 0;
+            padding: 30px;
+            border-radius: 12px;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1a73e8;
+            font-weight: 500;
+        }
+        .group {
+            margin-top: 25px;
+            text-align: left;
+        }
+        .group h3 {
+            margin: 15px 0 20px 0;
+            font-size: 18px;
+            color: #202124;
+            border-bottom: 2px solid #e8eaed;
+            padding-bottom: 10px;
+            font-weight: 500;
+        }
+        .group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #5f6368;
+            font-size: 14px;
+        }
+        .group input, .group textarea, .group select {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .group input:focus, .group textarea:focus, .group select:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+        }
+        .confluence-page-row {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            gap: 8px;
+        }
+        .confluence-page-row input {
+            flex: 1;
+            margin: 0;
+            height: 36px;
+            padding: 0 12px;
+            box-sizing: border-box;
+            font-size: 14px;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .confluence-page-row .remove-button {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            margin: 0;
+            flex: 0 0 36px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            line-height: 1;
+        }
+        .confluence-page-row .remove-button:hover {
+            background-color: #c82333;
+        }
+        .group button {
+            padding: 12px 20px;
+            margin-top: 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            background-color: #1a73e8;
+            color: white;
+            width: 100%;
+            transition: background-color 0.2s;
+            font-weight: 500;
+        }
+        .group button:hover {
+            background-color: #1557b0;
+        }
+        #saveSettingsButton {
+            width: 100%;
+            margin: 30px auto 0;
+            padding: 14px;
+            font-size: 16px;
+            background-color: #1a73e8;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #saveSettingsButton:hover {
+            background-color: #1557b0;
+        }
+        .add-button {
+            background-color: #34a853 !important;
+        }
+        .add-button:hover {
+            background-color: #2d8544 !important;
+        }
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Settings</h2>
+
+    <div class="group">
+        <h3>General</h3>
+        <label for="token">Token</label>
+        <input id="token" type="password" placeholder="Enter token">
+        <label for="basePath">Base Path for GitLab</label>
+        <input id="basePath" type="text" placeholder="Enter base path">
+        <label for="gitlabProjectId">GitLab Project ID</label>
+        <input id="gitlabProjectId" type="text" placeholder="Enter GitLab project ID">
+        <label for="jiraInitiator">JIRA Initiator</label>
+        <input id="jiraInitiator" type="text" placeholder="Enter JIRA initiator">
+    </div>
+
+    <div class="group">
+        <h3>Expert</h3>
+        <label for="projectContext">Project Context</label>
+        <input id="projectContext" type="text" placeholder="Enter project context">
+        <label for="expertConfluencePages">Confluence Pages</label>
+        <div id="expertConfluencePagesContainer"></div>
+        <button type="button" id="addExpertConfluencePageButton" class="add-button">Add Confluence Page</button>
+    </div>
+
+    <div class="group">
+        <h3>TestCasesGenerator</h3>
+        <label for="existingTestCasesJql">Existing Test Cases JQL</label>
+        <input id="existingTestCasesJql" type="text" placeholder="Enter existing test cases JQL">
+        <label for="relatedTestCasesRules">Related Test Cases Rules</label>
+        <input id="relatedTestCasesRules" type="text" placeholder="Enter related test cases rules link">
+        <label for="testCasesPriorities">Test Cases Priorities</label>
+        <input id="testCasesPriorities" type="text" placeholder="Enter test cases priorities">
+        <label for="testCaseIssueType">Test Case Issue Type</label>
+        <input id="testCaseIssueType" type="text" placeholder="Enter test case issue type">
+        <label for="outputType">Output Type</label>
+        <select id="outputType">
+            <option value="creation">Creation</option>
+            <option value="comment">Comment</option>
+        </select>
+        <label for="tgConfluencePages">Confluence Pages</label>
+        <div id="tgConfluencePagesContainer"></div>
+        <button type="button" id="addTGConfluencePageButton" class="add-button">Add Confluence Page</button>
+    </div>
+
+    <button id="saveSettingsButton">Save Settings</button>
+</div>
+<script src="settings.js"></script>
+</body>
+</html>
