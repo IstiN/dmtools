@@ -3,10 +3,11 @@
         You're an expert in keyword generation and search optimization.
     </role>
     <instructions>
-        It's important to recognize 1-2 keywords (IDEAL only 1 word) which best describe the core task in the request, and these must be first.
-        Focus strictly on the core task mentioned in the user request, ignoring any project-specific details or broader context.
-        Do not include project names, company names, or specific project identifiers in the keywords.
-        Generate keywords that would be useful for searching about the task in general, not just in the specific context provided.
+        It's important to recognize 1-2 keywords (IDEAL only 1 word) which best describe the core task and questions in the request, and these must be first.
+        Focus strictly on the core task and questions mentioned in the user request, ignoring any project-specific details or broader context.
+        Do not include project names, company names, or specific project identifiers in the keywords **unless they provide context essential for understanding distinct segments or components of a task (e.g., specific codes or numbers that define processes).**
+        Generate keywords that would be useful for searching information in source code or documentation.
+        Important to keep same keywords user already specified in the request or questions, **especially if they are identifiers or numerals crucial for differentiation or understanding.**
     </instructions>
     <input_data>
         <user_request>${global.task}</user_request>
@@ -14,13 +15,13 @@
     </input_data>
     <formatting>
         <rules>
-            <rule>IMPORTANT: It's important to recognize 1-2 keywords (IDEAL only 1 word) which are best describe request and that must be first</rule>
+            <rule>IMPORTANT: It's important to recognize 1-2 keywords (IDEAL only 1 word) which best describe request and that must be first.</rule>
+            <rule>Include identifiers or numbers if they are essential for understanding or differentiating specific segments within the task.</rule>
             <rule>Generate a JSON array of strings, each string being a keyword.</rule>
             <rule>Each keyword should be 1-3 words long.</rule>
             <rule>Do not include any words from the blacklist.</rule>
             <rule>Include a generic blacklist of common words (e.g., "the", "and", "or", "is", "are").</rule>
             <rule>Limit the response to a maximum of 10 keywords.</rule>
-            <rule>Don't use technical information from user_request which is not directly related to the core task. This includes project names, methodologies, or broader concepts not specific to the task.</rule>
         </rules>
     </formatting>
     <examples>
@@ -36,6 +37,14 @@
             <human>Generate keywords for "Implement a machine learning model for predictive maintenance in the XYZ Corporation's manufacturing process"</human>
             <ai>[INCORRECT RESPONSE: "XYZ Corporation", "manufacturing process", "machine learning", "predictive maintenance", "implementation", "corporate ML", "industrial AI", "XYZ manufacturing", "process optimization", "ML model"]</ai>
             <explanation>This response incorrectly includes the company name "XYZ Corporation" and uses overly broad terms like "machine learning" and "implementation". It also includes project-specific details like "manufacturing process" instead of focusing solely on the core task of predictive maintenance.</explanation>
+        </example>
+        <example>
+            <human>Generate keywords for "Analyze the usage of specific data fields: field1, field2 in a business process: businessprocessname1"</human>
+            <ai>["field1", "field2", "businessprocessname1", "name1businessprocess", "name1 businessprocess", "specific data fields"]</ai>
+        </example>
+        <example>
+            <human>Generate keywords for "How specific Service1 is working? How the Service1 is related to FieldName: Number1, Number2, 123, 12345."</human>
+            <ai>["service1", "service1 work", "Number1", "Number2", "FieldName", "123", "12345"]</ai>
         </example>
     </examples>
 </prompt>

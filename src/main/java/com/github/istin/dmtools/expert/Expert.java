@@ -86,11 +86,12 @@ public class Expert extends AbstractJob<ExpertParams> {
         String finalProjectContext = projectContext;
         trackerClient.searchAndPerform(ticket -> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-            ticketContext.prepareContext();
+            ticketContext.prepareContext(true);
 
             if (expertParams.isCodeAsSource()) {
                 RequestSimplifierAgent.Result structuredRequest = requestSimplifierAgent.run(new RequestSimplifierAgent.Params(finalProjectContext + "\n" + ticketContext.toText() + "\n" + requestWithContext));
                 String fileExtendedContext = extendContextWithCode(expertParams, structuredRequest);
+                trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from files. \n" + fileExtendedContext);
                 requestWithContext.append("\n").append(fileExtendedContext);
             }
 
@@ -111,10 +112,13 @@ public class Expert extends AbstractJob<ExpertParams> {
         StringBuffer filesContextSummary = new StringBuffer();
         if (sourceImpactAssessmentAgent.run(new SourceImpactAssessmentAgent.Params("source codebase", fullTask))) {
             String keywordsBlacklist = expertParams.getKeywordsBlacklist();
-            if (keywordsBlacklist.startsWith("https://")) {
+            if (keywordsBlacklist != null && keywordsBlacklist.startsWith("https://")) {
                 keywordsBlacklist = confluence.contentByUrl(keywordsBlacklist).getStorage().getValue();
+            } else {
+                keywordsBlacklist = "";
             }
-            JSONArray keywords = keywordGeneratorAgent.run(new KeywordGeneratorAgent.Params(fullTask, keywordsBlacklist));
+            JSONArray keywords = keywordGeneratorAgent.run(new KeywordGeneratorAgent.Params(fullTask, keywordsBlacklist == null ? "" : keywordsBlacklist));
+            System.out.println("keywords: " + keywords);
             Map<String, List<IFile>> mapping = new HashMap<>();
             List<IFile> allFiles = new ArrayList<>();
             Set<String> checkedFiles = new HashSet<>();
@@ -154,6 +158,7 @@ public class Expert extends AbstractJob<ExpertParams> {
                         }
                         if (!response.isEmpty()) {
                             counterOfInvalidResponses = 0;
+                            filesContextSummary.append("\n");
                             filesContextSummary.append(response);
                         } else {
                             counterOfInvalidResponses++;

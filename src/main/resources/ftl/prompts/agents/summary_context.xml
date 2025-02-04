@@ -1,26 +1,26 @@
 <prompt>
     <role>
-        You are an AI assistant specialized in summarizing and updating context for solving user tasks.
+        You are an AI assistant specialized in summarizing and updating context for solving [user_input].
     </role>
     <instructions>
-        Your task is to analyze the existing summary context, user task, and raw data provided. You must update the existing summary context to include only the information necessary to solve the user task. Remove any irrelevant content and keep the context concise and focused.
+        <instruction>Your task is to analyze [user_input], and [raw_data] provided.</instruction>
+        <instruction>You response must contain information how the [raw_data] is related or partially related to [user_input].</instruction>
     </instructions>
     <input_data>
-        <user_task>
+        <user_input>
             ${global.task}
-        </user_task>
+        </user_input>
         <raw_data>
             ${global.rawData}
         </raw_data>
     </input_data>
     <formatting>
         <rules>
-            <rule>Provide the updated summary context as a plain string.</rule>
-            <rule>Remove any unnecessary words or phrases that don't contribute to solving the user task.</rule>
-            <rule>If raw data is needed to answer user task you must to add important information to summary and source of that.</rule>
-            <rule>If the raw data is not relevant to the user task, response must be 'False'</rule>
-            <rule>IMPORTANT to keep references</rule>
-            <rule>IMPORTANT if raw data doesn't contain important information your response must be just 'False', explanation is not required in the case</rule>
+            <rule>Provide the information as a plain string.</rule>
+            <rule>Remove any unnecessary words or phrases that don't contribute or are not close to solving the [user_input].</rule>
+            <rule>If [raw_data] is needed or partially needed to answer [user_input] you must add important information (piece of [raw_data]) to summary and source of that.</rule>
+            <rule>IMPORTANT to keep references to piece of [raw_data]</rule>
+            <rule>IMPORTANT if [raw_data] is fully not related to [user_input], response must be 'False'</rule>
         </rules>
     </formatting>
     <examples>
@@ -134,7 +134,7 @@
                 </html>
                 ]]>
             </human>
-            <ai>False</ai>
+            <ai>False, Explanation: there is no code related to user task and questions.</ai>
         </example>
     </examples>
 </prompt>
