@@ -2,6 +2,7 @@ package com.github.istin.dmtools.ai;
 
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
+import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
@@ -13,6 +14,8 @@ import java.util.List;
 import java.util.Set;
 
 public class TicketContext implements ToText {
+
+    private List<IComment> comments;
 
     public static interface OnTicketDetailsRequest {
         ITicket getTicketDetails(String key) throws IOException;
@@ -38,6 +41,9 @@ public class TicketContext implements ToText {
     }
 
     public void prepareContext() throws IOException {
+        prepareContext(false);
+    }
+    public void prepareContext(boolean withComments) throws IOException {
         Set<String> keys = IssuesIDsParser.extractAllJiraIDs(ticket.toText());
         extraTickets = new ArrayList<>();
         if (!keys.isEmpty()) {
@@ -60,6 +66,9 @@ public class TicketContext implements ToText {
                 }
             }
         }
+        if (withComments) {
+            comments = (List<IComment>) trackerClient.getComments(ticket.getKey(), ticket);
+        }
     }
 
     public ITicket getTicket() {
@@ -77,6 +86,11 @@ public class TicketContext implements ToText {
     @Override
     public String toText() throws IOException {
         StringBuilder text = new StringBuilder(new TicketBasedPrompt.TicketWrapper(trackerClient.getBasePath(), ticket).toText());
+        if (comments != null) {
+            for (IComment comment : comments) {
+                text.append("\n").append(comment);
+            }
+        }
         for (ITicket extraTicket : extraTickets) {
             text.append("\n").append(new TicketBasedPrompt.TicketWrapper(trackerClient.getBasePath(), extraTicket).toText());
         }

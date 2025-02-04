@@ -105,6 +105,16 @@ public class Confluence extends AtlassianRestClient {
         }
     }
 
+    public String profile() throws IOException {
+        GenericRequest content = new GenericRequest(this, path("user/current"));
+        return execute(content);
+    }
+
+    public String profile(String userId) throws IOException {
+        GenericRequest content = new GenericRequest(this, path("user?accountId=" + userId));
+        return execute(content);
+    }
+
     public List<Attachment> getContentAttachments(String contentId) throws IOException {
         GenericRequest content = new GenericRequest(this, path("content/" + contentId + "/child/attachment"));
 

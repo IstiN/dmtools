@@ -352,6 +352,10 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return new GenericRequest(this, path("serverInfo"));
     }
 
+    public GenericRequest getProfile() {
+        return new GenericRequest(this, path("myself"));
+    }
+
     @Override
     public T performTicket(String ticketKey, String[] fields) throws IOException {
         GenericRequest jiraRequest = createPerformTicketRequest(ticketKey, fields);
@@ -1267,6 +1271,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     public String tag(String notifierId) {
+        if (notifierId == null) {
+            return "";
+        }
         if (notifierId.contains("~")) {
             return "[" + notifierId + "]";
         }

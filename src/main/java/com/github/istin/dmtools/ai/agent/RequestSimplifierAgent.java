@@ -22,6 +22,7 @@ public class RequestSimplifierAgent extends AbstractSimpleAgent<RequestSimplifie
     public static class Result {
         private String request;
         private String[] questions;
+        private String knownInfo;
     }
 
     public RequestSimplifierAgent() {
@@ -33,11 +34,12 @@ public class RequestSimplifierAgent extends AbstractSimpleAgent<RequestSimplifie
     Result transformAIResponse(Params params, String response) throws Exception {
         JSONObject jsonResponse = AIResponseParser.parseResponseAsJSONObject(response);
         String simplifiedRequest = jsonResponse.getString("request");
+        String knownInfo = jsonResponse.getString("knownInfo");
         JSONArray questionsArray = jsonResponse.getJSONArray("questions");
         String[] questions = new String[questionsArray.length()];
         for (int i = 0; i < questionsArray.length(); i++) {
             questions[i] = questionsArray.getString(i);
         }
-        return new Result(simplifiedRequest, questions);
+        return new Result(simplifiedRequest, questions, knownInfo);
     }
 }
