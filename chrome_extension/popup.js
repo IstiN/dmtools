@@ -1,4 +1,19 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const expertSelect = document.getElementById('expertSelect');
+
+    // Load experts into select
+    chrome.storage.sync.get(['settings'], (result) => {
+        if (result.settings && result.settings.experts) {
+            expertSelect.innerHTML = '<option value="">Select Expert</option>';
+            result.settings.experts.forEach(expert => {
+                const option = document.createElement('option');
+                option.value = expert.label;
+                option.textContent = expert.label || 'Unnamed Expert';
+                expertSelect.appendChild(option);
+            });
+        }
+    });
+
     const triggerPipeline = (params, jsonData) => {
         chrome.storage.sync.get(['settings'], (result) => {
             if (!result.settings) {
@@ -56,9 +71,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
 
-    document.getElementById('readUrlButton').addEventListener('click', function() {
+    document.getElementById('askExpertButton').addEventListener('click', function() {
+        const selectedExpertLabel = expertSelect.value;
+        if (!selectedExpertLabel) {
+            alert('Please select an expert');
+            return;
+        }
+
         chrome.storage.sync.get(['settings'], (result) => {
             const settings = result.settings || {};
+            const selectedExpert = settings.experts.find(e => e.label === selectedExpertLabel);
+
+            if (!selectedExpert) {
+                alert('Expert configuration not found');
+                return;
+            }
+
             const userInput = document.getElementById('requestInput').value;
             const jsonData = {
                 "name": "Expert",
@@ -66,8 +94,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     "inputJql": "",
                     "initiator": settings.jiraInitiator,
                     "request": userInput,
-                    "projectContext": settings.projectContext,
-                    "confluencePages": settings.confluencePages
+                    "projectContext": selectedExpert.projectContext,
+                    "confluencePages": selectedExpert.confluencePages
                 }
             };
             triggerPipeline({}, jsonData);
@@ -84,10 +112,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     "initiator": settings.jiraInitiator,
                     "existingTestCasesJql": settings.existingTestCasesJql,
                     "confluencePages": settings.tgConfluencePages,
-                    "relatedTestCasesRules": settings.relatedTestCasesRules.toString(), // Convert to string
+                    "relatedTestCasesRules": settings.relatedTestCasesRules.toString(),
                     "testCasesPriorities": settings.testCasesPriorities,
                     "outputType": settings.outputType,
                     "testCaseIssueType": settings.testCaseIssueType
+                }
+            };
+            triggerPipeline({}, jsonData);
+        });
+    });
+
+    document.getElementById('generateUserStoriesButton').addEventListener('click', function() {
+        chrome.storage.sync.get(['settings'], (result) => {
+            const settings = result.settings || {};
+            const jsonData = {
+                "name": "UserStoryGenerator",
+                "params": {
+                    "inputJql": "",
+                    "initiator": settings.jiraInitiator,
+                    "existingUserStoriesJql": settings.usgExistingUserStoriesJql,
+                    "confluencePages": settings.usgConfluencePages,
+                    "priorities": settings.usgPriorities,
+                    "projectCode": settings.usgProjectCode,
+                    "issueType": settings.usgIssueType,
+                    "acceptanceCriteriaField": settings.usgAcceptanceCriteriaField,
+                    "parentField": settings.usgParentField,
+                    "relationship": settings.usgRelationship,
+                    "outputType": settings.usgOutputType
                 }
             };
             triggerPipeline({}, jsonData);
@@ -110,7 +161,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Open settings page
     document.getElementById('openSettingsButton').addEventListener('click', function() {
         chrome.runtime.openOptionsPage();
     });
