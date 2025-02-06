@@ -12,6 +12,7 @@ public class UserStoryGeneratorParams extends BaseJobParams {
 
     public static final String OUTPUT_TYPE_TRACKER_COMMENT = "trackerComment";
     public static final String OUTPUT_TYPE_TRACKER_CREATION = "creation";
+    public static final String PARENT_FIELD = "parentField";
     private static final String PROJECT_CODE = "projectCode";
     private static final String ISSUE_TYPE = "issueType";
     public static final String ACCEPTANCE_CRITERIA_FIELD = "acceptanceCriteriaField";
@@ -90,5 +91,10 @@ public class UserStoryGeneratorParams extends BaseJobParams {
     public UserStoryGeneratorParams setRelationship(String relationship) {
         set(RELATIONSHIP, relationship);
         return this;
+    }
+
+    public String getParentField() {
+        return getString(PARENT_FIELD);
+
     }
 }

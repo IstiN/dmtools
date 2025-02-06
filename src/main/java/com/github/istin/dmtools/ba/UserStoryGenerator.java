@@ -21,10 +21,10 @@ public class UserStoryGenerator extends AbstractJob<UserStoryGeneratorParams> {
 
     @Override
     public void runJob(UserStoryGeneratorParams params) throws Exception {
-        runJob(params.getInputJQL(), params.getExistingUserStoriesJql(), params.getOutputType(), params.getPriorities(), params.getInitiator(), params.getProjectCode(), params.getIssueType(), params.getAcceptanceCriteriaField(), params.getRelationship());
+        runJob(params.getInputJQL(), params.getExistingUserStoriesJql(), params.getOutputType(), params.getPriorities(), params.getInitiator(), params.getProjectCode(), params.getIssueType(), params.getAcceptanceCriteriaField(), params.getRelationship(), params.getParentField());
     }
 
-    public static void runJob(String inputJQL, String existingUserStoriesJQL, String outputType, String priorities, String initiator, String projectCode, String issueType, String acceptanceCriteriaField, String relationship) throws Exception {
+    public static void runJob(String inputJQL, String existingUserStoriesJQL, String outputType, String priorities, String initiator, String projectCode, String issueType, String acceptanceCriteriaField, String relationship, String parentField) throws Exception {
         BasicConfluence confluence = BasicConfluence.getInstance();
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
 
@@ -57,7 +57,7 @@ public class UserStoryGenerator extends AbstractJob<UserStoryGeneratorParams> {
                     acceptanceCriteriaField,
                     relationship,
                     outputType,
-                    priorities
+                    priorities, parentField
             );
             if (updatedStories != null) {
                 String comment = trackerClient.tag(initiator) + ", user stories are generated and linked.\n\n";
