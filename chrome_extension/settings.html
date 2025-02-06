@@ -142,6 +142,27 @@
             background-position: right 1rem center;
             background-size: 1em;
         }
+        .expert-row {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+        }
+        .expert-row .remove-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .expert-row .remove-button:hover {
+            background-color: #c82333;
+        }
+        .expert-confluence-pages {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -161,12 +182,9 @@
     </div>
 
     <div class="group">
-        <h3>Expert</h3>
-        <label for="projectContext">Project Context</label>
-        <input id="projectContext" type="text" placeholder="Enter project context">
-        <label for="expertConfluencePages">Confluence Pages</label>
-        <div id="expertConfluencePagesContainer"></div>
-        <button type="button" id="addExpertConfluencePageButton" class="add-button">Add Confluence Page</button>
+        <h3>AI Experts Configuration</h3>
+        <div id="expertsContainer"></div>
+        <button type="button" id="addExpertButton" class="add-button">Add New Expert</button>
     </div>
 
     <div class="group">
@@ -187,6 +205,32 @@
         <label for="tgConfluencePages">Confluence Pages</label>
         <div id="tgConfluencePagesContainer"></div>
         <button type="button" id="addTGConfluencePageButton" class="add-button">Add Confluence Page</button>
+    </div>
+
+    <div class="group">
+        <h3>UserStoryGenerator</h3>
+        <label for="usgExistingUserStoriesJql">Existing User Stories JQL</label>
+        <input id="usgExistingUserStoriesJql" type="text" placeholder="Enter existing user stories JQL">
+        <label for="usgPriorities">Priorities</label>
+        <input id="usgPriorities" type="text" placeholder="Enter priorities">
+        <label for="usgProjectCode">Project Code</label>
+        <input id="usgProjectCode" type="text" placeholder="Enter project code">
+        <label for="usgIssueType">Issue Type</label>
+        <input id="usgIssueType" type="text" placeholder="Enter issue type">
+        <label for="usgAcceptanceCriteriaField">Acceptance Criteria Field</label>
+        <input id="usgAcceptanceCriteriaField" type="text" placeholder="Enter acceptance criteria field">
+        <label for="usgParentField">Parent Field</label>
+        <input id="usgParentField" type="text" placeholder="Enter parent field">
+        <label for="usgRelationship">Relationship</label>
+        <input id="usgRelationship" type="text" placeholder="Enter relationship">
+        <label for="usgOutputType">Output Type</label>
+        <select id="usgOutputType">
+            <option value="trackerComment">Tracker Comment</option>
+            <option value="creation">Creation</option>
+        </select>
+        <label for="usgConfluencePages">Confluence Pages</label>
+        <div id="usgConfluencePagesContainer"></div>
+        <button type="button" id="addUSGConfluencePageButton" class="add-button">Add Confluence Page</button>
     </div>
 
     <button id="saveSettingsButton">Save Settings</button>
