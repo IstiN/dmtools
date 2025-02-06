@@ -10,6 +10,7 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.utils.StringUtils;
+import kotlin.Pair;
 import okhttp3.*;
 import okhttp3.OkHttpClient.Builder;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -18,6 +19,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -1327,12 +1329,45 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     public String getFields(String project) throws IOException {
-        GenericRequest genericRequest = new GenericRequest(this, path("issue/createmeta?projectKeys="+project+"&expand=projects.issuetypes.fields"));
-        return genericRequest.execute();
+        try {
+            GenericRequest genericRequest = new GenericRequest(this, path("issue/createmeta?projectKeys=" + project + "&expand=projects.issuetypes.fields"));
+            return genericRequest.execute();
+        } catch (RestClientException e) {
+            GenericRequest genericRequest = new GenericRequest(this, path("field"));
+            return genericRequest.execute();
+        }
     }
 
     public String getFieldCustomCode(String project, String fieldName) throws IOException {
         String response = getFields(project);
+        try {
+            return parseCloudJiraResponse(fieldName, response);
+        } catch (JSONException e) {
+            return parseServerJiraResponse(fieldName, response);
+        }
+    }
+
+    public String parseServerJiraResponse(String fieldName, String jsonResponse) {
+        try {
+            JSONArray fields = new JSONArray(jsonResponse);
+
+            for (int i = 0; i < fields.length(); i++) {
+                JSONObject field = fields.getJSONObject(i);
+                if (field.getString("name").equalsIgnoreCase(fieldName)) {
+                    return field.getString("id");
+                }
+            }
+
+            // If not found, return null or throw exception
+            return null;
+
+        } catch (JSONException e) {
+            throw new RuntimeException("Error parsing JSON response: " + e.getMessage());
+        }
+    }
+
+    @Nullable
+    private static String parseCloudJiraResponse(String fieldName, String response) {
         JSONArray issueTypesWithFields = new JSONObject(response).getJSONArray("projects").getJSONObject(0).getJSONArray("issuetypes");
         for (int i = 0; i < issueTypesWithFields.length(); i++) {
             JSONObject issueTypeFields = issueTypesWithFields.getJSONObject(i);
@@ -1348,11 +1383,15 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return null;
     }
 
-    public IssueType getRelationshipByName(String name) throws IOException {
+    public Pair<String,IssueType> getRelationshipByName(String name) throws IOException {
         List<IssueType> relationships = getRelationships();
         for (IssueType issueType : relationships) {
-            if (issueType.getName().equalsIgnoreCase(name)) {
-                return issueType;
+            if (name.equalsIgnoreCase(issueType.getName())) {
+                return new Pair<>("inward", issueType) ;
+            } else if (name.equalsIgnoreCase(issueType.getString("inward"))) {
+                return new Pair<>("inward", issueType) ;
+            } else if (name.equalsIgnoreCase(issueType.getString("outward"))) {
+                return new Pair<>("outward", issueType) ;
             }
         }
         return null;
@@ -1366,14 +1405,21 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public String linkIssueWithRelationship(String sourceKey, String anotherKey, String relationship) throws IOException {
-        IssueType relationshipByNameIssueType = getRelationshipByName(relationship);
+        Pair<String, IssueType> relationshipByNameIssueType = getRelationshipByName(relationship);
         GenericRequest jiraRequest = new GenericRequest(this, path("issueLink"));
         JSONObject body = new JSONObject();
 
-        body.put("type", new JSONObject().put("name", relationshipByNameIssueType.getName()))
-            .put("inwardIssue", new JSONObject().put("key", sourceKey))
-                .put("outwardIssue", new JSONObject().put("key", anotherKey))
-        ;
+        String type = relationshipByNameIssueType.getFirst();
+        body.put("type", new JSONObject().put("name", relationshipByNameIssueType.getSecond().getName()));
+        if (type.equalsIgnoreCase("inward")) {
+            body.put("outwardIssue", new JSONObject().put("key", sourceKey))
+                    .put("inwardIssue", new JSONObject().put("key", anotherKey))
+            ;
+        } else {
+            body.put("inwardIssue", new JSONObject().put("key", sourceKey))
+                    .put("outwardIssue", new JSONObject().put("key", anotherKey))
+            ;
+        }
         jiraRequest.setBody(body.toString());
         return post(jiraRequest);
     }

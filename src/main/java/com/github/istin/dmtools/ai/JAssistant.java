@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.ai;
 
+import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
@@ -183,7 +184,7 @@ public class JAssistant {
         }
     }
 
-    public JSONArray generateUserStories(TicketContext ticketContext, List<? extends ITicket> listOfLinkedUserStories, String projectCode, String issueType, String acceptanceCriteriaField, String relationship, String outputType, String priorities) throws Exception {
+    public JSONArray generateUserStories(TicketContext ticketContext, List<? extends ITicket> listOfLinkedUserStories, String projectCode, String issueType, String acceptanceCriteriaField, String relationship, String outputType, String priorities, String parentField) throws Exception {
         ITicket mainTicket = ticketContext.getTicket();
         String key = mainTicket.getTicketKey();
 
@@ -206,7 +207,7 @@ public class JAssistant {
             String aiRequest = promptManager.generateUserStoriesAsJSONArray(userStoryCreationPrompt);
             JSONArray array = AI.Utils.chatAsJSONArray(ai, aiRequest);
             if (!array.isEmpty()) {
-                createUserStories(projectCode, issueType, acceptanceCriteriaField, relationship, array, mainTicket);
+                createUserStories(projectCode, issueType, acceptanceCriteriaField, relationship, parentField, array, mainTicket);
             } else {
                 String aiResponseToUpdateUserStories = promptManager.updateUserStoriesAsJSONArray(userStoryCreationPrompt);
                 JSONArray objects = AI.Utils.chatAsJSONArray(ai, aiResponseToUpdateUserStories);
@@ -248,17 +249,30 @@ public class JAssistant {
         }
     }
 
-    private void createUserStories(String projectCode, String issueType, String acceptanceCriteriaField, String relationship, JSONArray array, ITicket mainTicket) throws IOException {
+    private void createUserStories(String projectCode, String issueType, String acceptanceCriteriaField, String relationship, String parentField, JSONArray array, ITicket mainTicket) throws IOException {
         for (int i = 0; i < array.length(); i++) {
             JSONObject jsonObject = array.getJSONObject(i);
             String description = jsonObject.getString("description");
             String acceptanceCriteria = jsonObject.getString("acceptanceCriteria");
             if (acceptanceCriteriaField == null) {
                 description += "\n\n" + acceptanceCriteria;
+            } else {
+                acceptanceCriteriaField = ((JiraClient)trackerClient).getFieldCustomCode(projectCode, acceptanceCriteriaField);
+            }
+
+            boolean isEpic = false;
+            if (parentField != null) {
+                if (parentField.toLowerCase().contains("epic")) {
+                    isEpic = true;
+                }
+                parentField = ((JiraClient)trackerClient).getFieldCustomCode(projectCode, parentField);
             }
             if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
                 description = StringUtils.convertToMarkdown(description);
             }
+            String finalAcceptanceCriteriaField = acceptanceCriteriaField;
+            String finalParentField = parentField;
+            boolean finalIsEpic = isEpic;
             Ticket createdUserStories = new Ticket(trackerClient.createTicketInProject(projectCode, issueType, jsonObject.getString("summary"), description, new TrackerClient.FieldsInitializer() {
                 @Override
                 public void init(TrackerClient.TrackerTicketFields fields) {
@@ -266,16 +280,20 @@ public class JAssistant {
                             new JSONObject().put("name", jsonObject.getString("priority"))
                     );
                     fields.set("labels", new JSONArray().put("ai_generated"));
-                    if (acceptanceCriteriaField != null) {
+                    if (finalAcceptanceCriteriaField != null) {
                         if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
-                            fields.set(acceptanceCriteriaField, StringUtils.convertToMarkdown(acceptanceCriteria));
+                            fields.set(finalAcceptanceCriteriaField, StringUtils.convertToMarkdown(acceptanceCriteria));
                         } else {
-                            fields.set(acceptanceCriteriaField, acceptanceCriteria);
+                            fields.set(finalAcceptanceCriteriaField, acceptanceCriteria);
                         }
                     }
-                    if (relationship != null && relationship.equalsIgnoreCase("parent")) {
+                    if (finalParentField != null) {
                         if (mainTicket instanceof Ticket) {
-                            fields.set("parent", ((Ticket) mainTicket).getJSONObject());
+                            if (finalIsEpic) {
+                                fields.set(finalParentField, ((Ticket) mainTicket).getKey());
+                            } else {
+                                fields.set(finalParentField, ((Ticket) mainTicket).getJSONObject());
+                            }
                         }
                     }
                 }
