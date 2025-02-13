@@ -4,6 +4,8 @@ import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.confluence.model.Attachment;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.confluence.model.ContentResult;
+import com.github.istin.dmtools.atlassian.confluence.model.SearchResult;
+import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import okhttp3.*;
@@ -22,6 +24,8 @@ import java.util.List;
 
 public class Confluence extends AtlassianRestClient {
     private static final Logger logger = LogManager.getLogger(Confluence.class);
+    private String graphQLPath;
+
     public Confluence(String basePath, String authorization) throws IOException {
         super(basePath, authorization);
         setClearCache(true);
@@ -74,6 +78,38 @@ public class Confluence extends AtlassianRestClient {
             throw new UnsupportedOperationException("unknown url format");
         }
     }
+
+    public List<SearchResult> searchContentByText(String query, int limit) throws IOException {
+        if (graphQLPath != null) {
+            JSONArray results = new ConfluenceGraphQLClient(graphQLPath, authorization).search(query, limit);
+            List<SearchResult> searchResults = new ArrayList<>();
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject node = results.getJSONObject(i).getJSONObject("node");
+                searchResults.add(new SearchResult(node));
+            }
+            return searchResults;
+        }
+        // Use Confluence Search API with enhanced query logic
+        GenericRequest search = new GenericRequest(this, path("content/search"));
+
+        // Design a more comprehensive query
+        String cqlQuery = String.format("(title ~ \"%s\" OR text ~ \"%s\") ORDER BY lastModified ASC", query, query);
+        search.param("cql", cqlQuery);
+        search.param("limit", String.valueOf(limit));
+        search.param("expand", "title,body.excerpt,history,space,body.storage"); // Include additional fields
+
+//        GenericRequest searchRequest = new GenericRequest(this, path("content"))
+//                .param("body.storage", query)  // Search by exact title match
+//                .param("expand", "title,body.excerpt,body.storage");
+//
+//        String response = searchRequest.execute();
+        // Execute the search request
+        String response = search.execute();
+
+        // Parse response and return the results array
+        return JSONModel.convertToModels(SearchResult.class, new JSONObject(response).getJSONArray("results"));
+    }
+
 
     public Content contentById(String contentId) throws IOException {
         // Construct the path using the content ID and expand needed fields
@@ -272,5 +308,9 @@ public class Confluence extends AtlassianRestClient {
 
     public List<Content> getChildrenOfContentById(String contentId) throws IOException {
         return new ContentResult(execute(new GenericRequest(this, path("content/" + contentId + "/child/page?limit=100")))).getContents();
+    }
+
+    protected void setGraphQLPath(String graphQLPath) {
+        this.graphQLPath = graphQLPath;
     }
 }

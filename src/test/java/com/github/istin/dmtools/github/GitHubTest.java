@@ -130,7 +130,7 @@ public class GitHubTest {
             return mockResponse;
         }).when(gitHub).execute(any(GenericRequest.class));
 
-        List<IFile> files = gitHub.searchFiles(workspace, repository, query);
+        List<IFile> files = gitHub.searchFiles(workspace, repository, query, -1);
 
         // Verifying the result
         assertNotNull(files);

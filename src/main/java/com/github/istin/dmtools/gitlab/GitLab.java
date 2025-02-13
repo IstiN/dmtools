@@ -444,7 +444,7 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
     }
 
     @Override
-    public List<IFile> searchFiles(String workspace, String repository, String query) throws IOException {
+    public List<IFile> searchFiles(String workspace, String repository, String query, int filesLimit) throws IOException {
         throw new UnsupportedOperationException("Implement Me.");
     }
 }

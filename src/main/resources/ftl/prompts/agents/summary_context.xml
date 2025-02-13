@@ -134,7 +134,7 @@
                 </html>
                 ]]>
             </human>
-            <ai>False, Explanation: there is no code related to user task and questions.</ai>
+            <ai>False</ai>
         </example>
     </examples>
 </prompt>

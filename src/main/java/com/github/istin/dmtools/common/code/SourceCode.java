@@ -75,7 +75,7 @@ public interface SourceCode {
 
     String getPullRequestUrl(String workspace, String repository, String id);
 
-    List<IFile> searchFiles(String workspace, String repository, String query) throws IOException, InterruptedException;
+    List<IFile> searchFiles(String workspace, String repository, String query, int filesLimit) throws IOException, InterruptedException;
 
     SourceCodeConfig getDefaultConfig();
 
