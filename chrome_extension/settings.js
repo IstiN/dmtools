@@ -30,20 +30,103 @@ document.addEventListener('DOMContentLoaded', () => {
         return row;
     };
 
-    const createExpertRow = (expert = { label: '', projectContext: '', confluencePages: [] }) => {
+    const createSourceCodeConfigRow = (config = {}) => {
+        const row = document.createElement('div');
+        row.className = 'source-code-config-row';
+
+        row.innerHTML = `
+            <input type="text" class="branch-name" placeholder="Branch Name" value="${config.branch_name || ''}">
+            <input type="text" class="repo-name" placeholder="Repository Name" value="${config.repo_name || ''}">
+            <input type="text" class="workspace-name" placeholder="Workspace Name" value="${config.workspace_name || ''}">
+            <select class="repo-type">
+                <option value="GITHUB" ${config.type === 'GITHUB' ? 'selected' : ''}>GitHub</option>
+                <option value="BITBUCKET" ${config.type === 'BITBUCKET' ? 'selected' : ''}>Bitbucket</option>
+                <option value="GITLAB" ${config.type === 'GITLAB' ? 'selected' : ''}>GitLab</option>
+            </select>
+            <input type="password" class="auth" placeholder="Authentication" value="${config.auth || ''}">
+            <input type="text" class="path" placeholder="Path" value="${config.path || ''}">
+            <input type="text" class="api-version" placeholder="API Version" value="${config.api_version || ''}">
+            <button type="button" class="remove-button">X</button>
+        `;
+
+        row.querySelector('.remove-button').addEventListener('click', () => {
+            row.parentElement.removeChild(row);
+        });
+
+        return row;
+    };
+
+    const createExpertRow = (expert = {
+        label: '',
+        projectContext: '',
+        confluencePages: [],
+        isCodeAsSource: false,
+        isConfluenceAsSource: false,
+        isTrackerAsSource: false,
+        filesLimit: 5,
+        confluenceLimit: 5,
+        trackerLimit: 5,
+        source_code_config: []
+    }) => {
         const expertDiv = document.createElement('div');
         expertDiv.className = 'expert-row';
 
         expertDiv.innerHTML = `
             <label>Expert Label</label>
             <input type="text" class="expert-label" placeholder="Enter expert label" value="${expert.label || ''}">
+
             <label>Project Context</label>
             <input type="text" class="expert-project-context" placeholder="Enter project context" value="${expert.projectContext || ''}">
+
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" class="is-code-source" ${expert.isCodeAsSource ? 'checked' : ''}>
+                    Use Code as Source
+                </label>
+                <label>
+                    <input type="checkbox" class="is-confluence-source" ${expert.isConfluenceAsSource ? 'checked' : ''}>
+                    Use Confluence as Source
+                </label>
+                <label>
+                    <input type="checkbox" class="is-tracker-source" ${expert.isTrackerAsSource ? 'checked' : ''}>
+                    Use Tracker as Source
+                </label>
+            </div>
+
+            <div class="limits-group">
+                <label>Files Limit</label>
+                <input type="number" class="files-limit" value="${expert.filesLimit || 5}" min="1">
+
+                <label>Confluence Limit</label>
+                <input type="number" class="confluence-limit" value="${expert.confluenceLimit || 5}" min="1">
+
+                <label>Tracker Limit</label>
+                <input type="number" class="tracker-limit" value="${expert.trackerLimit || 5}" min="1">
+            </div>
+
+            <div class="source-code-config">
+                <h4>Source Code Configuration</h4>
+                <div class="source-code-entries"></div>
+                <button type="button" class="add-source-config add-button">Add Source Configuration</button>
+            </div>
+
             <label>Confluence Pages</label>
             <div class="expert-confluence-pages"></div>
             <button type="button" class="add-confluence-page add-button">Add Confluence Page</button>
             <button type="button" class="remove-button">Remove Expert</button>
         `;
+
+        const sourceCodeEntriesContainer = expertDiv.querySelector('.source-code-entries');
+
+        if (expert.source_code_config && expert.source_code_config.length > 0) {
+            expert.source_code_config.forEach(config => {
+                sourceCodeEntriesContainer.appendChild(createSourceCodeConfigRow(config));
+            });
+        }
+
+        expertDiv.querySelector('.add-source-config').addEventListener('click', () => {
+            sourceCodeEntriesContainer.appendChild(createSourceCodeConfigRow());
+        });
 
         const confluencePagesContainer = expertDiv.querySelector('.expert-confluence-pages');
         expert.confluencePages.forEach(page => {
@@ -65,7 +148,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const experts = Array.from(expertsContainer.children).map(expertDiv => ({
             label: expertDiv.querySelector('.expert-label').value,
             projectContext: expertDiv.querySelector('.expert-project-context').value,
-            confluencePages: Array.from(expertDiv.querySelectorAll('.confluence-page-input')).map(input => input.value)
+            confluencePages: Array.from(expertDiv.querySelectorAll('.confluence-page-input')).map(input => input.value),
+            isCodeAsSource: expertDiv.querySelector('.is-code-source').checked,
+            isConfluenceAsSource: expertDiv.querySelector('.is-confluence-source').checked,
+            isTrackerAsSource: expertDiv.querySelector('.is-tracker-source').checked,
+            filesLimit: parseInt(expertDiv.querySelector('.files-limit').value) || 5,
+            confluenceLimit: parseInt(expertDiv.querySelector('.confluence-limit').value) || 5,
+            trackerLimit: parseInt(expertDiv.querySelector('.tracker-limit').value) || 5,
+            source_code_config: Array.from(expertDiv.querySelectorAll('.source-code-config-row')).map(row => ({
+                branch_name: row.querySelector('.branch-name').value,
+                repo_name: row.querySelector('.repo-name').value,
+                workspace_name: row.querySelector('.workspace-name').value,
+                type: row.querySelector('.repo-type').value,
+                auth: row.querySelector('.auth').value,
+                path: row.querySelector('.path').value,
+                api_version: row.querySelector('.api-version').value
+            }))
         }));
 
         const settings = {
@@ -104,12 +202,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('gitlabProjectId').value = result.settings.gitlabProjectId || '';
                 document.getElementById('jiraInitiator').value = result.settings.jiraInitiator || '';
 
-                // Load experts
                 expertsContainer.innerHTML = '';
                 const experts = result.settings.experts || [{
                     label: 'Default Expert',
                     projectContext: result.settings.projectContext || '',
-                    confluencePages: result.settings.confluencePages || []
+                    confluencePages: result.settings.confluencePages || [],
+                    isCodeAsSource: false,
+                    isConfluenceAsSource: true,
+                    isTrackerAsSource: false,
+                    filesLimit: 5,
+                    confluenceLimit: 5,
+                    trackerLimit: 5,
+                    source_code_config: []
                 }];
                 experts.forEach(expert => {
                     expertsContainer.appendChild(createExpertRow(expert));
@@ -121,13 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('testCaseIssueType').value = result.settings.testCaseIssueType || '';
                 document.getElementById('outputType').value = result.settings.outputType || 'creation';
 
-                // Load TestCasesGenerator confluence pages
                 tgConfluencePagesContainer.innerHTML = '';
                 (result.settings.tgConfluencePages || []).forEach(page => {
                     tgConfluencePagesContainer.appendChild(createConfluencePageRow(page, tgConfluencePagesContainer));
                 });
 
-                // Load UserStoryGenerator settings
                 document.getElementById('usgExistingUserStoriesJql').value = result.settings.usgExistingUserStoriesJql || '';
                 document.getElementById('usgPriorities').value = result.settings.usgPriorities || '';
                 document.getElementById('usgProjectCode').value = result.settings.usgProjectCode || '';
@@ -137,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('usgRelationship').value = result.settings.usgRelationship || '';
                 document.getElementById('usgOutputType').value = result.settings.usgOutputType || 'trackerComment';
 
-                // Load UserStoryGenerator confluence pages
                 usgConfluencePagesContainer.innerHTML = '';
                 (result.settings.usgConfluencePages || []).forEach(page => {
                     usgConfluencePagesContainer.appendChild(createConfluencePageRow(page, usgConfluencePagesContainer));
@@ -160,6 +261,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveButton.addEventListener('click', saveSettings);
 
-    // Load settings on page load
     loadSettings();
 });

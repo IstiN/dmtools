@@ -9,6 +9,7 @@
         3. Identifying and clearly stating any questions as bullet points.
         4. Applying any other relevant rules to improve clarity and specificity.
         5. Put known information as part of your response based on [user_request]
+        6. IMPORTANT!!!! You must return JSON! The JSON MUST BE VALID.
     </instructions>
     <input_data>
         <user_request>
