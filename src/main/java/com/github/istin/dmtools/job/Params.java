@@ -17,7 +17,11 @@ public class Params {
     public static final String CONFLUENCE_PAGES = "confluencePages";
     public static final String MODEL = "model";
     public static final String IS_CODE_AS_SOURCE = "isCodeAsSource";
+    public static final String IS_CONFLUENCE_AS_SOURCE = "isConfluenceAsSource";
+    public static final String IS_TRACKER_AS_SOURCE = "isTrackerAsSource";
     public static final String FILES_LIMIT = "filesLimit";
+    public static final String CONFLUENCE_LIMIT = "confluenceLimit";
+    public static final String TRACKER_LIMIT = "trackerLimit";
     public static final String METADATA = "metadata";
 
     @SerializedName(INPUT_JQL)
@@ -32,11 +36,23 @@ public class Params {
     @SerializedName(IS_CODE_AS_SOURCE)
     private boolean isCodeAsSource = false;
 
+    @SerializedName(IS_CONFLUENCE_AS_SOURCE)
+    private boolean isConfluenceAsSource = false;
+
+    @SerializedName(IS_TRACKER_AS_SOURCE)
+    private boolean isTrackerAsSource = false;
+
     @SerializedName(CONFLUENCE_PAGES)
     private String[] confluencePages;
 
     @SerializedName(FILES_LIMIT)
-    private int filesLimit = 100;
+    private int filesLimit = 10;
+
+    @SerializedName(CONFLUENCE_LIMIT)
+    private int confluenceLimit = 10;
+
+    @SerializedName(TRACKER_LIMIT)
+    private int trackerLimit = 10;
 
     @SerializedName(METADATA)
     private Metadata metadata;

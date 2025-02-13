@@ -188,6 +188,10 @@ public class PropertyReader {
 		return getValue("CONFLUENCE_LOGIN_PASS_TOKEN");
 	}
 
+	public String getConfluenceGraphQLPath() {
+		return getValue("CONFLUENCE_GRAPHQL_PATH");
+	}
+
 	public String getConfluenceDefaultSpace() {
 		return getValue("CONFLUENCE_DEFAULT_SPACE");
 	}
@@ -284,4 +288,13 @@ public class PropertyReader {
 		}
 		return Boolean.parseBoolean(value);
 	}
+
+	public String getFirebaseProjectId() {
+		return getValue("FIREBASE_PROJECT_ID");
+	}
+
+	public String getFirebaseServiceAccountJsonAuth() {
+		return getValue("FIREBASE_SERVICE_ACCOUNT_JSON_AUTH");
+	}
+
 }

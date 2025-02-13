@@ -493,13 +493,23 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
     }
 
     @Override
-    public List<IFile> searchFiles(String workspace, String repository, String query) throws IOException, InterruptedException {
+    public List<IFile> searchFiles(String workspace, String repository, String query, int filesLimit) throws IOException, InterruptedException {
         List<IFile> allFiles = new ArrayList<>();
         int perPage = 100; // GitHub's max items per page
         int page = 1;
-        int maxResults = 1000; // Limit on the total number of items
+        int maxResults = filesLimit == -1 ? 1000 : filesLimit; // Use 1000 for unlimited, otherwise use filesLimit
 
-        while (allFiles.size() < maxResults) {
+        while (true) {
+            // Break if we've reached the desired limit (except for unlimited case)
+            if (filesLimit != -1 && allFiles.size() >= filesLimit) {
+                break;
+            }
+
+            // Break if we've reached the max results for unlimited case
+            if (filesLimit == -1 && allFiles.size() >= maxResults) {
+                break;
+            }
+
             String encodedQuery = java.net.URLEncoder.encode(query, "UTF-8");
             String path = path(String.format("search/code?q=%s+repo:%s/%s&per_page=%d&page=%d",
                     encodedQuery, workspace, repository, perPage, page));
@@ -542,17 +552,29 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
             }
 
             List<IFile> pageFiles = JSONModel.convertToModels(GitHubFile.class, items);
+
+            // Add only up to the limit if specified
+            if (filesLimit != -1) {
+                int remainingSpace = filesLimit - allFiles.size();
+                if (pageFiles.size() > remainingSpace) {
+                    allFiles.addAll(pageFiles.subList(0, remainingSpace));
+                    break;
+                }
+            }
+
             allFiles.addAll(pageFiles);
 
-            if (allFiles.size() >= maxResults || items.length() < perPage) {
-                // Trim the list if necessary
-                if (allFiles.size() > maxResults) {
-                    return allFiles.subList(0, maxResults);
-                }
+            // Break if we got fewer items than requested per page
+            if (items.length() < perPage) {
                 break;
             }
 
             page++;
+        }
+
+        // Final check to ensure we don't exceed the limit
+        if (filesLimit != -1 && allFiles.size() > filesLimit) {
+            return allFiles.subList(0, filesLimit);
         }
 
         return allFiles;

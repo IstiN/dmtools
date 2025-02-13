@@ -3,6 +3,7 @@ package com.github.istin.dmtools.atlassian.confluence;
 import com.github.istin.dmtools.atlassian.confluence.model.Attachment;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.confluence.model.ContentResult;
+import com.github.istin.dmtools.common.kb.KnowledgeBaseConfig;
 import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.report.ReportUtils;
 import com.github.istin.dmtools.report.freemarker.GenericReport;
@@ -15,23 +16,25 @@ import java.util.List;
 
 public class BasicConfluence extends Confluence {
 
-    public static final String BASE_PATH;
-    public static final String LOGIN_PASS_TOKEN;
-    public static final String DEFAULT_SPACE;
 
+    public static KnowledgeBaseConfig CONFIG;
 
     static {
         PropertyReader propertyReader = new PropertyReader();
-        BASE_PATH = propertyReader.getConfluenceBasePath();
-        LOGIN_PASS_TOKEN = propertyReader.getConfluenceLoginPassToken();
-        DEFAULT_SPACE = propertyReader.getConfluenceDefaultSpace();
+        CONFIG = new KnowledgeBaseConfig();
+        CONFIG.setPath(propertyReader.getConfluenceBasePath());
+        CONFIG.setAuth(propertyReader.getConfluenceLoginPassToken());
+        CONFIG.setType(KnowledgeBaseConfig.Type.CONFLUENCE);
+        CONFIG.setWorkspace(propertyReader.getConfluenceDefaultSpace());
+        CONFIG.setGraphQLPath(propertyReader.getConfluenceGraphQLPath());
     }
 
     private static BasicConfluence instance;
 
     public static BasicConfluence getInstance() throws IOException {
         if (instance == null) {
-            instance = new BasicConfluence(BASE_PATH, LOGIN_PASS_TOKEN, DEFAULT_SPACE);
+            instance = new BasicConfluence(CONFIG.getPath(), CONFIG.getAuth(), CONFIG.getWorkspace());
+            instance.setGraphQLPath(CONFIG.getGraphQLPath());
         }
         return instance;
     }

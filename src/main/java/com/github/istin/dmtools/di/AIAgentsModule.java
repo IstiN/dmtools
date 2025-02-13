@@ -1,8 +1,15 @@
 package com.github.istin.dmtools.di;
 
 import com.github.istin.dmtools.ai.agent.*;
+import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
+import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
+import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
+import com.github.istin.dmtools.search.SearchOrchestrator;
+import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import dagger.Module;
 import dagger.Provides;
+
+import java.io.IOException;
 
 @Module
 public class AIAgentsModule {
@@ -47,4 +54,26 @@ public class AIAgentsModule {
         return new RelatedTestCaseAgent();
     }
 
+    @Provides
+    SearchOrchestrator provideSearchOrchestrator() {
+        return new SearchOrchestrator();
+    }
+
+    @Provides
+    ConfluenceSearchOrchestrator provideConfluenceSearchOrchestrator() {
+        try {
+            return new ConfluenceSearchOrchestrator(BasicConfluence.getInstance());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Provides
+    TrackerSearchOrchestrator provideTrackerSearchOrchestrator() {
+        try {
+            return new TrackerSearchOrchestrator(BasicJiraClient.getInstance());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

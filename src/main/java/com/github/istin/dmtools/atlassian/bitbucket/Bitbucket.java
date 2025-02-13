@@ -625,7 +625,7 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
     }
 
     @Override
-    public List<IFile> searchFiles(String workspace, String repository, String query) throws IOException {
+    public List<IFile> searchFiles(String workspace, String repository, String query, int filesLimit) throws IOException {
         throw new UnsupportedOperationException("Implement Me.");
     }
 }

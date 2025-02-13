@@ -269,7 +269,8 @@ public abstract class AbstractRestClient implements RestClient {
         try (Response response = client.newCall(applyHeaders(sign(
                 new Request.Builder())
                 .url(url)
-                .header("User-Agent", "DMTools"), genericRequest)
+                .header("User-Agent", "DMTools")
+                , genericRequest)
                 .post(body)
                 .build()
         ).execute()) {

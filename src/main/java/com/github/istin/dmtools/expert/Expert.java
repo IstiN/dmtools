@@ -4,25 +4,24 @@ import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConfluencePagesContext;
 import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.ai.TicketContext;
-import com.github.istin.dmtools.ai.agent.*;
+import com.github.istin.dmtools.ai.agent.RequestSimplifierAgent;
+import com.github.istin.dmtools.ai.agent.SourceImpactAssessmentAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
-import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
-import com.github.istin.dmtools.common.model.IFile;
-import com.github.istin.dmtools.common.model.ITextMatch;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.di.DaggerExpertComponent;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
+import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
+import com.github.istin.dmtools.search.SearchOrchestrator;
+import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import lombok.Getter;
-import org.json.JSONArray;
 
 import javax.inject.Inject;
-import java.util.*;
 
 public class Expert extends AbstractJob<ExpertParams> {
 
@@ -45,17 +44,18 @@ public class Expert extends AbstractJob<ExpertParams> {
     @Inject
     SourceImpactAssessmentAgent sourceImpactAssessmentAgent;
 
-    @Inject
-    KeywordGeneratorAgent keywordGeneratorAgent;
-
-    @Inject
-    SummaryContextAgent summaryContextAgent;
-
-    @Inject
-    SnippetExtensionAgent snippetExtensionAgent;
 
     @Inject
     RequestSimplifierAgent requestSimplifierAgent;
+
+    @Inject
+    SearchOrchestrator searchOrchestrator;
+
+    @Inject
+    ConfluenceSearchOrchestrator confluenceSearchOrchestrator;
+
+    @Inject
+    TrackerSearchOrchestrator trackerSearchOrchestrator;
 
     public Expert() {
         DaggerExpertComponent.create().inject(this);
@@ -88,11 +88,23 @@ public class Expert extends AbstractJob<ExpertParams> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext(true);
 
-            if (expertParams.isCodeAsSource()) {
+            if (expertParams.isCodeAsSource() || expertParams.isConfluenceAsSource() || expertParams.isTrackerAsSource()) {
                 RequestSimplifierAgent.Result structuredRequest = requestSimplifierAgent.run(new RequestSimplifierAgent.Params(finalProjectContext + "\n" + ticketContext.toText() + "\n" + requestWithContext));
-                String fileExtendedContext = extendContextWithCode(expertParams, structuredRequest);
-                trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from files. \n" + fileExtendedContext);
-                requestWithContext.append("\n").append(fileExtendedContext);
+                if (expertParams.isCodeAsSource()) {
+                    String fileExtendedContext = extendContextWithCode(expertParams, structuredRequest);
+                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from files. \n" + fileExtendedContext);
+                    requestWithContext.append("\n").append(fileExtendedContext);
+                }
+                if (expertParams.isConfluenceAsSource()) {
+                    String confluenceExtendedContext = extendContextWithConfluence(expertParams, structuredRequest);
+                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from confluence. \n" + confluenceExtendedContext);
+                    requestWithContext.append("\n").append(confluenceExtendedContext);
+                }
+                if (expertParams.isTrackerAsSource()) {
+                    String trackerExtendedContext = extendContextWithTracker(expertParams, structuredRequest);
+                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from tracker. \n" + trackerExtendedContext);
+                    requestWithContext.append("\n").append(trackerExtendedContext);
+                }
             }
 
             String response = jAssistant.makeResponseOnRequest(ticketContext, finalProjectContext, requestWithContext.toString());
@@ -107,92 +119,34 @@ public class Expert extends AbstractJob<ExpertParams> {
         }, inputJQL, trackerClient.getExtendedQueryFields());
     }
 
-    private String extendContextWithCode(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
-        String fullTask = structuredRequest.toString();
-        StringBuffer filesContextSummary = new StringBuffer();
-        if (sourceImpactAssessmentAgent.run(new SourceImpactAssessmentAgent.Params("source codebase", fullTask))) {
-            String keywordsBlacklist = expertParams.getKeywordsBlacklist();
-            if (keywordsBlacklist != null && keywordsBlacklist.startsWith("https://")) {
-                keywordsBlacklist = confluence.contentByUrl(keywordsBlacklist).getStorage().getValue();
-            } else {
-                keywordsBlacklist = "";
-            }
-            JSONArray keywords = keywordGeneratorAgent.run(new KeywordGeneratorAgent.Params(fullTask, keywordsBlacklist == null ? "" : keywordsBlacklist));
-            System.out.println("keywords: " + keywords);
-            Map<String, List<IFile>> mapping = new HashMap<>();
-            List<IFile> allFiles = new ArrayList<>();
-            Set<String> checkedFiles = new HashSet<>();
-            for (int i = 0; i < keywords.length(); i++) {
-                String keyword = keywords.getString(i);
-                SourceCodeConfig[] sourceCodeConfigs = expertParams.getSourceCodeConfig();
-                List<SourceCode> sourceCodes = new SourceCodeFactory().createSourceCodes(sourceCodeConfigs);
-                for (SourceCode sourceCode : sourceCodes) {
-                    List<IFile> files = sourceCode.searchFiles(sourceCode.getDefaultWorkspace(), sourceCode.getDefaultRepository(), keyword);
-
-                    if (files.isEmpty()) {
-                        continue;
-                    }
-
-                    int counterOfInvalidResponses = 0;
-                    int filesCounter = 0;
-                    for (IFile file : files) {
-                        String selfLink = file.getSelfLink();
-                        if (checkedFiles.contains(selfLink)) {
-                            counterOfInvalidResponses = 0;
-                            continue;
-                        }
-
-                        List<ITextMatch> textMatches = file.getTextMatches();
-                        StringBuffer buffer = new StringBuffer();
-                        for (ITextMatch textMatch : textMatches) {
-                            buffer.append(textMatch.getFragment()).append("\n");
-                        }
-                        Boolean checkedInDetails = false;
-                        String response;
-                        System.out.println("file selflink: " + selfLink);
-                        if (snippetExtensionAgent.run(new SnippetExtensionAgent.Params(buffer.toString(), fullTask))) {
-                            checkedInDetails = true;
-                            response = summaryContextAgent.run(new SummaryContextAgent.Params(fullTask, "file " + selfLink + " " + sourceCode.getFileContent(selfLink)));
-                        } else {
-                            response = summaryContextAgent.run(new SummaryContextAgent.Params(fullTask, "file snippet " + selfLink + " " + buffer));
-                        }
-                        if (!response.isEmpty()) {
-                            counterOfInvalidResponses = 0;
-                            filesContextSummary.append("\n");
-                            filesContextSummary.append(response);
-                        } else {
-                            counterOfInvalidResponses++;
-                        }
-                        checkedFiles.add(selfLink);
-                        System.out.println("progress: " + i + " " + keyword + " Details " + checkedInDetails + " Checked Files " + checkedFiles.size() + " From " + files.size() + " " + filesContextSummary);
-                        filesCounter++;
-                        if (i != 0 && counterOfInvalidResponses > 10) {
-                            //search query is not valid
-                            break;
-                        }
-
-                        if (filesCounter >= expertParams.getFilesLimit()) {
-                            break;
-                        }
-
-                        //if files context it's enough to answer question break the loop
-                    }
-
-                    mapping.put(keyword, files);
-                    //if list is too long probably need to limit it
-                    allFiles.addAll(files);
-                }
-            }
-
-            //TODO based on filesContextSummary extend keywords
-
-            if (allFiles.isEmpty()) {
-                //TODO regenerate query to search in files update blacklist
-            } else {
-
-            }
+    private String getKeywordsBlacklist(String keywordsBlacklist) throws Exception {
+        if (keywordsBlacklist != null && keywordsBlacklist.startsWith("https://")) {
+            return confluence.contentByUrl(keywordsBlacklist).getStorage().getValue();
         }
-        return filesContextSummary.toString();
+        if (keywordsBlacklist == null) {
+            return "";
+        }
+        return keywordsBlacklist;
     }
+
+    private String extendContextWithCode(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+        String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
+        SourceCodeConfig[] sourceCodeConfig = expertParams.getSourceCodeConfig();
+        int filesLimit = expertParams.getFilesLimit();
+        return searchOrchestrator.run(structuredRequest, keywordsBlacklist, sourceCodeConfig, filesLimit);
+    }
+
+    private String extendContextWithConfluence(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+        String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
+        int confluenceLimit = expertParams.getConfluenceLimit();
+        return confluenceSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, confluenceLimit, 1);
+    }
+
+    private String extendContextWithTracker(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+        String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
+        int trackerLimit = expertParams.getTrackerLimit();
+        return trackerSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, trackerLimit, 1);
+    }
+
 
 }
