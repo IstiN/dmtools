@@ -40,7 +40,9 @@ public class Confluence extends AtlassianRestClient {
     public List<Content> contentsByUrls(String ... urlStrings) throws IOException {
         List<Content> result = new ArrayList<>();
         for (String url : urlStrings) {
-            result.add(contentByUrl(url));
+            if (url != null && !url.isEmpty()) {
+                result.add(contentByUrl(url));
+            }
         }
         return result;
     }
