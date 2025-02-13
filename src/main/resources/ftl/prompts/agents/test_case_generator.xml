@@ -11,6 +11,7 @@
         5. If ${global.existingTestCases} block is empty you must generate new test cases.
         6. Don't introduce additional Test Cases which are not related to {story_description} especially if it can confuse readers.
         7. Don't create new test cases if current list of test cases cover the {story_description}
+        8. IMPORTANT!!!! In CASE Prompt Asks you Return JSON! The JSON MUST BE VALID.
     </instructions>
     <input_data>
         <story_description>

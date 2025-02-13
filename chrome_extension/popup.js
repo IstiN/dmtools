@@ -95,7 +95,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     "initiator": settings.jiraInitiator,
                     "request": userInput,
                     "projectContext": selectedExpert.projectContext,
-                    "confluencePages": selectedExpert.confluencePages
+                    "confluencePages": selectedExpert.confluencePages,
+                    // Add new expert parameters
+                    "isCodeAsSource": selectedExpert.isCodeAsSource || false,
+                    "isConfluenceAsSource": selectedExpert.isConfluenceAsSource || false,
+                    "isTrackerAsSource": selectedExpert.isTrackerAsSource || false,
+                    "filesLimit": selectedExpert.filesLimit || 5,
+                    "confluenceLimit": selectedExpert.confluenceLimit || 5,
+                    "trackerLimit": selectedExpert.trackerLimit || 5,
+                    "source_code_config": selectedExpert.source_code_config || []
                 }
             };
             triggerPipeline({}, jsonData);
