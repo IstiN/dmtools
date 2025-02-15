@@ -589,19 +589,6 @@ public class JAssistant {
         return ai.chat(aiRequest);
     }
 
-    public String makeResponseOnRequest(TicketContext ticketContext, String projectContext, String request) throws Exception {
-        ITicket ticket = ticketContext.getTicket();
-        List<IComment> comments = (List<IComment>) trackerClient.getComments(ticket.getKey(), ticket);
-        ExpertPrompt expertPrompt = new ExpertPrompt(trackerClient.getBasePath(), ticketContext, projectContext, request);
-        expertPrompt.setComments(comments);
-        String aiRequest = promptManager.askExpert(expertPrompt);
-        String chatResponse = ai.chat(aiRequest);
-        if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
-            chatResponse = StringUtils.convertToMarkdown(chatResponse);
-        }
-        return chatResponse;
-    }
-
     public String generateUnitTest(String fileContent, String className, String packageName, String testTemplate, UnitTestsGeneratorParams params) throws Exception {
         TestGeneration testGeneration = new TestGeneration(fileContent, className, packageName, testTemplate, params);
         String finalAIRequest = promptManager.requestTestGeneration(testGeneration);
