@@ -95,18 +95,27 @@ public class MarkdownToJiraConverter {
                     blocks.add("h1. " + element.text());
                     break;
                 case "p":
-                    String text = element.html()
-                            .replaceAll("<strong>(.*?)</strong>", "*$1*")
-                            .replaceAll("<em>(.*?)</em>", "_$1_")
-                            .replaceAll("<code>(.*?)</code>", "{{$1}}")
-                            .replaceAll("<[^>]+>", "");
-                    blocks.add(text);
+                    Element codeInParagraph = element.selectFirst("code");
+                    if (codeInParagraph != null && element.children().size() == 1 && codeInParagraph.hasAttr("class")) {
+                        // If paragraph contains only code with a class attribute, treat it as a code block
+                        String language = codeInParagraph.attr("class");
+                        String codeText = preserveGenericTypes(codeInParagraph.wholeText());
+                        blocks.add("{code:" + language + "}\n" + codeText + "\n{code}");
+                    } else {
+                        String text = element.html()
+                                .replaceAll("<strong>(.*?)</strong>", "*$1*")
+                                .replaceAll("<em>(.*?)</em>", "_$1_")
+                                .replaceAll("<code>(.*?)</code>", "{{$1}}")
+                                .replaceAll("<[^>]+>", "");
+                        blocks.add(unescapeHtml(text));
+                    }
                     break;
                 case "pre":
-                    Element code = element.selectFirst("code");
-                    if (code != null) {
-                        String language = code.hasAttr("class") ? code.attr("class") : "";
-                        blocks.add("{code:" + language + "}\n" + code.text() + "\n{code}");
+                    Element codeElement = element.selectFirst("code");
+                    if (codeElement != null) {
+                        String language = codeElement.hasAttr("class") ? codeElement.attr("class") : "";
+                        String codeText = preserveGenericTypes(codeElement.wholeText());
+                        blocks.add("{code:" + language + "}\n" + codeText + "\n{code}");
                     }
                     break;
                 case "ul":
@@ -121,8 +130,47 @@ public class MarkdownToJiraConverter {
                     break;
                 case "code":
                     if (!element.parent().tagName().equals("pre")) {
-                        blocks.add("{{" + element.text() + "}}");
+                        if (element.hasAttr("class")) {
+                            String language = element.attr("class");
+                            String codeText = preserveGenericTypes(element.wholeText());
+                            blocks.add("{code:" + language + "}\n" + codeText + "\n{code}");
+                        } else {
+                            blocks.add("{{" + element.text() + "}}");
+                        }
                     }
+                    break;
+                case "table":
+                    StringBuilder table = new StringBuilder();
+                    Elements rows = element.select("tr");
+                    boolean isHeader = true;
+
+                    for (Element row : rows) {
+                        Elements cells = row.select("th, td");
+                        if (cells.isEmpty()) continue;
+
+                        if (isHeader) {
+                            table.append("||");
+                            for (Element cell : cells) {
+                                table.append(cell.text()).append("||");
+                            }
+                            table.append("\n");
+                            isHeader = false;
+                        } else {
+                            table.append("|");
+                            for (Element cell : cells) {
+                                String cellContent = cell.html();
+                                Element cellCodeElement = cell.selectFirst("code");
+                                if (cellCodeElement != null) {
+                                    String language = cellCodeElement.hasAttr("class") ? cellCodeElement.attr("class") : "";
+                                    String codeText = preserveGenericTypes(cellCodeElement.wholeText());
+                                    cellContent = "{code:" + language + "}\n" + codeText + "\n{code}";
+                                }
+                                table.append(cellContent).append("|");
+                            }
+                            table.append("\n");
+                        }
+                    }
+                    blocks.add(table.toString().trim());
                     break;
             }
         }
@@ -189,6 +237,25 @@ public class MarkdownToJiraConverter {
                 .replaceAll("_([^_]+)_", "_$1_")
                 .replaceAll("`([^`]+)`", "{{$1}}")
                 .replaceAll("\\[([^\\]]+)\\]\\(([^)]+)\\)", "[$1|$2]");
+    }
+
+    private static String preserveGenericTypes(String text) {
+        return unescapeHtml(text)
+                .replaceAll("List(?!<)", "List<IComment>")  // Replace List without < with List<IComment>
+                .replaceAll("\\R", "\n")  // normalize line breaks
+                .trim();
+    }
+
+    private static String unescapeHtml(String text) {
+        return text
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'")
+                .replace("-&gt;", "->")
+                .replaceAll("\\R", "\n")  // normalize line breaks
+                .trim();
     }
 
     private static boolean containsHtml(String input) {
