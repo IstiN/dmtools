@@ -2,10 +2,10 @@ package com.github.istin.dmtools.expert;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConfluencePagesContext;
-import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.ai.agent.RequestSimplifierAgent;
 import com.github.istin.dmtools.ai.agent.SourceImpactAssessmentAgent;
+import com.github.istin.dmtools.ai.agent.TeamAssistantAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
@@ -44,9 +44,11 @@ public class Expert extends AbstractJob<ExpertParams> {
     @Inject
     SourceImpactAssessmentAgent sourceImpactAssessmentAgent;
 
-
     @Inject
     RequestSimplifierAgent requestSimplifierAgent;
+
+    @Inject
+    TeamAssistantAgent teamAssistantAgent;
 
     @Inject
     SearchOrchestrator searchOrchestrator;
@@ -81,7 +83,6 @@ public class Expert extends AbstractJob<ExpertParams> {
             requestWithContext.append(new ConfluencePagesContext(confluencePages, confluence).toText());
         }
 
-        JAssistant jAssistant = new JAssistant(trackerClient, null, ai, promptTemplateReader);
 
         String finalProjectContext = projectContext;
         trackerClient.searchAndPerform(ticket -> {
@@ -107,7 +108,7 @@ public class Expert extends AbstractJob<ExpertParams> {
                 }
             }
 
-            String response = jAssistant.makeResponseOnRequest(ticketContext, finalProjectContext, requestWithContext.toString());
+            String response =  teamAssistantAgent.run(new TeamAssistantAgent.Params(finalProjectContext, requestWithContext.toString(), ticketContext.toText(), ""));
             if (outputType == ExpertParams.OutputType.field) {
                 String fieldCustomCode = ((JiraClient) BasicJiraClient.getInstance()).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
                 trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, response));

@@ -415,6 +415,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public void postCommentIfNotExists(String ticketKey, String comment) throws IOException {
+        if (getTextType() == TrackerClient.TextType.MARKDOWN) {
+            comment = StringUtils.convertToMarkdown(comment);
+        }
         List<? extends IComment> comments = getComments(ticketKey, null);
         if (comments != null) {
             for (IComment commentObject : comments) {

@@ -55,6 +55,11 @@ public class AIAgentsModule {
     }
 
     @Provides
+    TeamAssistantAgent provideTeamAssistantAgent() {
+        return new TeamAssistantAgent();
+    }
+
+    @Provides
     SearchOrchestrator provideSearchOrchestrator() {
         return new SearchOrchestrator();
     }

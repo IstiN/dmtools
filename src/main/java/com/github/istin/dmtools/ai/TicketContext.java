@@ -87,13 +87,16 @@ public class TicketContext implements ToText {
     public String toText() throws IOException {
         StringBuilder text = new StringBuilder(new TicketBasedPrompt.TicketWrapper(trackerClient.getBasePath(), ticket).toText());
         if (comments != null) {
+            text.append("<previous_discussion>").append("\n");
             for (IComment comment : comments) {
                 text.append("\n").append(comment);
             }
+            text.append("</previous_discussion>").append("\n");
         }
         for (ITicket extraTicket : extraTickets) {
             text.append("\n").append(new TicketBasedPrompt.TicketWrapper(trackerClient.getBasePath(), extraTicket).toText());
         }
         return text.toString();
     }
+
 }
