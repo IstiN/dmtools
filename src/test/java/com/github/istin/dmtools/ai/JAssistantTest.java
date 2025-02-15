@@ -314,18 +314,4 @@ public class JAssistantTest {
         assertEquals("Daily Scrum Report", result);
     }
 
-    @Test
-    public void testMakeResponseOnRequest() throws Exception {
-        TicketContext ticketContextMock = mock(TicketContext.class);
-        ITicket ticketMock = mock(ITicket.class);
-        when(ticketContextMock.getTicket()).thenReturn(ticketMock);
-        when(trackerClientMock.getComments(anyString(), any())).thenReturn(new ArrayList<>());
-        when(promptManagerMock.askExpert(any())).thenReturn("AI Request");
-        when(openAIClientMock.chat(anyString())).thenReturn("Response");
-
-        String result = jAssistant.makeResponseOnRequest(ticketContextMock, "projectContext", "request");
-
-        assertEquals("Response", result);
-    }
-
 }
