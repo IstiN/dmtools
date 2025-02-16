@@ -3,6 +3,7 @@ package com.github.istin.dmtools.common.utils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.parser.Parser;
 import org.jsoup.select.Elements;
 
 import java.util.ArrayList;
@@ -161,7 +162,8 @@ public class MarkdownToJiraConverter {
     private static String processPre(Element pre) {
         Element codeEl = pre.selectFirst("code");
         if (codeEl != null) {
-            String codeText = codeEl.wholeText()
+            String codeHtml = codeEl.html();
+            String codeText = Parser.unescapeEntities(codeHtml, false)
                     .replaceAll("^[\\r\\n]+", "")
                     .replaceAll("[\\r\\n]+$", "");
             String lang = "java";
@@ -201,9 +203,6 @@ public class MarkdownToJiraConverter {
         return sb.toString().trim();
     }
 
-    /**
-     * Convert table to JIRA table syntax.
-     */
     private static String processTable(Element table) {
         StringBuilder sb = new StringBuilder();
         Elements rows = table.select("tr");
@@ -214,7 +213,6 @@ public class MarkdownToJiraConverter {
             if (cells.isEmpty()) continue;
 
             if (!headerDone && row.select("th").size() > 0) {
-                // header row
                 sb.append("||");
                 for (Element th : cells) {
                     sb.append(unescapeHtml(th.text().trim())).append("||");
@@ -226,16 +224,16 @@ public class MarkdownToJiraConverter {
                 for (Element cell : cells) {
                     Element codeEl = cell.selectFirst("code");
                     if (codeEl != null && codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
-                        // forced block code
                         String lang = codeEl.attr("class").trim();
-                        String codeText = codeEl.wholeText()
-                                .replaceAll("^\\s+", "")  // Trim leading whitespace
-                                .replaceAll("\\s+$", ""); // Trim trailing whitespace
+                        String codeHtml = codeEl.html();
+                        String codeText = Parser.unescapeEntities(codeHtml, false)
+                                .replaceAll("^[\\r\\n]+", "")
+                                .replaceAll("[\\r\\n]+$", "")
+                                .trim();
                         sb.append("{code:").append(lang).append("}\n")
                                 .append(codeText)
                                 .append("\n{code}|");
                     } else {
-                        // inline
                         String cellText = cell.html()
                                 .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
                                 .replaceAll("<strong>(.*?)</strong>", "*$1*")
