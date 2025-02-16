@@ -39,9 +39,6 @@ public class MarkdownToJiraConverter {
         }
     }
 
-    /**
-     * Split by blank lines; decide if chunk is HTML or Markdown.
-     */
     private static String convertMixedContent(String input) {
         String[] chunks = input.split("\n\n");
         List<String> parts = new ArrayList<>();
@@ -57,10 +54,12 @@ public class MarkdownToJiraConverter {
         return String.join("\n\n", parts).trim();
     }
 
-    // ------------------- HTML -> JIRA -------------------
-
     private static String convertHtmlToJiraMarkdown(String html) {
-        Document doc = Jsoup.parse(html);
+        // First preserve code blocks
+        HTMLCodeBlockPreserver preserver = new HTMLCodeBlockPreserver();
+        String preservedHtml = preserver.preserveCodeBlocks(html);
+
+        Document doc = Jsoup.parse(preservedHtml);
         Elements children = doc.body().children();
 
         List<String> blocks = new ArrayList<>();
@@ -92,20 +91,10 @@ public class MarkdownToJiraConverter {
                     blocks.add(processTable(el));
                     break;
                 case "code":
-                    // If top-level <code> with class, treat as code block
-                    if (el.hasAttr("class") && !el.attr("class").trim().isEmpty()) {
-                        String lang = el.attr("class").trim();
-                        String codeText = el.wholeText()
-                                .replaceAll("^[\\r\\n]+", "")
-                                .replaceAll("[\\r\\n]+$", "");
-                        blocks.add("{code:" + lang + "}\n" + codeText + "\n{code}");
-                    } else {
-                        // inline code
-                        blocks.add("{{" + el.wholeText() + "}}");
-                    }
+                    // Just keep the preserved code block placeholder
+                    blocks.add(el.outerHtml());
                     break;
                 case "a":
-                    // anchor at top-level
                     blocks.add("[" + el.text() + "|" + el.attr("href") + "]");
                     break;
                 default:
@@ -114,54 +103,36 @@ public class MarkdownToJiraConverter {
             }
         }
 
-        return String.join("\n\n", removeEmpty(blocks)).trim();
+        String processed = String.join("\n\n", removeEmpty(blocks)).trim();
+
+        // Restore code blocks with JIRA formatting
+        return preserver.restoreCodeBlocks(processed);
     }
 
-    /**
-     * If <p> has exactly one <code> child with class="java" => always produce {code:java} block.
-     */
     private static String processParagraph(Element p) {
-        if (p.children().size() == 1 && "code".equalsIgnoreCase(p.child(0).tagName())
-                && p.ownText().trim().isEmpty()) {
-
-            Element codeEl = p.child(0);
-            String codeText = codeEl.wholeText()
-                    .replaceAll("^[\\r\\n]+", "")
-                    .replaceAll("[\\r\\n]+$", "");
-
-            // If there's a class => always produce a code block
-            if (codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
-                String lang = codeEl.attr("class").trim();
-                return "{code:" + lang + "}\n" + codeText + "\n{code}";
-            } else {
-                // No class => check multiline
-                if (codeText.contains("\n")) {
-                    return "{code:java}\n" + codeText + "\n{code}";
-                } else {
-                    // single line => inline code
-                    return "{{" + codeText + "}}";
-                }
-            }
+        // If paragraph contains preserved code block, keep it as is
+        if (p.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+            return p.html();
         }
 
-        // Otherwise inline transforms
         String text = p.html()
                 .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
                 .replaceAll("<strong>(.*?)</strong>", "*$1*")
                 .replaceAll("<em>(.*?)</em>", "_$1_")
-                // FORCING normal <code> => inline
                 .replaceAll("<code>(.*?)</code>", "{{$1}}")
                 .replaceAll("<[^>]+>", "");
 
         return unescapeHtml(text).trim();
     }
 
-    /**
-     * <pre><code class="java"> => forced block code
-     */
     private static String processPre(Element pre) {
         Element codeEl = pre.selectFirst("code");
         if (codeEl != null) {
+            // If it contains a preserved code block, keep it as is
+            if (codeEl.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+                return codeEl.outerHtml();
+            }
+
             String codeHtml = codeEl.html();
             String codeText = Parser.unescapeEntities(codeHtml, false)
                     .replaceAll("^[\\r\\n]+", "")
@@ -222,17 +193,9 @@ public class MarkdownToJiraConverter {
             } else {
                 sb.append("|");
                 for (Element cell : cells) {
-                    Element codeEl = cell.selectFirst("code");
-                    if (codeEl != null && codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
-                        String lang = codeEl.attr("class").trim();
-                        String codeHtml = codeEl.html();
-                        String codeText = Parser.unescapeEntities(codeHtml, false)
-                                .replaceAll("^[\\r\\n]+", "")
-                                .replaceAll("[\\r\\n]+$", "")
-                                .trim();
-                        sb.append("{code:").append(lang).append("}\n")
-                                .append(codeText)
-                                .append("\n{code}|");
+                    // If cell contains preserved code block, keep it as is
+                    if (cell.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+                        sb.append(cell.html()).append("|");
                     } else {
                         String cellText = cell.html()
                                 .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
@@ -250,6 +213,11 @@ public class MarkdownToJiraConverter {
     }
 
     private static String processGenericBlock(Element el) {
+        // If element contains preserved code block, keep it as is
+        if (el.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+            return el.html();
+        }
+
         String html = el.html()
                 .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
                 .replaceAll("<strong>(.*?)</strong>", "*$1*")
@@ -258,8 +226,6 @@ public class MarkdownToJiraConverter {
                 .replaceAll("<[^>]+>", "");
         return unescapeHtml(html).trim();
     }
-
-    // ------------------- Markdown -> JIRA -------------------
 
     private static String convertMarkdownToJiraMarkdown(String markdown) {
         String[] lines = markdown.split("\n");
@@ -273,15 +239,13 @@ public class MarkdownToJiraConverter {
         for (String line : lines) {
             if (line.startsWith("```")) {
                 if (!inCodeBlock) {
-                    // start code fence
                     if (paragraph.length() > 0) {
                         blocks.add(processTextParagraph(paragraph.toString()));
                         paragraph.setLength(0);
                     }
                     inCodeBlock = true;
-                    codeLang = line.substring(3).trim(); // "```java" => "java"
+                    codeLang = line.substring(3).trim();
                 } else {
-                    // end code fence
                     String code = codeBuf.toString()
                             .replaceAll("^[\\r\\n]+", "")
                             .replaceAll("[\\r\\n]+$", "");
@@ -297,7 +261,6 @@ public class MarkdownToJiraConverter {
                 codeBuf.append(line).append("\n");
             } else {
                 if (line.trim().isEmpty()) {
-                    // flush paragraph
                     if (paragraph.length() > 0) {
                         blocks.add(processTextParagraph(paragraph.toString()));
                         paragraph.setLength(0);
@@ -311,7 +274,6 @@ public class MarkdownToJiraConverter {
             }
         }
 
-        // leftover paragraph
         if (paragraph.length() > 0) {
             blocks.add(processTextParagraph(paragraph.toString()));
         }
@@ -319,17 +281,12 @@ public class MarkdownToJiraConverter {
         return String.join("\n\n", blocks).trim();
     }
 
-    /**
-     * Process a chunk of Markdown text (no code fences),
-     * splitting by lines to handle bullet lines and headings exactly.
-     */
     private static String processTextParagraph(String text) {
         String[] lines = text.split("\n");
         List<String> output = new ArrayList<>();
 
         for (String line : lines) {
             String trimmed = line.trim();
-            // If heading
             Matcher headingMatch = HEADING_PATTERN.matcher(trimmed);
             if (headingMatch.matches()) {
                 String hashes = headingMatch.group(1);
@@ -339,45 +296,26 @@ public class MarkdownToJiraConverter {
                 continue;
             }
 
-            // Remove "1. **..."
             trimmed = trimmed.replaceAll("^1\\. \\*\\*(.*?)\\*\\*", "*$1*");
 
-            // If bullet line
             if (trimmed.startsWith("* ")) {
-                // do inline
                 output.add(processInlineMarkdown(trimmed));
             } else {
-                // normal line => inline
                 output.add(processInlineMarkdown(trimmed));
             }
         }
 
-        // Join lines with \n
         return String.join("\n", output);
     }
 
-    /**
-     * Convert inline code, bold, links, etc.
-     */
     private static String processInlineMarkdown(String line) {
-        // Update the regex in processInlineMarkdown to handle spaces around backticks
         line = line.replaceAll("`\\s*([^`]+)\\s*`", "{{$1}}");
-
-        // bold: **text** => *text*
         line = line.replaceAll("\\*\\*([^*]+)\\*\\*", "*$1*");
-
-
-        // links: [text](url) => [text|url]
         line = line.replaceAll("\\[([^\\]]+)\\]\\(([^)]+)\\)", "[$1|$2]");
-
-        // italic _text_ => same in JIRA, so no change needed
         return line;
     }
 
-    // ------------------- Helpers -------------------
-
     private static boolean containsHtml(String s) {
-        // Remove Markdown code blocks and inline code before checking for HTML
         String noCodeBlocks = CODE_BLOCK_PATTERN.matcher(s).replaceAll("");
         String noCode = noCodeBlocks.replaceAll("`[^`]*`", "");
         return HTML_PATTERN.matcher(noCode).find();
