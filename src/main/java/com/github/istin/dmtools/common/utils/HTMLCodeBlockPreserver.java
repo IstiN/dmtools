@@ -58,7 +58,7 @@ public class HTMLCodeBlockPreserver {
 
     private String mapLanguage(String originalLanguage) {
         if ("properties".equalsIgnoreCase(originalLanguage)) {
-            return "yaml";
+            return "bash";
         }
         return originalLanguage;
     }
