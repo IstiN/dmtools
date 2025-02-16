@@ -165,8 +165,7 @@ public class MarkdownToJiraConverterTest {
                 "        <td>Updates existing ticket</td>\n" +
                 "        <td>\n" +
                 "            <code class=\"java\">\n" +
-                "client.updateTicket(\"KEY-123\", new FieldsInitializer()\n" +
-                "    .addField(\"summary\", \"Updated Summary\"));\n" +
+                "client.updateTicket(\"KEY-123\", new FieldsInitializer().addField(\"summary\", \"Updated Summary\"));\n" +
                 "            </code>\n" +
                 "        </td>\n" +
                 "    </tr>\n" +
@@ -249,8 +248,7 @@ public class MarkdownToJiraConverterTest {
                 "client.createTicketInProject(\"PROJECT\", \"Bug\", \"Summary\", \"Description\");\n" +
                 "{code}|\n" +
                 "|updateTicket|Updates existing ticket|{code:java}\n" +
-                "client.updateTicket(\"KEY-123\", new FieldsInitializer()\n" +
-                "    .addField(\"summary\", \"Updated Summary\"));\n" +
+                "client.updateTicket(\"KEY-123\", new FieldsInitializer().addField(\"summary\", \"Updated Summary\"));\n" +
                 "{code}|\n" +
                 "|moveToStatus|Changes ticket status|{code:java}\n" +
                 "client.moveToStatus(\"KEY-123\", \"In Progress\");\n" +
@@ -312,6 +310,34 @@ public class MarkdownToJiraConverterTest {
                 "{code}";
         assertEquals(expected, MarkdownToJiraConverter.convertToJiraMarkdown(input));
 
+    }
+
+    @Test
+    public void testHTMLWithCodeBlockWithTags() {
+        // Empty input
+        String input =
+                "<p><strong>3. Comments and Attachments</strong></p>\n" +
+                "<code class=\"java\">\n" +
+                "// Add comment\n" +
+                "client.postComment(\"KEY-123\", \"New comment\");\n" +
+                "// Attach file\n" +
+                "client.attachFileToTicket(\"KEY-123\", \"file.txt\", \"text/plain\", new File(\"path/to/file\"));\n" +
+                "// Get comments\n" +
+                "List<IComment> comments = client.getComments(\"KEY-123\");\n" +
+                "</code>"
+                ;
+
+        String expected =
+                "*3. Comments and Attachments*\n\n" +
+                "{code:java}\n" +
+                "// Add comment\n" +
+                "client.postComment(\"KEY-123\", \"New comment\");\n" +
+                "// Attach file\n" +
+                "client.attachFileToTicket(\"KEY-123\", \"file.txt\", \"text/plain\", new File(\"path/to/file\"));\n" +
+                "// Get comments\n" +
+                "List<IComment> comments = client.getComments(\"KEY-123\");\n" +
+                "{code}";
+        assertEquals(expected, MarkdownToJiraConverter.convertToJiraMarkdown(input));
     }
 
     @Test
