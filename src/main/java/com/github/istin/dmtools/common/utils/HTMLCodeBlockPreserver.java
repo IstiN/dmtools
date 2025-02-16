@@ -56,6 +56,13 @@ public class HTMLCodeBlockPreserver {
         return sb.toString();
     }
 
+    private String mapLanguage(String originalLanguage) {
+        if ("properties".equalsIgnoreCase(originalLanguage)) {
+            return "yaml";
+        }
+        return originalLanguage;
+    }
+
     public String restoreCodeBlocks(String processedHtml) {
         for (int i = 0; i < preservedCodeBlocks.size(); i++) {
             CodeBlock block = preservedCodeBlocks.get(i);
@@ -76,9 +83,10 @@ public class HTMLCodeBlockPreserver {
             if (block.isInline) {
                 replacement = "{{" + normalized.trim() + "}}";
             } else {
+                // Use mapLanguage to convert "properties" to "yaml"
                 replacement = String.format(
                         "{code:%s}\n%s\n{code}",
-                        block.language,
+                        mapLanguage(block.language),
                         normalized
                 );
             }
