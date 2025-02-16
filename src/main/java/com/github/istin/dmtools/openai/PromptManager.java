@@ -218,10 +218,6 @@ public class PromptManager implements IPromptTemplateReader {
         return stringFromTemplate(scrumDailyPrompt, "scrum_daily_report");
     }
 
-    public String askExpert(ExpertPrompt scrumDailyPrompt) throws TemplateException, IOException {
-        return stringFromTemplate(scrumDailyPrompt, "expert");
-    }
-
     @Override
     public String read(String promptName, PromptContext context) throws Exception {
         return stringFromTemplate(context, promptName);

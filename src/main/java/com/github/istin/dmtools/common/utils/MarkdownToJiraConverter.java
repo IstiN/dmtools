@@ -21,16 +21,11 @@ public class MarkdownToJiraConverter {
             return "";
         }
 
-        // Handle HTML entities
+        // If it's just HTML entities, decode them plainly
         if (input.contains("&") && !containsHtml(input.replaceAll("&[a-zA-Z]+;", ""))) {
-            return input
-                    .replace("&lt;", "<")
-                    .replace("&gt;", ">")
-                    .replace("&amp;", "&")
-                    .replace("&quot;", "\"");
+            return decodeEntities(input);
         }
 
-        // Check if input contains both markdown and HTML
         boolean hasMarkdown = input.contains("#") || input.contains("```") || input.contains("* ");
         boolean hasHtml = containsHtml(input);
 
@@ -43,222 +38,380 @@ public class MarkdownToJiraConverter {
         }
     }
 
+    /**
+     * Split by blank lines; decide if chunk is HTML or Markdown.
+     */
     private static String convertMixedContent(String input) {
+        String[] chunks = input.split("\n\n");
+        List<String> parts = new ArrayList<>();
+        for (String chunk : chunks) {
+            String trimmed = chunk.trim();
+            if (trimmed.isEmpty()) continue;
+            if (containsHtml(trimmed)) {
+                parts.add(convertHtmlToJiraMarkdown(trimmed));
+            } else {
+                parts.add(convertMarkdownToJiraMarkdown(trimmed));
+            }
+        }
+        return String.join("\n\n", parts).trim();
+    }
+
+    // ------------------- HTML -> JIRA -------------------
+
+    private static String convertHtmlToJiraMarkdown(String html) {
+        Document doc = Jsoup.parse(html);
+        Elements children = doc.body().children();
+
         List<String> blocks = new ArrayList<>();
-        String[] parts = input.split("\n\n");
-
-        for (String part : parts) {
-            String trimmedPart = part.trim();
-            if (trimmedPart.isEmpty()) continue;
-
-            if (trimmedPart.startsWith("#")) {
-                // Handle headings
-                Matcher matcher = HEADING_PATTERN.matcher(trimmedPart);
-                if (matcher.matches()) {
-                    blocks.add("h1. " + matcher.group(2));
+        for (Element el : children) {
+            switch (el.tagName().toLowerCase()) {
+                case "h1":
+                case "h2":
+                case "h3":
+                case "h4":
+                case "h5":
+                case "h6": {
+                    int level = Integer.parseInt(el.tagName().substring(1));
+                    blocks.add("h" + level + ". " + el.text());
+                    break;
                 }
-            } else if (trimmedPart.startsWith("```")) {
-                // Handle code blocks
-                Matcher matcher = CODE_BLOCK_PATTERN.matcher(trimmedPart);
-                if (matcher.find()) {
-                    String language = matcher.group(1).trim();
-                    String code = matcher.group(2).trim();
-                    blocks.add("{code:" + language + "}\n" + code + "\n{code}");
-                }
-            } else if (trimmedPart.startsWith("* ")) {
-                // Handle lists
-                blocks.add(trimmedPart);
-            } else if (containsHtml(trimmedPart)) {
-                // Handle HTML content
-                Document doc = Jsoup.parseBodyFragment(trimmedPart);
-                String text = doc.body().html()
-                        .replaceAll("<strong>(.*?)</strong>", "*$1*")
-                        .replaceAll("<em>(.*?)</em>", "_$1_")
-                        .replaceAll("<code>(.*?)</code>", "{{$1}}")
-                        .replaceAll("<[^>]+>", "")
-                        .trim();
-                blocks.add(text);
+                case "p":
+                    blocks.add(processParagraph(el));
+                    break;
+                case "pre":
+                    blocks.add(processPre(el));
+                    break;
+                case "ul":
+                    blocks.add(processUnorderedList(el));
+                    break;
+                case "ol":
+                    blocks.add(processOrderedList(el));
+                    break;
+                case "table":
+                    blocks.add(processTable(el));
+                    break;
+                case "code":
+                    // If top-level <code> with class, treat as code block
+                    if (el.hasAttr("class") && !el.attr("class").trim().isEmpty()) {
+                        String lang = el.attr("class").trim();
+                        String codeText = el.wholeText()
+                                .replaceAll("^[\\r\\n]+", "")
+                                .replaceAll("[\\r\\n]+$", "");
+                        blocks.add("{code:" + lang + "}\n" + codeText + "\n{code}");
+                    } else {
+                        // inline code
+                        blocks.add("{{" + el.wholeText() + "}}");
+                    }
+                    break;
+                case "a":
+                    // anchor at top-level
+                    blocks.add("[" + el.text() + "|" + el.attr("href") + "]");
+                    break;
+                default:
+                    blocks.add(processGenericBlock(el));
+                    break;
             }
         }
 
-        return String.join("\n\n", blocks);
+        return String.join("\n\n", removeEmpty(blocks)).trim();
     }
 
-    private static String convertHtmlToJiraMarkdown(String input) {
-        Document doc = Jsoup.parse(input);
-        List<String> blocks = new ArrayList<>();
+    /**
+     * If <p> has exactly one <code> child with class="java" => always produce {code:java} block.
+     */
+    private static String processParagraph(Element p) {
+        if (p.children().size() == 1 && "code".equalsIgnoreCase(p.child(0).tagName())
+                && p.ownText().trim().isEmpty()) {
 
-        Elements elements = doc.body().children();
-        for (Element element : elements) {
-            switch (element.tagName()) {
-                case "h1":
-                    blocks.add("h1. " + element.text());
-                    break;
-                case "p":
-                    Element codeInParagraph = element.selectFirst("code");
-                    if (codeInParagraph != null && element.children().size() == 1 && codeInParagraph.hasAttr("class")) {
-                        // If paragraph contains only code with a class attribute, treat it as a code block
-                        String language = codeInParagraph.attr("class");
-                        String codeText = preserveGenericTypes(codeInParagraph.wholeText());
-                        blocks.add("{code:" + language + "}\n" + codeText + "\n{code}");
+            Element codeEl = p.child(0);
+            String codeText = codeEl.wholeText()
+                    .replaceAll("^[\\r\\n]+", "")
+                    .replaceAll("[\\r\\n]+$", "");
+
+            // If there's a class => always produce a code block
+            if (codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
+                String lang = codeEl.attr("class").trim();
+                return "{code:" + lang + "}\n" + codeText + "\n{code}";
+            } else {
+                // No class => check multiline
+                if (codeText.contains("\n")) {
+                    return "{code:java}\n" + codeText + "\n{code}";
+                } else {
+                    // single line => inline code
+                    return "{{" + codeText + "}}";
+                }
+            }
+        }
+
+        // Otherwise inline transforms
+        String text = p.html()
+                .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                .replaceAll("<strong>(.*?)</strong>", "*$1*")
+                .replaceAll("<em>(.*?)</em>", "_$1_")
+                // FORCING normal <code> => inline
+                .replaceAll("<code>(.*?)</code>", "{{$1}}")
+                .replaceAll("<[^>]+>", "");
+
+        return unescapeHtml(text).trim();
+    }
+
+    /**
+     * <pre><code class="java"> => forced block code
+     */
+    private static String processPre(Element pre) {
+        Element codeEl = pre.selectFirst("code");
+        if (codeEl != null) {
+            String codeText = codeEl.wholeText()
+                    .replaceAll("^[\\r\\n]+", "")
+                    .replaceAll("[\\r\\n]+$", "");
+            String lang = "java";
+            if (codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
+                lang = codeEl.attr("class").trim();
+            }
+            return "{code:" + lang + "}\n" + codeText + "\n{code}";
+        }
+        return unescapeHtml(pre.text());
+    }
+
+    private static String processUnorderedList(Element ul) {
+        StringBuilder sb = new StringBuilder();
+        for (Element li : ul.select("li")) {
+            String liHtml = li.html()
+                    .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                    .replaceAll("<strong>(.*?)</strong>", "*$1*")
+                    .replaceAll("<em>(.*?)</em>", "_$1_")
+                    .replaceAll("<code>(.*?)</code>", "{{$1}}")
+                    .replaceAll("<[^>]+>", "");
+            sb.append("* ").append(unescapeHtml(liHtml.trim())).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    private static String processOrderedList(Element ol) {
+        StringBuilder sb = new StringBuilder();
+        for (Element li : ol.select("li")) {
+            String liHtml = li.html()
+                    .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                    .replaceAll("<strong>(.*?)</strong>", "*$1*")
+                    .replaceAll("<em>(.*?)</em>", "_$1_")
+                    .replaceAll("<code>(.*?)</code>", "{{$1}}")
+                    .replaceAll("<[^>]+>", "");
+            sb.append("# ").append(unescapeHtml(liHtml.trim())).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    /**
+     * Convert table to JIRA table syntax.
+     */
+    private static String processTable(Element table) {
+        StringBuilder sb = new StringBuilder();
+        Elements rows = table.select("tr");
+        boolean headerDone = false;
+
+        for (Element row : rows) {
+            Elements cells = row.select("th, td");
+            if (cells.isEmpty()) continue;
+
+            if (!headerDone && row.select("th").size() > 0) {
+                // header row
+                sb.append("||");
+                for (Element th : cells) {
+                    sb.append(unescapeHtml(th.text().trim())).append("||");
+                }
+                sb.append("\n");
+                headerDone = true;
+            } else {
+                sb.append("|");
+                for (Element cell : cells) {
+                    Element codeEl = cell.selectFirst("code");
+                    if (codeEl != null && codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
+                        // forced block code
+                        String lang = codeEl.attr("class").trim();
+                        String codeText = codeEl.wholeText()
+                                .replaceAll("^\\s+", "")  // Trim leading whitespace
+                                .replaceAll("\\s+$", ""); // Trim trailing whitespace
+                        sb.append("{code:").append(lang).append("}\n")
+                                .append(codeText)
+                                .append("\n{code}|");
                     } else {
-                        String text = element.html()
+                        // inline
+                        String cellText = cell.html()
+                                .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
                                 .replaceAll("<strong>(.*?)</strong>", "*$1*")
                                 .replaceAll("<em>(.*?)</em>", "_$1_")
                                 .replaceAll("<code>(.*?)</code>", "{{$1}}")
                                 .replaceAll("<[^>]+>", "");
-                        blocks.add(unescapeHtml(text));
+                        sb.append(unescapeHtml(cellText.trim())).append("|");
                     }
-                    break;
-                case "pre":
-                    Element codeElement = element.selectFirst("code");
-                    if (codeElement != null) {
-                        String language = codeElement.hasAttr("class") ? codeElement.attr("class") : "";
-                        String codeText = preserveGenericTypes(codeElement.wholeText());
-                        blocks.add("{code:" + language + "}\n" + codeText + "\n{code}");
-                    }
-                    break;
-                case "ul":
-                    StringBuilder list = new StringBuilder();
-                    for (Element li : element.select("li")) {
-                        list.append("* ").append(li.text()).append("\n");
-                    }
-                    blocks.add(list.toString().trim());
-                    break;
-                case "a":
-                    blocks.add("[" + element.text() + "|" + element.attr("href") + "]");
-                    break;
-                case "code":
-                    if (!element.parent().tagName().equals("pre")) {
-                        if (element.hasAttr("class")) {
-                            String language = element.attr("class");
-                            String codeText = preserveGenericTypes(element.wholeText());
-                            blocks.add("{code:" + language + "}\n" + codeText + "\n{code}");
-                        } else {
-                            blocks.add("{{" + element.text() + "}}");
-                        }
-                    }
-                    break;
-                case "table":
-                    StringBuilder table = new StringBuilder();
-                    Elements rows = element.select("tr");
-                    boolean isHeader = true;
-
-                    for (Element row : rows) {
-                        Elements cells = row.select("th, td");
-                        if (cells.isEmpty()) continue;
-
-                        if (isHeader) {
-                            table.append("||");
-                            for (Element cell : cells) {
-                                table.append(cell.text()).append("||");
-                            }
-                            table.append("\n");
-                            isHeader = false;
-                        } else {
-                            table.append("|");
-                            for (Element cell : cells) {
-                                String cellContent = cell.html();
-                                Element cellCodeElement = cell.selectFirst("code");
-                                if (cellCodeElement != null) {
-                                    String language = cellCodeElement.hasAttr("class") ? cellCodeElement.attr("class") : "";
-                                    String codeText = preserveGenericTypes(cellCodeElement.wholeText());
-                                    cellContent = "{code:" + language + "}\n" + codeText + "\n{code}";
-                                }
-                                table.append(cellContent).append("|");
-                            }
-                            table.append("\n");
-                        }
-                    }
-                    blocks.add(table.toString().trim());
-                    break;
+                }
+                sb.append("\n");
             }
         }
-
-        return String.join("\n\n", blocks);
+        return sb.toString().trim();
     }
 
-    private static String convertMarkdownToJiraMarkdown(String input) {
+    private static String processGenericBlock(Element el) {
+        String html = el.html()
+                .replaceAll("<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                .replaceAll("<strong>(.*?)</strong>", "*$1*")
+                .replaceAll("<em>(.*?)</em>", "_$1_")
+                .replaceAll("<code>(.*?)</code>", "{{$1}}")
+                .replaceAll("<[^>]+>", "");
+        return unescapeHtml(html).trim();
+    }
+
+    // ------------------- Markdown -> JIRA -------------------
+
+    private static String convertMarkdownToJiraMarkdown(String markdown) {
+        String[] lines = markdown.split("\n");
         List<String> blocks = new ArrayList<>();
-        String[] lines = input.split("\n");
-        StringBuilder currentBlock = new StringBuilder();
+
         boolean inCodeBlock = false;
-        StringBuilder codeBlock = new StringBuilder();
-        String codeLanguage = "";
+        StringBuilder codeBuf = new StringBuilder();
+        String codeLang = "";
+        StringBuilder paragraph = new StringBuilder();
 
         for (String line : lines) {
             if (line.startsWith("```")) {
                 if (!inCodeBlock) {
-                    if (currentBlock.length() > 0) {
-                        blocks.add(processTextBlock(currentBlock.toString().trim()));
-                        currentBlock = new StringBuilder();
+                    // start code fence
+                    if (paragraph.length() > 0) {
+                        blocks.add(processTextParagraph(paragraph.toString()));
+                        paragraph.setLength(0);
                     }
                     inCodeBlock = true;
-                    codeLanguage = line.substring(3).trim();
+                    codeLang = line.substring(3).trim(); // "```java" => "java"
                 } else {
-                    blocks.add("{code:" + codeLanguage + "}\n" + codeBlock.toString().trim() + "\n{code}");
+                    // end code fence
+                    String code = codeBuf.toString()
+                            .replaceAll("^[\\r\\n]+", "")
+                            .replaceAll("[\\r\\n]+$", "");
+                    blocks.add("{code:" + (codeLang.isEmpty() ? "java" : codeLang) + "}\n" + code + "\n{code}");
                     inCodeBlock = false;
-                    codeBlock = new StringBuilder();
+                    codeBuf.setLength(0);
+                    codeLang = "";
                 }
                 continue;
             }
 
             if (inCodeBlock) {
-                codeBlock.append(line).append("\n");
+                codeBuf.append(line).append("\n");
+            } else {
+                if (line.trim().isEmpty()) {
+                    // flush paragraph
+                    if (paragraph.length() > 0) {
+                        blocks.add(processTextParagraph(paragraph.toString()));
+                        paragraph.setLength(0);
+                    }
+                } else {
+                    if (paragraph.length() > 0) {
+                        paragraph.append("\n");
+                    }
+                    paragraph.append(line);
+                }
+            }
+        }
+
+        // leftover paragraph
+        if (paragraph.length() > 0) {
+            blocks.add(processTextParagraph(paragraph.toString()));
+        }
+
+        return String.join("\n\n", blocks).trim();
+    }
+
+    /**
+     * Process a chunk of Markdown text (no code fences),
+     * splitting by lines to handle bullet lines and headings exactly.
+     */
+    private static String processTextParagraph(String text) {
+        String[] lines = text.split("\n");
+        List<String> output = new ArrayList<>();
+
+        for (String line : lines) {
+            String trimmed = line.trim();
+            // If heading
+            Matcher headingMatch = HEADING_PATTERN.matcher(trimmed);
+            if (headingMatch.matches()) {
+                String hashes = headingMatch.group(1);
+                String headingText = headingMatch.group(2);
+                int level = hashes.length();
+                output.add("h" + level + ". " + headingText);
                 continue;
             }
 
-            if (line.trim().isEmpty() && currentBlock.length() > 0) {
-                blocks.add(processTextBlock(currentBlock.toString().trim()));
-                currentBlock = new StringBuilder();
-            } else if (!line.trim().isEmpty()) {
-                if (currentBlock.length() > 0) currentBlock.append("\n");
-                currentBlock.append(line);
+            // Remove "1. **..."
+            trimmed = trimmed.replaceAll("^1\\. \\*\\*(.*?)\\*\\*", "*$1*");
+
+            // If bullet line
+            if (trimmed.startsWith("* ")) {
+                // do inline
+                output.add(processInlineMarkdown(trimmed));
+            } else {
+                // normal line => inline
+                output.add(processInlineMarkdown(trimmed));
             }
         }
 
-        if (currentBlock.length() > 0) {
-            blocks.add(processTextBlock(currentBlock.toString().trim()));
-        }
-
-        return String.join("\n\n", blocks);
+        // Join lines with \n
+        return String.join("\n", output);
     }
 
-    private static String processTextBlock(String block) {
-        if (block.startsWith("#")) {
-            Matcher matcher = HEADING_PATTERN.matcher(block);
-            if (matcher.matches()) {
-                return "h1. " + matcher.group(2);
-            }
-        }
+    /**
+     * Convert inline code, bold, links, etc.
+     */
+    private static String processInlineMarkdown(String line) {
+        // Update the regex in processInlineMarkdown to handle spaces around backticks
+        line = line.replaceAll("`\\s*([^`]+)\\s*`", "{{$1}}");
 
-        return block
-                .replaceAll("\\*\\*([^*]+)\\*\\*", "*$1*")
-                .replaceAll("_([^_]+)_", "_$1_")
-                .replaceAll("`([^`]+)`", "{{$1}}")
-                .replaceAll("\\[([^\\]]+)\\]\\(([^)]+)\\)", "[$1|$2]");
+        // bold: **text** => *text*
+        line = line.replaceAll("\\*\\*([^*]+)\\*\\*", "*$1*");
+
+
+        // links: [text](url) => [text|url]
+        line = line.replaceAll("\\[([^\\]]+)\\]\\(([^)]+)\\)", "[$1|$2]");
+
+        // italic _text_ => same in JIRA, so no change needed
+        return line;
     }
 
-    private static String preserveGenericTypes(String text) {
-        return unescapeHtml(text)
-                .replaceAll("List(?!<)", "List<IComment>")  // Replace List without < with List<IComment>
-                .replaceAll("\\R", "\n")  // normalize line breaks
-                .trim();
+    // ------------------- Helpers -------------------
+
+    private static boolean containsHtml(String s) {
+        // Remove Markdown code blocks and inline code before checking for HTML
+        String noCodeBlocks = CODE_BLOCK_PATTERN.matcher(s).replaceAll("");
+        String noCode = noCodeBlocks.replaceAll("`[^`]*`", "");
+        return HTML_PATTERN.matcher(noCode).find();
     }
 
-    private static String unescapeHtml(String text) {
-        return text
-                .replace("&lt;", "<")
+    private static String decodeEntities(String s) {
+        return s.replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'");
+    }
+
+    private static String unescapeHtml(String s) {
+        return s.replace("&lt;", "<")
                 .replace("&gt;", ">")
                 .replace("&amp;", "&")
                 .replace("&quot;", "\"")
                 .replace("&apos;", "'")
                 .replace("-&gt;", "->")
-                .replaceAll("\\R", "\n")  // normalize line breaks
+                .replaceAll("\\R", "\n")
                 .trim();
     }
 
-    private static boolean containsHtml(String input) {
-        return HTML_PATTERN.matcher(input).find();
+    private static List<String> removeEmpty(List<String> blocks) {
+        List<String> cleaned = new ArrayList<>();
+        for (String b : blocks) {
+            String t = b.trim();
+            if (!t.isEmpty()) {
+                cleaned.add(t);
+            }
+        }
+        return cleaned;
     }
 }

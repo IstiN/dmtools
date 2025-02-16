@@ -66,6 +66,75 @@ public class MarkdownToJiraConverterTest {
     }
 
     @Test
+    public void testComplexMarkdownInput2() {
+        String markdown = "# JiraClient Usage Guide\n\n" +
+                "Main methods available in JiraClient:\n\n" +
+                "1. **Authentication** and _Configuration_:\n" +
+                "Reference: Constructor and authentication methods\n" +
+                "```java\n" +
+                "public JiraClient(String basePath, String authorization)\n" +
+                "public void setAuthType(String authType)\n" +
+                "```\n\n" +
+                "2. Ticket Operations:\n" +
+                "* Create ticket\n" +
+                "* Update ticket\n" +
+                "* Move status\n\n" +
+                "Example usage:\n" +
+                "```java\n" +
+                "JiraClient client = BasicJiraClient.getInstance();\n" +
+                "String key = client.createTicketInProject(\"PROJECT\", \"Bug\", \n" +
+                "    \"Summary\", \"Description\");\n" +
+                "```\n\n" +
+                "For more information, visit [Jira API](https://docs.atlassian.com/)\n\n" +
+                "Common types used:\n" +
+                "* `ITicket` - ticket interface\n" +
+                "* `List<IComment>` - list of comments\n" +
+                "* `TrackerClient<T>` - generic client\n\n" +
+                "Note: Make sure to handle exceptions:\n" +
+                "```java\n" +
+                "try {\n" +
+                "    client.updateTicket(key, fields);\n" +
+                "} catch (Exception e) {\n" +
+                "    logger.error(\"Failed\", e);\n" +
+                "}\n" +
+                "```";
+
+        String expected = "h1. JiraClient Usage Guide\n\n" +
+                "Main methods available in JiraClient:\n\n" +
+                "*Authentication* and _Configuration_:\n" +
+                "Reference: Constructor and authentication methods\n\n" +
+                "{code:java}\n" +
+                "public JiraClient(String basePath, String authorization)\n" +
+                "public void setAuthType(String authType)\n" +
+                "{code}\n\n" +
+                "2. Ticket Operations:\n" +
+                "* Create ticket\n" +
+                "* Update ticket\n" +
+                "* Move status\n\n" +
+                "Example usage:\n\n" +
+                "{code:java}\n" +
+                "JiraClient client = BasicJiraClient.getInstance();\n" +
+                "String key = client.createTicketInProject(\"PROJECT\", \"Bug\", \n" +
+                "    \"Summary\", \"Description\");\n" +
+                "{code}\n\n" +
+                "For more information, visit [Jira API|https://docs.atlassian.com/]\n\n" +
+                "Common types used:\n" +
+                "* {{ITicket}} - ticket interface\n" +
+                "* {{List<IComment>}} - list of comments\n" +
+                "* {{TrackerClient<T>}} - generic client\n\n" +
+                "Note: Make sure to handle exceptions:\n\n" +
+                "{code:java}\n" +
+                "try {\n" +
+                "    client.updateTicket(key, fields);\n" +
+                "} catch (Exception e) {\n" +
+                "    logger.error(\"Failed\", e);\n" +
+                "}\n" +
+                "{code}";
+
+        assertEquals(expected, MarkdownToJiraConverter.convertToJiraMarkdown(markdown));
+    }
+
+    @Test
     public void testExtensiveHTML() {
         // Empty input
         String input = "<p>Based on the provided context and code snippets, here's a comprehensive overview of JiraClient functionality in DMTools:</p>\n" +
