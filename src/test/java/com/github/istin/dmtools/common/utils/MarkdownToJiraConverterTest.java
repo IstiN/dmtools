@@ -507,7 +507,7 @@ public class MarkdownToJiraConverterTest {
                         "* JIRA_EXTRA_FIELDS_PROJECT - Project specific fields\n" +
                         "* JIRA_EXTRA_FIELDS - Additional fields (comma-separated)\n" +
                         "# *Version Control Systems*\n" +
-                        "* _Bitbucket:_ {code:properties}\n" +
+                        "* _Bitbucket:_ {code:yaml}\n" +
                         "\n" +
                         "BITBUCKET_TOKEN=Bearer [token]\n" +
                         "BITBUCKET_BASE_PATH=https://api.bitbucket.org\n" +
@@ -516,7 +516,7 @@ public class MarkdownToJiraConverterTest {
                         "BITBUCKET_REPOSITORY=repo-name\n" +
                         "BITBUCKET_BRANCH=branch-name\n" +
                         "{code}\n" +
-                        "* _GitHub:_ {code:properties}\n" +
+                        "* _GitHub:_ {code:yaml}\n" +
                         "\n" +
                         "SOURCE_GITHUB_TOKEN\n" +
                         "SOURCE_GITHUB_WORKSPACE\n" +
@@ -526,13 +526,13 @@ public class MarkdownToJiraConverterTest {
                         "{code}\n" +
                         "* _GitLab:_ (Similar parameters with GITLAB_ prefix)\n" +
                         "# *AI Integration*\n" +
-                        "* _OpenAI:_ {code:properties}\n" +
+                        "* _OpenAI:_ {code:yaml}\n" +
                         "\n" +
                         "OPEN_AI_BATH_PATH\n" +
                         "OPEN_AI_API_KEY\n" +
                         "OPEN_AI_MODEL\n" +
                         "{code}\n" +
-                        "* _CurlAI:_ {code:properties}\n" +
+                        "* _CurlAI:_ {code:yaml}\n" +
                         "\n" +
                         "CURL_AI_BATH_PATH\n" +
                         "CURL_AI_AUTH\n" +
@@ -543,19 +543,19 @@ public class MarkdownToJiraConverterTest {
                         "{code}\n" +
                         "* AI Models: CODE_AI_MODEL, TEST_AI_MODEL\n" +
                         "# *Other Tools*\n" +
-                        "* _Confluence:_ {code:properties}\n" +
+                        "* _Confluence:_ {code:yaml}\n" +
                         "\n" +
                         "CONFLUENCE_BASE_PATH\n" +
                         "CONFLUENCE_LOGIN_PASS_TOKEN\n" +
                         "CONFLUENCE_GRAPHQL_PATH\n" +
                         "CONFLUENCE_DEFAULT_SPACE\n" +
                         "{code}\n" +
-                        "* _Figma:_ {code:properties}\n" +
+                        "* _Figma:_ {code:yaml}\n" +
                         "\n" +
                         "FIGMA_BASE_PATH\n" +
                         "FIGMA_TOKEN\n" +
                         "{code}\n" +
-                        "* _Firebase:_ {code:properties}\n" +
+                        "* _Firebase:_ {code:yaml}\n" +
                         "\n" +
                         "FIREBASE_PROJECT_ID\n" +
                         "FIREBASE_SERVICE_ACCOUNT_JSON_AUTH\n" +
