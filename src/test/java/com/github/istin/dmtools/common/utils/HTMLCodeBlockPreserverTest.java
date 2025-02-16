@@ -64,4 +64,5 @@ public class HTMLCodeBlockPreserverTest {
                         "{{Simple code}}";
         assertEquals(expected, restored);
     }
+
 }
