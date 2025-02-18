@@ -152,14 +152,14 @@ public class SearchOrchestrator {
         return invalidResponses > 10 || filesCounter >= filesLimit;
     }
 
-    public String run(RequestSimplifierAgent.Result structuredRequest, String keywordsBlacklist, SourceCodeConfig[] sourceCodeConfig, int filesLimit) throws Exception {
+    public String run(RequestSimplifierAgent.Result structuredRequest, String keywordsBlacklist, SourceCodeConfig[] sourceCodeConfig, int filesLimit, int iterationsLimit) throws Exception {
 
         String fullTask = structuredRequest.toString();
         StringBuffer filesContextSummary = new StringBuffer();
 
         // Process for up to 2 iterations
         Set<String> checkedFiles = new HashSet<>();
-        for (int iteration = 0; iteration < 1; iteration++) {
+        for (int iteration = 0; iteration < iterationsLimit; iteration++) {
 
             JSONArray keywords = generateKeywords(fullTask, keywordsBlacklist, filesContextSummary.toString());
             System.out.println("Iteration " + (iteration + 1) + " keywords: " + keywords);

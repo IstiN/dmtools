@@ -20,7 +20,7 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
     private final String[] filterFields;
     private boolean isSimilarity = false;
     private boolean isCollectionIfByCreator = false;
-    private double ticketFieldsChangedDivider;
+    private PropertyReader propertyReader;
 
     public TicketFieldsChangesRule(Employees employees) {
         this(employees, null, false, false);
@@ -31,7 +31,7 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
         this.filterFields = filterFields;
         this.isSimilarity = isSimilarity;
         this.isCollectionIfByCreator = isCollectionIfByCreator;
-        this.ticketFieldsChangedDivider = new PropertyReader().getTicketFieldsChangedDivider();
+        this.propertyReader = new PropertyReader();
     }
 
     public TicketFieldsChangesRule(String customName, Employees employees) {
@@ -44,7 +44,7 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
         this.filterFields = filterFields;
         this.isSimilarity = isSimilarity;
         this.isCollectionIfByCreator = isCollectionIfByCreator;
-        this.ticketFieldsChangedDivider = new PropertyReader().getTicketFieldsChangedDivider();
+        this.propertyReader = new PropertyReader();
     }
 
     @Override
@@ -71,6 +71,14 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
                 List<IHistoryItem> items = (List<IHistoryItem>) history.getHistoryItems();
                 for (IHistoryItem historyItem : items) {
                     double weight = 1;
+                    String fromAsString = historyItem.getFromAsString();
+                    if (fromAsString == null) {
+                        fromAsString = "";
+                    }
+                    String toAsString = historyItem.getToAsString();
+                    if (toAsString == null) {
+                        toAsString = "";
+                    }
                     if (filterFields != null) {
                         boolean found = false;
                         String field = historyItem.getField();
@@ -84,9 +92,11 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
                         if (!found) {
                             continue;
                         }
+
                         if (isSimilarity) {
                             StringMetric metric = StringMetrics.levenshtein();
-                            float similarityResult = metric.compare(historyItem.getFromAsString(), historyItem.getToAsString());
+
+                            float similarityResult = metric.compare(fromAsString, toAsString);
                             //System.out.println("Similarity Before: " + historyItem.getFromAsString());
                             //System.out.println("Similarity After: " + historyItem.getToAsString());
                             if (similarityResult > 0) {
@@ -100,10 +110,17 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
                                 continue;
                             }
                             weight = 1-similarityResult;
+                        } else {
+                            Double ticketFieldsChangedDivider = propertyReader.getTicketFieldsChangedDivider(field);
+                            if (ticketFieldsChangedDivider == null) {
+                                weight = weight + 1d;
+                            } else {
+                                weight = weight + 1d/ticketFieldsChangedDivider;
+                            }
                         }
                     }
-                    KeyTime keyTime = new KeyTime(ticket.getKey(), history.getCreated(), authorName);
-                    keyTime.setWeight(isSimilarity ? weight : weight / ticketFieldsChangedDivider);
+                    KeyTime keyTime = new KeyTime(ticket.getKey() + fromAsString + toAsString, history.getCreated(), authorName);
+                    keyTime.setWeight(weight);
                     result.add(keyTime);
                 }
             }

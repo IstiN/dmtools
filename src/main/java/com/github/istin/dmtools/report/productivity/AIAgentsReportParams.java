@@ -3,21 +3,21 @@ package com.github.istin.dmtools.report.productivity;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class TestCasesReportParams extends ProductivityJobParams {
+public class AIAgentsReportParams extends ProductivityJobParams {
 
+    public static final String COMMENTS_REGEX = "comments_regex";
     public static String REPORT_NAME = "report_name";
     public static String IS_WEIGHT = "is_weight";
     public static final String START_DATE = "start_date";
-    public static final String TEST_CASES_PROJECT_CODE = "test_cases_project_code";
 
-    public TestCasesReportParams() {
+    public AIAgentsReportParams() {
     }
 
-    public TestCasesReportParams(String json) throws JSONException {
+    public AIAgentsReportParams(String json) throws JSONException {
         super(json);
     }
 
-    public TestCasesReportParams(JSONObject json) {
+    public AIAgentsReportParams(JSONObject json) {
         super(json);
     }
 
@@ -30,15 +30,11 @@ public class TestCasesReportParams extends ProductivityJobParams {
     }
 
 
-    public String getTestCasesProjectCode() {
-        return getString(TEST_CASES_PROJECT_CODE);
-    }
-
     public Boolean isWeight() {
         return getBoolean(IS_WEIGHT);
     }
 
     public String getCommentsRegex() {
-        return getString("comments_regex");
+        return getString(COMMENTS_REGEX);
     }
 }

@@ -134,7 +134,7 @@ public class Expert extends AbstractJob<ExpertParams> {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         SourceCodeConfig[] sourceCodeConfig = expertParams.getSourceCodeConfig();
         int filesLimit = expertParams.getFilesLimit();
-        return searchOrchestrator.run(structuredRequest, keywordsBlacklist, sourceCodeConfig, filesLimit);
+        return searchOrchestrator.run(structuredRequest, keywordsBlacklist, sourceCodeConfig, filesLimit, 1);
     }
 
     private String extendContextWithConfluence(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {

@@ -44,5 +44,7 @@ public class QAProductivityReportParams extends ProductivityJobParams {
         return getStringArray(STATUSES_IN_DEVELOPMENT);
     }
 
-
+    public String getCommentsRegex() {
+        return getString("comments_regex");
+    }
 }
