@@ -272,8 +272,8 @@ public class PropertyReader {
 		return Double.parseDouble(value);
 	}
 
-	public Double getTicketFieldsChangedDivider() {
-		String value = getValue("TICKET_FIELDS_CHANGED_DIVIDER");
+	public Double getTicketFieldsChangedDivider(String fieldName) {
+		String value = getValue("TICKET_FIELDS_CHANGED_DIVIDER_"+ fieldName.toUpperCase());
 		if (value == null) {
 			return 1d;
 		}

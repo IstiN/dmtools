@@ -47,6 +47,7 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
         movedToReopened(qaProductivityReportParams, listOfCustomMetrics);
         createdTests(qaProductivityReportParams, listOfCustomMetrics);
         fieldsChanged(qaProductivityReportParams, listOfCustomMetrics);
+        commentsWritten(qaProductivityReportParams, listOfCustomMetrics);
         ProductivityUtils.vacationDays(listOfCustomMetrics, Employees.getTesters(qaProductivityReportParams.getEmployees()));
 //        numberOfRejectedBugs(qaProductivityReportParams, listOfCustomMetrics);
         return listOfCustomMetrics;
@@ -56,6 +57,10 @@ public class QAProductivityReport extends AbstractJob<QAProductivityReportParams
 
     protected void fieldsChanged(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
         listOfCustomMetrics.add(new Metric("Ticket Fields Changed", qaProductivityReportParams.isWeight(), new TicketFieldsChangesRule(Employees.getTesters(qaProductivityReportParams.getEmployees()))));
+    }
+
+    protected void commentsWritten(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {
+        listOfCustomMetrics.add(new Metric("Ticket Comments Written", qaProductivityReportParams.isWeight(), new CommentsWrittenRule(Employees.getTesters(qaProductivityReportParams.getEmployees()), qaProductivityReportParams.getCommentsRegex())));
     }
 
     protected void createdBugs(QAProductivityReportParams qaProductivityReportParams, List<Metric> listOfCustomMetrics) {

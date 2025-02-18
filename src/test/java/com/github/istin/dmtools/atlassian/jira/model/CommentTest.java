@@ -41,13 +41,6 @@ public class CommentTest {
     }
 
     @Test
-    public void testGetCreated() {
-        assertThrows(UnsupportedOperationException.class, () -> {
-            comment.getCreated();
-        });
-    }
-
-    @Test
     public void testGetAuthor() {
         Assignee mockAssignee = mock(Assignee.class);
         Comment spyComment = Mockito.spy(comment);

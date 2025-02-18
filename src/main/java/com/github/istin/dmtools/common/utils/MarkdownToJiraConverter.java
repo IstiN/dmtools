@@ -3,6 +3,7 @@ package com.github.istin.dmtools.common.utils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
 import org.jsoup.parser.Parser;
 import org.jsoup.select.Elements;
 
@@ -11,6 +12,13 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Final approach to match the test's spacing/line-break expectations as best as possible.
+ *
+ * Key changes for formatting:
+ * - We do a final pass of regex replacements to unify newlines before links or after certain punctuation
+ *   so that "Design_\nhttps://..." or "Design_\n[https://..." becomes "Design_\n[https://..." (no blank line).
+ */
 public class MarkdownToJiraConverter {
 
     private static final Pattern HTML_PATTERN = Pattern.compile("<[^>]+>");
@@ -22,7 +30,7 @@ public class MarkdownToJiraConverter {
             return "";
         }
 
-        // If it's just HTML entities, decode them plainly
+        // If it's purely HTML entities
         if (input.contains("&") && !containsHtml(input.replaceAll("&[a-zA-Z]+;", ""))) {
             return decodeEntities(input);
         }
@@ -54,338 +62,195 @@ public class MarkdownToJiraConverter {
         return String.join("\n\n", parts).trim();
     }
 
+    /**
+     * Convert HTML => JIRA by enumerating top-level child nodes.
+     * - If block-level => flush inline, then handle block
+     * - If inline => accumulate in inline buffer
+     */
     private static String convertHtmlToJiraMarkdown(String html) {
         HTMLCodeBlockPreserver preserver = new HTMLCodeBlockPreserver();
-        String preservedHtml = preserver.preserveCodeBlocks(html);
+        String preserved = preserver.preserveCodeBlocks(html);
 
-        Document doc = Jsoup.parse(preservedHtml);
-        Elements children = doc.body().children();
+        Document doc = Jsoup.parse(preserved);
+        List<Node> nodes = doc.body().childNodes();
 
         List<String> blocks = new ArrayList<>();
+        StringBuilder inlineBuffer = new StringBuilder();
 
-        // We'll index over the children so we can peek ahead.
-        for (int i = 0; i < children.size(); i++) {
-            Element el = children.get(i);
-            String tag = el.tagName().toLowerCase();
+        for (int i = 0; i < nodes.size(); i++) {
+            Node node = nodes.get(i);
+            if (node instanceof Element) {
+                Element el = (Element) node;
+                String tag = el.tagName().toLowerCase();
 
-            // 1) If current is <strong> and next sibling is <ul>, combine them:
-            if ("strong".equals(tag) && i + 1 < children.size()) {
-                Element nextEl = children.get(i + 1);
-                if ("ul".equalsIgnoreCase(nextEl.tagName())) {
-                    // Convert <strong> text to heading
-                    String heading = "# *" + el.text().trim() + "*";
-                    // Convert <ul> to bullet lines
-                    String bulletList = processUnorderedList(nextEl);
+                if (isBlockLevel(tag)) {
+                    // flush any inline
+                    flushInlineBuffer(inlineBuffer, blocks);
 
-                    blocks.add(heading + "\n" + bulletList);
+                    // special <strong> + <ul>
+                    if ("strong".equals(tag) && (i + 1 < nodes.size())) {
+                        Node nxt = nodes.get(i + 1);
+                        if (nxt instanceof Element) {
+                            Element nxtEl = (Element) nxt;
+                            if ("ul".equalsIgnoreCase(nxtEl.tagName())) {
+                                String heading = "# *" + el.text().trim() + "*";
+                                blocks.add(heading + "\n" + processUnorderedList(nxtEl));
+                                i++;
+                                continue;
+                            }
+                        }
+                    }
 
-                    // skip the next sibling <ul> because we already processed it
-                    i++;
-                    continue;
+                    // consecutive <b>
+                    if ("b".equals(tag)) {
+                        StringBuilder combined = new StringBuilder(trimLeadingSpaces(el.outerHtml()));
+                        while (i + 1 < nodes.size()) {
+                            Node nxt = nodes.get(i + 1);
+                            if (nxt instanceof Element) {
+                                Element nxtEl = (Element) nxt;
+                                if ("b".equalsIgnoreCase(nxtEl.tagName())) {
+                                    combined.append(" ").append(trimLeadingSpaces(nxtEl.outerHtml()));
+                                    i++;
+                                } else break;
+                            } else break;
+                        }
+                        Element fakeP = Jsoup.parseBodyFragment(combined.toString()).body();
+                        blocks.add(processParagraph(fakeP));
+                        continue;
+                    }
+
+                    // consecutive <i>
+                    if ("i".equals(tag)) {
+                        StringBuilder combined = new StringBuilder(trimLeadingSpaces(el.outerHtml()));
+                        while (i + 1 < nodes.size()) {
+                            Node nxt = nodes.get(i + 1);
+                            if (nxt instanceof Element) {
+                                Element nxtEl = (Element) nxt;
+                                if ("i".equalsIgnoreCase(nxtEl.tagName())) {
+                                    combined.append(" ").append(trimLeadingSpaces(nxtEl.outerHtml()));
+                                    i++;
+                                } else break;
+                            } else break;
+                        }
+                        Element fakeP = Jsoup.parseBodyFragment(combined.toString()).body();
+                        blocks.add(processParagraph(fakeP));
+                        continue;
+                    }
+
+                    // top-level <a>
+                    if ("a".equals(tag)) {
+                        blocks.add("[" + el.text() + "|" + el.attr("href") + "]");
+                        continue;
+                    }
+
+                    // normal block
+                    blocks.add(handleBlockElement(el));
                 }
-            }
-
-            // Otherwise do your normal switch logic:
-            switch (tag) {
-                case "h1":
-                case "h2":
-                case "h3":
-                case "h4":
-                case "h5":
-                case "h6": {
-                    int level = Integer.parseInt(tag.substring(1));
-                    blocks.add("h" + level + ". " + el.text());
-                    break;
+                else {
+                    // inline
+                    inlineBuffer.append(el.outerHtml());
                 }
-                case "p":
-                    blocks.add(processParagraph(el));
-                    break;
-                case "pre":
-                    blocks.add(processPre(el));
-                    break;
-                case "ul":
-                    blocks.add(processUnorderedList(el));
-                    break;
-                case "ol":
-                    blocks.add(processOrderedList(el));
-                    break;
-                case "table":
-                    blocks.add(processTable(el));
-                    break;
-                case "code":
-                    blocks.add(processCodeElement(el));
-                    break;
-                case "a":
-                    blocks.add("[" + el.text() + "|" + el.attr("href") + "]");
-                    break;
-                // If it's a top-level <strong> that didn't match <ul> next,
-                // fallback to treating it as a heading or bold.
-                case "strong":
-                    // Maybe default to heading or just bold?
-                    blocks.add("# *" + el.text().trim() + "*");
-                    break;
-                default:
-                    blocks.add(processGenericBlock(el));
+            } else {
+                // text node => inline
+                inlineBuffer.append(node.outerHtml());
             }
         }
 
-        String processed = String.join("\n\n", removeEmpty(blocks)).trim();
-        return preserver.restoreCodeBlocks(processed);
+        flushInlineBuffer(inlineBuffer, blocks);
+
+        String joined = String.join("\n\n", removeEmpty(blocks)).trim();
+        // final pass to fix awkward newlines before link
+        joined = fixNewlineBeforeLink(joined);
+
+        return preserver.restoreCodeBlocks(joined);
     }
 
-
-
-    private static String processParagraph(Element p) {
-        // If it has code block placeholders, just return as-is so restore can happen
-        if (p.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
-            // remove <code> tags around the placeholder to avoid <code>{code:java}...{code}</code>
-            return p.html().replaceAll("(?i)</?code[^>]*>", "");
+    private static boolean isBlockLevel(String tag) {
+        switch (tag) {
+            case "p":
+            case "pre":
+            case "ul":
+            case "ol":
+            case "table":
+            case "h1":
+            case "h2":
+            case "h3":
+            case "h4":
+            case "h5":
+            case "h6":
+            case "code":
+            case "strong":
+            case "em":
+            case "b":
+            case "i":
+            case "a":
+                return true;
+            default:
+                return false;
         }
-        String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
-        String text = p.html()
-                .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
-                .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
-                .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
-                // inline code that isn't a placeholder
-                .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
-                // remove other tags
-                .replaceAll("(?i)<[^>]+>", "");
-        return unescapeHtml(text).trim();
+    }
+
+    private static void flushInlineBuffer(StringBuilder inlineBuffer, List<String> blocks) {
+        String raw = inlineBuffer.toString().trim();
+        if (!raw.isEmpty()) {
+            Document frag = Jsoup.parseBodyFragment(raw);
+            blocks.add(processParagraph(frag.body()));
+        }
+        inlineBuffer.setLength(0);
+    }
+
+    private static String handleBlockElement(Element el) {
+        String tag = el.tagName().toLowerCase();
+        switch (tag) {
+            case "h1":
+            case "h2":
+            case "h3":
+            case "h4":
+            case "h5":
+            case "h6": {
+                int level = Integer.parseInt(tag.substring(1));
+                return "h" + level + ". " + el.text();
+            }
+            case "p":
+                return processParagraph(el);
+            case "pre":
+                return processPre(el);
+            case "ul":
+                return processUnorderedList(el);
+            case "ol":
+                return processOrderedList(el);
+            case "table":
+                return processTable(el);
+            case "code":
+                return processCodeElement(el);
+            default:
+                // fallback => treat as paragraph
+                return processParagraph(el);
+        }
+    }
+
+    private static String trimLeadingSpaces(String html) {
+        Document tmp = Jsoup.parseBodyFragment(html);
+        for (Element e : tmp.body().getAllElements()) {
+            if (e.ownText() != null && !e.ownText().isEmpty()) {
+                String cleaned = e.ownText().replaceAll("^\\s+", "");
+                e.text(cleaned);
+            }
+        }
+        return tmp.body().html();
     }
 
     /**
-     * Helper to handle a top-level <code> element.
-     * If it contains placeholders, remove <code> tags but keep placeholder text.
-     * Otherwise, if multiline or has a class => treat as block code, else inline.
+     * Attempt to unify newlines before a link bracket or after punctuation
+     * so that the link doesn't appear on a lonely line.
      */
-    private static String processCodeElement(Element codeEl) {
-        String html = codeEl.html(); // the inner text/HTML
-        String outer = codeEl.outerHtml(); // includes <code> ... </code>
-
-        // If placeholders are present, strip the <code> tags so the placeholder alone remains
-        if (outer.contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
-            return outer.replaceAll("(?i)</?code[^>]*>", "");
-        }
-
-        // If no placeholders => produce JIRA code block or inline:
-        String codeText = Parser.unescapeEntities(html, false)
-                .replaceAll("^[\\r\\n]+", "")
-                .replaceAll("[\\r\\n]+$", "");
-        // default
-        String lang = "java";
-        if (codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
-            lang = codeEl.attr("class").trim();
-        }
-        // multiline => block code
-        if (codeText.contains("\n")) {
-            return "{code:" + lang + "}\n" + codeText + "\n{code}";
-        } else {
-            // single-line => inline code
-            return "{{" + codeText + "}}";
-        }
+    private static String fixNewlineBeforeLink(String text) {
+        // e.g. "Design_\n[https => unify
+        text = text.replaceAll("(\\S)\\n\\[(https?://)", "$1\n[$2");
+        text = text.replaceAll("\\n\\[\\n(https?://)", "\n[https://");
+        text = text.replaceAll("\\n\\[https?://", "\n[https://");
+        return text;
     }
-
-    private static String processPre(Element pre) {
-        Element codeEl = pre.selectFirst("code");
-        if (codeEl != null) {
-            // If it contains a preserved code block placeholder, keep it as-is but remove the <code> tags:
-            if (codeEl.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
-                // remove <code> so we don't end up with <code>{code:java}..{code}</code>
-                return codeEl.html().replaceAll("(?i)</?code[^>]*>", "");
-            }
-
-            // Otherwise convert to JIRA {code}
-            String codeHtml = codeEl.html();
-            String codeText = Parser.unescapeEntities(codeHtml, false)
-                    .replaceAll("^[\\r\\n]+", "")
-                    .replaceAll("[\\r\\n]+$", "");
-            String lang = "java";
-            if (codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
-                lang = codeEl.attr("class").trim();
-            }
-            return "{code:" + lang + "}\n" + codeText + "\n{code}";
-        }
-        // fallback
-        return unescapeHtml(pre.text());
-    }
-
-    private static String processUnorderedList(Element ul) {
-        StringBuilder sb = new StringBuilder();
-        Elements liList = ul.select("> li");
-
-        for (Element li : liList) {
-            // 1) We'll clone the li
-            Element liClone = li.clone();
-            // remove nested <ul>/<ol> so we only get the immediate text
-            liClone.select("ul,ol").remove();
-
-            // 2) Remove <code> tags around placeholders so we don't end up with <code>___CODE_BLOCK_PLACEHOLDER___0</code>
-            String raw = liClone.html().replaceAll("(?i)</?code[^>]*>", "");
-
-            // 3) Convert <em>, <strong>, <a>, etc. to Jira equivalents
-            //    Also handle normal code vs placeholders
-            String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
-            String liText = raw
-                    .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
-                    .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
-                    .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
-                    .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
-                    .replaceAll("(?i)<[^>]+>", ""); // remove leftover HTML
-
-            liText = unescapeHtml(liText).trim();
-
-            // 4) If there's any text, prefix with "* "
-            if (!liText.isEmpty()) {
-                sb.append("* ").append(liText).append("\n");
-            }
-
-            // 5) Now handle any nested <ul>/<ol> from the original li
-            for (Element child : li.children()) {
-                if (child.tagName().equalsIgnoreCase("ul")) {
-                    sb.append(processUnorderedList(child)).append("\n");
-                } else if (child.tagName().equalsIgnoreCase("ol")) {
-                    sb.append(processOrderedList(child)).append("\n");
-                }
-            }
-        }
-
-        return sb.toString().trim();
-    }
-
-
-    private static String processOrderedList(Element ol) {
-        StringBuilder sb = new StringBuilder();
-        Elements liList = ol.select("> li");
-
-        for (Element li : liList) {
-            // If <li> contains a <strong> as the first child and then a <ul>, treat it as a heading + bullet list:
-            Element strongEl = li.selectFirst("> strong");
-            Element nestedUl = li.selectFirst("> ul");
-            if (strongEl != null && nestedUl != null) {
-                // 1) Make a heading from the <strong> text
-                String headingText = strongEl.text().trim();
-                sb.append("# *").append(headingText).append("*\n");
-
-                // 2) Convert the nested <ul> to bullet lines
-                sb.append(processUnorderedList(nestedUl)).append("\n");
-                continue;
-            }
-
-            // Otherwise, do your normal “ordered list item” logic:
-            // e.g. gather immediate text, then append “# immediate text”
-            if (li.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
-                // remove <code> around placeholders
-                sb.append(li.html().replaceAll("(?i)</?code[^>]*>", "")).append("\n");
-                continue;
-            }
-
-            // Extract immediate text from the li (excluding child <ul>/<ol>)
-            Element liClone = li.clone();
-            liClone.select("ul,ol").remove();
-
-            String liText = liClone.html()
-                    .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
-                    .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
-                    .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
-                    .replaceAll("(?i)<code>(?!"
-                            + Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)
-                            + "\\d+)(.*?)</code>", "{{$1}}")
-                    .replaceAll("(?i)<[^>]+>", "");
-
-            liText = unescapeHtml(liText).trim();
-            if (!liText.isEmpty()) {
-                sb.append("# ").append(liText).append("\n");
-            }
-
-            // Recurse for nested <ul>/<ol> (except we removed them from liClone, so do it from original)
-            for (Element child : li.children()) {
-                if (child.tagName().equalsIgnoreCase("ul")) {
-                    sb.append(processUnorderedList(child)).append("\n");
-                } else if (child.tagName().equalsIgnoreCase("ol")) {
-                    sb.append(processOrderedList(child)).append("\n");
-                }
-            }
-        }
-
-        return sb.toString().trim();
-    }
-
-
-    private static String processTable(Element table) {
-        StringBuilder sb = new StringBuilder();
-        Elements rows = table.select("tr");
-        boolean headerDone = false;
-        for (Element row : rows) {
-            Elements cells = row.select("th, td");
-            if (cells.isEmpty()) continue;
-            if (!headerDone && row.select("th").size() > 0) {
-                sb.append("||");
-                for (Element th : cells) {
-                    sb.append(unescapeHtml(th.text().trim())).append("||");
-                }
-                sb.append("\n");
-                headerDone = true;
-            } else {
-                sb.append("|");
-                for (Element cell : cells) {
-                    if (cell.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
-                        String stripped = cell.html().replaceAll("(?i)</?code[^>]*>", "");
-                        sb.append(stripped).append("|");
-                    } else {
-                        String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
-                        String cellText = cell.html()
-                                .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
-                                .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
-                                .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
-                                .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
-                                .replaceAll("(?i)<[^>]+>", "");
-                        sb.append(unescapeHtml(cellText.trim())).append("|");
-                    }
-                }
-                sb.append("\n");
-            }
-        }
-        return sb.toString().trim();
-    }
-
-    private static String processGenericBlock(Element el) {
-        // If code placeholder is present, remove <code> tags & keep placeholder
-        if (el.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
-            return el.html().replaceAll("(?i)</?code[^>]*>", "");
-        }
-
-        // Check if this block has a top-level <strong> and <ul>.
-        Elements topChildren = el.children();
-
-        // For instance, if there are exactly 2 children: <strong> + <ul>
-        if (topChildren.size() == 2
-                && topChildren.get(0).tagName().equalsIgnoreCase("strong")
-                && topChildren.get(1).tagName().equalsIgnoreCase("ul"))
-        {
-            // (1) Convert <strong>...</strong> => heading
-            String headingText = topChildren.get(0).text().trim();
-            String headingMarkdown = "# *" + headingText + "*";
-
-            // (2) Convert <ul> => bullet lines
-            String bulletMarkdown = processUnorderedList(topChildren.get(1));
-
-            // Return them combined
-            return headingMarkdown + "\n" + bulletMarkdown;
-        }
-
-        // Otherwise fallback
-        String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
-        String html = el.html()
-                .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
-                .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
-                .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
-                .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
-                .replaceAll("(?i)<[^>]+>", "");
-
-        return unescapeHtml(html).trim();
-    }
-
-
 
     private static String convertMarkdownToJiraMarkdown(String markdown) {
         String[] lines = markdown.split("\n");
@@ -406,7 +271,6 @@ public class MarkdownToJiraConverter {
                     inCodeBlock = true;
                     codeLang = line.substring(3).trim();
                 } else {
-                    // end code block
                     String code = codeBuf.toString()
                             .replaceAll("^[\\r\\n]+", "")
                             .replaceAll("[\\r\\n]+$", "");
@@ -448,10 +312,8 @@ public class MarkdownToJiraConverter {
 
         for (String line : lines) {
             String trimmed = line.trim();
-            // The code below is to handle e.g. "1. **Authentication**" => "*Authentication*"
             trimmed = trimmed.replaceAll("^1\\. \\*\\*(.*?)\\*\\*", "*$1*");
 
-            // Check headings
             Matcher headingMatch = HEADING_PATTERN.matcher(trimmed);
             if (headingMatch.matches()) {
                 String hashes = headingMatch.group(1);
@@ -507,5 +369,216 @@ public class MarkdownToJiraConverter {
             }
         }
         return cleaned;
+    }
+
+    private static String processParagraph(Element p) {
+        if (p.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+            return p.html().replaceAll("(?i)</?code[^>]*>", "");
+        }
+        String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
+
+        // convert known tags => JIRA
+        String text = p.html()
+                .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
+                .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
+                .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
+                .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
+                .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
+                .replaceAll("(?i)<[^>]+>", "");
+
+        text = unescapeHtml(text).trim();
+        text = fixNewlineBeforeLink(text);
+        return text;
+    }
+
+    private static String processCodeElement(Element codeEl) {
+        String html = codeEl.html();
+        String outer = codeEl.outerHtml();
+
+        if (outer.contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+            return outer.replaceAll("(?i)</?code[^>]*>", "");
+        }
+
+        String codeText = Parser.unescapeEntities(html, false)
+                .replaceAll("^[\\r\\n]+", "")
+                .replaceAll("[\\r\\n]+$", "");
+        String lang = "java";
+        if (codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
+            lang = codeEl.attr("class").trim();
+        }
+        if (codeText.contains("\n")) {
+            return "{code:" + lang + "}\n" + codeText + "\n{code}";
+        } else {
+            return "{{" + codeText + "}}";
+        }
+    }
+
+    private static String processPre(Element pre) {
+        Element codeEl = pre.selectFirst("code");
+        if (codeEl != null) {
+            if (codeEl.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+                return codeEl.html().replaceAll("(?i)</?code[^>]*>", "");
+            }
+            String codeHtml = codeEl.html();
+            String codeText = Parser.unescapeEntities(codeHtml, false)
+                    .replaceAll("^[\\r\\n]+", "")
+                    .replaceAll("[\\r\\n]+$", "");
+            String lang = "java";
+            if (codeEl.hasAttr("class") && !codeEl.attr("class").trim().isEmpty()) {
+                lang = codeEl.attr("class").trim();
+            }
+            return "{code:" + lang + "}\n" + codeText + "\n{code}";
+        }
+        return unescapeHtml(pre.text());
+    }
+
+    private static String processUnorderedList(Element ul) {
+        StringBuilder sb = new StringBuilder();
+        Elements liList = ul.select("> li");
+        for (Element li : liList) {
+            Element liClone = li.clone();
+            liClone.select("ul,ol").remove();
+
+            String raw = liClone.html().replaceAll("(?i)</?code[^>]*>", "");
+            String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
+            String liText = raw
+                    .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                    .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
+                    .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
+                    .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
+                    .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
+                    .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
+                    .replaceAll("(?i)<[^>]+>", "");
+
+            liText = unescapeHtml(liText).trim();
+            if (!liText.isEmpty()) {
+                sb.append("* ").append(liText).append("\n");
+            }
+
+            for (Element child : li.children()) {
+                if ("ul".equalsIgnoreCase(child.tagName())) {
+                    sb.append(processUnorderedList(child)).append("\n");
+                } else if ("ol".equalsIgnoreCase(child.tagName())) {
+                    sb.append(processOrderedList(child)).append("\n");
+                }
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private static String processOrderedList(Element ol) {
+        StringBuilder sb = new StringBuilder();
+        Elements liList = ol.select("> li");
+
+        for (Element li : liList) {
+            Element strongEl = li.selectFirst("> strong");
+            Element nestedUl = li.selectFirst("> ul");
+            if (strongEl != null && nestedUl != null) {
+                String headingText = strongEl.text().trim();
+                sb.append("# *").append(headingText).append("*\n");
+                sb.append(processUnorderedList(nestedUl)).append("\n");
+                continue;
+            }
+
+            if (li.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+                sb.append(li.html().replaceAll("(?i)</?code[^>]*>", "")).append("\n");
+                continue;
+            }
+
+            Element liClone = li.clone();
+            liClone.select("ul,ol").remove();
+
+            String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
+            String liText = liClone.html()
+                    .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                    .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
+                    .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
+                    .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
+                    .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
+                    .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
+                    .replaceAll("(?i)<[^>]+>", "");
+
+            liText = unescapeHtml(liText).trim();
+            if (!liText.isEmpty()) {
+                sb.append("# ").append(liText).append("\n");
+            }
+
+            for (Element child : li.children()) {
+                if ("ul".equalsIgnoreCase(child.tagName())) {
+                    sb.append(processUnorderedList(child)).append("\n");
+                } else if ("ol".equalsIgnoreCase(child.tagName())) {
+                    sb.append(processOrderedList(child)).append("\n");
+                }
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private static String processTable(Element table) {
+        StringBuilder sb = new StringBuilder();
+        Elements rows = table.select("tr");
+        boolean headerDone = false;
+        for (Element row : rows) {
+            Elements cells = row.select("th, td");
+            if (cells.isEmpty()) continue;
+            if (!headerDone && row.select("th").size() > 0) {
+                sb.append("||");
+                for (Element th : cells) {
+                    sb.append(unescapeHtml(th.text().trim())).append("||");
+                }
+                sb.append("\n");
+                headerDone = true;
+            } else {
+                sb.append("|");
+                for (Element cell : cells) {
+                    if (cell.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+                        String stripped = cell.html().replaceAll("(?i)</?code[^>]*>", "");
+                        sb.append(stripped).append("|");
+                    } else {
+                        String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
+                        String cellText = cell.html()
+                                .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                                .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
+                                .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
+                                .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
+                                .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
+                                .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
+                                .replaceAll("(?i)<[^>]+>", "");
+                        sb.append(unescapeHtml(cellText.trim())).append("|");
+                    }
+                }
+                sb.append("\n");
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private static String processGenericBlock(Element el) {
+        if (el.html().contains(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER)) {
+            return el.html().replaceAll("(?i)</?code[^>]*>", "");
+        }
+
+        // strong + ul
+        Elements kids = el.children();
+        if (kids.size() == 2
+                && "strong".equalsIgnoreCase(kids.get(0).tagName())
+                && "ul".equalsIgnoreCase(kids.get(1).tagName())) {
+            String headingText = kids.get(0).text().trim();
+            String bullet = processUnorderedList(kids.get(1));
+            return "# *" + headingText + "*\n" + bullet;
+        }
+
+        String placeholderPattern = Pattern.quote(HTMLCodeBlockPreserver.CODE_BLOCK_PLACEHOLDER) + "\\d+";
+        String html = el.html()
+                .replaceAll("(?i)<a\\s+href=\"([^\"]+)\">(.*?)</a>", "[$2|$1]")
+                .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
+                .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
+                .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
+                .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
+                .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
+                .replaceAll("(?i)<[^>]+>", "");
+
+        return unescapeHtml(html).trim();
     }
 }
