@@ -4,23 +4,29 @@ plugins {
     id 'jacoco'
     id 'maven-publish'
     id 'signing'
-    id 'org.jreleaser' version '1.9.0'
+    // Gradle Nexus Publish Plugin (for Sonatype/Maven Central)
+    id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
 }
 
 ext {
+    // Keep your original logic for release checking and 'v' prefix removal
     isReleaseVersion = !version.endsWith("SNAPSHOT")
-    // Extract version without 'v' prefix for JReleaser
     semVersion = version.startsWith('v') ? version.substring(1) : version
 }
 
 group = 'com.github.istin'
-version = "${version}" // Keep original version with 'v' prefix
 
+// Keep the build's internal "version" property as-is (including the 'v' prefix if present).
+// This will be reported in logs, etc.
+version = "${version}" // e.g. "v1.0.0" or "1.0.1-SNAPSHOT"
+
+// Repositories
 repositories {
     mavenCentral()
     maven { url 'https://jitpack.io' }
 }
 
+// Code coverage
 jacocoTestReport {
     reports {
         xml.required = true
@@ -28,14 +34,17 @@ jacocoTestReport {
     }
 }
 
+// Test tasks
 test {
     testLogging {
         events "passed", "skipped", "failed", "standardOut", "standardError"
         exceptionFormat "full"
     }
     finalizedBy jacocoTestReport
+    useJUnitPlatform() // if you have JUnit5 tests
 }
 
+// Integration test setup
 sourceSets {
     integrationTest {
         java.srcDir file('src/integrationTest/java')
@@ -60,17 +69,21 @@ task integrationTest(type: Test) {
 
 check.dependsOn integrationTest
 
+// Versions for some libraries
 def log4jVersion = '2.20.0'
 def slf4jVersion = '1.7.36'
 
+// Dependencies
 dependencies {
+    // Your test libs
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:5.14.2'
     testImplementation 'org.mockito:mockito-inline:5.2.0'
     testImplementation 'org.powermock:powermock-module-junit4:2.0.9'
     testImplementation 'org.powermock:powermock-api-mockito2:2.0.9'
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.8.2")
+    testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.8.2"
 
+    // Your main libs
     api 'org.json:json:20231013'
     api 'com.squareup.okhttp3:okhttp:4.12.0'
     api 'org.apache.commons:commons-lang3:3.8.1'
@@ -117,21 +130,22 @@ configurations.all {
     }
 }
 
-test {
-    useJUnitPlatform()
-}
-
+// Create sources/javadoc JARs
 java {
     withSourcesJar()
     withJavadocJar()
 }
 
+// Standard Maven Publishing (Sonatype)
 publishing {
     publications {
         maven(MavenPublication) {
+            // Use the groupId and artifactId you want in Maven Central
             groupId = 'com.github.istin'
             artifactId = 'dmtools'
-            version = "${version}" // Keep original version with 'v' prefix
+            // Publish the "stripped" version (no 'v' prefix) from semVersion
+            version = semVersion
+
             from components.java
 
             pom {
@@ -161,89 +175,7 @@ publishing {
     }
 }
 
-tasks.register('prepareJReleaser') {
-    doLast {
-        mkdir("${buildDir}/jreleaser")
-        mkdir("${buildDir}/staging-deploy")
-    }
-}
-
-jreleaser {
-    project {
-        name = 'dmtools'
-        version = semVersion // Use version without 'v' prefix for JReleaser
-        website = 'https://github.com/IstiN/dmtools'
-        description = 'DM Tools Library'
-        license = 'MIT'
-        copyright = 'Copyright © 2024 Uladzimir Klyshevich. All rights reserved.'
-        authors = ['Uladzimir Klyshevich']
-        java {
-            version = '23'
-        }
-    }
-
-    signing {
-        active = 'ALWAYS'
-        armored = true
-    }
-
-    release {
-        github {
-            repoOwner = 'IstiN'
-            repoName = 'dmtools'
-            tagName = "v${project.version}"
-            releaseName = "v${project.version}"
-            draft = false
-            prerelease = false
-            overwrite = true
-            changelog {
-                enabled = true
-                formatted = true
-            }
-        }
-    }
-
-    deploy {
-        maven {
-            nexus2 {
-                create('maven-central') {
-                    active = 'ALWAYS'
-                    url = 'https://s01.oss.sonatype.org/service/local/'
-                    snapshotUrl = 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
-                    closeRepository = true
-                    releaseRepository = true
-                    stagingRepositories = ["${buildDir}/staging-deploy"]
-                }
-            }
-        }
-    }
-
-    distributions {
-        main {
-            artifacts {
-                artifact {
-                    path = "${buildDir}/libs/dmtools-${project.version}-all.jar"
-                }
-            }
-        }
-    }
-}
-
-tasks.register('prepareJReleaser') {
-    doLast {
-        mkdir("${buildDir}/jreleaser")
-        mkdir("${buildDir}/staging-deploy")
-    }
-}
-
-tasks.named('jreleaserDeploy').configure {
-    dependsOn 'prepareJReleaser', 'shadowJar'
-}
-
-tasks.named('jreleaserPackage').configure {
-    dependsOn 'prepareJReleaser', 'shadowJar'
-}
-
+// Sign published artifacts
 signing {
     def signingKey = System.getenv("GPG_SIGNING_KEY")
     def signingPassword = System.getenv("GPG_SIGNING_PASSWORD")
@@ -251,9 +183,24 @@ signing {
     sign publishing.publications.maven
 }
 
+// Configure the Gradle Nexus Publish Plugin
+nexusPublishing {
+    repositories {
+        sonatype {
+            // s01 if your account is on the "new" Sonatype host
+            nexusUrl = uri("https://s01.oss.sonatype.org/service/local/")
+            snapshotRepositoryUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            username = System.getenv("OSSRH_USERNAME")
+            password = System.getenv("OSSRH_PASSWORD")
+        }
+    }
+}
+
+// Shadow JAR
 shadowJar {
     archiveBaseName.set('dmtools')
-    archiveVersion.set(project.version) // Keep original version with 'v' prefix
+    // Include the full (possibly 'v'-prefixed) version in the filename if you want:
+    archiveVersion.set(project.version)
     archiveClassifier.set('all')
     archiveExtension.set('jar')
     manifest {
