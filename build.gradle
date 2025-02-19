@@ -189,10 +189,13 @@ jreleaser {
 
     release {
         github {
-            owner = 'IstiN'
-            name = 'dmtools'
-            username = 'IstiN'
-            overwrite = true
+            tagName = "v${project.version}"
+            releaseName = "v${project.version}"
+            changelog.enabled = true
+            repository {
+                repoOwner = 'IstiN'
+                name = 'dmtools'
+            }
         }
     }
 
@@ -219,6 +222,13 @@ jreleaser {
                 }
             }
         }
+    }
+}
+
+tasks.register('prepareJReleaser') {
+    doLast {
+        mkdir("${buildDir}/jreleaser")
+        mkdir("${buildDir}/staging-deploy")
     }
 }
 
