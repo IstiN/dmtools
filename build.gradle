@@ -189,8 +189,8 @@ jreleaser {
 
     release {
         github {
-            owner = 'IstiN'
-            name = 'dmtools'
+            repoOwner = 'IstiN'
+            repoName = 'dmtools'
             tagName = "v${project.version}"
             releaseName = "v${project.version}"
             draft = false
