@@ -1,4 +1,4 @@
-name: Build and Publish to Maven Central
+name: Build & Publish Fat JAR
 
 on:
   push:
@@ -15,14 +15,14 @@ jobs:
       packages: write
 
     steps:
-      - name: Check out the repo
+      - name: Check out
         uses: actions/checkout@v4
 
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '17'  # or '23' if you prefer
+          java-version: '23'
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -51,8 +51,9 @@ jobs:
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
 
-      - name: Build, Test, and Shadow Jar
+      - name: Build, Test, and Create Fat JAR
         run: |
+          # Build, run tests, create the Shadow JAR
           ./gradlew clean build shadowJar --info
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
@@ -80,9 +81,10 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Publish to Sonatype
-        # This will publish (snapshots or releases) and then, if it's a release,
-        # it closes and releases the Sonatype staging repo automatically
         run: |
+          # Publish artifacts to Sonatype.
+          # If your version doesn't end with "-SNAPSHOT", this will create a staging repo and
+          # then close and release it. For snapshots, it just uploads to the snapshot repo.
           ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository --info
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
@@ -90,24 +92,28 @@ jobs:
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
 
-      - name: Create a GitHub Release (Optional)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Create a GitHub Release
+        # Only run if tag starts with 'v'
+        if: startsWith(github.ref_name, 'v')
+        id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
+          tag_name: ${{ github.ref_name }}      # e.g. v1.0.0
+          release_name: ${{ github.ref_name }}  # e.g. v1.0.0
           draft: false
           prerelease: false
 
-      - name: Upload Fat JAR to Release (Optional)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Upload Fat JAR to GitHub Release
+        # Only run if tag starts with 'v'
+        if: startsWith(github.ref_name, 'v')
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: build/libs/dmtools-${{ env.GITHUB_REF#refs/tags/ }}-all.jar
-          asset_name: dmtools-${{ env.GITHUB_REF#refs/tags/ }}-all.jar
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          # The Shadow JAR is in build/libs with a name like dmtools-v1.0.0-all.jar
+          asset_path: build/libs/dmtools-${{ github.ref_name }}-all.jar
+          asset_name: dmtools-${{ github.ref_name }}-all.jar
           asset_content_type: application/java-archive
