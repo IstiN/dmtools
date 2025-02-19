@@ -159,7 +159,6 @@ publishing {
     }
 }
 
-// Add this before the jreleaser configuration
 tasks.register('prepareJReleaser') {
     doLast {
         mkdir("${buildDir}/jreleaser")
@@ -194,20 +193,23 @@ jreleaser {
                     snapshotUrl = 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
                     closeRepository = true
                     releaseRepository = true
-                    stagingRepositories = ['build/staging-deploy']
+                    stagingRepositories = ["${buildDir}/staging-deploy"]
                 }
             }
         }
     }
 
-    files {
-        artifacts {
-            path = 'build/libs/dmtools-v${project.version}-all.jar'
+    distributions {
+        main {
+            artifacts {
+                artifact {
+                    path = "${buildDir}/libs/dmtools-v${project.version}-all.jar"
+                }
+            }
         }
     }
 }
 
-// Add these task dependencies
 tasks.named('jreleaserDeploy').configure {
     dependsOn 'prepareJReleaser', 'shadowJar'
 }

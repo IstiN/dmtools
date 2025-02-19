@@ -52,19 +52,20 @@ jobs:
 
       - name: Build and Publish
         run: |
-          ./gradlew clean build shadowJar prepareJReleaser jreleaserDeploy -x integrationTest
+          ./gradlew clean build shadowJar prepareJReleaser jreleaserDeploy -x integrationTest --info
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-          GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JRELEASER_NEXUS2_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           JRELEASER_NEXUS2_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
           JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_SIGNING_PASSWORD }}
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
 
       - name: Upload Test Results
         if: always()
