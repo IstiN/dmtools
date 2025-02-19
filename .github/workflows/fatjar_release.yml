@@ -1,30 +1,30 @@
-name: Build & Publish Fat JAR
+name: Build Fat JAR and Publish Package
 
 on:
   push:
     tags:
       - 'v*.*.*'
+
   workflow_dispatch:
 
 jobs:
-  build-and-publish:
+  build:
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
       packages: write
 
     steps:
-      - name: Check out
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up JDK 23
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '23'
 
-      - name: Cache Gradle
+      - name: Cache Gradle files
         uses: actions/cache@v4
         with:
           path: |
@@ -34,31 +34,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Verify Environment
-        run: |
-          echo "Java version:"
-          java -version
-          echo "Gradle version:"
-          ./gradlew --version
-          echo "Environment check:"
-          if [ -z "$OSSRH_USERNAME" ]; then echo "OSSRH_USERNAME is not set"; fi
-          if [ -z "$OSSRH_PASSWORD" ]; then echo "OSSRH_PASSWORD is not set"; fi
-          if [ -z "$GPG_SIGNING_KEY" ]; then echo "GPG_SIGNING_KEY is not set"; fi
-          if [ -z "$GPG_SIGNING_PASSWORD" ]; then echo "GPG_SIGNING_PASSWORD is not set"; fi
+      - name: Build with Gradle
+        run: ./gradlew clean build shadowJar publish -x integrationTest
         env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-          GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
-
-      - name: Build, Test, and Create Fat JAR
-        run: |
-          ./gradlew clean build shadowJar --info -x integrationTest
-        env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-          GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Test Results
         if: always()
@@ -79,37 +59,27 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-#      - name: Publish to Sonatype
-#        run: |
-#          # Publish artifacts to Sonatype.
-#          # If your version doesn't end with "-SNAPSHOT", this will create a staging repo and
-#          # then close and release it. For snapshots, it just uploads to the snapshot repo.
-#          ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository --info
-#        env:
-#          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-#          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-#          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-#          GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
-
-      - name: Create a GitHub Release
-        if: startsWith(github.ref_name, 'v')
+      - name: Create a Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
           draft: false
           prerelease: false
 
-      - name: Upload Fat JAR to GitHub Release
-        if: startsWith(github.ref_name, 'v')
+      - name: Extract Tag Name
+        id: extract_tag
+        run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: build/libs/dmtools-${{ github.ref_name[1:] }}-all.jar
-          asset_name: dmtools-${{ github.ref_name[1:] }}-all.jar
+          asset_path: build/libs/dmtools-${{ env.tag_name }}-all.jar
+          asset_name: dmtools-${{ env.tag_name }}-all.jar
           asset_content_type: application/java-archive
