@@ -2,20 +2,12 @@ plugins {
     id 'java-library'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'jacoco'
-    id 'maven-publish'
-    id 'signing'
-    // Gradle Nexus Publish Plugin (for Sonatype/Maven Central)
-    id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
 }
 
-ext {
-    // Original logic: if version starts with 'v', remove it for publishing
-    isReleaseVersion = !version.endsWith("SNAPSHOT")
-    semVersion = version.startsWith('v') ? version.substring(1) : version
-}
+apply plugin: 'maven-publish'
 
 group = 'com.github.istin'
-version = "${version}" // e.g., "v1.4.89" or "1.4.89-SNAPSHOT"
+version = "${version}"
 
 repositories {
     mavenCentral()
@@ -35,10 +27,8 @@ test {
         exceptionFormat "full"
     }
     finalizedBy jacocoTestReport
-    useJUnitPlatform() // if you have JUnit5 tests
 }
 
-// Integration test setup
 sourceSets {
     integrationTest {
         java.srcDir file('src/integrationTest/java')
@@ -58,54 +48,65 @@ task integrationTest(type: Test) {
     group = 'verification'
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
-    shouldRunAfter test
+    shouldRunAfter test // ensure that integration tests run after unit tests
 }
 
+// Optional: register with check task
 check.dependsOn integrationTest
 
-// Versions for libraries
 def log4jVersion = '2.20.0'
 def slf4jVersion = '1.7.36'
 
 dependencies {
-    // Test libraries
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:5.14.2'
     testImplementation 'org.mockito:mockito-inline:5.2.0'
     testImplementation 'org.powermock:powermock-module-junit4:2.0.9'
     testImplementation 'org.powermock:powermock-api-mockito2:2.0.9'
-    testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.8.2"
 
-    // Main libraries
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.8.2")
+
     api 'org.json:json:20231013'
     api 'com.squareup.okhttp3:okhttp:4.12.0'
     api 'org.apache.commons:commons-lang3:3.8.1'
+
     api 'com.thedeanda:lorem:2.1'
+
     api "org.apache.logging.log4j:log4j-api:${log4jVersion}"
     api "org.apache.logging.log4j:log4j-core:${log4jVersion}"
     api "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
     api "org.slf4j:slf4j-api:${slf4jVersion}"
+
     api group: 'commons-io', name: 'commons-io', version: '2.14.0'
     api group: 'commons-codec', name: 'commons-codec', version: '1.13'
     api group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
+
     api(group: 'org.jsoup', name: 'jsoup', version: '1.18.3')
+
     api group: 'org.jxls', name: 'jxls', version: '2.14.0'
     api group: 'org.jxls', name: 'jxls-poi', version: '2.14.0'
     api group: 'org.jxls', name: 'jxls-reader', version: '2.1.0'
+
     api(group: 'org.apache.commons', name: 'commons-collections4', version: '4.3')
     api(group: 'org.apache.commons', name: 'commons-jexl', version: '2.1.1')
+
     api group: 'org.apache.poi', name: 'poi', version: '4.1.1'
     api group: 'org.apache.poi', name: 'poi-ooxml', version: '3.17'
+
     api 'org.apache.pdfbox:pdfbox:3.0.2'
     api 'io.github.furstenheim:copy_down:1.1'
     api 'org.seleniumhq.selenium:selenium-java:4.21.0'
     api 'io.github.bonigarcia:webdrivermanager:5.9.2'
     api group: 'org.graalvm.js', name: 'js', version: '24.1.1'
     api group: 'org.graalvm.js', name: 'js-scriptengine', version: '24.1.1'
+
     api 'com.github.mpkorstanje:simmetrics-core:4.1.1'
+
+    // Add Dagger dependencies
     api 'com.google.dagger:dagger:2.53.1'
     api 'com.google.auth:google-auth-library-oauth2-http:1.19.0'
     annotationProcessor 'com.google.dagger:dagger-compiler:2.53.1'
+
     compileOnly 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'
     api 'net.sourceforge.tess4j:tess4j:5.8.0'
@@ -113,7 +114,7 @@ dependencies {
 }
 
 configurations.all {
-    resolutionStrategy.eachDependency { details ->
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
         if (details.requested.group == 'org.slf4j') {
             details.useVersion slf4jVersion
         }
@@ -123,21 +124,20 @@ configurations.all {
     }
 }
 
-java {
-    withSourcesJar()
-    withJavadocJar()
+test {
+    useJUnitPlatform()
 }
 
-// Publishing configuration – published coordinates override the internal group.
+
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId = 'io.github.istin'
+            groupId = 'com.github.istin'
             artifactId = 'dmtools'
-            version = semVersion // e.g., "1.4.89"
-
+            version = "v${version}"
             from components.java
 
+            // Include dependencies information in the POM
             pom {
                 name = 'DM Tools'
                 description = 'DM Tools Library'
@@ -152,46 +152,40 @@ publishing {
                     developer {
                         id = 'istin'
                         name = 'Uladzimir Klyshevich'
-                        email = 'istin2007@gmail.com'
+                        email = 'uladzimir.klyshevich@gmail.com'
                     }
                 }
                 scm {
                     connection = 'scm:git:git://github.com/IstiN/dmtools.git'
-                    developerConnection = 'scm:git:ssh://github.com/IstiN/dmtools.git'
+                    developerConnection = 'scm:git:ssh://github.com:IstiN/dmtools.git'
                     url = 'https://github.com/IstiN/dmtools'
                 }
             }
         }
     }
-}
-
-// Sign published artifacts
-signing {
-    def signingKey = System.getenv("GPG_SIGNING_KEY")
-    def signingPassword = System.getenv("GPG_SIGNING_PASSWORD")
-    useInMemoryPgpKeys(signingKey, signingPassword)
-    sign publishing.publications.maven
-}
-
-// Nexus Publish Plugin configuration
-nexusPublishing {
-    packageGroup = 'io.github.istin'
     repositories {
-        sonatype {
-            nexusUrl = uri("https://s01.oss.sonatype.org/service/local/")
-            snapshotRepositoryUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-            username = System.getenv("OSSRH_USERNAME")
-            password = System.getenv("OSSRH_PASSWORD")
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/IstiN/dmtools")
+            credentials {
+                username = System.getenv("GITHUB_USERNAME")
+                password = System.getenv("GITHUB_TOKEN")
+            }
         }
     }
 }
 
-// Shadow JAR configuration – now using semVersion to match the published version.
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
 shadowJar {
+    // Configure the shadow JAR task as needed
     archiveBaseName.set('dmtools')
-    archiveVersion.set(semVersion)  // e.g., "1.4.89"
+    archiveVersion.set('v'+version)
     archiveClassifier.set('all')
     archiveExtension.set('jar')
+    // Optionally specify main class
     manifest {
         attributes 'Main-Class': 'com.github.istin.dmtools.job.JobRunner'
     }
