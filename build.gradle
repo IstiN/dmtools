@@ -175,6 +175,7 @@ jreleaser {
         website = 'https://github.com/IstiN/dmtools'
         description = 'DM Tools Library'
         license = 'MIT'
+        copyright = 'Copyright © 2024 Uladzimir Klyshevich. All rights reserved.'
         authors = ['Uladzimir Klyshevich']
         java {
             version = '23'
@@ -184,6 +185,15 @@ jreleaser {
     signing {
         active = 'ALWAYS'
         armored = true
+    }
+
+    release {
+        github {
+            owner = 'IstiN'
+            name = 'dmtools'
+            username = 'IstiN'
+            overwrite = true
+        }
     }
 
     deploy {
