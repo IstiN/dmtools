@@ -9,10 +9,12 @@ plugins {
 
 ext {
     isReleaseVersion = !version.endsWith("SNAPSHOT")
+    // Extract version without 'v' prefix for JReleaser
+    semVersion = version.startsWith('v') ? version.substring(1) : version
 }
 
 group = 'com.github.istin'
-version = "${version}"
+version = "${version}" // Keep original version with 'v' prefix
 
 repositories {
     mavenCentral()
@@ -129,7 +131,7 @@ publishing {
         maven(MavenPublication) {
             groupId = 'com.github.istin'
             artifactId = 'dmtools'
-            version = "${version}"
+            version = "${version}" // Keep original version with 'v' prefix
             from components.java
 
             pom {
@@ -169,7 +171,7 @@ tasks.register('prepareJReleaser') {
 jreleaser {
     project {
         name = 'dmtools'
-        version = "${version}"
+        version = semVersion // Use version without 'v' prefix for JReleaser
         website = 'https://github.com/IstiN/dmtools'
         description = 'DM Tools Library'
         license = 'MIT'
@@ -203,7 +205,7 @@ jreleaser {
         main {
             artifacts {
                 artifact {
-                    path = "${buildDir}/libs/dmtools-v${project.version}-all.jar"
+                    path = "${buildDir}/libs/dmtools-${project.version}-all.jar"
                 }
             }
         }
@@ -227,7 +229,7 @@ signing {
 
 shadowJar {
     archiveBaseName.set('dmtools')
-    archiveVersion.set('v'+version)
+    archiveVersion.set(project.version) // Keep original version with 'v' prefix
     archiveClassifier.set('all')
     archiveExtension.set('jar')
     manifest {
