@@ -2,9 +2,15 @@ plugins {
     id 'java-library'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'jacoco'
+    id 'signing'
+}
+
+ext {
+    isReleaseVersion = !version.endsWith("SNAPSHOT")
 }
 
 apply plugin: 'maven-publish'
+
 
 group = 'com.github.istin'
 version = "${version}"
@@ -137,7 +143,10 @@ publishing {
             version = "v${version}"
             from components.java
 
-            // Include dependencies information in the POM
+            // Add sources and javadoc artifacts
+            artifact sourcesJar
+            artifact javadocJar
+
             pom {
                 name = 'DM Tools'
                 description = 'DM Tools Library'
@@ -152,7 +161,7 @@ publishing {
                     developer {
                         id = 'istin'
                         name = 'Uladzimir Klyshevich'
-                        email = 'uladzimir.klyshevich@gmail.com'
+                        email = 'istin2007@gmail.com'
                     }
                 }
                 scm {
@@ -164,6 +173,18 @@ publishing {
         }
     }
     repositories {
+        maven {
+            name = "OSSRH"
+            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            url = isReleaseVersion ? releasesRepoUrl : snapshotsRepoUrl
+            credentials {
+                username = System.getenv("OSSRH_USERNAME")
+                password = System.getenv("OSSRH_PASSWORD")
+            }
+        }
+
+        // Keep your existing GitHub packages repository
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/IstiN/dmtools")
@@ -177,6 +198,18 @@ publishing {
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+signing {
+    def signingKey = System.getenv("GPG_SIGNING_KEY")
+    def signingPassword = System.getenv("GPG_SIGNING_PASSWORD")
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications.maven
 }
 
 shadowJar {
