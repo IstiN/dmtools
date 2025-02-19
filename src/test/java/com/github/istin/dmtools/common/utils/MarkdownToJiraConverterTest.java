@@ -6,6 +6,21 @@ import static org.junit.Assert.*;
 public class MarkdownToJiraConverterTest {
 
     @Test
+    public void testGherkinStyleWithLineBreaks() {
+        String html = "<p><strong>Given</strong> the user is on the Google search page<br>" +
+                "<strong>When</strong> the user clicks the 'Search' button<br>" +
+                "<strong>Then</strong> the results page should appear<br>" +
+                "<strong>And</strong> the page should contain 'Search results' and 'Filter options'</p>";
+
+        String expected = "*Given* the user is on the Google search page\n" +
+                "*When* the user clicks the 'Search' button\n" +
+                "*Then* the results page should appear\n" +
+                "*And* the page should contain 'Search results' and 'Filter options'";
+
+        assertEquals(expected, MarkdownToJiraConverter.convertToJiraMarkdown(html));
+    }
+
+    @Test
     public void testHtmlInput() {
         String html = "<p>This is <strong>bold</strong> and <em>italic</em></p>" +
                 "<pre><code class=\"java\">public class Test {}</code></pre>";
