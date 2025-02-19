@@ -34,8 +34,31 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Verify Environment
+        run: |
+          echo "Java version:"
+          java -version
+          echo "Gradle version:"
+          ./gradlew --version
+          echo "Environment check:"
+          if [ -z "$OSSRH_USERNAME" ]; then echo "OSSRH_USERNAME is not set"; fi
+          if [ -z "$OSSRH_PASSWORD" ]; then echo "OSSRH_PASSWORD is not set"; fi
+          if [ -z "$GPG_SIGNING_KEY" ]; then echo "GPG_SIGNING_KEY is not set"; fi
+          if [ -z "$GPG_SIGNING_PASSWORD" ]; then echo "GPG_SIGNING_PASSWORD is not set"; fi
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
+
       - name: Build and Publish
-        run: ./gradlew clean build shadowJar publish -x integrationTest
+        run: |
+          if ! ./gradlew clean build shadowJar publish -x integrationTest --debug --stacktrace; then
+            echo "Gradle build failed"
+            echo "Checking logs..."
+            cat build/reports/publish.txt || true
+            exit 1
+          fi
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -10,9 +10,6 @@ ext {
     isReleaseVersion = !version.endsWith("SNAPSHOT")
 }
 
-apply plugin: 'maven-publish'
-
-
 group = 'com.github.istin'
 version = "${version}"
 
