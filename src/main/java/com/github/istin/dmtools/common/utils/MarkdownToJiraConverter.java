@@ -383,7 +383,8 @@ public class MarkdownToJiraConverter {
                 .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
                 .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
                 .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
-                .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
+                .replaceAll("(?i)<i>(.*?)</i>",  "_$1_")
+                .replaceAll("(?i)<br\\s*/?>", "\n")
                 .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
                 .replaceAll("(?i)<[^>]+>", "");
 
@@ -448,6 +449,7 @@ public class MarkdownToJiraConverter {
                     .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
                     .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
                     .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
+                    .replaceAll("(?i)<br\\s*/?>", "\n")
                     .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
                     .replaceAll("(?i)<[^>]+>", "");
 
@@ -496,6 +498,7 @@ public class MarkdownToJiraConverter {
                     .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
                     .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
                     .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
+                    .replaceAll("(?i)<br\\s*/?>", "\n")
                     .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
                     .replaceAll("(?i)<[^>]+>", "");
 
@@ -542,6 +545,7 @@ public class MarkdownToJiraConverter {
                                 .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
                                 .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
                                 .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
+                                .replaceAll("(?i)<br\\s*/?>", "\n")
                                 .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
                                 .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
                                 .replaceAll("(?i)<[^>]+>", "");
@@ -575,6 +579,7 @@ public class MarkdownToJiraConverter {
                 .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
                 .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
                 .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
+                .replaceAll("(?i)<br\\s*/?>", "\n")
                 .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
                 .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
                 .replaceAll("(?i)<[^>]+>", "");
