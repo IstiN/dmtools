@@ -3,6 +3,7 @@ package com.github.istin.dmtools.atlassian.jira.model;
 public class Relationship {
     public static final String IS_BLOCKED_BY = "is blocked by";
     public static final String TESTED_BY = "tested by";
+    public static final String IS_TESTED_BY = "is tested by";
     public static final String DEFINES = "defines";
     public static final String IS_DEFINED_BY = "is defined by";
     public static final String IS_BLOCKED_BY_ = "is blocked by_";
