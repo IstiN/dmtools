@@ -10,6 +10,8 @@ import java.util.List;
 
 public class GitHubFile extends JSONModel implements IFile {
 
+    public static final String TEXT_MATCHES = "text_matches";
+
     public GitHubFile() {
 
     }
@@ -58,6 +60,23 @@ public class GitHubFile extends JSONModel implements IFile {
 
     @Override
     public List<ITextMatch> getTextMatches() {
-        return getModels(GitHubTextMatch.class, "text_matches");
+        return getModels(GitHubTextMatch.class, TEXT_MATCHES);
+    }
+
+    @Override
+    public String toString() {
+        JSONObject json = new JSONObject();
+        try {
+            json.put("path", getPath());
+            json.put("type", getType());
+            json.put("url", getSelfLink());
+            if (fileContent != null) {
+                json.put("fileContent", fileContent);
+            }
+            json.put(TEXT_MATCHES, getJSONArray(TEXT_MATCHES));
+        } catch (JSONException e) {
+            return super.toString();
+        }
+        return json.toString();
     }
 }

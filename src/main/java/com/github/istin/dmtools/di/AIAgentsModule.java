@@ -65,6 +65,11 @@ public class AIAgentsModule {
     }
 
     @Provides
+    SearchResultsAssessmentAgent provideSearchResultsAssessmentAgent() {
+        return new SearchResultsAssessmentAgent();
+    }
+
+    @Provides
     ConfluenceSearchOrchestrator provideConfluenceSearchOrchestrator() {
         try {
             return new ConfluenceSearchOrchestrator(BasicConfluence.getInstance());

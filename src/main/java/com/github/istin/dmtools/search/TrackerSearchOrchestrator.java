@@ -51,18 +51,43 @@ public class TrackerSearchOrchestrator extends AbstractSearchOrchestrator {
     public List<?> searchItemsWithKeywords(String keyword, Object platformContext, int itemsLimit) throws Exception {
         String jql = String.format("summary ~ \"%s\" OR description ~ \"%s\"", keyword, keyword);
         final List<ITicket> results = new ArrayList<>();
-//        trackerClient.searchAndPerform(new JiraClient.Performer<ITicket>() {
-//            @Override
-//            public boolean perform(ITicket ticket) throws Exception {
-//                results.add(ticket);
-//                return false;
-//            }
-//        }, jql, new String[]{"summary", "description"});
+        trackerClient.searchAndPerform((JiraClient.Performer) ticket -> {
+            results.add(ticket);
+            if (results.size() >= itemsLimit) {
+                return true;
+            }
+            return false;
+        }, jql, new String[]{"summary", "description"});
         return results;
     }
 
     @Override
     public Object createInitialPlatformContext() {
         return trackerClient;
+    }
+
+    @Override
+    protected Object getItemByKey(Object key, List<?> items) {
+        for (Object o : items) {
+            ITicket ticket = (ITicket) o;
+            if (ticket.getTicketKey().equalsIgnoreCase((String) key)) {
+                return ticket;
+            }
+        }
+        try {
+            return trackerClient.performTicket(String.valueOf(key), trackerClient.getDefaultQueryFields());
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    @Override
+    protected String getKeyFieldValue() {
+        return "key";
+    }
+
+    @Override
+    protected String getSourceType() {
+        return "tracker";
     }
 }

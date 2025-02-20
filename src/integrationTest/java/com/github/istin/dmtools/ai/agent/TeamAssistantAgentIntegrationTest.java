@@ -1,6 +1,5 @@
-package com.github.istin.dmtools;
+package com.github.istin.dmtools.ai.agent;
 
-import com.github.istin.dmtools.ai.agent.TeamAssistantAgent;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;

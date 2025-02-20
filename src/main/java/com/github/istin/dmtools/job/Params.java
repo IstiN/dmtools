@@ -2,6 +2,7 @@ package com.github.istin.dmtools.job;
 
 import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
+import com.github.istin.dmtools.search.AbstractSearchOrchestrator;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 
@@ -22,6 +23,12 @@ public class Params {
     public static final String FILES_LIMIT = "filesLimit";
     public static final String CONFLUENCE_LIMIT = "confluenceLimit";
     public static final String TRACKER_LIMIT = "trackerLimit";
+
+    public static final String FILES_ITERATIONS = "filesIterations";
+    public static final String CONFLUENCE_ITERATIONS = "confluenceIterations";
+    public static final String TRACKER_ITERATIONS = "trackerIterations";
+
+    public static final String SEARCH_ORCHESTRATOR_TYPE = "searchOrchestratorType";
     public static final String METADATA = "metadata";
 
     @SerializedName(INPUT_JQL)
@@ -53,6 +60,19 @@ public class Params {
 
     @SerializedName(TRACKER_LIMIT)
     private int trackerLimit = 10;
+
+    @SerializedName(FILES_ITERATIONS)
+    private int filesIterations = 1;
+
+    @SerializedName(CONFLUENCE_ITERATIONS)
+    private int confluenceIterations = 1;
+
+    @SerializedName(TRACKER_ITERATIONS)
+    private int trackerIterations = 1;
+
+
+    @SerializedName(SEARCH_ORCHESTRATOR_TYPE)
+    private AbstractSearchOrchestrator.ProcessingType searchOrchestratorType = AbstractSearchOrchestrator.ProcessingType.BULK;
 
     @SerializedName(METADATA)
     private Metadata metadata;
