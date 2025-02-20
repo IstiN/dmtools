@@ -1,6 +1,5 @@
-package com.github.istin.dmtools;
+package com.github.istin.dmtools.ai.agent;
 
-import com.github.istin.dmtools.ai.agent.TestCaseGeneratorAgent;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import org.junit.Before;
 import org.junit.Test;

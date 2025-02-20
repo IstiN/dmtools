@@ -1,14 +1,16 @@
 package com.github.istin.dmtools.search;
 
 import com.github.istin.dmtools.ai.agent.KeywordGeneratorAgent;
+import com.github.istin.dmtools.ai.agent.SearchResultsAssessmentAgent;
 import com.github.istin.dmtools.ai.agent.SnippetExtensionAgent;
 import com.github.istin.dmtools.ai.agent.SummaryContextAgent;
 import com.github.istin.dmtools.di.DaggerAbstractSearchOrchestratorComponent;
-import com.github.istin.dmtools.di.DaggerSearchOrchestratorComponent;
 import org.json.JSONArray;
 
 import javax.inject.Inject;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public abstract class AbstractSearchOrchestrator {
 
@@ -21,6 +23,9 @@ public abstract class AbstractSearchOrchestrator {
     @Inject
     protected SummaryContextAgent summaryContextAgent;
 
+    @Inject
+    protected SearchResultsAssessmentAgent searchResultsAssessmentAgent;
+
     public AbstractSearchOrchestrator() {
         DaggerAbstractSearchOrchestratorComponent.create().inject(this);
         setupDependencyInjection();
@@ -32,33 +37,41 @@ public abstract class AbstractSearchOrchestrator {
     /**
      * Process a single item iteratively: small fragments first, followed by full content if needed.
      */
-    protected boolean processItem(Object item, String fullTask, StringBuffer contextSummary, Object platformContext) throws Exception {
+    protected boolean processItem(ProcessingType processingType, Object item, String fullTask, StringBuffer contextSummary, Object platformContext) throws Exception {
         String itemSnippet = getItemSnippet(item, platformContext); // Abstract method for getting snippet
         String resourceKey = getItemResourceKey(item); // Abstract method for unique identifier (e.g., URI or key)
 
         // Step 1: Process the snippet first using SnippetExtensionAgent
-        if (snippetExtensionAgent.run(new SnippetExtensionAgent.Params(itemSnippet, fullTask))) {
-            String fullContent = getFullItemContent(item, platformContext); // Abstract method for full content
-            String response = summaryContextAgent.run(new SummaryContextAgent.Params(
+        if (processingType == ProcessingType.ONE_BY_ONE) {
+            if (snippetExtensionAgent.run(new SnippetExtensionAgent.Params(itemSnippet, fullTask))) {
+                if (processeFullContent(item, fullTask, contextSummary, platformContext, resourceKey)) return true;
+            }
+            // Step 2: Fallback to processing just the snippet
+            String snippetResponse = summaryContextAgent.run(new SummaryContextAgent.Params(
                     fullTask,
-                    formatFullItemResponse(resourceKey, fullContent)
+                    formatSnippetResponse(resourceKey, itemSnippet)
             ));
-            if (!response.isEmpty()) {
-                contextSummary.append("\n").append(response);
+            if (!snippetResponse.isEmpty()) {
+                contextSummary.append("\n").append(snippetResponse);
                 return true;
             }
+        } else {
+            if (processeFullContent(item, fullTask, contextSummary, platformContext, resourceKey)) return true;
         }
 
-        // Step 2: Fallback to processing just the snippet
-        String snippetResponse = summaryContextAgent.run(new SummaryContextAgent.Params(
+        return false;
+    }
+
+    private boolean processeFullContent(Object item, String fullTask, StringBuffer contextSummary, Object platformContext, String resourceKey) throws Exception {
+        String fullContent = getFullItemContent(item, platformContext); // Abstract method for full content
+        String response = summaryContextAgent.run(new SummaryContextAgent.Params(
                 fullTask,
-                formatSnippetResponse(resourceKey, itemSnippet)
+                formatFullItemResponse(resourceKey, fullContent)
         ));
-        if (!snippetResponse.isEmpty()) {
-            contextSummary.append("\n").append(snippetResponse);
+        if (!response.isEmpty()) {
+            contextSummary.append("\n").append(response);
             return true;
         }
-
         return false;
     }
 
@@ -105,7 +118,11 @@ public abstract class AbstractSearchOrchestrator {
 
     public abstract Object createInitialPlatformContext();
 
-    public String run(String fullTask, String keywordsBlacklist, int itemsLimit, int iterations) throws Exception {
+    public enum ProcessingType {
+        ONE_BY_ONE, BULK
+    }
+
+    public String run(ProcessingType processingType, String fullTask, String keywordsBlacklist, int itemsLimit, int iterations) throws Exception {
         StringBuffer contextSummary = new StringBuffer();
         Set<String> processedItems = new HashSet<>();
         Object platformContext = createInitialPlatformContext();
@@ -121,11 +138,37 @@ public abstract class AbstractSearchOrchestrator {
                 String keyword = keywords.getString(i);
 
                 List<?> items = searchItemsWithKeywords(keyword, platformContext, itemsLimit);
-                for (Object item : items) {
-                    if (processedItems.contains(getItemResourceKey(item))) continue;
+                if (processingType == ProcessingType.ONE_BY_ONE) {
+                    for (Object item : items) {
+                        if (processedItems.contains(getItemResourceKey(item))) continue;
 
-                    if (processItem(item, fullTask, contextSummary, platformContext)) {
-                        processedItems.add(getItemResourceKey(item));
+                        if (processItem(processingType, item, fullTask, contextSummary, platformContext)) {
+                            processedItems.add(getItemResourceKey(item));
+                        }
+                    }
+                } else {
+                    if (items.isEmpty()) {
+                        continue;
+                    }
+
+                    // Run assessment
+                    SearchResultsAssessmentAgent.Params params = new SearchResultsAssessmentAgent.Params(
+                            getSourceType(),
+                            getKeyFieldValue(),
+                            fullTask,
+                            items.toString()
+                    );
+
+                    JSONArray relevantKeys = searchResultsAssessmentAgent.run(params);
+
+                    // Convert JSONArray to List<String>
+                    for (int j = 0; j < relevantKeys.length(); j++) {
+                        Object key = relevantKeys.get(j);
+                        if (processedItems.contains(key)) continue;
+                        Object itemByKey = getItemByKey(key, items);
+                        if (itemByKey != null && processItem(processingType, itemByKey, fullTask, contextSummary, platformContext)) {
+                            processedItems.add(String.valueOf(key));
+                        }
                     }
                 }
             }
@@ -136,4 +179,10 @@ public abstract class AbstractSearchOrchestrator {
 
         return contextSummary.toString();
     }
+
+    protected abstract Object getItemByKey(Object key, List<?> items);
+
+    protected abstract String getKeyFieldValue();
+
+    protected abstract String getSourceType();
 }

@@ -6,15 +6,17 @@ import com.github.istin.dmtools.common.model.IFile;
 import com.github.istin.dmtools.common.model.ITextMatch;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CodebaseSearchOrchestrator extends AbstractSearchOrchestrator {
 
     private final SourceCodeConfig[] sourceCodeConfigs;
-
-    public CodebaseSearchOrchestrator(SourceCodeConfig[] sourceCodeConfigs) {
+    private List<SourceCode> sourceCodes;
+    public CodebaseSearchOrchestrator(SourceCodeConfig[] sourceCodeConfigs) throws IOException {
         this.sourceCodeConfigs = sourceCodeConfigs;
+        sourceCodes = new SourceCodeFactory().createSourceCodes(sourceCodeConfigs);
     }
 
     @Override
@@ -34,8 +36,13 @@ public class CodebaseSearchOrchestrator extends AbstractSearchOrchestrator {
     @Override
     protected String getFullItemContent(Object item, Object platformContext) throws Exception {
         IFile file = (IFile) item;
-        SourceCode sourceCode = (SourceCode) platformContext;
-        return sourceCode.getFileContent(file.getSelfLink());
+        StringBuffer stringBuffer = new StringBuffer();
+        for (SourceCode sourceCode : sourceCodes) {
+            String fileContent = sourceCode.getFileContent(file.getSelfLink());
+            stringBuffer.append(file).append("\n");
+            stringBuffer.append(fileContent).append("\n");
+        }
+        return stringBuffer.toString();
     }
 
     @Override
@@ -46,7 +53,6 @@ public class CodebaseSearchOrchestrator extends AbstractSearchOrchestrator {
     @Override
     public List<IFile> searchItemsWithKeywords(String keyword, Object platformContext, int itemsLimit) throws Exception {
         List<IFile> result = new ArrayList<>();
-        List<SourceCode> sourceCodes = new SourceCodeFactory().createSourceCodes(sourceCodeConfigs);
 
         for (SourceCode sourceCode : sourceCodes) {
             List<IFile> files = sourceCode.searchFiles(
@@ -63,6 +69,27 @@ public class CodebaseSearchOrchestrator extends AbstractSearchOrchestrator {
 
     @Override
     public Object createInitialPlatformContext() {
-        return sourceCodeConfigs;
+        return sourceCodes;
+    }
+
+    @Override
+    protected Object getItemByKey(Object key, List<?> items) {
+        for (Object o : items) {
+            IFile file = (IFile) o;
+            if (file.getSelfLink().equalsIgnoreCase((String) key)) {
+                return file;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    protected String getKeyFieldValue() {
+        return "url";
+    }
+
+    @Override
+    protected String getSourceType() {
+        return "files";
     }
 }

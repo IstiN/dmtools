@@ -60,4 +60,25 @@ public class ConfluenceSearchOrchestrator extends AbstractSearchOrchestrator {
     public Object createInitialPlatformContext() {
         return confluence;
     }
+
+    @Override
+    protected Object getItemByKey(Object key, List<?> items) {
+        for (Object o : items) {
+            SearchResult searchResult = (SearchResult) o;
+            if (searchResult.getEntityId().equalsIgnoreCase((String) key)) {
+                return searchResult;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    protected String getKeyFieldValue() {
+        return SearchResult.ENTITY_ID;
+    }
+
+    @Override
+    protected String getSourceType() {
+        return "confluence";
+    }
 }

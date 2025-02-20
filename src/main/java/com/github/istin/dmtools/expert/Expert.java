@@ -16,8 +16,9 @@ import com.github.istin.dmtools.di.DaggerExpertComponent;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
+import com.github.istin.dmtools.search.AbstractSearchOrchestrator;
+import com.github.istin.dmtools.search.CodebaseSearchOrchestrator;
 import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
-import com.github.istin.dmtools.search.SearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import lombok.Getter;
 
@@ -50,8 +51,7 @@ public class Expert extends AbstractJob<ExpertParams> {
     @Inject
     TeamAssistantAgent teamAssistantAgent;
 
-    @Inject
-    SearchOrchestrator searchOrchestrator;
+    CodebaseSearchOrchestrator codebaseSearchOrchestrator;
 
     @Inject
     ConfluenceSearchOrchestrator confluenceSearchOrchestrator;
@@ -131,22 +131,23 @@ public class Expert extends AbstractJob<ExpertParams> {
     }
 
     private String extendContextWithCode(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
-        String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         SourceCodeConfig[] sourceCodeConfig = expertParams.getSourceCodeConfig();
+        codebaseSearchOrchestrator = new CodebaseSearchOrchestrator(sourceCodeConfig);
+        String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int filesLimit = expertParams.getFilesLimit();
-        return searchOrchestrator.run(structuredRequest, keywordsBlacklist, sourceCodeConfig, filesLimit, 1);
+        return codebaseSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, filesLimit, expertParams.getFilesLimit());
     }
 
     private String extendContextWithConfluence(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int confluenceLimit = expertParams.getConfluenceLimit();
-        return confluenceSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, confluenceLimit, 1);
+        return confluenceSearchOrchestrator.run(expertParams.getSearchOrchestratorType(),  structuredRequest.toString(), keywordsBlacklist, confluenceLimit, expertParams.getConfluenceLimit());
     }
 
     private String extendContextWithTracker(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int trackerLimit = expertParams.getTrackerLimit();
-        return trackerSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, trackerLimit, 1);
+        return trackerSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, trackerLimit, expertParams.getTrackerLimit());
     }
 
 
