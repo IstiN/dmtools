@@ -71,7 +71,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
         ITicket mainTicket = ticketContext.getTicket();
         String key = mainTicket.getTicketKey();
 
-        List<ITicket> finaResults = findAndLinkSimilarTestCasesBySummary(ticketContext, listOfAllTestCases, true, params.getRelatedTestCasesRules());
+        List<ITicket> finaResults = findAndLinkSimilarTestCasesBySummary(ticketContext, listOfAllTestCases, true, params.getRelatedTestCasesRules(), params.getTestCaseLinkRelationship());
 
         List<TestCaseGeneratorAgent.TestCase> newTestCases = testCaseGeneratorAgent.run(new TestCaseGeneratorAgent.Params(params.getTestCasesPriorities(), finaResults.toString(), ticketContext.toText(), extraRules));
 
@@ -99,13 +99,14 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
                         fields.set("labels", new JSONArray().put("ai_generated"));
                     }
                 }));
-                trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), Relationship.TESTS);
+
+                trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), params.getTestCaseLinkRelationship());
             }
         }
     }
 
     @NotNull
-    public List<ITicket> findAndLinkSimilarTestCasesBySummary(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink) throws Exception {
+    public List<ITicket> findAndLinkSimilarTestCasesBySummary(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink, String relationship) throws Exception {
         List<ITicket> finaResults = new ArrayList<>();
         String extraRelatedTestCaseRulesFromConfluence = new ConfluencePagesContext(new String[]{relatedTestCasesRulesLink}, confluence).toText();
         int batchSize = 50;
@@ -122,7 +123,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
                     if (isConfirmed) {
                         finaResults.add(testCase);
                         if (isLink) {
-                            trackerClient.linkIssueWithRelationship(ticketContext.getTicket().getTicketKey(), testCase.getKey(), Relationship.TESTS);
+                            trackerClient.linkIssueWithRelationship(ticketContext.getTicket().getTicketKey(), testCase.getKey(), relationship);
                         }
                     }
                 }
