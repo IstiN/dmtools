@@ -19,6 +19,7 @@ public class BasicCUrlAIClient extends CUrlAIClient {
                 .auth(propertyReader.getCurlAIAuth())
                 .curlUrlTemplate(propertyReader.getCurlAIUrlTemplate())
                 .curlBodyTemplate(propertyReader.getCurlAIBodyTemplate())
+                .curlBodyTemplateWithImage(propertyReader.getCurlAIBodyTemplateWithImage())
                 .curlAiResponseJsonPath(propertyReader.getCurlAiResponseJsonPath())
                 .build();
     }
@@ -29,7 +30,7 @@ public class BasicCUrlAIClient extends CUrlAIClient {
     }
 
     public BasicCUrlAIClient(CurlAIConfig config) throws IOException {
-        super(config.getBasePath(), config.getAuth(), config.getCurlUrlTemplate(), config.getCurlBodyTemplate(), config.getCurlAiResponseJsonPath(), config.getModel());
+        super(config.getBasePath(), config.getAuth(), config.getCurlUrlTemplate(), config.getCurlBodyTemplate(), config.getCurlBodyTemplateWithImage(), config.getCurlAiResponseJsonPath(), config.getModel());
         this.config = config;
     }
 

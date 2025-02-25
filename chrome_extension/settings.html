@@ -63,181 +63,291 @@
             border-color: #1a73e8;
             box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
         }
-        .confluence-page-row {
-            display: flex;
-            align-items: center;
-            margin-top: 10px;
-            gap: 8px;
-        }
-        .confluence-page-row input {
-            flex: 1;
-            margin: 0;
-            height: 36px;
-            padding: 0 12px;
-            box-sizing: border-box;
-            font-size: 14px;
-            border: 1px solid #dadce0;
-            border-radius: 6px;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .confluence-page-row .remove-button {
-            width: 36px;
-            height: 36px;
-            padding: 0;
-            margin: 0;
-            flex: 0 0 36px;
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 14px;
-            line-height: 1;
-        }
-        .confluence-page-row .remove-button:hover {
-            background-color: #c82333;
-        }
-        .group button {
-            padding: 12px 20px;
-            margin-top: 15px;
-            font-size: 14px;
-            cursor: pointer;
-            border: none;
-            border-radius: 6px;
-            background-color: #1a73e8;
-            color: white;
-            width: 100%;
-            transition: background-color 0.2s;
-            font-weight: 500;
-        }
-        .group button:hover {
-            background-color: #1557b0;
-        }
-        #saveSettingsButton {
-            width: 100%;
-            margin: 30px auto 0;
-            padding: 14px;
-            font-size: 16px;
-            background-color: #1a73e8;
-            color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        #saveSettingsButton:hover {
-            background-color: #1557b0;
-        }
-        .add-button {
-            background-color: #34a853 !important;
-        }
-        .add-button:hover {
-            background-color: #2d8544 !important;
-        }
-        select {
-            appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 1rem center;
-            background-size: 1em;
-        }
-        .expert-row {
-            margin-bottom: 15px;
-            padding: 15px;
-            border: 1px solid #dadce0;
-            border-radius: 6px;
-        }
-        .expert-row .remove-button {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 16px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        .expert-row .remove-button:hover {
-            background-color: #c82333;
-        }
-        .expert-confluence-pages {
-            margin-top: 10px;
-        }
-        .checkbox-group {
-            margin: 15px 0;
-        }
-
-        .checkbox-group label {
-            display: inline-flex;
-            align-items: center;
-            margin-right: 20px;
-        }
-
-        .checkbox-group input[type="checkbox"] {
-            margin-right: 5px;
-            width: auto;
-        }
-
-        .limits-group {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin: 15px 0;
-        }
-
-        .limits-group input {
-            width: 100%;
-        }
-
-        .source-code-config {
-            margin: 15px 0;
-        }
-
-        .source-code-config h4 {
-            margin: 10px 0;
-            color: #5f6368;
-        }
-
-        .source-code-config-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px solid #dadce0;
-            border-radius: 6px;
-        }
-
-        .source-code-config-row input,
-        .source-code-config-row select {
-            margin-bottom: 0;
-        }
-
-        .source-code-config-row .remove-button {
-            width: auto;
-            padding: 5px 10px;
-            margin: 0;
-        }
-
         .expert-row {
             background-color: #f8f9fa;
-            padding: 20px;
+            padding: 25px;
             margin-bottom: 20px;
             border-radius: 8px;
             border: 1px solid #e9ecef;
         }
-
-        .source-code-entries {
-            margin-bottom: 15px;
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
         }
-
-        .add-source-config {
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            margin: 0;
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+            margin-bottom: 0;
+        }
+        .limits-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .limit-item {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .limit-item label {
+            margin-bottom: 10px;
+            color: #202124;
+        }
+        .limit-item input {
+            margin-bottom: 0;
+        }
+        .orchestrator-select {
+            margin: 20px 0;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .orchestrator-select select {
+            margin-bottom: 0;
+        }
+        .project-context {
             margin-bottom: 20px;
         }
-
-        .expert-confluence-pages {
-            margin-top: 10px;
+        .project-context textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            font-size: 14px;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+            resize: vertical;
+        }
+        .source-code-config {
+            margin-top: 25px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .source-code-config h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #202124;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .source-code-entries {
+            display: grid;
+            gap: 15px;
+        }
+        .source-code-config-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 100px 36px;
+            gap: 12px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            align-items: center;
+        }
+        .source-code-config-row input,
+        .source-code-config-row select {
+            width: 100%;
+            height: 36px;
+            padding: 8px 12px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .source-code-config-row input::placeholder {
+            color: #9aa0a6;
+        }
+        .source-code-config-row input:focus,
+        .source-code-config-row select:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+        }
+        .source-code-config-row .remove-button {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .source-code-config-row .remove-button:hover {
+            background-color: #c82333;
+        }
+        .add-source-config {
+            width: 200px;
+            height: 36px;
+            padding: 0 16px;
+            font-size: 14px;
+            background-color: #34a853;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 12px;
+        }
+        .add-source-config:hover {
+            background-color: #2d8544;
+        }
+        .add-confluence-button,
+        .remove-confluence-button {
+            width: 180px;
+            height: 36px;
+            padding: 0 16px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .add-confluence-button {
+            background-color: #34a853;
+            color: white;
+        }
+        .add-confluence-button:hover {
+            background-color: #2d8544;
+        }
+        .remove-confluence-button {
+            background-color: #dc3545;
+            color: white;
+        }
+        .remove-confluence-button:hover {
+            background-color: #c82333;
+        }
+        .confluence-pages-section {
+            margin: 20px 0;
+        }
+        .confluence-pages-section h3 {
+            color: #202124;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        .confluence-page-container {
+            margin-bottom: 15px;
+        }
+        .confluence-page-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
             margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+        .confluence-page-row:hover {
+            border-color: #dadce0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .confluence-page-row input {
+            flex: 1;
+            height: 36px;
+            padding: 8px 12px;
+            margin: 0;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .confluence-page-row .remove-button {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .confluence-page-row .remove-button:hover {
+            background-color: #c82333;
+        }
+        .limits-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .limit-group {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .limit-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #202124;
+            font-weight: 500;
+        }
+        .limit-group input {
+            width: 100%;
+            height: 36px;
+            padding: 8px 12px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .search-orchestrator {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .search-orchestrator select {
+            width: 100%;
+            height: 36px;
+            padding: 8px 12px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+        }
+        #saveSettingsButton {
+            width: 100%;
+            height: 36px;
+            margin-top: 30px;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #saveSettingsButton:hover {
+            background-color: #1557b0;
         }
     </style>
 </head>
@@ -259,8 +369,97 @@
 
     <div class="group">
         <h3>AI Experts Configuration</h3>
-        <div id="expertsContainer"></div>
-        <button type="button" id="addExpertButton" class="add-button">Add New Expert</button>
+        <div id="expertsContainer">
+            <div class="expert-row">
+                <div class="project-context">
+                    <label>Project Context</label>
+                    <textarea placeholder="Enter project context"></textarea>
+                </div>
+
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" class="is-code-source">
+                        Use Code as Source
+                    </label>
+                    <label>
+                        <input type="checkbox" class="is-confluence-source">
+                        Use Confluence as Source
+                    </label>
+                    <label>
+                        <input type="checkbox" class="is-tracker-source">
+                        Use Tracker as Source
+                    </label>
+                </div>
+
+                <div class="limits-section">
+                    <div class="limit-group">
+                        <label>Files Limit</label>
+                        <input type="number" class="files-limit" value="5" min="1">
+                    </div>
+                    <div class="limit-group">
+                        <label>Files Iterations</label>
+                        <input type="number" class="files-iterations" value="1" min="1">
+                    </div>
+                    <div class="limit-group">
+                        <label>Confluence Limit</label>
+                        <input type="number" class="confluence-limit" value="5" min="1">
+                    </div>
+                    <div class="limit-group">
+                        <label>Confluence Iterations</label>
+                        <input type="number" class="confluence-iterations" value="1" min="1">
+                    </div>
+                    <div class="limit-group">
+                        <label>Tracker Limit</label>
+                        <input type="number" class="tracker-limit" value="5" min="1">
+                    </div>
+                    <div class="limit-group">
+                        <label>Tracker Iterations</label>
+                        <input type="number" class="tracker-iterations" value="1" min="1">
+                    </div>
+                </div>
+
+                <div class="search-orchestrator">
+                    <label>Search Orchestrator Type</label>
+                    <select class="search-orchestrator-type">
+                        <option value="BULK">BULK</option>
+                        <option value="ONE_BY_ONE">ONE_BY_ONE</option>
+                    </select>
+                </div>
+
+                <div class="source-code-config">
+                    <h4>Source Code Configuration</h4>
+                    <div class="source-code-entries">
+                        <div class="source-code-config-row">
+                            <input type="text" placeholder="Branch Name" class="branch-name">
+                            <input type="text" placeholder="Repository Name" class="repo-name">
+                            <input type="text" placeholder="Workspace Name" class="workspace-name">
+                            <select class="repo-type">
+                                <option value="GITHUB">GitHub</option>
+                                <option value="BITBUCKET">Bitbucket</option>
+                                <option value="GITLAB">GitLab</option>
+                            </select>
+                            <button class="remove-button">X</button>
+                        </div>
+                    </div>
+                    <button class="add-source-config">Add Source Configuration</button>
+                </div>
+
+                <div class="confluence-pages-section">
+                    <h3>Confluence Pages</h3>
+                    <div class="confluence-page-container">
+                        <div class="confluence-page-row">
+                            <input type="text" class="confluence-page-input" placeholder="Enter Confluence page URL">
+                            <button class="remove-button">X</button>
+                        </div>
+                    </div>
+                    <div class="confluence-page-actions">
+                        <button class="add-confluence-button">Add Confluence Page</button>
+                        <button class="remove-confluence-button">Remove Expert</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button type="button" id="addExpertButton" class="add-source-config">Add New Expert</button>
     </div>
 
     <div class="group">
@@ -278,9 +477,10 @@
             <option value="creation">Creation</option>
             <option value="comment">Comment</option>
         </select>
-        <label for="tgConfluencePages">Confluence Pages</label>
-        <div id="tgConfluencePagesContainer"></div>
-        <button type="button" id="addTGConfluencePageButton" class="add-button">Add Confluence Page</button>
+        <div id="tgConfluencePagesContainer" class="confluence-pages-section">
+            <h3>Confluence Pages</h3>
+        </div>
+        <button type="button" id="addTGConfluencePageButton" class="add-source-config">Add Confluence Page</button>
     </div>
 
     <div class="group">
@@ -304,9 +504,10 @@
             <option value="trackerComment">Tracker Comment</option>
             <option value="creation">Creation</option>
         </select>
-        <label for="usgConfluencePages">Confluence Pages</label>
-        <div id="usgConfluencePagesContainer"></div>
-        <button type="button" id="addUSGConfluencePageButton" class="add-button">Add Confluence Page</button>
+        <div id="usgConfluencePagesContainer" class="confluence-pages-section">
+            <h3>Confluence Pages</h3>
+        </div>
+        <button type="button" id="addUSGConfluencePageButton" class="add-source-config">Add Confluence Page</button>
     </div>
 
     <button id="saveSettingsButton">Save Settings</button>

@@ -5,6 +5,7 @@ import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.ImageUtils;
+import com.github.istin.dmtools.common.utils.RetryUtil;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import com.github.istin.dmtools.openai.model.AIResponse;
 import com.github.istin.dmtools.openai.model.Choice;
@@ -117,6 +118,11 @@ public class OpenAIClient extends AbstractRestClient implements AI {
             jsonObject.put("metadata", new JSONObject(new Gson().toJson(metadata)));
         }
         postRequest.setBody(jsonObject.toString());
+        String finalModel = model;
+        return RetryUtil.executeWithRetry(() -> processResponse(finalModel, postRequest));
+    }
+
+    private String processResponse(String model, GenericRequest postRequest) throws IOException {
         String response = post(postRequest);
         logger.info(response);
         List<Choice> choices = new AIResponse(response).getChoices();

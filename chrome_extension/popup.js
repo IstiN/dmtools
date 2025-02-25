@@ -96,13 +96,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     "request": userInput,
                     "projectContext": selectedExpert.projectContext,
                     "confluencePages": selectedExpert.confluencePages,
-                    // Add new expert parameters
                     "isCodeAsSource": selectedExpert.isCodeAsSource || false,
                     "isConfluenceAsSource": selectedExpert.isConfluenceAsSource || false,
                     "isTrackerAsSource": selectedExpert.isTrackerAsSource || false,
                     "filesLimit": selectedExpert.filesLimit || 5,
+                    "filesIterations": selectedExpert.filesIterations || 1,
                     "confluenceLimit": selectedExpert.confluenceLimit || 5,
+                    "confluenceIterations": selectedExpert.confluenceIterations || 1,
                     "trackerLimit": selectedExpert.trackerLimit || 5,
+                    "trackerIterations": selectedExpert.trackerIterations || 1,
+                    "searchOrchestratorType": selectedExpert.searchOrchestratorType || "BULK",
                     "source_code_config": selectedExpert.source_code_config || []
                 }
             };

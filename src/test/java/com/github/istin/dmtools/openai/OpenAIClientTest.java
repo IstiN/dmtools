@@ -1,13 +1,7 @@
 package com.github.istin.dmtools.openai;
 
-import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.common.networking.GenericRequest;
-import com.github.istin.dmtools.openai.model.AIResponse;
-import com.github.istin.dmtools.openai.model.Choice;
-import com.github.istin.dmtools.openai.utils.AIResponseParser;
 import okhttp3.Request;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Before;
@@ -16,7 +10,6 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;

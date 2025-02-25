@@ -19,6 +19,7 @@ public class CurlAIConfig {
     public static final String AUTH = "auth";
     public static final String CURL_URL_TEMPLATE = "curl_url_template";
     public static final String CURL_BODY_TEMPLATE = "curl_body_template";
+    public static final String CURL_BODY_TEMPLATE_WITH_IMAGE = "curl_body_template_with_image";
     public static final String CURL_AI_RESPONSE_JSON_PATH = "curl_ai_response_json_path";
 
     @SerializedName(MODEL)
@@ -35,6 +36,9 @@ public class CurlAIConfig {
 
     @SerializedName(CURL_BODY_TEMPLATE)
     private String curlBodyTemplate;
+
+    @SerializedName(CURL_BODY_TEMPLATE)
+    private String curlBodyTemplateWithImage;
 
     @SerializedName(CURL_AI_RESPONSE_JSON_PATH)
     private String curlAiResponseJsonPath;

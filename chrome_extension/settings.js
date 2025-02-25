@@ -64,8 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
         isConfluenceAsSource: false,
         isTrackerAsSource: false,
         filesLimit: 5,
+        filesIterations: 1,
         confluenceLimit: 5,
+        confluenceIterations: 1,
         trackerLimit: 5,
+        trackerIterations: 1,
+        searchOrchestratorType: 'BULK',
         source_code_config: []
     }) => {
         const expertDiv = document.createElement('div');
@@ -96,12 +100,24 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="limits-group">
                 <label>Files Limit</label>
                 <input type="number" class="files-limit" value="${expert.filesLimit || 5}" min="1">
+                <label>Files Iterations</label>
+                <input type="number" class="files-iterations" value="${expert.filesIterations || 1}" min="1">
 
                 <label>Confluence Limit</label>
                 <input type="number" class="confluence-limit" value="${expert.confluenceLimit || 5}" min="1">
+                <label>Confluence Iterations</label>
+                <input type="number" class="confluence-iterations" value="${expert.confluenceIterations || 1}" min="1">
 
                 <label>Tracker Limit</label>
                 <input type="number" class="tracker-limit" value="${expert.trackerLimit || 5}" min="1">
+                <label>Tracker Iterations</label>
+                <input type="number" class="tracker-iterations" value="${expert.trackerIterations || 1}" min="1">
+
+                <label>Search Orchestrator Type</label>
+                <select class="search-orchestrator-type">
+                    <option value="BULK" ${expert.searchOrchestratorType === 'BULK' ? 'selected' : ''}>BULK</option>
+                    <option value="ONE_BY_ONE" ${expert.searchOrchestratorType === 'ONE_BY_ONE' ? 'selected' : ''}>ONE_BY_ONE</option>
+                </select>
             </div>
 
             <div class="source-code-config">
@@ -153,8 +169,12 @@ document.addEventListener('DOMContentLoaded', () => {
             isConfluenceAsSource: expertDiv.querySelector('.is-confluence-source').checked,
             isTrackerAsSource: expertDiv.querySelector('.is-tracker-source').checked,
             filesLimit: parseInt(expertDiv.querySelector('.files-limit').value) || 5,
+            filesIterations: parseInt(expertDiv.querySelector('.files-iterations').value) || 1,
             confluenceLimit: parseInt(expertDiv.querySelector('.confluence-limit').value) || 5,
+            confluenceIterations: parseInt(expertDiv.querySelector('.confluence-iterations').value) || 1,
             trackerLimit: parseInt(expertDiv.querySelector('.tracker-limit').value) || 5,
+            trackerIterations: parseInt(expertDiv.querySelector('.tracker-iterations').value) || 1,
+            searchOrchestratorType: expertDiv.querySelector('.search-orchestrator-type').value,
             source_code_config: Array.from(expertDiv.querySelectorAll('.source-code-config-row')).map(row => ({
                 branch_name: row.querySelector('.branch-name').value,
                 repo_name: row.querySelector('.repo-name').value,
@@ -211,8 +231,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     isConfluenceAsSource: true,
                     isTrackerAsSource: false,
                     filesLimit: 5,
+                    filesIterations: 1,
                     confluenceLimit: 5,
+                    confluenceIterations: 1,
                     trackerLimit: 5,
+                    trackerIterations: 1,
+                    searchOrchestratorType: 'BULK',
                     source_code_config: []
                 }];
                 experts.forEach(expert => {

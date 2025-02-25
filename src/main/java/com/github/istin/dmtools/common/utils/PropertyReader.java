@@ -8,6 +8,9 @@ public class PropertyReader {
 
 	private static String PATH_TO_CONFIG_FILE = "/config.properties";
 
+	private static final int DEFAULT_AI_RETRY_AMOUNT = 3;
+	private static final long DEFAULT_AI_RETRY_DELAY_STEP = 20000L;
+
 	public static void setConfigFile(String resourcePath) {
 		PATH_TO_CONFIG_FILE = resourcePath;
 	}
@@ -232,6 +235,10 @@ public class PropertyReader {
 		return getValue("CURL_AI_BODY_TEMPLATE");
 	}
 
+	public String getCurlAIBodyTemplateWithImage() {
+		return getValue("CURL_AI_BODY_TEMPLATE_WITH_IMAGE");
+	}
+
 	public String getCodeAIModel() {
 		return getValue("CODE_AI_MODEL");
 	}
@@ -275,6 +282,10 @@ public class PropertyReader {
 	public Double getTicketFieldsChangedDivider(String fieldName) {
 		String value = getValue("TICKET_FIELDS_CHANGED_DIVIDER_"+ fieldName.toUpperCase());
 		if (value == null) {
+			String defaultValue = getValue("TICKET_FIELDS_CHANGED_DIVIDER_DEFAULT");
+			if (defaultValue != null) {
+				return Double.parseDouble(defaultValue);
+			}
 			return 1d;
 		}
 		return Double.parseDouble(value);
@@ -295,6 +306,39 @@ public class PropertyReader {
 
 	public String getFirebaseServiceAccountJsonAuth() {
 		return getValue("FIREBASE_SERVICE_ACCOUNT_JSON_AUTH");
+	}
+
+	/**
+	 * Gets the number of retry attempts for AI operations
+	 * @return number of retries, default is 3
+	 */
+	public int getAiRetryAmount() {
+		String value = getValue("AI_RETRY_AMOUNT");
+		if (value == null || value.trim().isEmpty()) {
+			return DEFAULT_AI_RETRY_AMOUNT;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			return DEFAULT_AI_RETRY_AMOUNT;
+		}
+	}
+
+	/**
+	 * Gets the delay step in milliseconds between retry attempts
+	 * The actual delay will be multiplied by the attempt number
+	 * @return delay step in milliseconds, default is 20000 (20 seconds)
+	 */
+	public long getAiRetryDelayStep() {
+		String value = getValue("AI_RETRY_DELAY_STEP");
+		if (value == null || value.trim().isEmpty()) {
+			return DEFAULT_AI_RETRY_DELAY_STEP;
+		}
+		try {
+			return Long.parseLong(value);
+		} catch (NumberFormatException e) {
+			return DEFAULT_AI_RETRY_DELAY_STEP;
+		}
 	}
 
 }
