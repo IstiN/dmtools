@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.utils.ImageUtils;
+import com.github.istin.dmtools.common.utils.RetryUtil;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -26,16 +28,18 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
 
     private final String curlTemplate;
     private final String bodyTemplate;
+    private final String bodyTemplateWithImage;
     private final String responseJsonPath;
     private String model;
     private final ObjectMapper objectMapper;
     @Setter
     private Metadata metadata;
 
-    public CUrlAIClient(String basePath, String authorization, String curlUrlTemplate, String bodyTemplate, String responseJsonPath, String model) throws IOException {
+    public CUrlAIClient(String basePath, String authorization, String curlUrlTemplate, String bodyTemplate, String bodyTemplateWithImage, String responseJsonPath, String model) throws IOException {
         super(basePath, authorization);
         this.curlTemplate = curlUrlTemplate;
         this.bodyTemplate = bodyTemplate;
+        this.bodyTemplateWithImage = bodyTemplateWithImage;
         this.responseJsonPath = responseJsonPath;
         this.model = model;
         this.objectMapper = new ObjectMapper();
@@ -57,20 +61,49 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
         return chat(model, message, imageFile == null ? null : Collections.singletonList(imageFile));
     }
 
+    /**
+     * Converts Base64 image string to valid JSON string value
+     * @param base64Image Base64 encoded image string
+     * @return JSON-escaped string value
+     */
+    public static String convertBase64ToJsonValue(String base64Image) {
+        if (base64Image == null) {
+            return null;
+        }
+
+        // Escape special characters for JSON
+        return base64Image
+                .replace("\\", "\\\\") // escape backslashes
+                .replace("\"", "\\\"") // escape quotes
+                .replace("\b", "\\b")  // escape backspace
+                .replace("\f", "\\f")  // escape form feed
+                .replace("\n", "\\n")  // escape new line
+                .replace("\r", "\\r")  // escape carriage return
+                .replace("\t", "\\t"); // escape tab
+    }
+
     @Override
     public String chat(String model, String message, List<File> files) throws Exception {
         HashMap<String, String> placeholderValues = new HashMap<>();
         placeholderValues.put("bathPath", basePath);
         placeholderValues.put("authorization", authorization);
-        placeholderValues.put("model", model);
+        placeholderValues.put("model", model == null ? this.model : model);
         placeholderValues.put("message", escapeJsonString(message));
+        if (files != null && !files.isEmpty()) {
+            File file = files.get(0);
+            //placeholderValues.put("imageExtension", escapeJsonString("image/png"));
+            //placeholderValues.put("imageBase64", escapeJsonString("data:image/png;base64," + ImageUtils.convertToBase64(file, "png")));
+        }
         GenericRequest genericRequest = fromCurlTemplate(curlTemplate, placeholderValues);
         // Replace placeholders in JSON template
         if (bodyTemplate != null && !bodyTemplate.isEmpty()) {
-            String jsonBody = replacePlaceholders(bodyTemplate, placeholderValues);
+            String jsonBody = replacePlaceholders(files == null || files.isEmpty() ? bodyTemplate : bodyTemplateWithImage, placeholderValues);
 
-            // Validate JSON (optional, but good practice)
             validateJson(jsonBody);
+            if (files != null && !files.isEmpty()) {
+                JSONObject imageObject = new JSONObject().put("type", "image").put("source", new JSONObject().put("type", "base64").put("media_type", "image/png").put("data", "data:image/png;base64," + ImageUtils.convertToBase64(files.get(0), "png")));
+                jsonBody = jsonBody.replace("\"__IMAGE_OBJECT__\"", imageObject.toString());
+            }
             if (metadata != null) {
                 JSONObject jsonObject = new JSONObject(jsonBody);
                 jsonObject.put("metadata", new JSONObject(new Gson().toJson(metadata)));
@@ -81,13 +114,11 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
             System.out.println("Request to AI: " + jsonBody);
         }
 
-        String aiResponse = genericRequest.post();
-        System.out.println("Response From AI: " + aiResponse);
-        try {
+        return RetryUtil.executeWithRetry(() -> {
+            String aiResponse = genericRequest.post();
+            System.out.println("Response From AI: " + aiResponse);
             return parseResponseByPath(aiResponse, responseJsonPath);
-        } catch (JSONException e) {
-            return "";
-        }
+        });
     }
 
     private String replacePlaceholders(String template, Map<String, String> values) {
@@ -136,6 +167,12 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
     // Utility method for parsing JSON response using a path
     private String parseResponseByPath(String jsonResponse, String path) {
         JSONObject jsonObject = new JSONObject(jsonResponse);
+        Object currentObject = findObjectByPath(path, jsonObject);
+
+        return currentObject.toString();
+    }
+
+    private static Object findObjectByPath(String path, JSONObject jsonObject) {
         String[] parts = path.split("\\.");
         Object currentObject = jsonObject;
 
@@ -160,8 +197,7 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
                 }
             }
         }
-
-        return currentObject.toString();
+        return currentObject;
     }
 
     @Override
