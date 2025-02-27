@@ -46,7 +46,8 @@ public class BasicJiraClient extends JiraClient<Ticket> {
             Fields.PARENT
     };
     public static final String[] EXTENDED_QUERY_FIELDS = {
-            Fields.DESCRIPTION
+            Fields.DESCRIPTION,
+            Fields.ISSUE_LINKS
     };
 
     static {

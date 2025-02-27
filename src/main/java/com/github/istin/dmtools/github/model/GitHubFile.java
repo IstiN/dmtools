@@ -3,12 +3,14 @@ package com.github.istin.dmtools.github.model;
 import com.github.istin.dmtools.common.model.IFile;
 import com.github.istin.dmtools.common.model.ITextMatch;
 import com.github.istin.dmtools.common.model.JSONModel;
+import com.github.istin.dmtools.common.model.ToText;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.List;
 
-public class GitHubFile extends JSONModel implements IFile {
+public class GitHubFile extends JSONModel implements IFile, ToText {
 
     public static final String TEXT_MATCHES = "text_matches";
 
@@ -64,7 +66,7 @@ public class GitHubFile extends JSONModel implements IFile {
     }
 
     @Override
-    public String toString() {
+    public String toText() throws IOException {
         JSONObject json = new JSONObject();
         try {
             json.put("path", getPath());
@@ -74,9 +76,9 @@ public class GitHubFile extends JSONModel implements IFile {
                 json.put("fileContent", fileContent);
             }
             json.put(TEXT_MATCHES, getJSONArray(TEXT_MATCHES));
+            return json.toString();
         } catch (JSONException e) {
             return super.toString();
         }
-        return json.toString();
     }
 }

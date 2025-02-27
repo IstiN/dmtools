@@ -101,7 +101,7 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
 
             validateJson(jsonBody);
             if (files != null && !files.isEmpty()) {
-                JSONObject imageObject = new JSONObject().put("type", "image").put("source", new JSONObject().put("type", "base64").put("media_type", "image/png").put("data", "data:image/png;base64," + ImageUtils.convertToBase64(files.get(0), "png")));
+                JSONObject imageObject = new JSONObject().put("type", "image").put("source", new JSONObject().put("type", "base64").put("media_type", "image/png").put("data",  ImageUtils.convertToBase64(files.get(0), "png")));
                 jsonBody = jsonBody.replace("\"__IMAGE_OBJECT__\"", imageObject.toString());
             }
             if (metadata != null) {
