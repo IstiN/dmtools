@@ -181,7 +181,7 @@
                 "url": "https://api.github.com/repositories/123456789/contents/src/components/UrlPaymentProcessor.js?ref=abc123def456",
                 }
             </human>
-            <ai>["url": "https://api.github.com/repositories/123456789/contents/src/components/UrlPaymentProcessor.js?ref=abc123def456"]</ai>
+            <ai>["https://api.github.com/repositories/123456789/contents/src/components/UrlPaymentProcessor.js?ref=abc123def456"]</ai>
         </example>
     </examples>
 </prompt>

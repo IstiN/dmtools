@@ -4,6 +4,7 @@ import com.github.istin.dmtools.ai.agent.KeywordGeneratorAgent;
 import com.github.istin.dmtools.ai.agent.SearchResultsAssessmentAgent;
 import com.github.istin.dmtools.ai.agent.SnippetExtensionAgent;
 import com.github.istin.dmtools.ai.agent.SummaryContextAgent;
+import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.di.DaggerAbstractSearchOrchestratorComponent;
 import org.json.JSONArray;
 
@@ -44,7 +45,7 @@ public abstract class AbstractSearchOrchestrator {
         // Step 1: Process the snippet first using SnippetExtensionAgent
         if (processingType == ProcessingType.ONE_BY_ONE) {
             if (snippetExtensionAgent.run(new SnippetExtensionAgent.Params(itemSnippet, fullTask))) {
-                if (processeFullContent(item, fullTask, contextSummary, platformContext, resourceKey)) return true;
+                if (processFullContent(item, fullTask, contextSummary, platformContext, resourceKey)) return true;
             }
             // Step 2: Fallback to processing just the snippet
             String snippetResponse = summaryContextAgent.run(new SummaryContextAgent.Params(
@@ -56,13 +57,13 @@ public abstract class AbstractSearchOrchestrator {
                 return true;
             }
         } else {
-            if (processeFullContent(item, fullTask, contextSummary, platformContext, resourceKey)) return true;
+            if (processFullContent(item, fullTask, contextSummary, platformContext, resourceKey)) return true;
         }
 
         return false;
     }
 
-    private boolean processeFullContent(Object item, String fullTask, StringBuffer contextSummary, Object platformContext, String resourceKey) throws Exception {
+    private boolean processFullContent(Object item, String fullTask, StringBuffer contextSummary, Object platformContext, String resourceKey) throws Exception {
         String fullContent = getFullItemContent(item, platformContext); // Abstract method for full content
         String response = summaryContextAgent.run(new SummaryContextAgent.Params(
                 fullTask,
@@ -152,11 +153,17 @@ public abstract class AbstractSearchOrchestrator {
                     }
 
                     // Run assessment
+                    String string;
+                    if (items.get(0) instanceof ToText) {
+                        string = ToText.Utils.toText((List<? extends ToText>) items);
+                    } else {
+                        string = items.toString();
+                    }
                     SearchResultsAssessmentAgent.Params params = new SearchResultsAssessmentAgent.Params(
                             getSourceType(),
                             getKeyFieldValue(),
                             fullTask,
-                            items.toString()
+                            string
                     );
 
                     JSONArray relevantKeys = searchResultsAssessmentAgent.run(params);
