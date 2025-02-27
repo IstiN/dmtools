@@ -7,13 +7,79 @@ import com.github.istin.dmtools.ai.agent.SummaryContextAgent;
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.di.DaggerAbstractSearchOrchestratorComponent;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.inject.Inject;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public abstract class AbstractSearchOrchestrator {
+
+    public static class SearchStats {
+        private final List<IterationStats> iterations = new ArrayList<>();
+        private final Set<String> processedKeys = new HashSet<>();
+        private int totalItemsProcessed = 0;
+
+        public static class IterationStats {
+            private final int iterationNumber;
+            private final List<String> keywords;
+            private final Map<String, KeywordStats> keywordStats = new HashMap<>();
+
+            public IterationStats(int iterationNumber, List<String> keywords) {
+                this.iterationNumber = iterationNumber;
+                this.keywords = keywords;
+            }
+
+            public static class KeywordStats {
+                private final int itemsFound;
+                private final List<String> processedKeys;
+                private final List<String> successfulKeys;
+
+                public KeywordStats(int itemsFound, List<String> processedKeys, List<String> successfulKeys) {
+                    this.itemsFound = itemsFound;
+                    this.processedKeys = processedKeys;
+                    this.successfulKeys = successfulKeys;
+                }
+
+                public JSONObject toJson() {
+                    JSONObject json = new JSONObject();
+                    json.put("itemsFound", itemsFound);
+                    json.put("processedKeys", new JSONArray(processedKeys));
+                    json.put("successfulKeys", new JSONArray(successfulKeys));
+                    return json;
+                }
+            }
+
+            public JSONObject toJson() {
+                JSONObject json = new JSONObject();
+                json.put("iterationNumber", iterationNumber);
+                json.put("keywords", new JSONArray(keywords));
+                JSONObject keywordStatsJson = new JSONObject();
+                keywordStats.forEach((keyword, stats) -> keywordStatsJson.put(keyword, stats.toJson()));
+                json.put("keywordStats", keywordStatsJson);
+                return json;
+            }
+        }
+
+        public void addIterationStats(IterationStats stats) {
+            iterations.add(stats);
+        }
+
+        public JSONObject toJson() {
+            JSONObject json = new JSONObject();
+            json.put("totalItemsProcessed", totalItemsProcessed);
+            json.put("totalProcessedKeys", new JSONArray(processedKeys));
+            JSONArray iterationsJson = new JSONArray();
+            iterations.forEach(iteration -> iterationsJson.put(iteration.toJson()));
+            json.put("iterations", iterationsJson);
+            return json;
+        }
+    }
+
+    private SearchStats searchStats;
+
+    public SearchStats getSearchStats() {
+        return searchStats;
+    }
 
     @Inject
     protected KeywordGeneratorAgent keywordGeneratorAgent;
@@ -32,22 +98,16 @@ public abstract class AbstractSearchOrchestrator {
         setupDependencyInjection();
     }
 
-    // Setup DI for platform-specific implementations
     protected abstract void setupDependencyInjection();
 
-    /**
-     * Process a single item iteratively: small fragments first, followed by full content if needed.
-     */
     protected boolean processItem(ProcessingType processingType, Object item, String fullTask, StringBuffer contextSummary, Object platformContext) throws Exception {
-        String itemSnippet = getItemSnippet(item, platformContext); // Abstract method for getting snippet
-        String resourceKey = getItemResourceKey(item); // Abstract method for unique identifier (e.g., URI or key)
+        String itemSnippet = getItemSnippet(item, platformContext);
+        String resourceKey = getItemResourceKey(item);
 
-        // Step 1: Process the snippet first using SnippetExtensionAgent
         if (processingType == ProcessingType.ONE_BY_ONE) {
             if (snippetExtensionAgent.run(new SnippetExtensionAgent.Params(itemSnippet, fullTask))) {
                 if (processFullContent(item, fullTask, contextSummary, platformContext, resourceKey)) return true;
             }
-            // Step 2: Fallback to processing just the snippet
             String snippetResponse = summaryContextAgent.run(new SummaryContextAgent.Params(
                     fullTask,
                     formatSnippetResponse(resourceKey, itemSnippet)
@@ -64,7 +124,7 @@ public abstract class AbstractSearchOrchestrator {
     }
 
     private boolean processFullContent(Object item, String fullTask, StringBuffer contextSummary, Object platformContext, String resourceKey) throws Exception {
-        String fullContent = getFullItemContent(item, platformContext); // Abstract method for full content
+        String fullContent = getFullItemContent(item, platformContext);
         String response = summaryContextAgent.run(new SummaryContextAgent.Params(
                 fullTask,
                 formatFullItemResponse(resourceKey, fullContent)
@@ -76,26 +136,18 @@ public abstract class AbstractSearchOrchestrator {
         return false;
     }
 
-    // Abstract method to get the snippet for a platform-specific item
     protected abstract String getItemSnippet(Object item, Object platformContext) throws Exception;
-
-    // Abstract method to get the full content for the platform-specific item
     protected abstract String getFullItemContent(Object item, Object platformContext) throws Exception;
-
-    // Abstract method to get the unique resource key for an item (e.g., file selfLink or ticket key)
     protected abstract String getItemResourceKey(Object item);
 
-    // Helper to format response for snippet processing
     protected String formatSnippetResponse(String resourceKey, String snippetContent) {
         return "Snippet for [" + resourceKey + "]:\n" + snippetContent;
     }
 
-    // Helper to format response for full content processing
     protected String formatFullItemResponse(String resourceKey, String fullContent) {
         return "Full content for [" + resourceKey + "]:\n" + fullContent;
     }
 
-    // The rest of the agent interaction logic (like in the previous refactor)
     protected JSONArray generateKeywords(String fullTask, String blacklist, String contextSummary) throws Exception {
         String extendedTask = fullTask;
         if (!contextSummary.isEmpty()) {
@@ -125,62 +177,79 @@ public abstract class AbstractSearchOrchestrator {
 
     public String run(ProcessingType processingType, String fullTask, String keywordsBlacklist, int itemsLimit, int iterations) throws Exception {
         StringBuffer contextSummary = new StringBuffer();
-        Set<String> processedItems = new HashSet<>();
+        searchStats = new SearchStats();
         Object platformContext = createInitialPlatformContext();
 
         for (int iteration = 0; iteration < iterations; iteration++) {
-
-            // Step 1: Generate keywords
             JSONArray keywords = generateKeywords(fullTask, keywordsBlacklist, contextSummary.toString());
-            System.out.println("Iteration " + (iteration + 1) + " Keywords: " + keywords);
-
-            // Step 2: Search items using the generated keywords
+            List<String> keywordsList = new ArrayList<>();
             for (int i = 0; i < keywords.length(); i++) {
-                String keyword = keywords.getString(i);
+                keywordsList.add(keywords.getString(i));
+            }
 
+            SearchStats.IterationStats iterationStats = new SearchStats.IterationStats(iteration + 1, keywordsList);
+
+            for (String keyword : keywordsList) {
                 List<?> items = searchItemsWithKeywords(keyword, platformContext, itemsLimit);
+                List<String> processedKeysForKeyword = new ArrayList<>();
+                List<String> successfulKeysForKeyword = new ArrayList<>();
+
                 if (processingType == ProcessingType.ONE_BY_ONE) {
                     for (Object item : items) {
-                        if (processedItems.contains(getItemResourceKey(item))) continue;
+                        String itemKey = getItemResourceKey(item);
+                        if (searchStats.processedKeys.contains(itemKey)) continue;
 
+                        processedKeysForKeyword.add(itemKey);
                         if (processItem(processingType, item, fullTask, contextSummary, platformContext)) {
-                            processedItems.add(getItemResourceKey(item));
+                            successfulKeysForKeyword.add(itemKey);
+                            searchStats.processedKeys.add(itemKey);
                         }
                     }
                 } else {
-                    if (items.isEmpty()) {
-                        continue;
-                    }
+                    if (!items.isEmpty()) {
+                        String string;
+                        if (items.get(0) instanceof ToText) {
+                            string = ToText.Utils.toText((List<? extends ToText>) items);
+                        } else {
+                            string = items.toString();
+                        }
 
-                    // Run assessment
-                    String string;
-                    if (items.get(0) instanceof ToText) {
-                        string = ToText.Utils.toText((List<? extends ToText>) items);
-                    } else {
-                        string = items.toString();
-                    }
-                    SearchResultsAssessmentAgent.Params params = new SearchResultsAssessmentAgent.Params(
-                            getSourceType(),
-                            getKeyFieldValue(),
-                            fullTask,
-                            string
-                    );
+                        SearchResultsAssessmentAgent.Params params = new SearchResultsAssessmentAgent.Params(
+                                getSourceType(),
+                                getKeyFieldValue(),
+                                fullTask,
+                                string
+                        );
 
-                    JSONArray relevantKeys = searchResultsAssessmentAgent.run(params);
+                        JSONArray relevantKeys = searchResultsAssessmentAgent.run(params);
 
-                    // Convert JSONArray to List<String>
-                    for (int j = 0; j < relevantKeys.length(); j++) {
-                        Object key = relevantKeys.get(j);
-                        if (processedItems.contains(key)) continue;
-                        Object itemByKey = getItemByKey(key, items);
-                        if (itemByKey != null && processItem(processingType, itemByKey, fullTask, contextSummary, platformContext)) {
-                            processedItems.add(String.valueOf(key));
+                        for (int j = 0; j < relevantKeys.length(); j++) {
+                            Object key = relevantKeys.get(j);
+                            String keyStr = String.valueOf(key);
+                            if (searchStats.processedKeys.contains(keyStr)) continue;
+
+                            Object itemByKey = getItemByKey(key, items);
+                            if (itemByKey != null) {
+                                processedKeysForKeyword.add(keyStr);
+                                if (processItem(processingType, itemByKey, fullTask, contextSummary, platformContext)) {
+                                    successfulKeysForKeyword.add(keyStr);
+                                    searchStats.processedKeys.add(keyStr);
+                                }
+                            }
                         }
                     }
                 }
+
+                iterationStats.keywordStats.put(keyword, new SearchStats.IterationStats.KeywordStats(
+                        items.size(),
+                        processedKeysForKeyword,
+                        successfulKeysForKeyword
+                ));
+
+                searchStats.totalItemsProcessed += items.size();
             }
 
-            // Step 3: Update blacklist for the next iteration
+            searchStats.addIterationStats(iterationStats);
             keywordsBlacklist = updateBlacklist(keywordsBlacklist, keywords);
         }
 
@@ -188,8 +257,6 @@ public abstract class AbstractSearchOrchestrator {
     }
 
     protected abstract Object getItemByKey(Object key, List<?> items);
-
     protected abstract String getKeyFieldValue();
-
     protected abstract String getSourceType();
 }

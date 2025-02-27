@@ -91,7 +91,7 @@ public class Ticket extends JSONModel implements ITicket {
     @Override
     public String toText() {
         StringBuilder fieldsAsJSON = StringUtils.transformJSONToText(new StringBuilder(), getFieldsAsJSON(), false);
-        return fieldsAsJSON.toString();
+        return "key: " + getTicketKey() + "\n" + fieldsAsJSON;
     }
 
     public String getId() {
