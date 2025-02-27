@@ -89,6 +89,7 @@ public class TicketTest {
         JSONObject jsonObjectMock = mock(JSONObject.class);
         doReturn(jsonObjectMock).when(ticket).getFieldsAsJSON();
         StringBuilder sb = new StringBuilder();
+        sb.append("key: null\n");
         StringUtils.transformJSONToText(sb, jsonObjectMock, false);
         assertEquals(sb.toString(), ticket.toText());
     }

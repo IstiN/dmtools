@@ -43,7 +43,7 @@ public class BasicJiraClientTest {
     @Test
     public void testGetExtendedQueryFields() {
         String[] expectedFields = {
-                "description", "summary", "status", "attachment", "updated", "created", "creator",
+                "description", "issuelinks", "summary", "status", "attachment", "updated", "created", "creator",
                 "reporter", "components", "issuetype", "fixVersions", "customfield_10004", "labels",
                 "priority", "parent"
         };
