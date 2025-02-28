@@ -1,9 +1,8 @@
 package com.github.istin.dmtools.github.model;
 
-import com.github.istin.dmtools.common.model.IFile;
-import com.github.istin.dmtools.common.model.ITextMatch;
-import com.github.istin.dmtools.common.model.JSONModel;
-import com.github.istin.dmtools.common.model.ToText;
+import com.github.istin.dmtools.common.model.*;
+import com.github.istin.dmtools.common.utils.HtmlCleaner;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -72,13 +71,36 @@ public class GitHubFile extends JSONModel implements IFile, ToText {
             json.put("path", getPath());
             json.put("type", getType());
             json.put("url", getSelfLink());
+
+            // Add fileContent if it exists
             if (fileContent != null) {
                 json.put("fileContent", fileContent);
             }
-            json.put(TEXT_MATCHES, getJSONArray(TEXT_MATCHES));
+
+            // Process and filter text matches
+            List<ITextMatch> textMatches = getTextMatches();
+            JSONArray filteredTextMatches = new JSONArray();
+            for (ITextMatch textMatch : textMatches) {
+                JSONObject textMatchJson = new JSONObject();
+                textMatchJson.put("fragment", HtmlCleaner.filterBase64InText(textMatch.getFragment()));
+
+                // Process matches within the text match
+                JSONArray filteredMatches = new JSONArray();
+                List<IMatch> matches = textMatch.getMatches();
+                for (IMatch match : matches) {
+                    filteredMatches.put(HtmlCleaner.filterBase64InText(match.getText()));
+                }
+                textMatchJson.put("matches", filteredMatches);
+
+                filteredTextMatches.put(textMatchJson);
+            }
+            json.put(TEXT_MATCHES, filteredTextMatches);
+
             return json.toString();
         } catch (JSONException e) {
             return super.toString();
         }
     }
+
+
 }

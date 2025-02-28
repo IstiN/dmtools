@@ -10,6 +10,7 @@ import org.jsoup.select.Elements;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class HtmlCleaner {
 
@@ -108,6 +109,178 @@ public class HtmlCleaner {
 
         // Print the modified HTML
         return doc.body().html();
+    }
+
+    private static final Set<String> SIZE_RELATED_ATTRIBUTES = Set.of(
+            "width", "height", "min-width", "min-height", "max-width", "max-height",
+            "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
+            "padding", "padding-top", "padding-right", "padding-bottom", "padding-left"
+    );
+
+    /**
+     * Cleans only CSS styles, JavaScript, and size-related attributes
+     */
+    public static String cleanOnlyStylesAndSizes(String html) {
+        Document doc = Jsoup.parse(html);
+        doc.outputSettings(new Document.OutputSettings().prettyPrint(false));
+
+        // Remove CSS from head
+        doc.select("head style").remove();
+        doc.select("link[rel=stylesheet]").remove();
+
+        // Remove JavaScript
+        doc.select("script").remove();
+
+        // Clean style attributes but only remove size-related properties
+        Elements elementsWithStyle = doc.select("[style]");
+        for (Element element : elementsWithStyle) {
+            String style = element.attr("style");
+            String cleanedStyle = cleanSizeRelatedStyles(style);
+            if (cleanedStyle.isEmpty()) {
+                element.removeAttr("style");
+            } else {
+                element.attr("style", cleanedStyle);
+            }
+        }
+
+        // Remove size-related attributes
+        Elements allElements = doc.getAllElements();
+        for (Element element : allElements) {
+            SIZE_RELATED_ATTRIBUTES.forEach(element::removeAttr);
+        }
+
+        return filterBase64InText(doc.html());
+    }
+
+    /**
+     * Replaces base64-encoded blocks in the given text with a placeholder.
+     *
+     * @param text The original text.
+     * @return The text with base64 blocks replaced by a placeholder.
+     */
+    public static String filterBase64InText(String text) {
+        // Regular expression to match base64-encoded blocks
+        String base64Pattern = "data:image/[^;]+;base64,[a-zA-Z0-9+/=]+";
+
+        // Replace all base64 blocks with a placeholder
+        return text.replaceAll(base64Pattern, "[Base64 image data removed]");
+    }
+
+    /**
+     * Cleans only size-related CSS properties from style attribute
+     */
+    private static String cleanSizeRelatedStyles(String style) {
+        if (style == null || style.isEmpty()) {
+            return "";
+        }
+
+        // Split style into individual properties
+        String[] properties = style.split(";");
+        List<String> cleanedProperties = new ArrayList<>();
+
+        for (String property : properties) {
+            property = property.trim();
+            if (property.isEmpty()) continue;
+
+            // Check if property is size-related
+            boolean isSizeRelated = false;
+            for (String sizeAttr : SIZE_RELATED_ATTRIBUTES) {
+                if (property.startsWith(sizeAttr + ":")) {
+                    isSizeRelated = true;
+                    break;
+                }
+            }
+
+            // Additional size-related CSS properties
+            if (property.startsWith("position:") ||
+                    property.startsWith("top:") ||
+                    property.startsWith("right:") ||
+                    property.startsWith("bottom:") ||
+                    property.startsWith("left:") ||
+                    property.startsWith("float:") ||
+                    property.startsWith("display:") ||
+                    property.startsWith("flex:") ||
+                    property.startsWith("grid:") ||
+                    property.startsWith("box-sizing:")) {
+                isSizeRelated = true;
+            }
+
+            // Keep non-size-related properties
+            if (!isSizeRelated) {
+                cleanedProperties.add(property);
+            }
+        }
+
+        return String.join("; ", cleanedProperties);
+    }
+
+    /**
+     * Alternative version that preserves style tags but removes size-related rules
+     */
+    public static String cleanOnlyStylesAndSizesPreservingStyleTags(String html) {
+        Document doc = Jsoup.parse(html);
+        doc.outputSettings(new Document.OutputSettings().prettyPrint(false));
+
+        // Clean style tags content
+        Elements styleTags = doc.select("style");
+        for (Element styleTag : styleTags) {
+            String css = styleTag.html();
+            String cleanedCss = cleanSizeRelatedCSSRules(css);
+            styleTag.html(cleanedCss);
+        }
+
+        // Remove JavaScript
+        doc.select("script").remove();
+
+        // Clean style attributes
+        Elements elementsWithStyle = doc.select("[style]");
+        for (Element element : elementsWithStyle) {
+            String style = element.attr("style");
+            String cleanedStyle = cleanSizeRelatedStyles(style);
+            if (cleanedStyle.isEmpty()) {
+                element.removeAttr("style");
+            } else {
+                element.attr("style", cleanedStyle);
+            }
+        }
+
+        // Remove size-related attributes
+        Elements allElements = doc.getAllElements();
+        for (Element element : allElements) {
+            SIZE_RELATED_ATTRIBUTES.forEach(element::removeAttr);
+        }
+
+        return doc.html();
+    }
+
+    /**
+     * Cleans size-related rules from CSS content
+     */
+    private static String cleanSizeRelatedCSSRules(String css) {
+        // This is a simplified version. For production use,
+        // consider using a proper CSS parser
+        StringBuilder cleanedCss = new StringBuilder();
+        String[] rules = css.split("}");
+
+        for (String rule : rules) {
+            if (rule.trim().isEmpty()) continue;
+
+            String[] parts = rule.split("\\{");
+            if (parts.length != 2) continue;
+
+            String selector = parts[0].trim();
+            String properties = parts[1].trim();
+
+            String cleanedProperties = cleanSizeRelatedStyles(properties);
+            if (!cleanedProperties.isEmpty()) {
+                cleanedCss.append(selector)
+                        .append(" { ")
+                        .append(cleanedProperties)
+                        .append(" }\n");
+            }
+        }
+
+        return cleanedCss.toString();
     }
 
 }
