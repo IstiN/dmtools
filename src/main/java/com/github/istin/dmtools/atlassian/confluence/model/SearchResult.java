@@ -18,6 +18,7 @@ public class SearchResult extends JSONModel {
     }
 
     public static final String TITLE = "title";
+    public static final String ID = "id";
     public static final String ENTITY_ID = "entityId";
     public static final String TYPE = "type";
     public static final String URL = "url";
@@ -28,6 +29,9 @@ public class SearchResult extends JSONModel {
     }
     public String getEntityId() {
         return getString(ENTITY_ID);
+    }
+    public String getId() {
+        return getString(ID);
     }
     public String getType() {
         return getString(TYPE);

@@ -6,6 +6,7 @@ import com.github.istin.dmtools.atlassian.confluence.model.SearchResult;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ConfluenceSearchOrchestrator extends AbstractSearchOrchestrator {
 
@@ -53,7 +54,12 @@ public class ConfluenceSearchOrchestrator extends AbstractSearchOrchestrator {
 
     @Override
     public List<?> searchItemsWithKeywords(String keyword, Object platformContext, int itemsLimit) throws Exception {
-       return confluence.searchContentByText(keyword, itemsLimit);
+        List<SearchResult> searchResults = confluence.searchContentByText(keyword, itemsLimit);
+        // Filter out results where entityId is null or type is "attachment"
+        return searchResults.stream()
+                .filter(searchResult -> searchResult.getEntityId() != null) // Keep only results with non-null entityId
+                .filter(searchResult -> !"attachment".equalsIgnoreCase(searchResult.getType())) // Exclude type "attachment"
+                .collect(Collectors.toList());
     }
 
     @Override
