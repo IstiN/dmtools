@@ -82,13 +82,13 @@ public class GitHubFile extends JSONModel implements IFile, ToText {
             JSONArray filteredTextMatches = new JSONArray();
             for (ITextMatch textMatch : textMatches) {
                 JSONObject textMatchJson = new JSONObject();
-                textMatchJson.put("fragment", HtmlCleaner.filterBase64InText(textMatch.getFragment()));
+                textMatchJson.put("fragment", HtmlCleaner.cleanSvgFragment(HtmlCleaner.filterBase64InText(textMatch.getFragment())));
 
                 // Process matches within the text match
                 JSONArray filteredMatches = new JSONArray();
                 List<IMatch> matches = textMatch.getMatches();
                 for (IMatch match : matches) {
-                    filteredMatches.put(HtmlCleaner.filterBase64InText(match.getText()));
+                    filteredMatches.put(HtmlCleaner.cleanSvgFragment(HtmlCleaner.filterBase64InText(match.getText())));
                 }
                 textMatchJson.put("matches", filteredMatches);
 

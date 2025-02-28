@@ -149,7 +149,7 @@ public class HtmlCleaner {
             SIZE_RELATED_ATTRIBUTES.forEach(element::removeAttr);
         }
 
-        return filterBase64InText(doc.html());
+        return cleanSvgFragment(filterBase64InText(doc.html()));
     }
 
     /**
@@ -163,7 +163,16 @@ public class HtmlCleaner {
         String base64Pattern = "data:image/[^;]+;base64,[a-zA-Z0-9+/=]+";
 
         // Replace all base64 blocks with a placeholder
-        return text.replaceAll(base64Pattern, "[Base64 image data removed]");
+        return text.replaceAll(base64Pattern, "[Base64 image]");
+    }
+
+    public static String cleanSvgFragment(String fragment) {
+        // Regular expression to match SVG tags (e.g., <path>, <rect>, <g>, etc.)
+        String svgTagPattern = "<(path|rect|g|circle|line|polygon|polyline|ellipse|defs|linearGradient|radialGradient|stop|clipPath|mask|symbol|use|text|tspan|image|pattern|marker)[^>]*>(.*?)</\\1>|<(path|rect|g|circle|line|polygon|polyline|ellipse|defs|linearGradient|radialGradient|stop|clipPath|mask|symbol|use|text|tspan|image|pattern|marker)[^>]*/?>";
+
+        // Replace SVG tags with a placeholder
+
+        return fragment.replaceAll(svgTagPattern, "[SVG]");
     }
 
     /**
