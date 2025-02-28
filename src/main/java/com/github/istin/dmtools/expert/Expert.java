@@ -21,8 +21,11 @@ import com.github.istin.dmtools.search.CodebaseSearchOrchestrator;
 import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import lombok.Getter;
+import org.apache.commons.io.FileUtils;
+import org.json.JSONObject;
 
 import javax.inject.Inject;
+import java.io.File;
 
 public class Expert extends AbstractJob<ExpertParams> {
 
@@ -92,17 +95,17 @@ public class Expert extends AbstractJob<ExpertParams> {
             if (expertParams.isCodeAsSource() || expertParams.isConfluenceAsSource() || expertParams.isTrackerAsSource()) {
                 RequestSimplifierAgent.Result structuredRequest = requestSimplifierAgent.run(new RequestSimplifierAgent.Params(finalProjectContext + "\n" + ticketContext.toText() + "\n" + requestWithContext));
                 if (expertParams.isCodeAsSource()) {
-                    String fileExtendedContext = extendContextWithCode(expertParams, structuredRequest);
+                    String fileExtendedContext = extendContextWithCode(ticket.getTicketKey(), expertParams, structuredRequest);
                     trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from files. \n" + fileExtendedContext);
                     requestWithContext.append("\n").append(fileExtendedContext);
                 }
                 if (expertParams.isConfluenceAsSource()) {
-                    String confluenceExtendedContext = extendContextWithConfluence(expertParams, structuredRequest);
+                    String confluenceExtendedContext = extendContextWithConfluence(ticket.getTicketKey(), expertParams, structuredRequest);
                     trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from confluence. \n" + confluenceExtendedContext);
                     requestWithContext.append("\n").append(confluenceExtendedContext);
                 }
                 if (expertParams.isTrackerAsSource()) {
-                    String trackerExtendedContext = extendContextWithTracker(expertParams, structuredRequest);
+                    String trackerExtendedContext = extendContextWithTracker(ticket.getTicketKey(), expertParams, structuredRequest);
                     trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from tracker. \n" + trackerExtendedContext);
                     requestWithContext.append("\n").append(trackerExtendedContext);
                 }
@@ -130,24 +133,60 @@ public class Expert extends AbstractJob<ExpertParams> {
         return keywordsBlacklist;
     }
 
-    private String extendContextWithCode(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+    protected void saveAndAttachStats(String ticketKey, AbstractSearchOrchestrator orchestratorClass) {
+
+        try {
+            // Convert stats to JSON
+            JSONObject json = orchestratorClass.getSearchStats().toJson();
+
+            // Create temporary file
+            String fileName = orchestratorClass.getClass().getSimpleName() + "_stats.json";
+            File tempFile = File.createTempFile(fileName, null);
+
+            // Write JSON to file using Commons IO
+            FileUtils.writeStringToFile(tempFile, json.toString(2), "UTF-8");
+
+            // Attach file to ticket
+            trackerClient.attachFileToTicket(
+                    ticketKey,
+                    fileName,
+                    "application/json",
+                    tempFile
+            );
+
+            // Clean up temp file
+            FileUtils.deleteQuietly(tempFile);
+
+        } catch (Exception e) {
+            System.err.println("Failed to save and attach stats: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private String extendContextWithCode(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
         SourceCodeConfig[] sourceCodeConfig = expertParams.getSourceCodeConfig();
         codebaseSearchOrchestrator = new CodebaseSearchOrchestrator(sourceCodeConfig);
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int filesLimit = expertParams.getFilesLimit();
-        return codebaseSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, filesLimit, expertParams.getFilesLimit());
+        String result = codebaseSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, filesLimit, expertParams.getFilesLimit());
+        saveAndAttachStats(ticketKey, codebaseSearchOrchestrator);
+        return result;
     }
 
-    private String extendContextWithConfluence(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+    private String extendContextWithConfluence(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int confluenceLimit = expertParams.getConfluenceLimit();
-        return confluenceSearchOrchestrator.run(expertParams.getSearchOrchestratorType(),  structuredRequest.toString(), keywordsBlacklist, confluenceLimit, expertParams.getConfluenceLimit());
+        String response = confluenceSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, confluenceLimit, expertParams.getConfluenceLimit());
+        saveAndAttachStats(ticketKey, confluenceSearchOrchestrator);
+        return response;
     }
 
-    private String extendContextWithTracker(ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+    private String extendContextWithTracker(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int trackerLimit = expertParams.getTrackerLimit();
-        return trackerSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, trackerLimit, expertParams.getTrackerLimit());
+        String response = trackerSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, trackerLimit, expertParams.getTrackerLimit());
+        saveAndAttachStats(ticketKey, trackerSearchOrchestrator);
+        return response;
     }
 
 
