@@ -22,10 +22,10 @@ import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
-import org.json.JSONObject;
 
 import javax.inject.Inject;
 import java.io.File;
+import java.io.IOException;
 
 public class Expert extends AbstractJob<ExpertParams> {
 
@@ -133,35 +133,35 @@ public class Expert extends AbstractJob<ExpertParams> {
         return keywordsBlacklist;
     }
 
-    protected void saveAndAttachStats(String ticketKey, AbstractSearchOrchestrator orchestratorClass) {
+    protected void saveAndAttachStats(String ticketKey, String result, AbstractSearchOrchestrator orchestratorClass) {
 
         try {
-            // Convert stats to JSON
-            JSONObject json = orchestratorClass.getSearchStats().toJson();
-
-            // Create temporary file
-            String fileName = orchestratorClass.getClass().getSimpleName() + "_stats.json";
-            File tempFile = File.createTempFile(fileName, null);
-
-            // Write JSON to file using Commons IO
-            FileUtils.writeStringToFile(tempFile, json.toString(2), "UTF-8");
-
-            // Attach file to ticket
-            trackerClient.attachFileToTicket(
-                    ticketKey,
-                    fileName,
-                    "application/json",
-                    tempFile
-            );
-
-            // Clean up temp file
-            FileUtils.deleteQuietly(tempFile);
-
+            attachResponse(orchestratorClass, "_stats.json", orchestratorClass.getSearchStats().toJson().toString(2), ticketKey, "application/json");
+            attachResponse(orchestratorClass, "_result.txt", result, ticketKey, "text/plain");
         } catch (Exception e) {
             System.err.println("Failed to save and attach stats: " + e.getMessage());
             e.printStackTrace();
         }
     }
+
+    public void attachResponse(AbstractSearchOrchestrator orchestratorClass, String file, String result, String ticketKey, String contentType) throws IOException {
+        String fileNameResult = orchestratorClass.getClass().getSimpleName() + file;
+        File tempFileResult = File.createTempFile(fileNameResult, null);
+
+        // Write JSON to file using Commons IO
+        FileUtils.writeStringToFile(tempFileResult, result, "UTF-8");
+
+        // Attach file to ticket
+        trackerClient.attachFileToTicket(
+                ticketKey,
+                fileNameResult,
+                contentType,
+                tempFileResult
+        );
+        // Clean up temp file
+        FileUtils.deleteQuietly(tempFileResult);
+    }
+
 
     private String extendContextWithCode(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
         SourceCodeConfig[] sourceCodeConfig = expertParams.getSourceCodeConfig();
@@ -169,7 +169,7 @@ public class Expert extends AbstractJob<ExpertParams> {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int filesLimit = expertParams.getFilesLimit();
         String result = codebaseSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, filesLimit, expertParams.getFilesLimit());
-        saveAndAttachStats(ticketKey, codebaseSearchOrchestrator);
+        saveAndAttachStats(ticketKey, result, codebaseSearchOrchestrator);
         return result;
     }
 
@@ -177,7 +177,7 @@ public class Expert extends AbstractJob<ExpertParams> {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int confluenceLimit = expertParams.getConfluenceLimit();
         String response = confluenceSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, confluenceLimit, expertParams.getConfluenceLimit());
-        saveAndAttachStats(ticketKey, confluenceSearchOrchestrator);
+        saveAndAttachStats(ticketKey, response, confluenceSearchOrchestrator);
         return response;
     }
 
@@ -185,7 +185,7 @@ public class Expert extends AbstractJob<ExpertParams> {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int trackerLimit = expertParams.getTrackerLimit();
         String response = trackerSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, trackerLimit, expertParams.getTrackerLimit());
-        saveAndAttachStats(ticketKey, trackerSearchOrchestrator);
+        saveAndAttachStats(ticketKey, response, trackerSearchOrchestrator);
         return response;
     }
 
