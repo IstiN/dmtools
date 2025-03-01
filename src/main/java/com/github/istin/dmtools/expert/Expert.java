@@ -176,7 +176,8 @@ public class Expert extends AbstractJob<ExpertParams> {
     private String extendContextWithConfluence(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int confluenceLimit = expertParams.getConfluenceLimit();
-        String response = confluenceSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, confluenceLimit, expertParams.getConfluenceLimit());
+        int confluenceIterations = expertParams.getConfluenceIterations();
+        String response = confluenceSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, confluenceLimit, confluenceIterations);
         saveAndAttachStats(ticketKey, response, confluenceSearchOrchestrator);
         return response;
     }
@@ -184,7 +185,8 @@ public class Expert extends AbstractJob<ExpertParams> {
     private String extendContextWithTracker(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int trackerLimit = expertParams.getTrackerLimit();
-        String response = trackerSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, trackerLimit, expertParams.getTrackerLimit());
+        int trackerIterations = expertParams.getTrackerIterations();
+        String response = trackerSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, trackerLimit, trackerIterations);
         saveAndAttachStats(ticketKey, response, trackerSearchOrchestrator);
         return response;
     }
