@@ -183,5 +183,31 @@
             </human>
             <ai>["https://api.github.com/repositories/123456789/contents/src/components/UrlPaymentProcessor.js?ref=abc123def456"]</ai>
         </example>
+        <example>
+            <human>
+                sourceType: "github"
+                keyField: "path"
+                taskDescription: "Find components related to payment processing"
+                searchResults: {
+                "path": "src/components/PaymentProcessor.js",
+                "score": 1,
+                "html_url": "https://github.com/company/project/blob/main/src/components/PaymentProcessor.js",
+                "text_matches": [{
+                "fragment": "class PaymentProcessor implements IPayment {\n  processPayment(amount: number) {\n    // Payment logic\n  }",
+                "object_url": "https://api.github.com/repositories/123456789/contents/src/components/ObjectUrlPaymentProcessor.js?ref=abc123def456",
+                "object_type": "FileContent",
+                "property": "content"
+                }],
+                "repository": {
+                "id": 123456789,
+                "name": "project",
+                "full_name": "company/project",
+                "private": true
+                }
+                "url": "https://api.github.com/repositories/123456789/contents/src/components/UrlPaymentProcessor.js?ref=abc123def456",
+                }
+            </human>
+            <ai>["src/components/PaymentProcessor.js"]</ai>
+        </example>
     </examples>
 </prompt>

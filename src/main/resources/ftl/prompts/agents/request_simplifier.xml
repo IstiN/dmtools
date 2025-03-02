@@ -7,9 +7,10 @@
         1. Removing any meta information, tags, or specific characters not required for context.
         2. Rephrasing the [user_request] to make it more specific and concise.
         3. Identifying and clearly stating any questions as bullet points.
-        4. Applying any other relevant rules to improve clarity and specificity.
-        5. Put known information as part of your response based on [user_request]
-        6. IMPORTANT!!!! You must return JSON! The JSON MUST BE VALID.
+        4. Identifying and clearly stating any tasks as bullet points.
+        5. Applying any other relevant rules to improve clarity and specificity.
+        6. Put known information as part of your response based on [user_request]
+        7. IMPORTANT!!!! You must return JSON! The JSON MUST BE VALID.
     </instructions>
     <input_data>
         <user_request>
@@ -18,8 +19,9 @@
     </input_data>
     <formatting>
         <rules>
-            <rule>Output should be in a JSON format with keys: "request" (String) and "questions" (JSONArray of Strings), "knownInfo" (String).</rule>
-            <rule>If there are no questions, the "questions" array should be empty.</rule>
+            <rule>Output should be in a JSON format with keys: "request" (String) and "questions" (JSONArray of Strings), and "tasks" (JSONArray of Strings), "knownInfo" (String).</rule>
+            <rule>If there are no questions, the "questions" array must be empty.</rule>
+            <rule>If there are no tasks, the "tasks" array must be empty.</rule>
             <rule>Remove any profanity or inappropriate content.</rule>
             <rule>Preserve the original intent and key information of the request.</rule>
         </rules>
@@ -36,7 +38,8 @@
                 "How do I bake a chocolate cake?",
                 "What is the best type of chocolate to use for baking a cake?"
                 ],
-                "knownInfo": "dark chocolate is not accepted"
+                "tasks": [],
+                "knownInfo": "Dark chocolate is not accepted."
                 }
             </output>
         </example>
@@ -50,6 +53,7 @@
                 "questions": [
                 "How do plants convert sunlight into energy through photosynthesis?"
                 ],
+                "tasks": [],
                 "knownInfo": ""
                 }
             </output>
@@ -65,7 +69,8 @@
                 "What are the capital cities of France, Germany, and Italy?",
                 "What is the population of each of these capital cities?"
                 ],
-                "knownInfo": "Wkipedia doesn't contain actual info"
+                "tasks": [],
+                "knownInfo": "Wikipedia doesn't contain actual information."
                 }
             </output>
         </example>
@@ -75,12 +80,61 @@
             </input>
             <output>
                 {
-                "request": "Explain the authentication flow between system components",
+                "request": "Explain the authentication flow between system components.",
                 "questions": [
                 "How do AuthenticationManager and UserValidator interact?",
                 "What is the role of SecurityContext in this flow?"
                 ],
-                "knownInfo": "User sees calls between AuthenticationManager and UserValidator and interactions between SecurityContext and AuthenticationService"
+                "tasks": [],
+                "knownInfo": "User sees calls between AuthenticationManager and UserValidator and interactions between SecurityContext and AuthenticationService."
+                }
+            </output>
+        </example>
+        <example>
+            <input>
+                Hey, could you summarize the main differences between HTTP and HTTPS? Also, I need to know why HTTPS is considered more secure.
+            </input>
+            <output>
+                {
+                "request": "Summarize the main differences between HTTP and HTTPS.",
+                "questions": [
+                "What are the main differences between HTTP and HTTPS?",
+                "Why is HTTPS considered more secure?"
+                ],
+                "tasks": [],
+                "knownInfo": ""
+                }
+            </output>
+        </example>
+        <example>
+            <input>
+                Can you help me write a Python script to calculate the factorial of a number? Also, could you explain how recursion works in this context?
+            </input>
+            <output>
+                {
+                "request": "Provide a Python script to calculate the factorial of a number.",
+                "questions": [
+                "How does recursion work in the context of calculating a factorial?"
+                ],
+                "tasks": [
+                "Write a Python script to calculate the factorial of a number."
+                ],
+                "knownInfo": ""
+                }
+            </output>
+        </example>
+        <example>
+            <input>
+                I need a step-by-step guide to set up a MySQL database on a Linux server.
+            </input>
+            <output>
+                {
+                "request": "Provide a step-by-step guide to set up a MySQL database on a Linux server.",
+                "questions": [],
+                "tasks": [
+                "Provide a step-by-step guide to set up a MySQL database on a Linux server."
+                ],
+                "knownInfo": ""
                 }
             </output>
         </example>

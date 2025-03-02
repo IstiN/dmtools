@@ -5,6 +5,7 @@ import com.github.istin.dmtools.openai.utils.AIResponseParser;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 import org.json.JSONArray;
 
@@ -22,6 +23,7 @@ public class RequestSimplifierAgent extends AbstractSimpleAgent<RequestSimplifie
     public static class Result {
         private String request;
         private String[] questions;
+        private String[] tasks;
         private String knownInfo;
     }
 
@@ -35,11 +37,20 @@ public class RequestSimplifierAgent extends AbstractSimpleAgent<RequestSimplifie
         JSONObject jsonResponse = AIResponseParser.parseResponseAsJSONObject(response);
         String simplifiedRequest = jsonResponse.getString("request");
         String knownInfo = jsonResponse.getString("knownInfo");
-        JSONArray questionsArray = jsonResponse.getJSONArray("questions");
+        return new Result(
+                simplifiedRequest,
+                convertToArray(jsonResponse, "questions"),
+                convertToArray(jsonResponse, "tasks"),
+                knownInfo
+        );
+    }
+
+    private static String[] convertToArray(JSONObject jsonResponse, String key) {
+        JSONArray questionsArray = jsonResponse.getJSONArray(key);
         String[] questions = new String[questionsArray.length()];
         for (int i = 0; i < questionsArray.length(); i++) {
             questions[i] = questionsArray.getString(i);
         }
-        return new Result(simplifiedRequest, questions, knownInfo);
+        return questions;
     }
 }

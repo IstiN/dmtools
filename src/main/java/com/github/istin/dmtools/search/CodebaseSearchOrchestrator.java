@@ -9,6 +9,10 @@ import com.github.istin.dmtools.di.SourceCodeFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 public class CodebaseSearchOrchestrator extends AbstractSearchOrchestrator {
 
@@ -51,6 +55,47 @@ public class CodebaseSearchOrchestrator extends AbstractSearchOrchestrator {
     }
 
     @Override
+    protected void preprocessing(ProcessingType processingType, StringBuffer contextSummary, SearchStats searchStats, String fullTask, Object platformContext) throws Exception {
+        List<IFile> result = new ArrayList<>();
+        for (SourceCode sourceCode : sourceCodes) {
+            List<IFile> files = sourceCode.getListOfFiles(
+                    sourceCode.getDefaultWorkspace(),
+                    sourceCode.getDefaultRepository(),
+                    sourceCode.getDefaultBranch()
+            );
+            result.addAll(files);
+        }
+        result = result.stream().filter(file -> !file.isDir()).collect(Collectors.toList());
+
+        // Split the result list into chunks of 5000
+        int chunkSize = 2000;
+        List<List<IFile>> chunks = new ArrayList<>();
+        for (int i = 0; i < result.size(); i += chunkSize) {
+            chunks.add(result.subList(i, Math.min(i + chunkSize, result.size())));
+        }
+
+        // Create a thread pool with 10 threads
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+
+        // Submit tasks for parallel processing
+        List<Future<Void>> futures = new ArrayList<>();
+        for (List<IFile> chunk : chunks) {
+            futures.add(executorService.submit(() -> {
+                checkBulkSearchResults(processingType, fullTask, chunk, null, contextSummary, platformContext, null);
+                return null;
+            }));
+        }
+
+        // Wait for all tasks to complete
+        for (Future<Void> future : futures) {
+            future.get(); // This will block until the task is complete
+        }
+
+        // Shutdown the executor service
+        executorService.shutdown();
+    }
+
+    @Override
     public List<IFile> searchItemsWithKeywords(String keyword, Object platformContext, int itemsLimit) throws Exception {
         List<IFile> result = new ArrayList<>();
 
@@ -76,7 +121,7 @@ public class CodebaseSearchOrchestrator extends AbstractSearchOrchestrator {
     protected Object getItemByKey(Object key, List<?> items) {
         for (Object o : items) {
             IFile file = (IFile) o;
-            if (file.getSelfLink().equalsIgnoreCase((String) key)) {
+            if (file.getPath().equalsIgnoreCase((String) key)) {
                 return file;
             }
         }
@@ -85,7 +130,7 @@ public class CodebaseSearchOrchestrator extends AbstractSearchOrchestrator {
 
     @Override
     protected String getKeyFieldValue() {
-        return "url";
+        return "path";
     }
 
     @Override

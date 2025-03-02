@@ -10,6 +10,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.inject.Inject;
+import java.io.IOException;
 import java.util.*;
 
 public abstract class AbstractSearchOrchestrator {
@@ -178,8 +179,9 @@ public abstract class AbstractSearchOrchestrator {
     public String run(ProcessingType processingType, String fullTask, String keywordsBlacklist, int itemsLimit, int iterations) throws Exception {
         StringBuffer contextSummary = new StringBuffer();
         searchStats = new SearchStats();
-        Object platformContext = createInitialPlatformContext();
 
+        Object platformContext = createInitialPlatformContext();
+        preprocessing(processingType, contextSummary, searchStats, fullTask, platformContext);
         for (int iteration = 0; iteration < iterations; iteration++) {
             JSONArray keywords = generateKeywords(fullTask, keywordsBlacklist, contextSummary.toString());
             List<String> keywordsList = new ArrayList<>();
@@ -195,49 +197,9 @@ public abstract class AbstractSearchOrchestrator {
                 List<String> successfulKeysForKeyword = new ArrayList<>();
 
                 if (processingType == ProcessingType.ONE_BY_ONE) {
-                    for (Object item : items) {
-                        String itemKey = getItemResourceKey(item);
-                        if (searchStats.processedKeys.contains(itemKey)) continue;
-
-                        processedKeysForKeyword.add(itemKey);
-                        if (processItem(processingType, item, fullTask, contextSummary, platformContext)) {
-                            successfulKeysForKeyword.add(itemKey);
-                            searchStats.processedKeys.add(itemKey);
-                        }
-                    }
+                    checkOneByOneSearchResults(processingType, fullTask, items, processedKeysForKeyword, contextSummary, platformContext, successfulKeysForKeyword);
                 } else {
-                    if (!items.isEmpty()) {
-                        String string;
-                        if (items.get(0) instanceof ToText) {
-                            string = ToText.Utils.toText((List<? extends ToText>) items);
-                        } else {
-                            string = items.toString();
-                        }
-
-                        SearchResultsAssessmentAgent.Params params = new SearchResultsAssessmentAgent.Params(
-                                getSourceType(),
-                                getKeyFieldValue(),
-                                fullTask,
-                                string
-                        );
-
-                        JSONArray relevantKeys = searchResultsAssessmentAgent.run(params);
-
-                        for (int j = 0; j < relevantKeys.length(); j++) {
-                            Object key = relevantKeys.get(j);
-                            String keyStr = String.valueOf(key);
-                            if (searchStats.processedKeys.contains(keyStr)) continue;
-
-                            Object itemByKey = getItemByKey(key, items);
-                            if (itemByKey != null) {
-                                processedKeysForKeyword.add(keyStr);
-                                if (processItem(processingType, itemByKey, fullTask, contextSummary, platformContext)) {
-                                    successfulKeysForKeyword.add(keyStr);
-                                    searchStats.processedKeys.add(keyStr);
-                                }
-                            }
-                        }
-                    }
+                    checkBulkSearchResults(processingType, fullTask, items, processedKeysForKeyword, contextSummary, platformContext, successfulKeysForKeyword);
                 }
 
                 iterationStats.keywordStats.put(keyword, new SearchStats.IterationStats.KeywordStats(
@@ -254,6 +216,62 @@ public abstract class AbstractSearchOrchestrator {
         }
 
         return contextSummary.toString();
+    }
+
+    private void checkOneByOneSearchResults(ProcessingType processingType, String fullTask, List<?> items, List<String> processedKeysForKeyword, StringBuffer contextSummary, Object platformContext, List<String> successfulKeysForKeyword) throws Exception {
+        for (Object item : items) {
+            String itemKey = getItemResourceKey(item);
+            if (searchStats.processedKeys.contains(itemKey)) continue;
+
+            processedKeysForKeyword.add(itemKey);
+            if (processItem(processingType, item, fullTask, contextSummary, platformContext)) {
+                successfulKeysForKeyword.add(itemKey);
+                searchStats.processedKeys.add(itemKey);
+            }
+        }
+    }
+
+    protected void checkBulkSearchResults(ProcessingType processingType, String fullTask, List<?> items, List<String> processedKeysForKeyword, StringBuffer contextSummary, Object platformContext, List<String> successfulKeysForKeyword) throws Exception {
+        if (!items.isEmpty()) {
+            String string;
+            if (items.get(0) instanceof ToText) {
+                string = ToText.Utils.toText((List<? extends ToText>) items);
+            } else {
+                string = items.toString();
+            }
+
+            SearchResultsAssessmentAgent.Params params = new SearchResultsAssessmentAgent.Params(
+                    getSourceType(),
+                    getKeyFieldValue(),
+                    fullTask,
+                    string
+            );
+
+            JSONArray relevantKeys = searchResultsAssessmentAgent.run(params);
+
+            for (int j = 0; j < relevantKeys.length(); j++) {
+                Object key = relevantKeys.get(j);
+                String keyStr = String.valueOf(key);
+                if (searchStats.processedKeys.contains(keyStr)) continue;
+
+                Object itemByKey = getItemByKey(key, items);
+                if (itemByKey != null) {
+                    if (processedKeysForKeyword != null) {
+                        processedKeysForKeyword.add(keyStr);
+                    }
+                    if (processItem(processingType, itemByKey, fullTask, contextSummary, platformContext)) {
+                        if (successfulKeysForKeyword != null) {
+                            successfulKeysForKeyword.add(keyStr);
+                        }
+                        searchStats.processedKeys.add(keyStr);
+                    }
+                }
+            }
+        }
+    }
+
+    protected void preprocessing(ProcessingType processingType, StringBuffer contextSummary, SearchStats searchStats, String fullTask, Object platformContext) throws Exception {
+
     }
 
     protected abstract Object getItemByKey(Object key, List<?> items);

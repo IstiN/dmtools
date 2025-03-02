@@ -69,8 +69,8 @@ public class GitHubFile extends JSONModel implements IFile, ToText {
         JSONObject json = new JSONObject();
         try {
             json.put("path", getPath());
-            json.put("type", getType());
-            json.put("url", getSelfLink());
+            //json.put("type", getType());
+            //json.put("url", getSelfLink());
 
             // Add fileContent if it exists
             if (fileContent != null) {
@@ -94,8 +94,9 @@ public class GitHubFile extends JSONModel implements IFile, ToText {
 
                 filteredTextMatches.put(textMatchJson);
             }
-            json.put(TEXT_MATCHES, filteredTextMatches);
-
+            if (!filteredTextMatches.isEmpty()) {
+                json.put(TEXT_MATCHES, filteredTextMatches);
+            }
             return json.toString();
         } catch (JSONException e) {
             return super.toString();
