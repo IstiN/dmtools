@@ -292,13 +292,14 @@ public class ProductivityTools {
         Release currentIteration = releaseGenerator.getCurrentIteration();
         if (reportIterationData == null) {
             int id = reportIteration.getId() + releaseGenerator.getExtraSprintTimeline();
-            reportIterationData = new DevChart.ReportIterationData(id, iterationName, currentIteration.getId(), formula);
+            int currentIterationId = currentIteration.getId();
+            reportIterationData = new DevChart.ReportIterationData(id, iterationName, currentIterationId, formula);
             reportIterationData.customMetricsHeaders = metrics;
             if (devChart.reportIterationDataList.size() > 0) {
                 int prevIteration = devChart.reportIterationDataList.get(devChart.reportIterationDataList.size() - 1).getReportIterationId();
                 if (prevIteration != id - 1) {
                     for (int i = prevIteration + 1; i != id; i++) {
-                        devChart.reportIterationDataList.add(new DevChart.ReportIterationData(i, iterationName, currentIteration.getId(), formula));
+                        devChart.reportIterationDataList.add(new DevChart.ReportIterationData(i, iterationName, currentIterationId, formula));
                     }
                 }
             }

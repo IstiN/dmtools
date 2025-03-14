@@ -16,7 +16,6 @@ public class DevProductivityReportParams extends ProductivityJobParams {
     public static String STATUSES_IN_DEVELOPMENT = "statuses_in_development";
     public static String INITIAL_STATUS = "initial_status";
     public static final String SOURCES = "sources";
-    public static final String START_DATE = "start_date";
     public static final String CALC_WEIGHT_TYPE = "calc_weight_type";
     public static final String EXCEL_METRICS_PARAMS = "excel_metrics_params";
     public static final String COMMENTS_REGEX_RESPONSIBLE = "comment_regex_responsible";

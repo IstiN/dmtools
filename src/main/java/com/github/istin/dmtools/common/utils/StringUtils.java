@@ -6,6 +6,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,6 +41,20 @@ public class StringUtils {
             if (i != values.length - 1) {
                 resultsBuilder.append(divider);
             }
+        }
+        return resultsBuilder.toString();
+    }
+
+    public static String concatenate(String divider, Set<String> values) {
+        StringBuilder resultsBuilder = new StringBuilder();
+        boolean isFirst = true;
+        for (String value : values) {
+            if (!isFirst) {
+                resultsBuilder.append(divider);
+            } else {
+                isFirst = false;
+            }
+            resultsBuilder.append(value);
         }
         return resultsBuilder.toString();
     }

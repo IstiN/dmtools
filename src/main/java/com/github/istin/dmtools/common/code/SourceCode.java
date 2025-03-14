@@ -86,6 +86,7 @@ public interface SourceCode {
             if (sources == null || sources.isEmpty()) {
                 addGitHubSource(sourceCodes);
                 addBitbucketSource(sourceCodes);
+                addGitlabSource(sourceCodes);
             } else {
                 for (int i = 0; i < sources.length(); i++) {
                     String sourceCode = sources.getString(i);

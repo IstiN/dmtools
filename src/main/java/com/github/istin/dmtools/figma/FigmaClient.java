@@ -1,10 +1,12 @@
 package com.github.istin.dmtools.figma;
 
 import com.github.istin.dmtools.atlassian.confluence.ContentUtils;
+import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.ImageUtils;
+import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.figma.model.FigmaComment;
 import com.github.istin.dmtools.github.model.GitHubComment;
 import com.github.istin.dmtools.networking.AbstractRestClient;
@@ -20,8 +22,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Set;
 
-public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlToImageFile {
+public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlToImageFile, UriToObject {
 
     private static final Logger logger = LogManager.getLogger(FigmaClient.class);
 
@@ -204,4 +207,13 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
         return JSONModel.convertToModels(FigmaComment.class, jsonResponse.getJSONArray("comments"));
     }
 
+    @Override
+    public Set<String> parseUris(String object) throws Exception {
+        return IssuesIDsParser.extractFigmaUrls(getBasePath(), object);
+    }
+
+    @Override
+    public Object uriToObject(String uri) throws Exception {
+        return null;
+    }
 }

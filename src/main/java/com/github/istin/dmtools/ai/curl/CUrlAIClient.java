@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.common.utils.RetryUtil;
 import com.github.istin.dmtools.networking.AbstractRestClient;
@@ -100,9 +101,11 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
             String jsonBody = replacePlaceholders(files == null || files.isEmpty() ? bodyTemplate : bodyTemplateWithImage, placeholderValues);
 
             validateJson(jsonBody);
+            System.out.println("Request to AI: " + jsonBody);
             if (files != null && !files.isEmpty()) {
                 JSONObject imageObject = new JSONObject().put("type", "image").put("source", new JSONObject().put("type", "base64").put("media_type", "image/png").put("data",  ImageUtils.convertToBase64(files.get(0), "png")));
-                jsonBody = jsonBody.replace("\"__IMAGE_OBJECT__\"", imageObject.toString());
+                String imageObjectAsString = imageObject.toString();
+                jsonBody = jsonBody.replace("\"__IMAGE_OBJECT__\"", imageObjectAsString);
             }
             if (metadata != null) {
                 JSONObject jsonObject = new JSONObject(jsonBody);
@@ -110,8 +113,7 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
                 jsonBody = jsonObject.toString();
             }
             genericRequest.setBody(jsonBody);
-            // Debug: Print the JSON body for verification
-            System.out.println("Request to AI: " + jsonBody);
+
         }
 
         return RetryUtil.executeWithRetry(() -> {

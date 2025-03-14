@@ -7,6 +7,9 @@ import java.util.List;
 
 public class Release implements ReportIteration {
 
+
+    private Calendar endDateCalendar;
+
     public enum Style {
         BY_RELEASE,
         BY_SPRINTS,
@@ -26,6 +29,10 @@ public class Release implements ReportIteration {
     }
 
     public Release() {
+    }
+
+    public void setCurrentEndDate(Calendar endDateCalendar) {
+        this.endDateCalendar = endDateCalendar;
     }
 
     public List<Sprint> getSprints() {
@@ -121,7 +128,7 @@ public class Release implements ReportIteration {
     }
 
     public boolean getIsCurrent() {
-        Calendar now = Calendar.getInstance();
+        Calendar now = endDateCalendar == null ? Calendar.getInstance() : endDateCalendar;
         return isMatchedToReleaseTimelines(now);
     }
 

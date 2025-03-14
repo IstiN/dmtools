@@ -12,6 +12,7 @@ public class ProductivityJobParams extends BaseJobParams {
     public static String REPORT_NAME = "report_name";
     public static String IS_WEIGHT = "is_weight";
     public static final String START_DATE = "start_date";
+    public static final String END_DATE = "end_date";
 
     public ProductivityJobParams() {
     }
@@ -42,6 +43,10 @@ public class ProductivityJobParams extends BaseJobParams {
 
     public String getStartDate() {
         return getString(START_DATE);
+    }
+
+    public String getEndDate() {
+        return getString(END_DATE);
     }
 
     public Boolean isWeight() {

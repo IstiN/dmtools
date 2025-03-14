@@ -117,9 +117,6 @@ public class HtmlCleaner {
             "padding", "padding-top", "padding-right", "padding-bottom", "padding-left"
     );
 
-    /**
-     * Cleans only CSS styles, JavaScript, and size-related attributes
-     */
     public static String cleanOnlyStylesAndSizes(String html) {
         Document doc = Jsoup.parse(html);
         doc.outputSettings(new Document.OutputSettings().prettyPrint(false));
@@ -131,25 +128,51 @@ public class HtmlCleaner {
         // Remove JavaScript
         doc.select("script").remove();
 
-        // Clean style attributes but only remove size-related properties
-        Elements elementsWithStyle = doc.select("[style]");
-        for (Element element : elementsWithStyle) {
-            String style = element.attr("style");
+        // Process main document and shadow DOM content
+        processElementAndShadowDOM(doc);
+
+        return cleanSvgFragment(filterBase64InText(doc.html()));
+    }
+
+    private static void processElementAndShadowDOM(Element root) {
+        // Clean style attributes in current element
+        if (root.hasAttr("style")) {
+            String style = root.attr("style");
             String cleanedStyle = cleanSizeRelatedStyles(style);
             if (cleanedStyle.isEmpty()) {
-                element.removeAttr("style");
+                root.removeAttr("style");
             } else {
-                element.attr("style", cleanedStyle);
+                root.attr("style", cleanedStyle);
             }
         }
 
         // Remove size-related attributes
-        Elements allElements = doc.getAllElements();
-        for (Element element : allElements) {
-            SIZE_RELATED_ATTRIBUTES.forEach(element::removeAttr);
-        }
+        SIZE_RELATED_ATTRIBUTES.forEach(root::removeAttr);
 
-        return cleanSvgFragment(filterBase64InText(doc.html()));
+        // Process all child elements
+        Elements children = root.children();
+        for (Element child : children) {
+            // Check if this element contains shadow DOM content
+            if (child.tagName().equals("cookie-consent-widget")) {
+                String shadowContent = child.html();
+                if (shadowContent.contains("#shadow-root")) {
+                    // Create a temporary document for shadow DOM content
+                    Document shadowDoc = Jsoup.parse(shadowContent);
+
+                    // Remove styles from shadow DOM
+                    shadowDoc.select("style").remove();
+
+                    // Process elements within shadow DOM
+                    processElementAndShadowDOM(shadowDoc.body());
+
+                    // Update the shadow DOM content
+                    child.html("#shadow-root (open)\n" + shadowDoc.body().html());
+                }
+            }
+
+            // Continue processing regular elements
+            processElementAndShadowDOM(child);
+        }
     }
 
     /**

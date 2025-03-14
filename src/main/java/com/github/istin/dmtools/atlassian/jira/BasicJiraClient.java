@@ -71,6 +71,9 @@ public class BasicJiraClient extends JiraClient<Ticket> {
 
     public static TrackerClient<? extends ITicket> getInstance() throws IOException {
         if (instance == null) {
+            if (BASE_PATH == null || BASE_PATH.isEmpty()) {
+                return null;
+            }
             BasicJiraClient basicJiraClient = new BasicJiraClient();
             instance = basicJiraClient;
         }

@@ -2,21 +2,17 @@ package com.github.istin.dmtools.report;
 
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.report.model.KeyTime;
+import com.github.istin.dmtools.report.productivity.FormulaReader;
 import com.github.istin.dmtools.team.Employees;
-import freemarker.cache.ClassTemplateLoader;
-import freemarker.template.Configuration;
-import freemarker.template.Template;
 import freemarker.template.TemplateException;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.logging.log4j.core.config.DefaultConfiguration;
 
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.io.IOException;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,43 +23,34 @@ public class DevChart {
     private static final Logger logger = LogManager.getLogger(DevChart.class);
     private String devName;
 
+    @Getter
+    @Setter
     private List<String> headers = new ArrayList<>();
 
-    public List<ReportIterationData> reportIterationDataList = new ArrayList<ReportIterationData>();
+    @Getter
+    public List<ReportIterationData> reportIterationDataList = new ArrayList<>();
 
     public DevChart(String dev) {
         devName = dev;
     }
 
-    public List<String> getHeaders() {
-        return headers;
-    }
-
-    public void setHeaders(List<String> headers) {
-        this.headers = headers;
-    }
-
     public static class ReportIterationData {
+        @Getter
+        @Setter
         private String reportIterationName;
+        @Getter
+        @Setter
         private int reportIterationId;
+        @Getter
         private String formula;
 
         public Map<Metric, List<KeyTime>> customMetrics = new HashMap<>();
+        @Getter
+        @Setter
         private int defaultCurrentIteration;
 
-        public List<Metric> getCustomMetricsHeaders() {
-            return customMetricsHeaders;
-        }
-
+        @Getter
         public List<Metric> customMetricsHeaders;
-
-        public String getReportIterationName() {
-            return reportIterationName;
-        }
-
-        public int getReportIterationId() {
-            return reportIterationId;
-        }
 
         public ReportIterationData(int reportIterationId, String reportIterationName, int defaultCurrentIteration, String formula) {
             this.reportIterationName = reportIterationName;
@@ -92,9 +79,7 @@ public class DevChart {
                 }
                 try {
                     formula = readFormula(params, formula);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } catch (TemplateException e) {
+                } catch (IOException | TemplateException e) {
                     throw new RuntimeException(e);
                 }
             } else {
@@ -127,34 +112,17 @@ public class DevChart {
         }
 
         private String readFormula(HashMap<String, String> params, String template) throws IOException, TemplateException {
-            Configurator.initialize(new DefaultConfiguration());
-
-            Configuration cfg = new Configuration(Configuration.VERSION_2_3_27);
-            cfg.setLocalizedLookup(false);
-            cfg.setTemplateLoader(new ClassTemplateLoader(getClass().getClassLoader(), "/formula"));
-
-
-            Template temp = cfg.getTemplate( template);
-
-
-            Writer out = new StringWriter();
-            temp.process(params, out);
-            return out.toString();
+            FormulaReader reader = FormulaReader.getInstance();
+            return reader.readFormula(params, template);
         }
 
         public String getIterationName() {
             return reportIterationName;
         }
 
+        @Getter
+        @Setter
         private List<String> iterationValues;
-
-        public void setIterationValues(List<String> iterationValues) {
-            this.iterationValues = iterationValues;
-        }
-
-        public List<String> getIterationValues() {
-            return iterationValues;
-        }
 
         public List<String> getCustomMetrics() {
             List<String> values = new ArrayList<>();
@@ -177,22 +145,10 @@ public class DevChart {
             return values;
         }
 
-        public String getFormula() {
-            return formula;
-        }
-
-        public int getDefaultCurrentIteration() {
-            return defaultCurrentIteration;
-        }
     }
 
     public String getId() {
         return devName.replaceAll(" ", "_");
-    }
-
-
-    public List<ReportIterationData> getReportIterationDataList() {
-        return reportIterationDataList;
     }
 
     public String getDevName() {
@@ -226,7 +182,7 @@ public class DevChart {
                     }
                     iterCount++;
                 }
-            } catch (NumberFormatException e) {}
+            } catch (NumberFormatException _) {}
         }
         if (iterCount == 0) {
             return new DecimalFormat("#.##").format(0d);

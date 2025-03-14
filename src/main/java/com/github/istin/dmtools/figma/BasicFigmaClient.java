@@ -23,6 +23,9 @@ public class BasicFigmaClient extends FigmaClient {
 
     public static FigmaClient getInstance() throws IOException {
         if (instance == null) {
+            if (BASE_PATH == null || BASE_PATH.isEmpty()) {
+                return null;
+            }
             instance = new BasicFigmaClient();
         }
         return instance;

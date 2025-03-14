@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.di;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.AIProvider;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.curl.BasicCUrlAIClient;
 import com.github.istin.dmtools.openai.BasicOpenAI;
@@ -21,6 +22,12 @@ public class AIComponentsModule {
 
     @Provides
     AI provideAI(ConversationObserver observer) {
+        // First check for custom AI
+        AI customAI = AIProvider.getCustomAI();
+        if (customAI != null) {
+            return customAI;
+        }
+
         try {
             AI basicCurlInstance = BasicCUrlAIClient.getInstance();
             if (basicCurlInstance == null) {
