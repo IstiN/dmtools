@@ -102,4 +102,94 @@ public class IssuesIDsParser {
         }
         return keys;
     }
+
+    public static Set<String> extractAttachmentUrls(String basePath, String jiraJson) {
+        // Regex pattern to extract filename and content URL
+        String pattern = "\"filename\":\"(.*?)\".*?\"content\":\"(https://.*?/attachment/content/\\d+)\"";
+
+        // Compile the regex
+        Pattern regex = Pattern.compile(pattern);
+        Matcher matcher = regex.matcher(jiraJson);
+
+        // Set to store unique attachment URLs
+        Set<String> attachmentUrls = new HashSet<>();
+
+        // Find matches
+        while (matcher.find()) {
+            String contentUrl = matcher.group(2); // Captures the content URL
+            if (contentUrl.startsWith(basePath)) {
+                attachmentUrls.add(contentUrl); // Prepend base path and add to the set
+            } else {
+                attachmentUrls.add(basePath + contentUrl); // Prepend base path and add to the set
+            }
+        }
+
+        return attachmentUrls;
+    }
+
+    public static Set<String> extractConfluenceUrls(String basePath, String text) {
+        // Get the domain part (remove /wiki from basePath)
+        String domain = basePath.substring(0, basePath.lastIndexOf("/wiki"));
+
+        // Escape dots and other special characters in the domain for regex
+        String escapedDomain = domain.replace(".", "\\.");
+
+        // Create pattern to match both /wiki/ and /l/cp/ URLs
+        String pattern = escapedDomain + "/(wiki/|l/cp/)[^\"\\s|\\]\\\\]+";
+
+        System.out.println("Using pattern: " + pattern);
+
+        // Compile the regex
+        Pattern regex = Pattern.compile(pattern);
+        Matcher matcher = regex.matcher(text);
+
+        // Set to store unique URLs
+        Set<String> confluenceUrls = new HashSet<>();
+
+        // Find matches
+        while (matcher.find()) {
+            String url = matcher.group();
+            System.out.println("Found match: " + url);
+
+            // Clean up the URL
+            url = cleanupUrl(url);
+
+            confluenceUrls.add(url);
+        }
+
+        return confluenceUrls;
+    }
+
+    private static String cleanupUrl(String url) {
+        // Remove everything after the pipe symbol (|) if it exists
+        url = url.split("\\|")[0];
+
+        // Remove trailing special characters
+        url = url.replaceAll("[\\]\\\\]+$", "");
+
+        // Remove any trailing non-alphanumeric characters except - and _
+        url = url.replaceAll("[^\\w\\-/_:.]+$", "");
+
+        return url;
+    }
+
+    public static Set<String> extractFigmaUrls(String basePath, String json) {
+        // Regex pattern to match Figma URLs
+        String pattern = "\"(https://www\\.figma\\.com/[^\"]+)\"";
+
+        // Compile the regex
+        Pattern regex = Pattern.compile(pattern);
+        Matcher matcher = regex.matcher(json);
+
+        // Set to store unique Figma URLs
+        Set<String> figmaUrls = new HashSet<>();
+
+        // Find matches
+        while (matcher.find()) {
+            String url = matcher.group(1); // Captures the Figma URL
+            figmaUrls.add(url); // Prepend base path and add to the set
+        }
+
+        return figmaUrls;
+    }
 }

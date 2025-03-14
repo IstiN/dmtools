@@ -33,6 +33,9 @@ public class BasicConfluence extends Confluence {
 
     public static BasicConfluence getInstance() throws IOException {
         if (instance == null) {
+            if (!CONFIG.isConfigured()) {
+                return null;
+            }
             instance = new BasicConfluence(CONFIG.getPath(), CONFIG.getAuth(), CONFIG.getWorkspace());
             instance.setGraphQLPath(CONFIG.getGraphQLPath());
         }

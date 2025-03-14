@@ -2,6 +2,7 @@ package com.github.istin.dmtools.atlassian.jira;
 
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.model.*;
+import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
@@ -10,6 +11,7 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.utils.StringUtils;
+import com.github.istin.dmtools.context.UriToObject;
 import kotlin.Pair;
 import okhttp3.*;
 import okhttp3.OkHttpClient.Builder;
@@ -39,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public abstract class JiraClient<T extends Ticket> implements RestClient, TrackerClient<T> {
+public abstract class JiraClient<T extends Ticket> implements RestClient, TrackerClient<T>, UriToObject {
     private static final Logger logger = LogManager.getLogger(JiraClient.class);
     public static final String PARAM_JQL = "jql";
     public static final String PARAM_FIELDS = "fields";
@@ -441,7 +443,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return new CommentsResult(comment(key, ticket).execute()).getComments();
     }
 
-    public void clearCache(GenericRequest jiraRequest) {
+    public void clearCache(GenericRequest jiraRequest) throws IOException {
         File cachedFile = getCachedFile(jiraRequest);
         if (cachedFile.exists()) {
             cachedFile.delete();
@@ -449,16 +451,22 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     @NotNull
-    public File getCachedFile(GenericRequest jiraRequest) {
+    public File getCachedFile(GenericRequest jiraRequest) throws IOException {
         String url = jiraRequest.url();
         return getCachedFile(url);
     }
 
     @NotNull
-    public File getCachedFile(String url) {
-        String value = DigestUtils.md5Hex(url);
-        String imageExtension = Impl.getFileImageExtension(url);
-        return new File(getCacheFolderName() + "/" + value + imageExtension);
+    public File getCachedFile(String url) throws IOException {
+        if (url.contains("content")) {
+            Attachment attachment = new Attachment(new GenericRequest(this, url.replaceAll("content/", "")).execute());
+            String[] split = url.split("/");
+            return new File(getCacheFolderName() + "/" + split[split.length-2] + "_" + split[split.length-1] + "_" + attachment.getName());
+        } else {
+            String value = DigestUtils.md5Hex(url);
+            String imageExtension = Impl.getFileImageExtension(url);
+            return new File(getCacheFolderName() + "/" + value + imageExtension);
+        }
     }
 
     @Override
@@ -1427,5 +1435,49 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return post(jiraRequest);
     }
 
+    @Override
+    public Set<String> parseUris(String object) throws Exception {
+        Set<String> keys = IssuesIDsParser.extractAllJiraIDs(object);
+        if (!keys.isEmpty()) {
+            String keysQuery = StringUtils.concatenate(",", keys);
+            try {
+                extendKeys(keysQuery, keys);
+            } catch (RestClientException e) {
+                String body = e.getBody();
+                Set<String> keysToRemove = IssuesIDsParser.extractAllJiraIDs(body);
+                keys.removeAll(keysToRemove);
+                if (!keys.isEmpty()) {
+                    keysQuery = StringUtils.concatenate(",", keys);
+                    try {
+                        extendKeys(keysQuery, keys);
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        Set<String> attachmentUrls = IssuesIDsParser.extractAttachmentUrls(getBasePath(), object);
+        keys.addAll(attachmentUrls);
 
+        return keys;
+    }
+
+    private void extendKeys(String keysQuery, Set<String> keys) throws Exception {
+        List<T> childTickets = searchAndPerform("parent in (" + keysQuery + ")", new String[]{"key"});
+        for (T child : childTickets) {
+            keys.add(child.getKey());
+        }
+    }
+
+    @Override
+    public Object uriToObject(String uri) throws Exception {
+        if (uri.startsWith(getBasePath())) {
+            return convertUrlToFile(uri);
+        } else {
+            try {
+                return performTicket(uri, getExtendedQueryFields());
+            } catch (Exception ignored) {
+                //wrong uri was processed
+            }
+        }
+        return null;
+    }
 }

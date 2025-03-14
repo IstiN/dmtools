@@ -6,6 +6,7 @@ import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.PropertyReader;
+import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.github.model.*;
 import com.github.istin.dmtools.job.JobRunner;
 import com.github.istin.dmtools.networking.AbstractRestClient;
@@ -18,13 +19,10 @@ import org.json.JSONObject;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
-public abstract class GitHub extends AbstractRestClient implements SourceCode {
+public abstract class GitHub extends AbstractRestClient implements SourceCode, UriToObject {
     private static final Logger logger = LogManager.getLogger(GitHub.class);
     private static final String API_VERSION = "v3";
     private static final boolean IS_READ_PULL_REQUEST_DIFF;
@@ -587,5 +585,15 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode {
             return remaining == 0;
         }
         return false;
+    }
+
+    @Override
+    public Set<String> parseUris(String object) throws Exception {
+        throw new UnsupportedOperationException("implement me!");
+    }
+
+    @Override
+    public Object uriToObject(String uri) throws Exception {
+        throw new UnsupportedOperationException("implement me!");
     }
 }

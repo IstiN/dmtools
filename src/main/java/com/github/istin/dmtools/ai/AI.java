@@ -20,7 +20,7 @@ public interface AI {
 
     String chat(String model, String message, List<File> files) throws Exception;
 
-    public static class Utils {
+    class Utils {
 
         public static Boolean chatAsBoolean(AI ai, String model, String message) throws Exception {
             return Boolean.parseBoolean(ai.chat(model, message));

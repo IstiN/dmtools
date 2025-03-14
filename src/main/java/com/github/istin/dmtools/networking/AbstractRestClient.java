@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
@@ -122,6 +123,48 @@ public abstract class AbstractRestClient implements RestClient {
             }
         }
     }
+
+    public static String resolveRedirect(RestClient restClient, String urlString) throws IOException {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .followRedirects(false)  // Don't follow redirects automatically
+                .build();
+
+        String currentUrl = urlString;
+        int maxRedirects = 10; // Prevent infinite redirect loops
+        int redirectCount = 0;
+
+        while (redirectCount < maxRedirects) {
+            Request.Builder builder = new Request.Builder();
+            restClient.sign(builder);
+            Request request = builder
+                    .url(currentUrl)
+                    .method("HEAD", null) // Use HEAD instead of GET to only fetch headers
+                    .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                if (!response.isRedirect()) {
+                    return currentUrl;
+                }
+
+                String nextUrl = response.header("Location");
+                if (nextUrl == null) {
+                    throw new IOException("Redirect location is missing");
+                }
+
+                // If the Location header contains a relative URL, resolve it against the current URL
+                if (!nextUrl.startsWith("http")) {
+                    URL base = new URL(currentUrl);
+                    nextUrl = new URL(base, nextUrl).toString();
+                }
+
+                currentUrl = nextUrl;
+                redirectCount++;
+            }
+        }
+
+        throw new IOException("Too many redirects (max: " + maxRedirects + ") for URL: " + urlString);
+    }
+
     public File getCachedFile(GenericRequest genericRequest) {
         String value = getCacheFileName(genericRequest);
         return new File(getCacheFolderName() + "/" + value);

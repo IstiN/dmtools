@@ -13,26 +13,36 @@ public class WeeksReleaseGenerator implements IReleaseGenerator {
 
     private final String startDateAsString;
     private final Calendar startDate = Calendar.getInstance();
+    private Calendar endDateCalendar;
     private List<Release> releases = new ArrayList<>();
 
+    public WeeksReleaseGenerator(String startDateAsString) throws IOException {
+        this(startDateAsString, null);
+    }
     /**
      *
      * @param startDateAsString "dd.MM.yyyy"
      * @throws IOException connection errors
      */
-    public WeeksReleaseGenerator(String startDateAsString) throws IOException {
+    public WeeksReleaseGenerator(String startDateAsString, String endDateAsString) throws IOException {
         this.startDateAsString = startDateAsString;
         Calendar startDate = DateUtils.parseCalendar(startDateAsString); // Example start date (you can replace this with actual start date parsing)
         startDate.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
         this.startDate.setTime(startDate.getTime());
-        Calendar now = Calendar.getInstance();
+        if (endDateAsString == null) {
+            endDateCalendar = Calendar.getInstance();
+        } else {
+            endDateCalendar = DateUtils.parseCalendar(endDateAsString);
+            endDateCalendar.add(Calendar.DATE, 1);
+        }
         int counter = 0;
 
 
-        while (startDate.before(now)) {
+        while (startDate.before(endDateCalendar)) {
             Release release = new Release();
             release.setId(counter);
             release.setName("Week " + counter);
+            release.setCurrentEndDate(endDateCalendar);
             int finalCounter = counter;
             Sprint sprint = new Sprint(finalCounter, startDate.getTime(), getOneWeekLater(startDate).getTime(), -1) {
                 @Override
@@ -41,7 +51,7 @@ public class WeeksReleaseGenerator implements IReleaseGenerator {
                 }
             };
 
-            boolean matchedToSprintTimelines = sprint.isMatchedToSprintTimelines(now);
+            boolean matchedToSprintTimelines = sprint.isMatchedToSprintTimelines(endDateCalendar);
             sprint.setIsCurrent(matchedToSprintTimelines);
             release.setSprints(Collections.singletonList(sprint));
             releases.add(release);
@@ -51,7 +61,7 @@ public class WeeksReleaseGenerator implements IReleaseGenerator {
             startDate.add(Calendar.WEEK_OF_YEAR, 1);
         }
 
-        // releases now contains weekly releases until the current week
+        // releases endDateCalendar contains weekly releases until the current week
         for (Release release : releases) {
             System.out.println("Release ID: " + release.getId() + ", Name: " + release.getName());
         }

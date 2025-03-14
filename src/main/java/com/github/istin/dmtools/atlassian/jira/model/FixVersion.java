@@ -50,7 +50,11 @@ public class FixVersion extends JSONModel implements Comparable<FixVersion>, Rep
 
     @Override
     public Date getStartDate() {
-        return DateUtils.parseJiraDate(getUserStartDate());
+        String userStartDate = getUserStartDate();
+        if (userStartDate == null || userStartDate.isEmpty()) {
+            System.out.println(getJSONObject().toString());
+        }
+        return DateUtils.parseJiraDate(userStartDate);
     }
 
     @Override

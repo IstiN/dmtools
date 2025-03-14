@@ -5,9 +5,12 @@ import com.github.istin.dmtools.atlassian.confluence.model.Attachment;
 import com.github.istin.dmtools.atlassian.confluence.model.Content;
 import com.github.istin.dmtools.atlassian.confluence.model.ContentResult;
 import com.github.istin.dmtools.atlassian.confluence.model.SearchResult;
+import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
+import com.github.istin.dmtools.context.UriToObject;
+import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,9 +23,12 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-public class Confluence extends AtlassianRestClient {
+public class Confluence extends AtlassianRestClient implements UriToObject {
     private static final Logger logger = LogManager.getLogger(Confluence.class);
     private String graphQLPath;
 
@@ -49,37 +55,72 @@ public class Confluence extends AtlassianRestClient {
 
     public Content contentByUrl(String urlString) throws IOException {
         URL url = new URL(urlString);
-
-        // Split the path into segments
         String[] pathSegments = url.getPath().split("/");
 
-        int spacesIndex = -1;
-        for (String pathSegment : pathSegments) {
-            spacesIndex++;
-            if ("spaces".equals(pathSegment)) {
-                break;
+        // Remove empty segments if path starts with /
+        List<String> segments = Arrays.stream(pathSegments)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+
+        if (segments.isEmpty()) {
+            throw new UnsupportedOperationException("Invalid URL format");
+        }
+
+        // Handle different URL patterns
+        switch (segments.get(0)) {
+            case "wiki": {
+                if (segments.get(1).equalsIgnoreCase("x")) {
+                    return contentByUrl(AbstractRestClient.resolveRedirect(this, urlString));
+                } else{
+                    return handleWikiUrls(segments);
+                }
             }
-        }
-        // Check for spaces path format: /spaces/{spaceID}/pages/{pageID}/{pageName}
-        if (spacesIndex != -1 && pathSegments.length > 5) {
-            String contentId = pathSegments[spacesIndex + 3];  // Index 5 corresponds to the page ID
-            return contentById(contentId);
-        }
-        // Check for display format variant: /display/~{userIdentifier}/{pageName}
-        else if (pathSegments.length > 3 && "display".equals(pathSegments[1])) {
-            String userIdentifier = pathSegments[2];
-            String pageName = pathSegments[3];
-
-            // Decode the pageName to replace any encoded characters
-            pageName = URLDecoder.decode(pageName, StandardCharsets.UTF_8.name());
-
-            // Assuming you have a method to retrieve content by user and page name
-            return content(pageName, userIdentifier).getContents().get(0);
-        }
-        else {
-            throw new UnsupportedOperationException("unknown url format");
+            case "l":
+                return contentByUrl(AbstractRestClient.resolveRedirect(this, urlString));
+            default:
+                throw new UnsupportedOperationException("Unknown URL format");
         }
     }
+
+    private Content handleWikiUrls(List<String> segments) throws IOException {
+        if (segments.size() < 2) {
+            throw new UnsupportedOperationException("Invalid wiki URL format");
+        }
+
+        switch (segments.get(1)) {
+            case "spaces":
+                // Handle /wiki/spaces/{spaceKey}/pages/{pageId}/{title}
+                // [wiki, spaces, spaceKey, pages, pageId, title]
+                //   0      1        2        3       4      5
+                if (segments.size() > 4 && "pages".equals(segments.get(3))) {
+                    String contentId = segments.get(4); // pageId
+                    return contentById(contentId);
+                }
+                break;
+            case "x":
+                // Handle /wiki/x/{id}
+                // [wiki, x, id]
+                //   0    1   2
+                if (segments.size() > 2) {
+                    String contentId = segments.get(2);
+                    return contentById(contentId);
+                }
+                break;
+            case "display":
+                // Handle /wiki/display/~{userIdentifier}/{pageName}
+                // [wiki, display, userIdentifier, pageName]
+                //   0      1          2            3
+                if (segments.size() > 3) {
+                    String userIdentifier = segments.get(2);
+                    String pageName = URLDecoder.decode(segments.get(3), StandardCharsets.UTF_8);
+                    return content(pageName, userIdentifier).getContents().get(0);
+                }
+                break;
+        }
+
+        throw new UnsupportedOperationException("Invalid wiki URL format");
+    }
+
 
     public List<SearchResult> searchContentByText(String query, int limit) throws IOException {
         if (graphQLPath != null) {
@@ -314,5 +355,19 @@ public class Confluence extends AtlassianRestClient {
 
     protected void setGraphQLPath(String graphQLPath) {
         this.graphQLPath = graphQLPath;
+    }
+
+    @Override
+    public Set<String> parseUris(String object) throws Exception {
+        return IssuesIDsParser.extractConfluenceUrls(getBasePath(), object);
+    }
+
+    @Override
+    public Object uriToObject(String uri) throws Exception {
+        try {
+            return contentByUrl(uri);
+        } catch (Exception ignored){
+            return null;
+        }
     }
 }

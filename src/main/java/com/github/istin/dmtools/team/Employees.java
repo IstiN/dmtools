@@ -1,11 +1,10 @@
 package com.github.istin.dmtools.team;
 
+import com.github.istin.dmtools.common.utils.FileConfig;
+import lombok.Getter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.*;
 
 public class Employees implements IEmployees {
@@ -14,8 +13,10 @@ public class Employees implements IEmployees {
     public static final String ROLE_DEVELOPER = "Developer";
     public static final String ROLE_BUSINESS_ANALYST = "Business Analyst";
     private final String file;
+    private final FileConfig fileConfig = new FileConfig();
 
-    private Set<String> unknownNames = new HashSet<>();
+    @Getter
+    private final Set<String> unknownNames = new HashSet<>();
 
     public static int findLevelInAllInstances(String devName) {
         int level = getInstance().getLevel(devName);
@@ -41,10 +42,6 @@ public class Employees implements IEmployees {
             unknownNames.add(fullName);
         }
         return isContaining;
-    }
-
-    public Set<String> getUnknownNames() {
-        return unknownNames;
     }
 
     @Override
@@ -131,63 +128,37 @@ public class Employees implements IEmployees {
     }
 
     private void readEmployeesJSON() {
-        InputStream input = null;
-        try {
-            if (file == null) {
-                input = getClass().getResourceAsStream("/employees.json");
-            } else {
-                input = getClass().getResourceAsStream("/" + file);
-            }
-            if (input != null) {
-                String source = convertInputStreamToString(input);
-                JSONArray sourceEmployees = new JSONArray(source);
-                if (filterRole != null) {
-                    employees = new JSONArray();
-                    for (int i = 0; i < sourceEmployees.length(); i++) {
-                        JSONObject employee = sourceEmployees.getJSONObject(i);
-                        if (employee.getString("Role").equalsIgnoreCase(filterRole)) {
-                            employees.put(employee);
-                        }
+        String source;
+        if (file == null) {
+            source = fileConfig.readFile("/employees.json");
+        } else {
+            source = fileConfig.readFile("/" + file);
+        }
+        if (source != null) {
+            JSONArray sourceEmployees = new JSONArray(source);
+            if (filterRole != null) {
+                employees = new JSONArray();
+                for (int i = 0; i < sourceEmployees.length(); i++) {
+                    JSONObject employee = sourceEmployees.getJSONObject(i);
+                    if (employee.getString("Role").equalsIgnoreCase(filterRole)) {
+                        employees.put(employee);
                     }
-                } else {
-                    employees = sourceEmployees;
                 }
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Property file not found");
-        } finally {
-            try {
-                if (input != null) {
-                    input.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+            } else {
+                employees = sourceEmployees;
             }
         }
     }
 
     private void readAliasesJSON() {
-        InputStream input = null;
-        try {
-            if (file == null) {
-                input = getClass().getResourceAsStream("/aliases.json");
-            } else {
-                input = getClass().getResourceAsStream("/"+ file.split("\\.")[0]+"_aliases.json");
-            }
-            if (input != null) {
-                String source = convertInputStreamToString(input);
-                aliases = new JSONObject(source);
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Property file not found");
-        } finally {
-            try {
-                if (input != null) {
-                    input.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        String source;
+        if (file == null) {
+            source = fileConfig.readFile("/aliases.json");
+        } else {
+            source = fileConfig.readFile("/"+ file.split("\\.")[0]+"_aliases.json");
+        }
+        if (source != null) {
+            aliases = new JSONObject(source);
         }
     }
 
@@ -249,17 +220,4 @@ public class Employees implements IEmployees {
         return queryEmployeeName;
     }
 
-    public static final int DEFAULT_BUFFER_SIZE = 8192;
-
-    protected static String convertInputStreamToString(InputStream is) throws IOException {
-
-        ByteArrayOutputStream result = new ByteArrayOutputStream();
-        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-        int length;
-        while ((length = is.read(buffer)) != -1) {
-            result.write(buffer, 0, length);
-        }
-
-        return result.toString("UTF-8");
-    }
 }
