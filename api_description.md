@@ -1,6 +1,6 @@
-# JSON API Documentation for `DevProductivityReportParams`
+# API Documentation for `DevProductivityReport`
 
-This document provides an example of how to use the `DevProductivityReportParams` class to configure and execute a developer productivity report. It also includes an example of calling the job using JSON parameters in the `JobRunner`.
+This document provides an example of how to use the `DevProductivityReport` class to configure and execute a developer productivity report. It also includes an example of calling the job using JSON parameters in the `JobRunner`.
 
 ---
 
@@ -71,6 +71,9 @@ devProductivityReportParams.set(DevProductivityReportParams.FORMULA, "/formula/p
 
 // Set the employee configuration file
 devProductivityReportParams.set(QAProductivityReportParams.EMPLOYEES, "employees.json");
+
+
+new DevProductivityReport().runJob(devProductivityReportParams);
 ```
 
 ---
