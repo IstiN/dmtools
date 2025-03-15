@@ -589,11 +589,11 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
 
     @Override
     public Set<String> parseUris(String object) throws Exception {
-        throw new UnsupportedOperationException("implement me!");
+        return Set.of();
     }
 
     @Override
     public Object uriToObject(String uri) throws Exception {
-        throw new UnsupportedOperationException("implement me!");
+        return null;
     }
 }

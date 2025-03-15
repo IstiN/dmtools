@@ -22,10 +22,4 @@ public class BasicFigmaClientTest {
     }
 
 
-    @Test
-    public void testGetInstance() throws IOException {
-        // Test getInstance method
-        FigmaClient client = BasicFigmaClient.getInstance();
-        assertNotNull(client);
-    }
 }

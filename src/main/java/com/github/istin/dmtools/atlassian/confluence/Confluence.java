@@ -75,6 +75,9 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
                     return handleWikiUrls(segments);
                 }
             }
+            case "spaces": {
+                return handleWikiUrls(segments);
+            }
             case "l":
                 return contentByUrl(AbstractRestClient.resolveRedirect(this, urlString));
             default:
@@ -87,12 +90,20 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
             throw new UnsupportedOperationException("Invalid wiki URL format");
         }
 
-        switch (segments.get(1)) {
+        try {
+            return checkBaseIndex(segments, 1);
+        } catch (Exception _) {
+            return checkBaseIndex(segments, 0);
+        }
+    }
+
+    private Content checkBaseIndex(List<String> segments, int baseIndex) throws IOException {
+        switch (segments.get(baseIndex)) {
             case "spaces":
                 // Handle /wiki/spaces/{spaceKey}/pages/{pageId}/{title}
                 // [wiki, spaces, spaceKey, pages, pageId, title]
                 //   0      1        2        3       4      5
-                if (segments.size() > 4 && "pages".equals(segments.get(3))) {
+                if (segments.size() > baseIndex + 3 && "pages".equals(segments.get(baseIndex + 2))) {
                     String contentId = segments.get(4); // pageId
                     return contentById(contentId);
                 }
@@ -101,8 +112,8 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
                 // Handle /wiki/x/{id}
                 // [wiki, x, id]
                 //   0    1   2
-                if (segments.size() > 2) {
-                    String contentId = segments.get(2);
+                if (segments.size() > baseIndex + 1) {
+                    String contentId = segments.get(baseIndex + 1);
                     return contentById(contentId);
                 }
                 break;
@@ -110,9 +121,9 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
                 // Handle /wiki/display/~{userIdentifier}/{pageName}
                 // [wiki, display, userIdentifier, pageName]
                 //   0      1          2            3
-                if (segments.size() > 3) {
-                    String userIdentifier = segments.get(2);
-                    String pageName = URLDecoder.decode(segments.get(3), StandardCharsets.UTF_8);
+                if (segments.size() > baseIndex + 2) {
+                    String userIdentifier = segments.get(baseIndex + 1);
+                    String pageName = URLDecoder.decode(segments.get(baseIndex + 2), StandardCharsets.UTF_8);
                     return content(pageName, userIdentifier).getContents().get(0);
                 }
                 break;
