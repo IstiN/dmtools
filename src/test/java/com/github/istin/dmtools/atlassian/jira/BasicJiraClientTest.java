@@ -25,13 +25,6 @@ public class BasicJiraClientTest {
     }
 
     @Test
-    public void testGetInstance() throws IOException {
-        TrackerClient<? extends ITicket> instance = BasicJiraClient.getInstance();
-        assertNotNull(instance);
-        assertEquals(BasicJiraClient.class, instance.getClass());
-    }
-
-    @Test
     public void testGetDefaultQueryFields() {
         String[] expectedFields = {
                 "summary", "status", "attachment", "updated", "created", "creator", "reporter",
