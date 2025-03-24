@@ -9,9 +9,9 @@ public interface ToText {
 
     interface Utils {
         static String toText(List<? extends ToText> list) throws IOException {
-            StringBuffer buffer = new StringBuffer();
+            StringBuilder buffer = new StringBuilder();
             for (ToText toText : list) {
-                buffer.append(toText.toText() + "\n");
+                buffer.append(toText.toText()).append("\n");
             }
             return buffer.toString();
         }

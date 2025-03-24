@@ -57,6 +57,28 @@ public class AIResponseParser {
         }
     }
 
+    public static String parseCodeResponse(String response) {
+        if (response == null || response.isEmpty()) {
+            throw new IllegalArgumentException("Response text cannot be null or empty.");
+        }
+
+        // Pattern to match code blocks with or without language identifier
+        Pattern pattern = Pattern.compile("```(?:\\w*\\s*)?\n?(.*?)\n?```", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(response);
+
+        if (matcher.find()) {
+            String codeBlock = matcher.group(1).trim();
+
+            // Remove any leading or trailing whitespace and newlines
+            codeBlock = codeBlock.replaceAll("^\\s+|\\s+$", "");
+
+            return codeBlock;
+        } else {
+            // If no code block markers found, return the trimmed original response
+            return response.trim();
+        }
+    }
+
     public static List<String> parseCodeExamples(String response, String startDelimiter, String endDelimiter) throws IllegalArgumentException {
         List<String> codeExamples = new ArrayList<>();
         if (response == null || response.isEmpty()) {

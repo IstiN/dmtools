@@ -2,16 +2,22 @@ package com.github.istin.dmtools.expert;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConfluencePagesContext;
+import com.github.istin.dmtools.ai.ChunkPreparation;
 import com.github.istin.dmtools.ai.TicketContext;
-import com.github.istin.dmtools.ai.agent.RequestSimplifierAgent;
+import com.github.istin.dmtools.ai.agent.RequestDecompositionAgent;
 import com.github.istin.dmtools.ai.agent.SourceImpactAssessmentAgent;
 import com.github.istin.dmtools.ai.agent.TeamAssistantAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
+import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.common.utils.StringUtils;
+import com.github.istin.dmtools.context.ContextOrchestrator;
+import com.github.istin.dmtools.context.UriToObject;
+import com.github.istin.dmtools.context.UriToObjectFactory;
 import com.github.istin.dmtools.di.DaggerExpertComponent;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
@@ -26,6 +32,8 @@ import org.apache.commons.io.FileUtils;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Expert extends AbstractJob<ExpertParams> {
 
@@ -49,18 +57,21 @@ public class Expert extends AbstractJob<ExpertParams> {
     SourceImpactAssessmentAgent sourceImpactAssessmentAgent;
 
     @Inject
-    RequestSimplifierAgent requestSimplifierAgent;
+    RequestDecompositionAgent requestDecompositionAgent;
 
     @Inject
     TeamAssistantAgent teamAssistantAgent;
 
-    CodebaseSearchOrchestrator codebaseSearchOrchestrator;
+    List<CodebaseSearchOrchestrator> listOfCodebaseSearchOrchestrator = new ArrayList<>();
 
     @Inject
     ConfluenceSearchOrchestrator confluenceSearchOrchestrator;
 
     @Inject
     TrackerSearchOrchestrator trackerSearchOrchestrator;
+
+    @Inject
+    ContextOrchestrator contextOrchestrator;
 
     public Expert() {
         DaggerExpertComponent.create().inject(this);
@@ -76,46 +87,47 @@ public class Expert extends AbstractJob<ExpertParams> {
         String inputJQL = expertParams.getInputJql();
         String fieldName = expertParams.getFieldName();
 
-        if (projectContext.startsWith("https://")) {
+        if (projectContext != null && projectContext.startsWith("https://")) {
             projectContext = confluence.contentByUrl(projectContext).getStorage().getValue();
         }
 
-        StringBuilder requestWithContext = new StringBuilder();
-        requestWithContext.append(request).append("\n");
         if (confluencePages != null) {
-            requestWithContext.append(new ConfluencePagesContext(confluencePages, confluence).toText());
+            new ConfluencePagesContext(contextOrchestrator, confluencePages, confluence);
         }
 
+        List<? extends UriToObject> uriProcessingSources = new UriToObjectFactory().createUriProcessingSources();
 
         String finalProjectContext = projectContext;
         trackerClient.searchAndPerform(ticket -> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext(true);
+            contextOrchestrator.processFullContent(ticket.getKey(), ticketContext.toText() + "\n" + ticket.getAttachments() + "\n", (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
+            List<ChunkPreparation.Chunk> chunksContext = contextOrchestrator.summarize();
+            RequestDecompositionAgent.Params requestDecompositionParams = new RequestDecompositionAgent.Params(request, finalProjectContext + "\n" + ticketContext.toText(), null, chunksContext);
+            RequestDecompositionAgent.Result structuredRequest = requestDecompositionAgent.run(requestDecompositionParams);
 
             if (expertParams.isCodeAsSource() || expertParams.isConfluenceAsSource() || expertParams.isTrackerAsSource()) {
-                RequestSimplifierAgent.Result structuredRequest = requestSimplifierAgent.run(new RequestSimplifierAgent.Params(finalProjectContext + "\n" + ticketContext.toText() + "\n" + requestWithContext));
                 if (expertParams.isCodeAsSource()) {
-                    String fileExtendedContext = extendContextWithCode(ticket.getTicketKey(), expertParams, structuredRequest);
-                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from files. \n" + fileExtendedContext);
-                    requestWithContext.append("\n").append(fileExtendedContext);
+                    List<ChunkPreparation.Chunk> fileExtendedChunks = extendContextWithCode(ticket.getTicketKey(), expertParams, structuredRequest);
+                    chunksContext.addAll(fileExtendedChunks);
                 }
                 if (expertParams.isConfluenceAsSource()) {
-                    String confluenceExtendedContext = extendContextWithConfluence(ticket.getTicketKey(), expertParams, structuredRequest);
-                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from confluence. \n" + confluenceExtendedContext);
-                    requestWithContext.append("\n").append(confluenceExtendedContext);
+                    List<ChunkPreparation.Chunk> confluenceExtendedChunks = extendContextWithConfluence(ticket.getTicketKey(), expertParams, structuredRequest);
+                    chunksContext.addAll(confluenceExtendedChunks);
                 }
                 if (expertParams.isTrackerAsSource()) {
-                    String trackerExtendedContext = extendContextWithTracker(ticket.getTicketKey(), expertParams, structuredRequest);
-                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", detailed information from tracker. \n" + trackerExtendedContext);
-                    requestWithContext.append("\n").append(trackerExtendedContext);
+                    List<ChunkPreparation.Chunk> trackerExtendedChunks = extendContextWithTracker(ticket.getTicketKey(), expertParams, structuredRequest);
+                    chunksContext.addAll(trackerExtendedChunks);
                 }
             }
 
-            String response =  teamAssistantAgent.run(new TeamAssistantAgent.Params(finalProjectContext, requestWithContext.toString(), ticketContext.toText(), ""));
+            TeamAssistantAgent.Params params = new TeamAssistantAgent.Params(structuredRequest, null, chunksContext, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
+            String response = teamAssistantAgent.run(params);
+            attachResponse(teamAssistantAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");
             if (outputType == ExpertParams.OutputType.field) {
                 String fieldCustomCode = ((JiraClient) BasicJiraClient.getInstance()).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
-                trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, response));
-                trackerClient.postComment(ticket.getTicketKey(), trackerClient.tag(initiator) + ", there is response in '"+ fieldName + "' on your request: \n" + request);
+                trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, StringUtils.convertToMarkdown(response)));
+                trackerClient.postComment(ticket.getTicketKey(), trackerClient.tag(initiator) + ", there is AI response in '"+ fieldName + "' on your request: \n" + request);
             } else {
                 trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", there is response on your request: \n" + request + "\n\nAI Response is: \n" + response);
             }
@@ -133,18 +145,29 @@ public class Expert extends AbstractJob<ExpertParams> {
         return keywordsBlacklist;
     }
 
-    protected void saveAndAttachStats(String ticketKey, String result, AbstractSearchOrchestrator orchestratorClass) {
+    protected void saveAndAttachStats(String ticketKey, List<ChunkPreparation.Chunk> chunks, AbstractSearchOrchestrator orchestratorClass) {
 
         try {
+            StringBuilder builder = new StringBuilder();
+            for (ChunkPreparation.Chunk chunk : chunks) {
+                builder.append(chunk.getText());
+                List<File> files = chunk.getFiles();
+                if (files != null && !files.isEmpty()) {
+                    builder.append("\n").append("Files: ");
+                    for (File file : files) {
+                        builder.append("\n").append(file.getName());
+                    }
+                }
+            }
             attachResponse(orchestratorClass, "_stats.json", orchestratorClass.getSearchStats().toJson().toString(2), ticketKey, "application/json");
-            attachResponse(orchestratorClass, "_result.txt", result, ticketKey, "text/plain");
+            attachResponse(orchestratorClass, "_result.txt", builder.toString(), ticketKey, "text/plain");
         } catch (Exception e) {
             System.err.println("Failed to save and attach stats: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    public void attachResponse(AbstractSearchOrchestrator orchestratorClass, String file, String result, String ticketKey, String contentType) throws IOException {
+    public void attachResponse(Object orchestratorClass, String file, String result, String ticketKey, String contentType) throws IOException {
         String fileNameResult = orchestratorClass.getClass().getSimpleName() + file;
         File tempFileResult = File.createTempFile(fileNameResult, null);
 
@@ -163,30 +186,37 @@ public class Expert extends AbstractJob<ExpertParams> {
     }
 
 
-    private String extendContextWithCode(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+    private List<ChunkPreparation.Chunk> extendContextWithCode(String ticketKey, ExpertParams expertParams, RequestDecompositionAgent.Result structuredRequest) throws Exception {
         SourceCodeConfig[] sourceCodeConfig = expertParams.getSourceCodeConfig();
-        codebaseSearchOrchestrator = new CodebaseSearchOrchestrator(sourceCodeConfig);
-        String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
-        int filesLimit = expertParams.getFilesLimit();
-        String result = codebaseSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, filesLimit, expertParams.getFilesLimit());
-        saveAndAttachStats(ticketKey, result, codebaseSearchOrchestrator);
-        return result;
+        List<SourceCode> sourceCodeList = new SourceCodeFactory().createSourceCodes(sourceCodeConfig);
+        List<ChunkPreparation.Chunk> chunks = new ArrayList<>();
+        for (SourceCode sourceCode : sourceCodeList) {
+            CodebaseSearchOrchestrator searchOrchestrator = new CodebaseSearchOrchestrator(sourceCode);
+            listOfCodebaseSearchOrchestrator.add(searchOrchestrator);
+            String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
+            int filesLimit = expertParams.getFilesLimit();
+            List<ChunkPreparation.Chunk> newChunks = searchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, filesLimit, expertParams.getFilesIterations());
+            saveAndAttachStats(ticketKey, chunks, searchOrchestrator);
+            chunks.addAll(newChunks);
+        }
+
+        return chunks;
     }
 
-    private String extendContextWithConfluence(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+    private List<ChunkPreparation.Chunk> extendContextWithConfluence(String ticketKey, ExpertParams expertParams, RequestDecompositionAgent.Result structuredRequest) throws Exception {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int confluenceLimit = expertParams.getConfluenceLimit();
         int confluenceIterations = expertParams.getConfluenceIterations();
-        String response = confluenceSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, confluenceLimit, confluenceIterations);
-        saveAndAttachStats(ticketKey, response, confluenceSearchOrchestrator);
-        return response;
+        List<ChunkPreparation.Chunk> chunks = confluenceSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, confluenceLimit, confluenceIterations);
+        saveAndAttachStats(ticketKey, chunks, confluenceSearchOrchestrator);
+        return chunks;
     }
 
-    private String extendContextWithTracker(String ticketKey, ExpertParams expertParams, RequestSimplifierAgent.Result structuredRequest) throws Exception {
+    private List<ChunkPreparation.Chunk> extendContextWithTracker(String ticketKey, ExpertParams expertParams, RequestDecompositionAgent.Result structuredRequest) throws Exception {
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int trackerLimit = expertParams.getTrackerLimit();
         int trackerIterations = expertParams.getTrackerIterations();
-        String response = trackerSearchOrchestrator.run(expertParams.getSearchOrchestratorType(), structuredRequest.toString(), keywordsBlacklist, trackerLimit, trackerIterations);
+        List<ChunkPreparation.Chunk> response = trackerSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, trackerLimit, trackerIterations);
         saveAndAttachStats(ticketKey, response, trackerSearchOrchestrator);
         return response;
     }

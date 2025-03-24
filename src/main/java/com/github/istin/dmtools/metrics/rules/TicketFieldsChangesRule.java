@@ -79,9 +79,9 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
                     if (toAsString == null) {
                         toAsString = "";
                     }
+                    String field = historyItem.getField();
                     if (filterFields != null) {
                         boolean found = false;
-                        String field = historyItem.getField();
                         //System.out.println("Fields: " + field);
                         for (String fieldToMap : filterFields) {
                             if (fieldToMap.equalsIgnoreCase(field)) {
@@ -117,6 +117,11 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
                             } else {
                                 weight = weight + 1d/ticketFieldsChangedDivider;
                             }
+                        }
+                    } else {
+                        Double ticketFieldsChangedDivider = propertyReader.getTicketFieldsChangedDivider(field);
+                        if (ticketFieldsChangedDivider != null) {
+                            weight = weight / ticketFieldsChangedDivider;
                         }
                     }
                     KeyTime keyTime = new KeyTime(ticket.getKey() + fromAsString + toAsString, history.getCreated(), authorName);

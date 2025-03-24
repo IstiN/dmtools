@@ -11,6 +11,7 @@ public class KeywordGeneratorAgent extends AbstractSimpleAgent<KeywordGeneratorA
     @AllArgsConstructor
     @Getter
     public static class Params {
+        private String searchContext;
         private String task;
         private String blacklist;
     }
@@ -21,7 +22,7 @@ public class KeywordGeneratorAgent extends AbstractSimpleAgent<KeywordGeneratorA
     }
 
     @Override
-    JSONArray transformAIResponse(Params params, String response) throws Exception {
+    public JSONArray transformAIResponse(Params params, String response) throws Exception {
         return AIResponseParser.parseResponseAsJSONArray(response);
     }
 }

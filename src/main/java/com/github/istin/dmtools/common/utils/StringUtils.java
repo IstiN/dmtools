@@ -83,7 +83,6 @@ public class StringUtils {
                     || field.toLowerCase().contains("url")
                     || field.equalsIgnoreCase("self")
                     || field.equalsIgnoreCase("accountType")
-                    || field.equalsIgnoreCase("key")
                     || field.equalsIgnoreCase("statusCategory")
                     || field.equalsIgnoreCase("subtask")
                     || field.equalsIgnoreCase("timeZone")

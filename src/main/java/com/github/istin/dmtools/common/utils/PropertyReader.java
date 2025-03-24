@@ -341,4 +341,76 @@ public class PropertyReader {
 		}
 	}
 
+	// Default values (matching the ones from PromptPreparation)
+	private static final int DEFAULT_PROMPT_CHUNK_TOKEN_LIMIT = 4000;
+	private static final long DEFAULT_PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE = 4 * 1024 * 1024; // 5MB
+	private static final long DEFAULT_PROMPT_CHUNK_MAX_TOTAL_FILES_SIZE = 4 * 1024 * 1024; // 5MB
+	private static final int DEFAULT_PROMPT_CHUNK_MAX_FILES = 10;
+
+	/**
+	 * Gets the maximum token limit for AI model
+	 * @return token limit, default is 4000
+	 */
+	public int getPromptChunkTokenLimit() {
+		String value = getValue("PROMPT_CHUNK_TOKEN_LIMIT");
+		if (value == null || value.trim().isEmpty()) {
+			return DEFAULT_PROMPT_CHUNK_TOKEN_LIMIT;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			return DEFAULT_PROMPT_CHUNK_TOKEN_LIMIT;
+		}
+	}
+
+	/**
+	 * Gets the maximum size in bytes for a single file
+	 * @return maximum file size in bytes, default is 5MB
+	 */
+	public long getPromptChunkMaxSingleFileSize() {
+		String value = getValue("PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE_MB");
+		if (value == null || value.trim().isEmpty()) {
+			return DEFAULT_PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE;
+		}
+		try {
+			// Convert MB to bytes
+			return Long.parseLong(value) * 1024 * 1024;
+		} catch (NumberFormatException e) {
+			return DEFAULT_PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE;
+		}
+	}
+
+	/**
+	 * Gets the maximum total size in bytes for all files in a chunk
+	 * @return maximum total files size in bytes, default is 5MB
+	 */
+	public long getPromptChunkMaxTotalFilesSize() {
+		String value = getValue("PROMPT_CHUNK_MAX_TOTAL_FILES_SIZE_MB");
+		if (value == null || value.trim().isEmpty()) {
+			return DEFAULT_PROMPT_CHUNK_MAX_TOTAL_FILES_SIZE;
+		}
+		try {
+			// Convert MB to bytes
+			return Long.parseLong(value) * 1024 * 1024;
+		} catch (NumberFormatException e) {
+			return DEFAULT_PROMPT_CHUNK_MAX_TOTAL_FILES_SIZE;
+		}
+	}
+
+	/**
+	 * Gets the maximum number of files allowed per chunk
+	 * @return maximum files per chunk, default is 10
+	 */
+	public int getPromptChunkMaxFiles() {
+		String value = getValue("PROMPT_CHUNK_MAX_FILES");
+		if (value == null || value.trim().isEmpty()) {
+			return DEFAULT_PROMPT_CHUNK_MAX_FILES;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			return DEFAULT_PROMPT_CHUNK_MAX_FILES;
+		}
+	}
+
 }

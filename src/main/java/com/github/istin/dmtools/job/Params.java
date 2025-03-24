@@ -2,7 +2,6 @@ package com.github.istin.dmtools.job;
 
 import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
-import com.github.istin.dmtools.search.AbstractSearchOrchestrator;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 
@@ -20,6 +19,8 @@ public class Params {
     public static final String IS_CODE_AS_SOURCE = "isCodeAsSource";
     public static final String IS_CONFLUENCE_AS_SOURCE = "isConfluenceAsSource";
     public static final String IS_TRACKER_AS_SOURCE = "isTrackerAsSource";
+    public static final String TICKET_CONTEXT_DEPTH = "ticketContextDepth";
+    public static final String CHUNKS_PROCESSING_TIMEOUT_IN_MINUTES = "chunksProcessingTimeout";
     public static final String FILES_LIMIT = "filesLimit";
     public static final String CONFLUENCE_LIMIT = "confluenceLimit";
     public static final String TRACKER_LIMIT = "trackerLimit";
@@ -28,7 +29,6 @@ public class Params {
     public static final String CONFLUENCE_ITERATIONS = "confluenceIterations";
     public static final String TRACKER_ITERATIONS = "trackerIterations";
 
-    public static final String SEARCH_ORCHESTRATOR_TYPE = "searchOrchestratorType";
     public static final String METADATA = "metadata";
 
     @SerializedName(INPUT_JQL)
@@ -52,6 +52,9 @@ public class Params {
     @SerializedName(CONFLUENCE_PAGES)
     private String[] confluencePages;
 
+    @SerializedName(TICKET_CONTEXT_DEPTH)
+    private int ticketContextDepth = 1;
+
     @SerializedName(FILES_LIMIT)
     private int filesLimit = 10;
 
@@ -61,6 +64,9 @@ public class Params {
     @SerializedName(TRACKER_LIMIT)
     private int trackerLimit = 10;
 
+    @SerializedName(CHUNKS_PROCESSING_TIMEOUT_IN_MINUTES)
+    private long chunkProcessingTimeoutInMinutes = 0;
+
     @SerializedName(FILES_ITERATIONS)
     private int filesIterations = 1;
 
@@ -69,10 +75,6 @@ public class Params {
 
     @SerializedName(TRACKER_ITERATIONS)
     private int trackerIterations = 1;
-
-
-    @SerializedName(SEARCH_ORCHESTRATOR_TYPE)
-    private AbstractSearchOrchestrator.ProcessingType searchOrchestratorType = AbstractSearchOrchestrator.ProcessingType.BULK;
 
     @SerializedName(METADATA)
     private Metadata metadata;

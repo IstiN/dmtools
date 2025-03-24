@@ -22,16 +22,6 @@ public class TrackerSearchOrchestrator extends AbstractSearchOrchestrator {
     }
 
     @Override
-    protected String getItemSnippet(Object item, Object platformContext) {
-        ITicket ticket = (ITicket) item;
-        try {
-            return ticket.toText();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
     protected String getFullItemContent(Object item, Object platformContext) {
         ITicket ticket = (ITicket) item;
         try {

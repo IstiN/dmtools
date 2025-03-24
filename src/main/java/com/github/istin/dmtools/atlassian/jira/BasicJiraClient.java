@@ -93,7 +93,7 @@ public class BasicJiraClient extends JiraClient<Ticket> {
         List<String> defaultFields = new ArrayList<>();
         defaultFields.addAll(Arrays.asList(DEFAULT_QUERY_FIELDS));
 
-        if (JIRA_EXTRA_FIELDS_PROJECT != null) {
+        if (JIRA_EXTRA_FIELDS_PROJECT != null && JIRA_EXTRA_FIELDS != null) {
             for (String extraField : JIRA_EXTRA_FIELDS) {
                 defaultFields.add(getFieldCustomCode(JIRA_EXTRA_FIELDS_PROJECT, extraField));
             }

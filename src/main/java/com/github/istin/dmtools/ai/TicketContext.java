@@ -7,6 +7,8 @@ import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.openai.input.TicketBasedPrompt;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ import java.util.Set;
 
 public class TicketContext implements ToText {
 
+    @Getter
     private List<IComment> comments;
 
     public static interface OnTicketDetailsRequest {
@@ -22,18 +25,15 @@ public class TicketContext implements ToText {
     }
 
     private final TrackerClient<? extends ITicket> trackerClient;
+    @Getter
     private final ITicket ticket;
+    @Setter
+    @Getter
     private OnTicketDetailsRequest onTicketDetailsRequest;
 
+    @Setter
+    @Getter
     private List<ITicket> extraTickets = new ArrayList<>();
-
-    public OnTicketDetailsRequest getOnTicketDetailsRequest() {
-        return onTicketDetailsRequest;
-    }
-
-    public void setOnTicketDetailsRequest(OnTicketDetailsRequest onTicketDetailsRequest) {
-        this.onTicketDetailsRequest = onTicketDetailsRequest;
-    }
 
     public TicketContext(TrackerClient<? extends ITicket> trackerClient, ITicket ticket) {
         this.trackerClient = trackerClient;
@@ -69,18 +69,6 @@ public class TicketContext implements ToText {
         if (withComments) {
             comments = (List<IComment>) trackerClient.getComments(ticket.getKey(), ticket);
         }
-    }
-
-    public ITicket getTicket() {
-        return ticket;
-    }
-
-    public List<ITicket> getExtraTickets() {
-        return extraTickets;
-    }
-
-    public void setExtraTickets(List<ITicket> extraTickets) {
-        this.extraTickets = extraTickets;
     }
 
     @Override

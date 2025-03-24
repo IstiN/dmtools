@@ -5,6 +5,8 @@ import lombok.Setter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -161,21 +163,30 @@ public class IssuesIDsParser {
     }
 
     private static String cleanupUrl(String url) {
+        // Remove HTML entities
+        url = url.replaceAll("&amp;", "&");
+
+        // Remove everything after the closing bracket if it exists
+        url = url.split("\\]")[0];
+
+        // Remove everything after whitespace if it exists
+        url = url.split("\\s+")[0];
+
         // Remove everything after the pipe symbol (|) if it exists
         url = url.split("\\|")[0];
 
         // Remove trailing special characters
         url = url.replaceAll("[\\]\\\\]+$", "");
 
-        // Remove any trailing non-alphanumeric characters except - and _
-        url = url.replaceAll("[^\\w\\-/_:.]+$", "");
+        // Remove any trailing non-alphanumeric characters except allowed ones
+        url = url.replaceAll("[^\\w\\-/_:.&=?]+$", "");
 
         return url;
     }
 
     public static Set<String> extractFigmaUrls(String basePath, String json) {
-        // Regex pattern to match Figma URLs
-        String pattern = "\"(https://www\\.figma\\.com/[^\"]+)\"";
+        // Updated regex pattern to match Figma URLs more accurately
+        String pattern = "(https?://(?:www\\.)?figma\\.com/(?:file|proto|design)/[^\\s\\]\"]+)";
 
         // Compile the regex
         Pattern regex = Pattern.compile(pattern);
@@ -187,9 +198,75 @@ public class IssuesIDsParser {
         // Find matches
         while (matcher.find()) {
             String url = matcher.group(1); // Captures the Figma URL
-            figmaUrls.add(url); // Prepend base path and add to the set
+            url = cleanupUrl(url); // Clean up the URL
+
+            // Remove the 't' parameter if it exists while preserving other parameters
+            url = removeTimeParameter(url);
+
+            if (isValidFigmaUrl(url)) {
+                figmaUrls.add(url);
+            }
         }
 
         return figmaUrls;
+    }
+
+    private static boolean isValidFigmaUrl(String url) {
+        try {
+            URI uri = new URI(url);
+            String host = uri.getHost();
+            String path = uri.getPath();
+
+            // Check if it's a Figma domain
+            if (!"www.figma.com".equals(host) && !"figma.com".equals(host)) {
+                return false;
+            }
+
+            // Check if it has a valid Figma path structure
+            if (!path.startsWith("/file/") &&
+                    !path.startsWith("/proto/") &&
+                    !path.startsWith("/design/")) {
+                return false;
+            }
+
+            // Check if URL contains required components
+            return url.matches(".*figma\\.com/(?:file|proto|design)/[\\w-]+.*");
+        } catch (URISyntaxException e) {
+            return false;
+        }
+    }
+
+    private static String removeTimeParameter(String url) {
+        try {
+            URI uri = new URI(url);
+            String query = uri.getQuery();
+
+            if (query == null) {
+                return url;
+            }
+
+            // Split query parameters and rebuild without 't' parameter
+            String[] params = query.split("&");
+            List<String> newParams = new ArrayList<>();
+
+            for (String param : params) {
+                if (!param.startsWith("t=")) {
+                    newParams.add(param);
+                }
+            }
+
+            // Rebuild URL
+            String newQuery = String.join("&", newParams);
+            URI newUri = new URI(uri.getScheme(),
+                    uri.getAuthority(),
+                    uri.getPath(),
+                    newQuery.isEmpty() ? null : newQuery,
+                    uri.getFragment());
+
+            return newUri.toString();
+        } catch (URISyntaxException e) {
+            // If URL parsing fails, return original URL without 't' parameter
+            return url.replaceAll("[&?]t=[^&]*", "");
+        }
     }
 }

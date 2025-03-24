@@ -10,6 +10,7 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.figma.BasicFigmaClient;
 import com.github.istin.dmtools.figma.FigmaClient;
+import com.github.istin.dmtools.github.BasicGithub;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,7 +36,11 @@ public class UriToObjectFactory {
         }
         FigmaClient figmaClient = BasicFigmaClient.getInstance();
         if (figmaClient != null) {
-            result.add((UriToObject) figmaClient);
+            result.add(figmaClient);
+        }
+        SourceCode gitHub = BasicGithub.getInstance();
+        if (gitHub != null) {
+            result.add((UriToObject) gitHub);
         }
         return result;
     }

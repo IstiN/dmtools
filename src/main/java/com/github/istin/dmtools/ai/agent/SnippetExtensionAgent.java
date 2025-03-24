@@ -20,7 +20,7 @@ public class SnippetExtensionAgent extends AbstractSimpleAgent<SnippetExtensionA
     }
 
     @Override
-    Boolean transformAIResponse(Params params, String response) throws Exception {
+    public Boolean transformAIResponse(Params params, String response) throws Exception {
         return AIResponseParser.parseBooleanResponse(response);
     }
 }

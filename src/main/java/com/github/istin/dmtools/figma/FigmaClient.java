@@ -8,7 +8,6 @@ import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.ImageUtils;
 import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.figma.model.FigmaComment;
-import com.github.istin.dmtools.github.model.GitHubComment;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.Request;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -57,6 +56,10 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
         try {
             String response = execute(getRequest);
             logger.info(response);
+//            TODO to think about styling
+//             getRequest = new GenericRequest(this, path("files/"+ parseFileId(url)+ "/styles"));
+//            getRequest.param("ids", nodeId);
+//            logger.info(getRequest.execute());
             return new JSONObject(response).getJSONObject("images").optString(nodeId.replaceAll("-", ":"));
         } catch (Exception ignored) {
             ignored.printStackTrace();
@@ -120,10 +123,13 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
 
     @Override
     public boolean isValidImageUrl(String url) {
-        boolean isFigmaLink = url.contains("figma") && url.contains("file");
+        boolean isDesignUrl = url.contains("design");
+        boolean isFigmaLink = url.contains("figma") && url.contains("file") || isDesignUrl;
         try {
             if (isFigmaLink) {
-                parseFileId(url);
+                if (!isDesignUrl) {
+                    parseFileId(url);
+                }
                 extractValueByParameter(url, "node-id");
             }
         } catch (Exception ignored) {
@@ -214,6 +220,9 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
 
     @Override
     public Object uriToObject(String uri) throws Exception {
+        if (isValidImageUrl(uri)) {
+            return convertUrlToFile(uri);
+        }
         return null;
     }
 }
