@@ -21,7 +21,7 @@ public class AutomationTesterTest {
         URL resourceUrl = getClass().getClassLoader().getResource("test-page.html");
         assertNotNull("Test page resource not found", resourceUrl);
         testPageUrl = resourceUrl.toString();
-        tester = new AutomationTester(testPageUrl, new PlaywrightBridge());
+        tester = new AutomationTester(testPageUrl, new PlaywrightBridge(true));
     }
 
     @After

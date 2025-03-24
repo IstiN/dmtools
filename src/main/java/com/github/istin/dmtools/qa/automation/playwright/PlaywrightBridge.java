@@ -16,11 +16,11 @@ public class PlaywrightBridge extends BaseAutomationBridge {
     private final Browser browser;
     private final Playwright playwright;
 
-    public PlaywrightBridge() {
+    public PlaywrightBridge(boolean headless) {
         PlaywrightInstallationUtils.ensurePlaywrightInstalled();
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                .setHeadless(false)
+                .setHeadless(headless)
                 .setSlowMo(50));
         context = browser.newContext(new Browser.NewContextOptions()
                 .setViewportSize(1920, 1080));

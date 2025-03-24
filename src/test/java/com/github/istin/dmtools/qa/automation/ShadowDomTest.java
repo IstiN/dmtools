@@ -21,7 +21,7 @@ public class ShadowDomTest {
         URL resourceUrl = getClass().getClassLoader().getResource("test-shadow-dom.html");
         assertNotNull("Test page resource not found", resourceUrl);
         testPageUrl = resourceUrl.toString();
-        tester = new AutomationTester(testPageUrl, new PlaywrightBridge());
+        tester = new AutomationTester(testPageUrl, new PlaywrightBridge(true));
     }
 
     @Test
