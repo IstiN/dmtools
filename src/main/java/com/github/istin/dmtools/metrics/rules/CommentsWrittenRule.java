@@ -34,14 +34,21 @@ public class CommentsWrittenRule implements TrackerRule<ITicket> {
             if (author != null && employees.contains(author.getFullName())) {
                 if (commentsRegex == null || findCommentByRegex(commentsRegex, comment.getBody())) {
                     String authorName = employees.transformName(author.getFullName());
-                    KeyTime keyTime = new KeyTime(ticket.getKey(), DateUtils.calendar(comment.getCreated()), authorName);
-                    keyTime.setWeight(1);
-                    result.add(keyTime);
+                    KeyTime keyTime = createKetTimeBasedOnComment(ticket, comment, authorName);
+                    if (keyTime != null) {
+                        keyTime.setWeight(1);
+                        result.add(keyTime);
+                    }
                 }
             }
         }
         return result;
     }
+
+    public KeyTime createKetTimeBasedOnComment(ITicket ticket, IComment comment, String authorName) {
+        return new KeyTime(ticket.getKey(), DateUtils.calendar(comment.getCreated()), authorName);
+    }
+
 
     public static boolean findCommentByRegex(String commentRegex, String text) {
         Pattern pattern = Pattern.compile(commentRegex);

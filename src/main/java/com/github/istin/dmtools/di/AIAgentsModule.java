@@ -3,8 +3,8 @@ package com.github.istin.dmtools.di;
 import com.github.istin.dmtools.ai.agent.*;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
+import com.github.istin.dmtools.context.ContextOrchestrator;
 import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
-import com.github.istin.dmtools.search.SearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import dagger.Module;
 import dagger.Provides;
@@ -35,8 +35,8 @@ public class AIAgentsModule {
     }
 
     @Provides
-    RequestSimplifierAgent provideRequestSimplifierAgent() {
-        return new RequestSimplifierAgent();
+    RequestDecompositionAgent provideRequestSimplifierAgent() {
+        return new RequestDecompositionAgent();
     }
 
     @Provides
@@ -60,13 +60,28 @@ public class AIAgentsModule {
     }
 
     @Provides
-    SearchOrchestrator provideSearchOrchestrator() {
-        return new SearchOrchestrator();
+    SearchResultsAssessmentAgent provideSearchResultsAssessmentAgent() {
+        return new SearchResultsAssessmentAgent();
     }
 
     @Provides
-    SearchResultsAssessmentAgent provideSearchResultsAssessmentAgent() {
-        return new SearchResultsAssessmentAgent();
+    TestCaseVisualizerAgent provideTestCaseVisualizerAgent() {
+        return new TestCaseVisualizerAgent();
+    }
+
+    @Provides
+    TaskExecutionAgent provideTaskExecutionAgent() {
+        return new TaskExecutionAgent();
+    }
+
+    @Provides
+    TaskProgressAgent provideTaskProgressAgent() {
+        return new TaskProgressAgent();
+    }
+
+    @Provides
+    ContentMergeAgent provideContentMergeAgent() {
+        return new ContentMergeAgent();
     }
 
     @Provides
@@ -86,4 +101,10 @@ public class AIAgentsModule {
             throw new RuntimeException(e);
         }
     }
+
+    @Provides
+    ContextOrchestrator provideContextOrchestrator() {
+        return new ContextOrchestrator();
+    }
+
 }

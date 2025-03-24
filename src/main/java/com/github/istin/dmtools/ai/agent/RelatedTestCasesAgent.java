@@ -22,7 +22,7 @@ public class RelatedTestCasesAgent extends AbstractSimpleAgent<RelatedTestCasesA
     }
 
     @Override
-    JSONArray transformAIResponse(Params params, String response) throws Exception {
+    public JSONArray transformAIResponse(Params params, String response) throws Exception {
         return AIResponseParser.parseResponseAsJSONArray(response);
     }
 }

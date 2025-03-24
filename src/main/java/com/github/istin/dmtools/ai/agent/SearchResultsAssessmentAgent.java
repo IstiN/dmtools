@@ -23,7 +23,7 @@ public class SearchResultsAssessmentAgent extends AbstractSimpleAgent<SearchResu
     }
 
     @Override
-    JSONArray transformAIResponse(Params params, String response) throws Exception {
+    public JSONArray transformAIResponse(Params params, String response) throws Exception {
         return AIResponseParser.parseResponseAsJSONArray(response);
     }
 }

@@ -1,0 +1,64 @@
+<prompt>
+    <role>
+        You're an expert in breaking down tasks into simple, clear steps.
+    </role>
+    <instructions>
+        Analyze the task description and break it down into specific steps that a person can follow. Also identify and collect any important known data.
+    </instructions>
+    <input_data>
+        <task>
+            ${global.taskDescription}
+        </task>
+    </input_data>
+    <formatting>
+        <rules>
+            <rule>Response must be a JSON object with "steps" array of strings and "knownData" object.</rule>
+            <rule>Each step must be a simple, clear instruction in plain English.</rule>
+            <rule>Steps should be sequential and logical.</rule>
+            <rule>Known data should include any identified URLs, application names, or specific parameters.</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>Open Gmail and send an email to john@example.com with subject "Meeting Tomorrow"</human>
+            <ai>
+                {
+                "steps": [
+                "Open web browser",
+                "Navigate to gmail.com",
+                "Click on Compose button",
+                "Enter john@example.com in the To field",
+                "Enter 'Meeting Tomorrow' in the Subject field",
+                "Click Send button"
+                ],
+                "knownData": {
+                "application": "Gmail",
+                "recipient": "john@example.com",
+                "subject": "Meeting Tomorrow",
+                "url": "https://gmail.com"
+                }
+                }
+            </ai>
+        </example>
+        <example>
+            <human>Open Calculator and multiply 125 by 4</human>
+            <ai>
+                {
+                "steps": [
+                "Open Calculator application",
+                "Type number 125",
+                "Press multiplication symbol",
+                "Type number 4",
+                "Press equals sign"
+                ],
+                "knownData": {
+                "application": "Calculator",
+                "operation": "multiplication",
+                "firstNumber": 125,
+                "secondNumber": 4
+                }
+                }
+            </ai>
+        </example>
+    </examples>
+</prompt>

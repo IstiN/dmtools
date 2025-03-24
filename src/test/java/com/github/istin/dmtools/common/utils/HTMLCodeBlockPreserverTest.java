@@ -28,9 +28,7 @@ public class HTMLCodeBlockPreserverTest {
         assertEquals("<code>___CODE_BLOCK_PLACEHOLDER___0</code>", preserved);
 
         String restored = preserver.restoreCodeBlocks(preserved);
-        assertEquals("<code>{code:java}\n" +
-                "public class Test {}\n" +
-                "{code}</code>", restored);
+        assertEquals("<code>{code:java}public class Test {}{code}</code>", restored);
     }
 
     @Test
@@ -54,12 +52,10 @@ public class HTMLCodeBlockPreserverTest {
         String restored = preserver.restoreCodeBlocks(preserved);
         String expected =
                 "<p><strong>Example:</strong></p>\n" +
-                        "<code>{code:java}\n" +
-                        "public class Test {\n" +
-                        "List<String> items = new ArrayList<>();\n" +
-                        "// Comment\n" +
-                        "}\n" +
-                        "{code}</code>\n" +
+                        "<code>{code:java}public class Test {\n" +
+                        "    List<String> items = new ArrayList<>();\n" +
+                        "    // Comment\n" +
+                        "}{code}</code>\n" +
                         "<p>And another example:</p>\n" +
                         "<code>{{Simple code}}</code>";
         assertEquals(expected, restored);

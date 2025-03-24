@@ -48,7 +48,9 @@ public class MarkdownToJiraConverter {
     }
 
     private static String convertMixedContent(String input) {
-        String[] chunks = input.split("\n\n");
+        HTMLCodeBlockPreserver preserver = new HTMLCodeBlockPreserver();
+        String preserved = preserver.preserveCodeBlocks(input);
+        String[] chunks = preserved.split("\n\n");
         List<String> parts = new ArrayList<>();
         for (String chunk : chunks) {
             String trimmed = chunk.trim();
@@ -59,7 +61,9 @@ public class MarkdownToJiraConverter {
                 parts.add(convertMarkdownToJiraMarkdown(trimmed));
             }
         }
-        return String.join("\n\n", parts).trim();
+        String results = String.join("\n\n", parts);
+        results = preserver.restoreCodeBlocks(results);
+        return results.trim();
     }
 
     /**
@@ -273,8 +277,9 @@ public class MarkdownToJiraConverter {
                 } else {
                     String code = codeBuf.toString()
                             .replaceAll("^[\\r\\n]+", "")
-                            .replaceAll("[\\r\\n]+$", "");
-                    blocks.add("{code:" + (codeLang.isEmpty() ? "java" : codeLang) + "}\n" + code + "\n{code}");
+                            .replaceAll("[\\r\\n]+$", "")
+                            ;
+                    blocks.add("{code:" + (codeLang.isEmpty() ? "java" : codeLang) + "}" + code + "{code}");
                     inCodeBlock = false;
                     codeBuf.setLength(0);
                     codeLang = "";
@@ -348,7 +353,7 @@ public class MarkdownToJiraConverter {
                 .replace("&apos;", "'");
     }
 
-    private static String unescapeHtml(String s) {
+    public static String unescapeHtml(String s) {
         return s
                 .replace("&lt;", "<")
                 .replace("&gt;", ">")
@@ -357,7 +362,7 @@ public class MarkdownToJiraConverter {
                 .replace("&apos;", "'")
                 .replace("-&gt;", "->")
                 .replaceAll("\\R", "\n")
-                .trim();
+                ;
     }
 
     private static List<String> removeEmpty(List<String> blocks) {
@@ -409,7 +414,7 @@ public class MarkdownToJiraConverter {
             lang = codeEl.attr("class").trim();
         }
         if (codeText.contains("\n")) {
-            return "{code:" + lang + "}\n" + codeText + "\n{code}";
+            return "\n{code:" + lang + "}\n" + codeText + "\n{code}\n";
         } else {
             return "{{" + codeText + "}}";
         }

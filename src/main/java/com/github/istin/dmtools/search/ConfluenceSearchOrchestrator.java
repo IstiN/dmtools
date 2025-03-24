@@ -22,18 +22,6 @@ public class ConfluenceSearchOrchestrator extends AbstractSearchOrchestrator {
     }
 
     @Override
-    protected String getItemSnippet(Object item, Object platformContext) {
-        SearchResult searchResult = (SearchResult) item;
-        return searchResult.getTitle() +
-                "\n" +
-                searchResult.getExcerpt() +
-                "\n" +
-                searchResult.getType() +
-                "\n" +
-                searchResult.getUrl();
-    }
-
-    @Override
     protected String getFullItemContent(Object item, Object platformContext) throws IOException {
         SearchResult searchResult = (SearchResult) item;
         Content content = confluence.contentById(searchResult.getEntityId());

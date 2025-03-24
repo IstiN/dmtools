@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.atlassian.jira;
 
+import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.model.*;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
@@ -356,8 +357,14 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return new GenericRequest(this, path("serverInfo"));
     }
 
-    public GenericRequest getProfile() {
-        return new GenericRequest(this, path("myself"));
+    public IUser performMyProfile() throws IOException {
+        return new Assignee(new GenericRequest(this, path("myself")).execute());
+    }
+
+    public IUser performProfile(String userId) throws IOException {
+        GenericRequest genericRequest = new GenericRequest(this, path("user"));
+        genericRequest.param("accountId", userId);
+        return new Assignee(genericRequest.execute());
     }
 
     @Override
@@ -1283,6 +1290,27 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return "<a class=\"user-hover\" href=\"" + basePath + "/secure/ViewProfile.jspa?name="+notifierId+"\" rel=\""+notifierId+"\">"+notifierName+"</a>";
     }
 
+    public static String parseNotifierId(String taggedString) {
+        if (taggedString == null || taggedString.isEmpty()) {
+            return "";
+        }
+
+        try {
+            // Pattern for extracting everything after ~accountid: and before ]
+            Pattern pattern = Pattern.compile("\\[~accountid:([^\\]]+)\\]");
+            Matcher matcher = pattern.matcher(taggedString);
+
+            if (matcher.find()) {
+                return matcher.group(1); // Returns everything between ~accountid: and ]
+            }
+        } catch (Exception e) {
+            // Log error if needed
+            return "";
+        }
+
+        return "";
+    }
+
     public String tag(String notifierId) {
         if (notifierId == null) {
             return "";
@@ -1473,7 +1501,10 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             return convertUrlToFile(uri);
         } else {
             try {
-                return performTicket(uri, getExtendedQueryFields());
+                T ticket = performTicket(uri, getExtendedQueryFields());
+                List<? extends IComment> comments = getComments(ticket.getKey(), ticket);
+                ticket.getJSONObject().put("_comments", comments);
+                return ticket;
             } catch (Exception ignored) {
                 //wrong uri was processed
             }

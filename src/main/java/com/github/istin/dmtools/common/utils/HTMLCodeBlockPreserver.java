@@ -31,6 +31,7 @@ public class HTMLCodeBlockPreserver {
         while (matcher.find()) {
             String fullMatch = matcher.group(0);
             String codeContent = matcher.group(1);
+            if (codeContent.contains(CODE_BLOCK_PLACEHOLDER)) continue;
 
             // Extract language from class=... if present
             String language = "java";
@@ -43,7 +44,7 @@ public class HTMLCodeBlockPreserver {
             // If no "class=" or no multiline, treat as inline
             boolean isInline = !fullMatch.contains("class=") && !codeContent.contains("\n");
 
-            preservedCodeBlocks.add(new CodeBlock(codeContent, language, !fullMatch.contains("class=") && !codeContent.contains("\n")));
+            preservedCodeBlocks.add(new CodeBlock(codeContent, language, isInline));
 
             // Insert placeholder
             String replacement = Matcher.quoteReplacement(
@@ -74,18 +75,27 @@ public class HTMLCodeBlockPreserver {
             String[] lines = content.split("\\r?\\n");
             StringBuilder sb = new StringBuilder();
             for (String line : lines) {
+                if (line.isEmpty()) continue;
                 // strip leading spaces/tabs
-                sb.append(line.replaceFirst("^[ \t]+", "")).append("\n");
+                sb
+                        .append(
+                                line
+                        //                .replaceFirst("^[ \t]+", "")
+                        )
+                        .append("\n");
             }
-            String normalized = sb.toString().replaceAll("[\\r\\n]+$", "");
-
+            String normalized = sb.toString()
+                    //.replaceAll("    ", "        ");
+                    .replaceAll("[\\r\\n]+$", "")
+                    ;
+            normalized = MarkdownToJiraConverter.unescapeHtml(normalized);
             String replacement;
             if (block.isInline) {
                 replacement = "{{" + normalized.trim() + "}}";
             } else {
                 // Use mapLanguage to convert "properties" to "yaml"
                 replacement = String.format(
-                        "{code:%s}\n%s\n{code}",
+                        "{code:%s}%s{code}",
                         mapLanguage(block.language),
                         normalized
                 );

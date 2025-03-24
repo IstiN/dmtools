@@ -25,6 +25,36 @@ public class AIResponseParserTest extends TestCase {
         }
     }
 
+    public void testParseCodeResponseVariations() {
+        // Test without language identifier
+        String response1 = "```\nsome code\n```";
+        assertEquals("some code", AIResponseParser.parseCodeResponse(response1));
+
+        // Test single line
+        String response2 = "```javascript\nsome code```";
+        assertEquals("some code", AIResponseParser.parseCodeResponse(response2));
+
+        // Test without code markers
+        String response3 = "some code";
+        assertEquals("some code", AIResponseParser.parseCodeResponse(response3));
+
+        // Test empty response
+        try {
+            AIResponseParser.parseCodeResponse("");
+            fail("Should throw IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            // Expected
+        }
+
+        // Test null response
+        try {
+            AIResponseParser.parseCodeResponse(null);
+            fail("Should throw IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            // Expected
+        }
+    }
+
     public void testParseResponseAsJSONArray() {
         try {
             String response = "... [\"item1\", \"item2\"] ...";

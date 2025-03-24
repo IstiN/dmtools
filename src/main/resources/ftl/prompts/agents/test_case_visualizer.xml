@@ -1,0 +1,380 @@
+<prompt>
+    <role>
+        You're an expert in test case visualization and Mermaid diagrams.
+    </role>
+    <instructions>
+        Create a Mermaid ${global.diagramType} diagram that visualizes the path of test cases. The diagram should:
+        1. Split test cases into small parts
+        2. Show connections between related steps
+        3. Use appropriate Mermaid syntax
+        4. Make sure that start point is adjusted for test, for instance if it's required to go on page1 to get page3 that must be covered in the diagram. Or if user must be logged in than start point must be from login test
+        5. Keep important details of test steps in the diagram as separate blocks
+        6. If there are links to stories you can make group blocks by words mentioned in stories
+        7. If steps are not mentioned you must create them base on the input
+        8. Keep maximum details in diagram
+        9. Take to account [existing_diagram] and extend it with list of test cases
+    </instructions>
+    <input_data>
+        <test_cases>
+            ${global.testCases}
+        </test_cases>
+        <existing_diagram>
+            ${global.existingDiagram}
+        </existing_diagram>
+        <diagram_type>
+            ${global.diagramType}
+        </diagram_type>
+    </input_data>
+    <formatting>
+        <rules>
+            <rule>Output must be a valid Mermaid diagram code</rule>
+            <rule>Use proper Mermaid diagram syntax</rule>
+            <rule>Mermaid diagram ${global.diagramType}</rule>
+            <rule>Each test case should be clearly identifiable</rule>
+            <rule>Steps should be connected in sequence</rule>
+            <rule>In case there are special characters in names you must wrap them in "", for example "some style (Dark)"</rule>
+            <rule>In case there is quotes like Check "Title A", it must be as "Check 'Title A'"</rule>
+            <rule>Horizontal Layout: Rearrange the flowchart to make it more horizontally aligned, especially for subgraphs and sequential steps.</rule>
+            <rule>Grouping with Subgraphs: Use subgraphs to group related processes for better readability.</rule>
+            <rule>Yellow Notes: Add yellow notes to highlight key points or explanations.</rule>
+            <rule>Color Coding: Use consistent color coding for different types of nodes (e.g., actions, decisions, errors, etc.).</rule>
+            <rule>Icons or Labels: Add icons or labels to make the flowchart more intuitive.</rule>
+            <rule>[output] must be as diagram code only, no explanation required</rule>
+            <rule>Avoid the errors: The error in your diagram is caused by the classDef definitions being placed in a way that conflicts with the Mermaid syntax. Specifically, the classDef end is being interpreted incorrectly because end is a reserved keyword in Mermaid. To fix this issue, you should rename the classDef end to something else, such as classDef endNode.</rule>
+            <rule>Use readable colors for text and for blocks: for light blocks must be dark text colors and vise versa</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <input>
+                {
+                "diagramType": "Flow",
+                "testCases": [
+                {
+                "id": "TC1",
+                "name": "Login Test",
+                "testCases": ["Open browser", "Enter credentials", "Click login"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                flowchart TD
+                A[Open browser] --> B[Enter credentials]
+                B --> C[Click login]
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "Sequence",
+                "testCases": [
+                {
+                "id": "TC2",
+                "name": "Checkout Test",
+                "testCases": ["Add item to cart", "Go to checkout", "Enter payment details", "Confirm order"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                sequenceDiagram
+                participant User
+                participant Cart
+                participant Payment
+                User->>Cart: Add item to cart
+                User->>Cart: Go to checkout
+                User->>Payment: Enter payment details
+                Payment-->>User: Confirm order
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "Class",
+                "testCases": [
+                {
+                "id": "TC3",
+                "name": "User Management Test",
+                "testCases": ["Create user", "Update user", "Delete user"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                classDiagram
+                class User {
+                +Create()
+                +Update()
+                +Delete()
+                }
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "State",
+                "testCases": [
+                {
+                "id": "TC4",
+                "name": "Order Process Test",
+                "testCases": ["Order placed", "Order shipped", "Order delivered"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                stateDiagram-v2
+                [*] --> OrderPlaced
+                OrderPlaced --> OrderShipped
+                OrderShipped --> OrderDelivered
+                OrderDelivered --> [*]
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "ER",
+                "testCases": [
+                {
+                "id": "TC5",
+                "name": "Database Test",
+                "testCases": ["User table", "Order table", "Relationship between User and Order"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                erDiagram
+                USER {
+                string name
+                string email
+                }
+                ORDER {
+                int orderId
+                string orderDate
+                }
+                USER ||--o{ ORDER : places
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "Gantt",
+                "testCases": [
+                {
+                "id": "TC6",
+                "name": "Project Timeline Test",
+                "testCases": ["Requirement gathering", "Development", "Testing", "Deployment"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                gantt
+                title Project Timeline
+                section Test Case TC6
+                Requirement gathering :done, des1, 2023-01-01, 2023-01-10
+                Development :active, des2, 2023-01-11, 2023-02-15
+                Testing : des3, 2023-02-16, 2023-03-01
+                Deployment : des4, 2023-03-02, 2023-03-10
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "User Journey",
+                "testCases": [
+                {
+                "id": "TC7",
+                "name": "User Journey Test",
+                "testCases": ["Login", "Browse products", "Add to cart", "Checkout"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                journey
+                title User Journey Test
+                section User Actions
+                Login: 5: User
+                Browse products: 4: User
+                Add to cart: 3: User
+                Checkout: 2: User
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "Mindmap",
+                "testCases": [
+                {
+                "id": "TC8",
+                "name": "Navigation Test",
+                "testCases": ["Go to Home Page", "Navigate to Page 1", "Navigate to Page 3"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                mindmap
+                root((Navigation Test))
+                Home_Page
+                Page_1
+                Page_3
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "Git",
+                "testCases": [
+                {
+                "id": "TC9",
+                "name": "Version Control Test",
+                "testCases": ["Create branch", "Commit changes", "Merge branch"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                gitGraph
+                commit id: "Initial commit"
+                branch feature
+                checkout feature
+                commit id: "Commit changes"
+                checkout main
+                merge feature
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "Pie",
+                "testCases": [
+                {
+                "id": "TC10",
+                "name": "Test Case Distribution",
+                "testCases": ["Passed: 70%", "Failed: 20%", "Skipped: 10%"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                pie
+                title Test Case Distribution
+                "Passed" : 70
+                "Failed" : 20
+                "Skipped" : 10
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "QuadrantChart",
+                "testCases": [
+                {
+                "id": "TC11",
+                "name": "Priority vs Complexity",
+                "testCases": ["High Priority, Low Complexity", "High Priority, High Complexity"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                quadrantChart
+                title Priority vs Complexity
+                "High Priority, Low Complexity": [0.2, 0.8]
+                "High Priority, High Complexity": [0.8, 0.8]
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "XYChart",
+                "testCases": [
+                {
+                "id": "TC12",
+                "name": "Performance Metrics",
+                "testCases": ["Response Time", "Throughput"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                xychart
+                title Performance Metrics
+                "Response Time": [1, 200]
+                "Throughput": [2, 300]
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "Block",
+                "testCases": [
+                {
+                "id": "TC13",
+                "name": "System Architecture Test",
+                "testCases": ["Frontend", "Backend", "Database"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                block
+                title System Architecture
+                Frontend --> Backend
+                Backend --> Database
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "ZenUML",
+                "testCases": [
+                {
+                "id": "TC14",
+                "name": "API Call Test",
+                "testCases": ["Client sends request", "Server processes request", "Server sends response"]
+                }
+                ]
+                }
+            </input>
+            <output>
+                @startuml
+                Client -> Server: Sends request
+                Server -> Server: Processes request
+                Server -> Client: Sends response
+                @enduml
+            </output>
+        </example>
+        <example>
+            <input>
+                {
+                "diagramType": "ZenUML",
+                "testCases": [
+                {
+                "id": "TC15",
+                "name": "API Call Test",
+                "testCases": ["Server sends response", "Client checks response"]
+                }
+                ],
+                "existingDiagram" : "@startuml
+                Client -> Server: Sends request
+                Server -> Server: Processes request
+                Server -> Client: Sends response
+                @enduml"
+                }
+            </input>
+            <output>
+                @startuml
+                Client -> Server: Sends request
+                Server -> Server: Processes request
+                Server -> Client: Sends response
+                Client -> Client: Checks response
+                @enduml
+            </output>
+        </example>
+    </examples>
+</prompt>

@@ -228,3 +228,12 @@ FIREBASE_SERVICE_ACCOUNT_JSON_AUTH={"type":"service_account",...}
 ## Notes
 - Replace all placeholder values (e.g., `your_token`, `your-org`) with actual values.
 - **Never commit sensitive tokens to version control.** Use environment variables or secure vaults instead.
+
+### Prompt Preparation Config
+```properties
+# Prompt Chunk Configurations
+PROMPT_CHUNK_TOKEN_LIMIT=4000
+PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE_MB=4
+PROMPT_CHUNK_MAX_TOTAL_FILES_SIZE_MB=4
+PROMPT_CHUNK_MAX_FILES=10
+```

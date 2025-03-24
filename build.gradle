@@ -14,19 +14,155 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 
-jacocoTestReport {
-    reports {
-        xml.required = true
-        html.required = true
+// Define versions
+def versions = [
+        log4j    : '2.20.0',
+        slf4j    : '2.0.7',
+        selenium : '4.11.0',
+        appium   : '8.3.0',
+        guava    : '31.1-jre',
+        graalvm  : '24.1.1'
+]
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+dependencies {
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
+    testImplementation 'org.powermock:powermock-module-junit4:2.0.9'
+    testImplementation 'org.powermock:powermock-api-mockito2:2.0.9'
+    testRuntimeOnly 'org.junit.vintage:junit-vintage-engine:5.8.2'
+
+    // Core dependencies
+    api 'org.json:json:20231013'
+    api 'com.squareup.okhttp3:okhttp:4.12.0'
+    api 'org.apache.commons:commons-lang3:3.8.1'
+    api 'com.thedeanda:lorem:2.1'
+
+    // Logging using Log4j2 with SLF4J Bridge
+    api "org.slf4j:slf4j-api:${versions.slf4j}"
+    api "org.apache.logging.log4j:log4j-api:${versions.log4j}"
+    api "org.apache.logging.log4j:log4j-core:${versions.log4j}"
+    api "org.apache.logging.log4j:log4j-slf4j-impl:${versions.log4j}"
+
+    // Apache Commons
+    api 'commons-io:commons-io:2.14.0'
+    api 'commons-codec:commons-codec:1.15'
+    api 'org.freemarker:freemarker:2.3.30'
+    api 'org.apache.commons:commons-collections4:4.3'
+    api 'org.apache.commons:commons-jexl:2.1.1'
+
+    // Document processing
+    api 'org.jsoup:jsoup:1.18.3'
+    api 'org.jxls:jxls:2.14.0'
+    api 'org.jxls:jxls-poi:2.14.0'
+    api 'org.jxls:jxls-reader:2.1.0'
+    api 'org.apache.poi:poi:4.1.1'
+    api 'org.apache.poi:poi-ooxml:3.17'
+    api 'org.apache.pdfbox:pdfbox:3.0.2'
+    api 'io.github.furstenheim:copy_down:1.1'
+
+    // Selenium & Appium
+    api("org.seleniumhq.selenium:selenium-java:${versions.selenium}") {
+        exclude group: 'com.google.guava'
+    }
+    api("io.appium:java-client:${versions.appium}") {
+        exclude group: 'org.seleniumhq.selenium'
+        exclude group: 'com.google.guava'
+    }
+
+    // Guava and its dependencies
+    api "com.google.guava:guava:${versions.guava}"
+    api 'com.google.guava:failureaccess:1.0.1'
+    api 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
+
+    // Playwright
+    api 'com.microsoft.playwright:playwright:1.50.0'
+
+    // GraalVM
+    api "org.graalvm.sdk:graal-sdk:${versions.graalvm}"
+    api "org.graalvm.js:js:${versions.graalvm}"
+    api "org.graalvm.js:js-scriptengine:${versions.graalvm}"
+
+    // Other tools
+    api('io.github.bonigarcia:webdrivermanager:5.9.2') {
+        exclude group: 'com.google.guava'
+    }
+    api('com.github.mpkorstanje:simmetrics-core:4.1.1') {
+        exclude group: 'com.google.guava'
+    }
+    api('com.google.dagger:dagger:2.53.1') {
+        exclude group: 'com.google.guava'
+    }
+    api('com.google.auth:google-auth-library-oauth2-http:1.19.0') {
+        exclude group: 'com.google.guava'
+    }
+    api 'net.sourceforge.tess4j:tess4j:5.8.0'
+    api 'org.bytedeco:javacpp:1.5.11'
+    api 'com.github.eirslett:frontend-maven-plugin:1.12.1'
+
+    // Annotation processors
+    annotationProcessor 'com.google.dagger:dagger-compiler:2.53.1'
+    compileOnly 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
+}
+
+configurations.all {
+    resolutionStrategy {
+        // Force specific versions for key dependencies
+        force "org.seleniumhq.selenium:selenium-java:${versions.selenium}"
+        force "io.appium:java-client:${versions.appium}"
+        force "com.google.guava:guava:${versions.guava}"
+        force "com.google.guava:failureaccess:1.0.1"
+        force "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava"
+        force "org.slf4j:slf4j-api:${versions.slf4j}"
+        force "org.apache.logging.log4j:log4j-api:${versions.log4j}"
+        force "org.apache.logging.log4j:log4j-core:${versions.log4j}"
+        force "org.apache.logging.log4j:log4j-slf4j-impl:${versions.log4j}"
+
+        // Handle transitive dependencies
+        eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'com.google.guava') {
+                if (details.requested.name == 'guava') {
+                    details.useVersion versions.guava
+                } else if (details.requested.name == 'failureaccess') {
+                    details.useVersion '1.0.1'
+                }
+            }
+            if (details.requested.group == 'org.seleniumhq.selenium') {
+                details.useVersion versions.selenium
+            }
+            if (details.requested.group == 'org.slf4j') {
+                details.useVersion versions.slf4j
+            }
+            if (details.requested.group == 'org.apache.logging.log4j') {
+                if (details.requested.name in ['log4j-api', 'log4j-core', 'log4j-slf4j-impl']) {
+                    details.useVersion versions.log4j
+                }
+            }
+        }
     }
 }
 
 test {
+    useJUnitPlatform()
     testLogging {
         events "passed", "skipped", "failed", "standardOut", "standardError"
         exceptionFormat "full"
     }
     finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 sourceSets {
@@ -38,96 +174,15 @@ sourceSets {
     }
 }
 
-configurations {
-    integrationTestImplementation.extendsFrom testImplementation
-    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
-}
-
 task integrationTest(type: Test) {
     description = 'Runs integration tests.'
     group = 'verification'
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
-    shouldRunAfter test // ensure that integration tests run after unit tests
+    shouldRunAfter test
 }
 
-// Optional: register with check task
 check.dependsOn integrationTest
-
-def log4jVersion = '2.20.0'
-def slf4jVersion = '1.7.36'
-
-dependencies {
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:5.14.2'
-    testImplementation 'org.mockito:mockito-inline:5.2.0'
-    testImplementation 'org.powermock:powermock-module-junit4:2.0.9'
-    testImplementation 'org.powermock:powermock-api-mockito2:2.0.9'
-
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.8.2")
-
-    api 'org.json:json:20231013'
-    api 'com.squareup.okhttp3:okhttp:4.12.0'
-    api 'org.apache.commons:commons-lang3:3.8.1'
-
-    api 'com.thedeanda:lorem:2.1'
-
-    api "org.apache.logging.log4j:log4j-api:${log4jVersion}"
-    api "org.apache.logging.log4j:log4j-core:${log4jVersion}"
-    api "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
-    api "org.slf4j:slf4j-api:${slf4jVersion}"
-
-    api group: 'commons-io', name: 'commons-io', version: '2.14.0'
-    api group: 'commons-codec', name: 'commons-codec', version: '1.13'
-    api group: 'org.freemarker', name: 'freemarker', version: '2.3.30'
-
-    api(group: 'org.jsoup', name: 'jsoup', version: '1.18.3')
-
-    api group: 'org.jxls', name: 'jxls', version: '2.14.0'
-    api group: 'org.jxls', name: 'jxls-poi', version: '2.14.0'
-    api group: 'org.jxls', name: 'jxls-reader', version: '2.1.0'
-
-    api(group: 'org.apache.commons', name: 'commons-collections4', version: '4.3')
-    api(group: 'org.apache.commons', name: 'commons-jexl', version: '2.1.1')
-
-    api group: 'org.apache.poi', name: 'poi', version: '4.1.1'
-    api group: 'org.apache.poi', name: 'poi-ooxml', version: '3.17'
-
-    api 'org.apache.pdfbox:pdfbox:3.0.2'
-    api 'io.github.furstenheim:copy_down:1.1'
-    api 'org.seleniumhq.selenium:selenium-java:4.21.0'
-    api 'io.github.bonigarcia:webdrivermanager:5.9.2'
-    api group: 'org.graalvm.js', name: 'js', version: '24.1.1'
-    api group: 'org.graalvm.js', name: 'js-scriptengine', version: '24.1.1'
-
-    api 'com.github.mpkorstanje:simmetrics-core:4.1.1'
-
-    // Add Dagger dependencies
-    api 'com.google.dagger:dagger:2.53.1'
-    api 'com.google.auth:google-auth-library-oauth2-http:1.19.0'
-    annotationProcessor 'com.google.dagger:dagger-compiler:2.53.1'
-
-    compileOnly 'org.projectlombok:lombok:1.18.36'
-    annotationProcessor 'org.projectlombok:lombok:1.18.36'
-    api 'net.sourceforge.tess4j:tess4j:5.8.0'
-    api 'org.bytedeco:javacpp:1.5.11'
-}
-
-configurations.all {
-    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-        if (details.requested.group == 'org.slf4j') {
-            details.useVersion slf4jVersion
-        }
-        if (details.requested.group == 'org.apache.logging.log4j') {
-            details.useVersion log4jVersion
-        }
-    }
-}
-
-test {
-    useJUnitPlatform()
-}
-
 
 publishing {
     publications {
@@ -137,7 +192,6 @@ publishing {
             version = "v${version}"
             from components.java
 
-            // Include dependencies information in the POM
             pom {
                 name = 'DM Tools'
                 description = 'DM Tools Library'
@@ -180,12 +234,10 @@ tasks.withType(JavaCompile) {
 }
 
 shadowJar {
-    // Configure the shadow JAR task as needed
     archiveBaseName.set('dmtools')
-    archiveVersion.set('v'+version)
+    archiveVersion.set('v' + version)
     archiveClassifier.set('all')
     archiveExtension.set('jar')
-    // Optionally specify main class
     manifest {
         attributes 'Main-Class': 'com.github.istin.dmtools.job.JobRunner'
     }

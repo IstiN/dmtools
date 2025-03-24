@@ -153,6 +153,10 @@ public class PdfPageAsTicket implements ITicket {
         throw new UnsupportedOperationException();
     }
 
+    public List<File> getAttachmentsAsFiles() {
+        return attachments;
+    }
+
     @Override
     public List<? extends IAttachment> getAttachments() {
         return attachments.stream().map((Function<File, IAttachment>) file -> new IAttachment() {

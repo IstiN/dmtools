@@ -1,0 +1,125 @@
+<prompt>
+    <role>
+        You're an expert in content merging.
+    </role>
+    <input_data>
+        <user_task>
+            ${global.task}
+        </user_task>
+        <content>
+            <source>
+                ${global.sourceContent}
+            </source>
+            <new>
+                ${global.newContent}
+            </new>
+            <type>
+                ${global.contentType}
+            </type>
+        </content>
+    </input_data>
+    <instructions>
+        Your task is to merge the provided content into a combined valid output which will be helpful for the [user_task].
+        You must not introduce anything new in merged content.
+        You must not try to solve [user_task] just merge content.
+        Include required information to output which is needed to solve [user_task].
+        Code snippets or full code, file references must be included if it's somehow related to [user_task].
+    </instructions>
+    <formatting>
+        <rules>
+            <rule>Output must be new version of merged content</rule>
+            <rule>You must not lose any details content form [source] or [new] which are IMPORTANT for [user_task]</rule>
+            <rule>[output] must be new version of merged content, no explanation required</rule>
+            <rule>[output] must not cut, FULL NEW VERSION OF MERGED CONTENT MUST BE RETURNED</rule>
+            <rule>don't lose important details for [user_task]</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>
+                <user_task>I want to have new Welcome page.</user_task>
+                <source>
+                    <html>
+                        <head><title>Page 1</title></head>
+                        <body><h1>Welcome</h1><p>This is page 1.</p></body>
+                    </html>
+                </source>
+                <new>
+                    <html>
+                        <head><title>Page 2</title></head>
+                        <body><h1>Welcome</h1><p>This is page 2.</p></body>
+                    </html>
+                </new>
+                <type>html</type>
+            </human>
+            <ai>
+                <html><head><title>Page 1 &amp; Page 2</title></head><body><h1>Welcome</h1><p>This is page 1.</p><p>This is page 2.</p></body></html>
+            </ai>
+        </example>
+        <example>
+            <human>
+                <user_task>I want to generate full flow in mermaid diagram.</user_task>
+                <source>
+                    graph TD;
+                    A-->B;
+                </source>
+                <new>
+                    graph TD;
+                    B-->C;
+                </new>
+                <type>mermaid</type>
+            </human>
+            <ai>
+                graph TD;
+                A-->B;
+                B-->C;
+            </ai>
+        </example>
+        <example>
+            <human>
+                <user_task>Give me information from all documents</user_task>
+                <source>
+                    Hello, this is the first document.
+                </source>
+                <new>
+                    Hello, this is the second document.
+                </new>
+                <type>text</type>
+            </human>
+            <ai>
+                Hello, this is the first document.
+                Hello, this is the second document.
+            </ai>
+        </example>
+        <example>
+            <input>
+                <user_task>Consolidate two xml files</user_task>
+                <source>
+                    <book>
+                        <title>Book Title</title>
+                        <author>John Doe</author>
+                        <year>2020</year>
+                        <description>The Book is about Anything what is important for performance improvements</description>
+                    </book>
+                </source>
+                <new>
+                    <book>
+                        <title>Book Title</title>
+                        <author>John Doe</author>
+                        <year>2020</year>
+                        <description>The Book is about everything what is important for personal performance improvements</description>
+                    </book>
+                </new>
+                <type>xml</type>
+            </input>
+            <output>
+                <book>
+                    <title>Book Title</title>
+                    <author>John Doe</author>
+                    <year>2020</year>
+                    <description>The Book is about everything what is important for personal performance improvements</description>
+                </book>
+            </output>
+        </example>
+    </examples>
+</prompt>

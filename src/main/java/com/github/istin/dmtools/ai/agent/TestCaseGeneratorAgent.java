@@ -37,7 +37,7 @@ public class TestCaseGeneratorAgent extends AbstractSimpleAgent<TestCaseGenerato
     }
 
     @Override
-    List<TestCase> transformAIResponse(Params params, String response) throws Exception {
+    public List<TestCase> transformAIResponse(Params params, String response) throws Exception {
         JSONArray jsonArray = AIResponseParser.parseResponseAsJSONArray(response);
         List<TestCase> testCases = new ArrayList<>();
 

@@ -20,6 +20,7 @@ import org.apache.pdfbox.text.PDFTextStripperByArea;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -125,7 +126,7 @@ public class ReadPDFFile {
                 FileUtils.write(new File(currentPageCache, "description.html"), htmlContent.toString(), "UTF-8");
 
                 FileUtils.write(new File(currentPageCache, "description.txt"), text);
-                BufferedImage bim = pdfRenderer.renderImageWithDPI(pageNum-1, 100); // 300 is the dpi (dots per inch), change it as needed
+                BufferedImage bim = pdfRenderer.renderImageWithDPI(pageNum-1, 220); // 300 is the dpi (dots per inch), change it as needed
 
                 // Save the image to a file
                 ImageIO.write(bim, "png", new File(currentPageCache, "page_snapshot.png"));
@@ -138,8 +139,23 @@ public class ReadPDFFile {
                 for (COSName name : resources.getXObjectNames()) {
                     if (resources.isImageXObject(name)) {
                         PDImageXObject image = (PDImageXObject) resources.getXObject(name);
+                        BufferedImage bufferedImage = image.getImage();
+
+                        // Get page rotation
+                        int pageRotation = page.getRotation();
+
+                        // Rotate image if needed
+                        if (pageRotation != 0) {
+                            bufferedImage = rotateImage(bufferedImage, pageRotation);
+                        }
+
+                        // Check if image needs to be rotated based on dimensions
+                        if (shouldRotateBasedOnDimensions(bufferedImage)) {
+                            bufferedImage = rotateImage(bufferedImage, 90);
+                        }
+
                         // Save the image to a file
-                        ImageIO.write(image.getImage(), "png", new File(currentPageCache,  "attachment_" + (++imageNum) + ".png"));
+                        ImageIO.write(bufferedImage, "png", new File(currentPageCache, "attachment_" + (++imageNum) + ".png"));
                     }
                 }
             }
@@ -156,4 +172,40 @@ public class ReadPDFFile {
         }
     }
 
+    private static boolean shouldRotateBasedOnDimensions(BufferedImage image) {
+        // You might want to adjust these thresholds based on your specific needs
+        return image.getWidth() > image.getHeight() * 1.25; // Rotate if width is significantly larger than height
+    }
+
+    private static BufferedImage rotateImage(BufferedImage image, int degrees) {
+        double rads = Math.toRadians(degrees);
+        double sin = Math.abs(Math.sin(rads));
+        double cos = Math.abs(Math.cos(rads));
+
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        // New width and height for the rotated image
+        int newWidth = (int) Math.floor(width * cos + height * sin);
+        int newHeight = (int) Math.floor(height * cos + width * sin);
+
+        BufferedImage rotated = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = rotated.createGraphics();
+
+        // Set rendering hints for better quality
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        // Rotate around the center point
+        AffineTransform at = new AffineTransform();
+        at.translate((newWidth - width) / 2, (newHeight - height) / 2);
+        at.rotate(rads, width / 2, height / 2);
+        g2d.setTransform(at);
+
+        g2d.drawImage(image, 0, 0, null);
+        g2d.dispose();
+
+        return rotated;
+    }
 }

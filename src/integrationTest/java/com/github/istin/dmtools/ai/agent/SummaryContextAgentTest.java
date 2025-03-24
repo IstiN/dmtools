@@ -18,7 +18,8 @@ public class SummaryContextAgentTest {
     public void testDemoPageSetValue() throws Exception {
         String result = agent.run(new SummaryContextAgent.Params(
                 "Some task Details",
-                "any raw data to assess\n"
+                "any raw data to assess\n",
+                null
         ));
         assertFalse(result.isEmpty());
     }

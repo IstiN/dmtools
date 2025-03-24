@@ -206,3 +206,146 @@ java -cp your-jar-file.jar com.github.istin.dmtools.job.JobRunner $(echo -n '{"n
 Replace `{...}` with the JSON configuration for the job.
 
 ---
+
+# API Documentation for `Expert`
+
+This document provides examples of how to use the `Expert` class to configure and execute AI-assisted analysis of tickets. It includes examples of both direct Java usage and JSON configuration for the `JobRunner`.
+
+---
+
+## Example Usage of `ExpertParams`
+
+```java
+ExpertParams expertParams = new ExpertParams();
+
+// Set the project context (can be direct text or Confluence URL)
+expertParams.setProjectContext("https://confluence.company.com/display/PROJECT/Context");
+
+// Set the AI request/question
+expertParams.setRequest("What are the technical implications of implementing feature X?");
+
+// Set output type (comment or field)
+expertParams.setOutputType(ExpertParams.OutputType.field);
+
+// Set the field name if using field output type
+expertParams.setFieldName("Technical Analysis");
+
+// Set the JQL query for filtering tickets
+expertParams.setInputJql("project = PROJECT_NAME AND status = Open");
+
+// Set the initiator (user who requested the analysis)
+expertParams.setInitiator("john.doe");
+
+// Configure source code analysis
+expertParams.setCodeAsSource(true);
+expertParams.setSourceCodeConfigs(
+    new SourceCodeConfig("main-repo", "git@github.com:company/repo.git", "master")
+);
+
+// Configure Confluence integration
+expertParams.setConfluenceAsSource(true);
+expertParams.setConfluencePages(
+    "https://confluence.company.com/display/PROJECT/Architecture",
+    "https://confluence.company.com/display/PROJECT/Technical+Design"
+);
+
+// Set search limits
+expertParams.setFilesLimit(10);
+expertParams.setConfluenceLimit(10);
+expertParams.setTrackerLimit(10);
+
+// Set search iterations
+expertParams.setFilesIterations(1);
+expertParams.setConfluenceIterations(1);
+expertParams.setTrackerIterations(1);
+
+// Set processing timeout
+expertParams.setChunkProcessingTimeoutInMinutes(30);
+
+// Set ticket context depth
+expertParams.setTicketContextDepth(1);
+
+// Set keywords blacklist
+expertParams.setKeywordsBlacklist("https://confluence.company.com/display/PROJECT/Blacklist");
+
+new Expert().runJob(expertParams);
+```
+
+---
+
+## Example JSON Configuration for `JobRunner`
+
+```json
+{
+  "name": "Expert",
+  "params": {
+    "projectContext": "https://confluence.company.com/display/PROJECT/Context",
+    "request": "What are the technical implications of implementing feature X?",
+    "outputType": "field",
+    "fieldName": "Technical Analysis",
+    "inputJql": "project = PROJECT_NAME AND status = Open",
+    "initiator": "john.doe",
+    "isCodeAsSource": true,
+    "isConfluenceAsSource": true,
+    "isTrackerAsSource": true,
+    "confluencePages": [
+      "https://confluence.company.com/display/PROJECT/Architecture",
+      "https://confluence.company.com/display/PROJECT/Technical+Design"
+    ],
+    "ticketContextDepth": 1,
+    "filesLimit": 10,
+    "confluenceLimit": 10,
+    "trackerLimit": 10,
+    "chunksProcessingTimeout": 30,
+    "filesIterations": 1,
+    "confluenceIterations": 1,
+    "trackerIterations": 1,
+    "keywordsBlacklist": "https://confluence.company.com/display/PROJECT/Blacklist",
+    "sourceCodeConfig": [
+      {
+        "name": "main-repo",
+        "url": "git@github.com:company/repo.git",
+        "branch": "master"
+      }
+    ],
+    "model": "gpt-4",
+    "metadata": {
+      "temperature": 0.7,
+      "maxTokens": 4000
+    }
+  }
+}
+```
+
+---
+
+## Running the Job with `JobRunner`
+
+To execute the job, encode the JSON configuration into Base64 and pass it as an argument to the `JobRunner`.
+
+### Example Command
+
+```bash
+java -cp your-jar-file.jar com.github.istin.dmtools.job.JobRunner $(echo -n '{"name":"Expert","params":{...}}' | base64)
+```
+
+Replace `{...}` with the JSON configuration for the job.
+
+---
+
+## Output
+
+The Expert job will:
+
+1. Process the specified ticket(s) based on the JQL query
+2. Analyze context from multiple sources (code, Confluence, tracker)
+3. Generate AI-powered responses
+4. Either:
+    - Post the response as a comment on the ticket
+    - Update a specified field with the response
+5. Attach analysis artifacts:
+    - `*_stats.json`: Search statistics
+    - `*_result.txt`: Detailed analysis results
+    - `*_final_answer.txt`: Final AI response
+
+---
