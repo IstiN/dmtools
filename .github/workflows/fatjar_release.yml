@@ -23,6 +23,16 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '23'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install -D @playwright/test
+          npx playwright install --with-deps
 
       - name: Cache Gradle files
         uses: actions/cache@v4

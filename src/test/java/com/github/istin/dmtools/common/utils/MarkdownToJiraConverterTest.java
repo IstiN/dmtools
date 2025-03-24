@@ -14,11 +14,11 @@ public class MarkdownToJiraConverterTest {
 
     public String publishMarkdown(String result) throws Exception {
         TrackerClient<? extends ITicket> instance = BasicJiraClient.getInstance();
-        ((BasicJiraClient)instance).setClearCache(true);
-        List<? extends IComment> comments = instance.getComments("MAPC-3644", null);
-//        IComment comment = comments.get(0);
-       instance.postComment("MAPC-3644", result);
-        //comment.getBody()
+        if (instance != null) {
+            ((BasicJiraClient) instance).setClearCache(true);
+            List<? extends IComment> comments = instance.getComments("MAPC-3644", null);
+            instance.postComment("MAPC-3644", result);
+        }
         return result;
     }
 
