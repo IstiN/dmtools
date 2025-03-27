@@ -31,6 +31,8 @@ public class RequestDecompositionAgent extends AbstractSimpleAgent<RequestDecomp
         private String[] tasks;
         private String[] instructions;
         private String knownInfo;
+        private String formattingRules;
+        private String fewShots;
 
         @Override
         public String toString() {
@@ -40,7 +42,8 @@ public class RequestDecompositionAgent extends AbstractSimpleAgent<RequestDecomp
             json.put("questions", new JSONArray(questions));
             json.put("tasks", new JSONArray(tasks));
             json.put("instructions", new JSONArray(instructions));
-            json.put("knownInfo", knownInfo);
+            json.put("formattingRules", formattingRules);
+            json.put("fewShots", fewShots);
             return json.toString(1);
         }
     }
@@ -55,13 +58,18 @@ public class RequestDecompositionAgent extends AbstractSimpleAgent<RequestDecomp
         JSONObject jsonResponse = AIResponseParser.parseResponseAsJSONObject(response);
         String simplifiedRequest = jsonResponse.getString("request");
         String knownInfo = jsonResponse.getString("knownInfo");
+        String formattingRules = jsonResponse.getString("formattingRules");
+        String fewShots = jsonResponse.getString("fewShots");
+
         return new Result(
                 jsonResponse.getString("aiRole"),
                 simplifiedRequest,
                 convertToArray(jsonResponse, "questions"),
                 convertToArray(jsonResponse, "tasks"),
                 convertToArray(jsonResponse, "instructions"),
-                knownInfo
+                knownInfo,
+                formattingRules,
+                fewShots
         );
     }
 

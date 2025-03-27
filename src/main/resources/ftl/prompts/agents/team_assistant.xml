@@ -5,7 +5,7 @@
     <instructions>
         <instruction>Your task is to help teammates solve their requests while considering any available context, ticket information, or previous discussions. If key information is missing, provide guidance on what would be helpful to know.</instruction>
         <additional_instruction>
-            ${global.request.instructions?join(", ")}
+            ${global.request.instructions?join("\n-")}
         </additional_instruction>
     </instructions>
     <input_data>
@@ -16,10 +16,10 @@
             ${global.request.request}
         </request>
         <questions>
-            ${global.request.questions?join(", ")}
+            ${global.request.questions?join("\n-")}
         </questions>
         <tasks>
-            ${global.request.tasks?join(", ")}
+            ${global.request.tasks?join("\n-")}
         </tasks>
         <known_information>
             ${global.request.knownInfo}
@@ -27,13 +27,36 @@
     </input_data>
     <formatting>
         <rules>
-            <rule>Response must use only the following HTML tags: p, strong, em, u, s, ul, ol, li, a, code, table, tr, th, td</rule>
-            <rule>Skip html, head and body tags</rule>
-            <rule>Use class attribute only for code tags to specify language</rule>
-            <rule>Don't include task description in response</rule>
-            <rule>If context or request is empty, provide helpful guidance based on available information</rule>
+            - Use standard markdown syntax for formatting
+            - Use triple backticks for code blocks with language specification
+            - Use proper markdown table syntax with aligned columns
+            - Don't include task description in response
+            - If context or request is empty, provide helpful guidance based on available information
+            <improtant_rules>
+                ${global.request.formattingRules}
+            </improtant_rules>
+            Response must use only the following markdown elements:
+                - Headers (#, ##, ###)
+                - Bold (**text**)
+                - Italic (*text*)
+                - Lists (-, 1.)
+                - Code blocks (```)
+                - Tables (| --- |)
+                - Links ([text](url))
+                - Inline code (`code`)
         </rules>
     </formatting>
+    <markdown_guidelines>
+        - Use ## for section headers
+        - Use triple backticks with language specification for code blocks
+        - Use | for table borders with proper column alignment
+        - IMPORTANT DON'T Use | inside table cells texts, if you need to use | in table cell replace it with /
+        - Use * or - for unordered lists
+        - Use 1. for ordered lists
+        - Use **text** for bold emphasis
+        - Use *text* for italic emphasis
+        - Use `code` for inline code references
+    </markdown_guidelines>
     <examples>
         <example>
             <input_data>
@@ -44,25 +67,36 @@
                 <known_information>Using Spring Security with JWT implementation</known_information>
             </input_data>
             <response>
-                <p>The authentication flow follows these steps:</p>
-                <ol>
-                    <li>User submits credentials to <code class="java">AuthController.login()</code></li>
-                    <li>Credentials are validated through <code class="java">AuthenticationService</code></li>
-                    <li>JWT token is generated using the following pattern:</li>
-                </ol>
-                <code class="java">
-                    public String generateToken(UserDetails user) {
-                        return Jwts.builder()
-                            .setSubject(user.getUsername())
-                            .setIssuedAt(new Date())
-                            .setExpiration(new Date(System.currentTimeMillis() + JWT_VALIDITY))
-                            .signWith(SignatureAlgorithm.HS512, secret)
-                            .compact();
-                    }
-                </code>
+                ## Authentication Flow
+
+                The authentication flow follows these steps:
+
+                1. User submits credentials to `AuthController.login()`
+                2. Credentials are validated through `AuthenticationService`
+                3. JWT token is generated using the following pattern:
+
+                ```java
+                public String generateToken(UserDetails user) {
+                return Jwts.builder()
+                .setSubject(user.getUsername())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + JWT_VALIDITY))
+                .signWith(SignatureAlgorithm.HS512, secret)
+                .compact();
+                }
+                ```
             </response>
         </example>
-
+        <example>
+            <input_data>
+                <ai_role>Table Writer</ai_role>
+                <request>Create Table with 2 columns Action, Status (Planned|In Progress|Completed)</request>
+            </input_data>
+            <response>
+                | Action | Status (Planned/In Progress/Completed)|
+                |-------|-------------|
+            </response>
+        </example>
         <example>
             <input_data>
                 <ai_role>DevOps Engineer</ai_role>
@@ -72,32 +106,22 @@
                 <known_information>Using GitLab CI with Maven projects</known_information>
             </input_data>
             <response>
-                <p>The CI/CD pipeline consists of the following stages:</p>
-                <table>
-                    <tr>
-                        <th>Stage</th>
-                        <th>Description</th>
-                    </tr>
-                    <tr>
-                        <td><strong>Build</strong></td>
-                        <td>Maven build with unit tests</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Test</strong></td>
-                        <td>Integration tests and code coverage</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Deploy</strong></td>
-                        <td>Automatic deployment to staging</td>
-                    </tr>
-                </table>
-                <p>The pipeline configuration:</p>
-                <code class="yaml">
-                    stages:
-                    - build
-                    - test
-                    - deploy
-                </code>
+                ## CI/CD Pipeline Stages
+
+                | Stage | Description |
+                |-------|-------------|
+                | **Build** | Maven build with unit tests |
+                | **Test** | Integration tests and code coverage |
+                | **Deploy** | Automatic deployment to staging |
+
+                The pipeline configuration:
+
+                ```yaml
+                stages:
+                - build
+                - test
+                - deploy
+                ```
             </response>
         </example>
 
@@ -110,21 +134,24 @@
                 <known_information>Spring Boot service layer implementation</known_information>
             </input_data>
             <response>
-                <p>There are several potential issues with this code:</p>
-                <ul>
-                    <li><strong>NPE Risk:</strong> No null check for findById result</li>
-                    <li><strong>Multiple DB Calls:</strong> Chaining could cause N+1 problem</li>
-                </ul>
-                <p>Here's the recommended approach:</p>
-                <code class="java">
-                    User user = userService.findById(id);
-                    if (user == null) {
-                        throw new UserNotFoundException(id);
-                    }
-                    return user.getName();
-                </code>
+                ## Code Review Analysis
+
+                **Potential issues:**
+                - **NPE Risk:** No null check for findById result
+                - **Multiple DB Calls:** Chaining could cause N+1 problem
+
+                **Recommended approach:**
+
+                ```java
+                User user = userService.findById(id);
+                if (user == null) {
+                throw new UserNotFoundException(id);
+                }
+                return user.getName();
+                ```
             </response>
         </example>
+
         <example>
             <input_data>
                 <ai_role>Frontend Developer</ai_role>
@@ -134,42 +161,95 @@
                 <known_information>[mockup.png - Login form design]</known_information>
             </input_data>
             <response>
-                <p>Based on the mockup, here's the complete HTML page:</p>
-                <code class="html">
-                    <!DOCTYPE html>
-                    <html lang="en">
-                        <head>
-                            <meta charset="UTF-8"/>
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-                            <title>Login Page</title>
-                            <style>
-                                .login-form {
-                                    max-width: 400px;
-                                    margin: 100px auto;
-                                    padding: 20px;
-                                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-                                }
-                                input, button {
-                                    width: 100%;
-                                    padding: 10px;
-                                    margin: 10px 0;
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="container">
-                                <div class="login-form">
-                                    <h2>Login</h2>
-                                    <input type="email" placeholder="Email"/>
-                                    <input type="password" placeholder="Password"/>
-                                    <button>Sign in</button>
-                                </div>
-                            </div>
-                        </body>
-                    </html>
-                </code>
+                ## Login Page Implementation
+
+                Based on the mockup, here's the complete implementation:
+
+                ```html
+                <html>
+                    <title>Login Page</title>
+                    <style>
+                        .login-form {
+                        max-width: 400px;
+                        margin: 100px auto;
+                        padding: 20px;
+                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                        }
+                        input, button {
+                        width: 100%;
+                        padding: 10px;
+                        margin: 10px 0;
+                        }
+                    </style>
+                    <body>
+                        <div class="login-form">
+                            <h2>Login</h2>
+                            <input type="email" placeholder="Email"/>
+                            <input type="password" placeholder="Password"/>
+                            <button>Sign in</button>
+                        </div>
+                    </body>
+                </html>
+                ```
+
+                ### Key Components:
+                - Centered login form with shadow effect
+                - Responsive design with max-width
+                - Full-width input fields and button
+                - Clean and minimal styling
             </response>
         </example>
+
+        <example>
+            <input_data>
+                <ai_role>DevOps Engineer</ai_role>
+                <request>Explain our Kubernetes deployment strategy</request>
+                <questions>What are our rollout procedures?</questions>
+                <tasks>Document deployment process</tasks>
+                <known_information>Using Blue-Green deployment strategy</known_information>
+            </input_data>
+            <response>
+                ## Kubernetes Deployment Strategy
+
+                ### Current Setup
+                We implement a Blue-Green deployment strategy with the following components:
+
+                **Deployment Process:**
+                1. Create new deployment (Green)
+                2. Run health checks
+                3. Switch traffic gradually
+                4. Keep old deployment (Blue) as backup
+
+                ### Configuration Example
+
+                ```yaml
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                name: app-green
+                spec:
+                replicas: 3
+                selector:
+                matchLabels:
+                app: myapp
+                version: green
+                ```
+
+                ### Rollout Procedures
+
+                | Stage | Action | Verification |
+                |-------|--------|-------------|
+                | **Prep** | Deploy green version | Health checks |
+                | **Test** | Route 10% traffic | Monitor metrics |
+                | **Scale** | Increase to 50% | Check stability |
+                | **Complete** | 100% traffic switch | Verify blue backup |
+
+                *Rollback time: ~2 minutes if issues detected*
+            </response>
+        </example>
+        <improtant_example>
+            ${global.request.fewShots}
+        </improtant_example>
     </examples>
     <#include "chunk_processing.xml">
 </prompt>

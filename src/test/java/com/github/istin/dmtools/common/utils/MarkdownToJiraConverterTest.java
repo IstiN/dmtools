@@ -13,13 +13,19 @@ import static org.junit.Assert.*;
 public class MarkdownToJiraConverterTest {
 
     public String publishMarkdown(String result) throws Exception {
-        TrackerClient<? extends ITicket> instance = BasicJiraClient.getInstance();
-        if (instance != null) {
-            ((BasicJiraClient) instance).setClearCache(true);
-            List<? extends IComment> comments = instance.getComments("MAPC-3644", null);
-            instance.postComment("MAPC-3644", result);
-        }
         return result;
+    }
+
+    @Test
+    public void testAdvancedTable() throws Exception {
+        String html = "<p><strong>Sample Data Collection Table</strong></p> <table> <tr> <th>Action: Main Event Tracking</th> <th></th> <th></th> <th></th> <th></th> </tr> <tr> <td colspan=\"5\">When user performs primary action X<br>trackEvent(\"main-event\", contextData)</td> </tr> <tr> <td><strong>Variable</strong></td> <td><strong>Description</strong></td> <td><strong>When to set</strong></td> <td><strong>Syntax / Allowed Values</strong></td> <td><strong>Example</strong></td> </tr> <tr> <td>event.name</td> <td>Event identifier</td> <td>Always</td> <td>main-event</td> <td>main-event</td> </tr> <tr> <td>event.location</td> <td>Where event occurred</td> <td>Always</td> <td>[location_value]</td> <td>page:section</td> </tr> <tr> <td>event.status</td> <td>Current state</td> <td>Always</td> <td>[status_value]</td> <td>active</td> </tr> <tr> <td>event.type</td> <td>Type of event</td> <td>Always</td> <td>type1 | type2</td> <td>type1</td> </tr> </table>";
+
+        String expected = "*Given* the user is on the Google search page\n" +
+                "*When* the user clicks the 'Search' button\n" +
+                "*Then* the results page should appear\n" +
+                "*And* the page should contain 'Search results' and 'Filter options'";
+
+        assertEquals(expected, publishMarkdown(MarkdownToJiraConverter.convertToJiraMarkdown(html)));
     }
 
     @Test

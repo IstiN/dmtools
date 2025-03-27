@@ -533,7 +533,13 @@ public class MarkdownToJiraConverter {
             if (!headerDone && row.select("th").size() > 0) {
                 sb.append("||");
                 for (Element th : cells) {
-                    sb.append(unescapeHtml(th.text().trim())).append("||");
+                    String trimmed = th.text().trim();
+                    sb.append(unescapeHtml(trimmed.isEmpty() ? " " : trimmed)).append("||");
+                    // Handle colspan for header
+                    int colspan = parseColspan(th);
+                    for (int i = 1; i < colspan; i++) {
+                        sb.append(" ||");
+                    }
                 }
                 sb.append("\n");
                 headerDone = true;
@@ -550,17 +556,37 @@ public class MarkdownToJiraConverter {
                                 .replaceAll("(?i)<strong>(.*?)</strong>", "*$1*")
                                 .replaceAll("(?i)<em>(.*?)</em>", "_$1_")
                                 .replaceAll("(?i)<b>(.*?)</b>", "*$1*")
-                                .replaceAll("(?i)<br\\s*/?>", "\n")
+                                .replaceAll("(?i)<br\\s*/?>", "\n\\\\\\\\")
                                 .replaceAll("(?i)<i>(.*?)</i>", "_$1_")
                                 .replaceAll("(?i)<code>(?!" + placeholderPattern + ")(.*?)</code>", "{{$1}}")
-                                .replaceAll("(?i)<[^>]+>", "");
-                        sb.append(unescapeHtml(cellText.trim())).append("|");
+                                .replaceAll("(?i)<[^>]+>", "")
+                                ;
+                        String trimmed = cellText.trim().replaceAll("\\|", "/");
+                        sb.append(unescapeHtml(trimmed.isEmpty() ? " " : trimmed)).append("|");
+                    }
+
+                    // Handle colspan for regular cells
+                    int colspan = parseColspan(cell);
+                    for (int i = 1; i < colspan; i++) {
+                        sb.append(" |");
                     }
                 }
                 sb.append("\n");
             }
         }
         return sb.toString().trim();
+    }
+
+    private static int parseColspan(Element cell) {
+        String colspan = cell.attr("colspan");
+        if (colspan != null && !colspan.isEmpty()) {
+            try {
+                return Integer.parseInt(colspan);
+            } catch (NumberFormatException e) {
+                return 1;
+            }
+        }
+        return 1;
     }
 
     private static String processGenericBlock(Element el) {

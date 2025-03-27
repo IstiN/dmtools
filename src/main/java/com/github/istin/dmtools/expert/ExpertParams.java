@@ -13,13 +13,10 @@ public class ExpertParams extends Params {
 
     public static final String PROJECT_CONTEXT = "projectContext";
     public static final String REQUEST = "request";
-    public static final String OUTPUT_TYPE = "outputType";
-    public static final String FIELD_NAME = "fieldName";
+    public static final String SYSTEM_REQUEST = "systemRequest";
+    public static final String SYSTEM_REQUEST_COMMENT_ALIAS = "systemRequestCommentAlias";
+    public static final String REQUEST_DECOMPOSITION_CHUNK_PROCESSING = "requestDecompositionChunkProcessing";
     public static final String KEYWORDS_BLACKLIST = "keywordsBlacklist";
-
-    public enum OutputType {
-        comment, field
-    }
 
     @SerializedName(PROJECT_CONTEXT)
     private String projectContext;
@@ -27,13 +24,16 @@ public class ExpertParams extends Params {
     @SerializedName(REQUEST)
     private String request;
 
-    @SerializedName(FIELD_NAME)
-    private String fieldName;
+    @SerializedName(SYSTEM_REQUEST)
+    private String systemRequest;
 
     @SerializedName(KEYWORDS_BLACKLIST)
     private String keywordsBlacklist;
 
-    @SerializedName(OUTPUT_TYPE)
-    private OutputType outputType = OutputType.comment;
+    @SerializedName(SYSTEM_REQUEST_COMMENT_ALIAS)
+    private String systemRequestCommentAlias;
+
+    @SerializedName(REQUEST_DECOMPOSITION_CHUNK_PROCESSING)
+    private Boolean requestDecompositionChunkProcessing = false;
 
 }

@@ -114,7 +114,8 @@ public class HtmlCleaner {
     private static final Set<String> SIZE_RELATED_ATTRIBUTES = Set.of(
             "width", "height", "min-width", "min-height", "max-width", "max-height",
             "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
-            "padding", "padding-top", "padding-right", "padding-bottom", "padding-left"
+            "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
+            "data-highlight-colour", "data-table-width", "data-layout", "ac:local-id", "ri:version-at-save", "ac:schema-version", "ac:macro-id"
     );
 
     public static String cleanOnlyStylesAndSizes(String html) {

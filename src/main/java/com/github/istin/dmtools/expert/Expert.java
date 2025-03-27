@@ -1,8 +1,8 @@
 package com.github.istin.dmtools.expert;
 
 import com.github.istin.dmtools.ai.AI;
-import com.github.istin.dmtools.ai.ConfluencePagesContext;
 import com.github.istin.dmtools.ai.ChunkPreparation;
+import com.github.istin.dmtools.ai.ConfluencePagesContext;
 import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.ai.agent.RequestDecompositionAgent;
 import com.github.istin.dmtools.ai.agent.SourceImpactAssessmentAgent;
@@ -10,10 +10,13 @@ import com.github.istin.dmtools.ai.agent.TeamAssistantAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
+import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
+import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.context.ContextOrchestrator;
 import com.github.istin.dmtools.context.UriToObject;
@@ -21,6 +24,7 @@ import com.github.istin.dmtools.context.UriToObjectFactory;
 import com.github.istin.dmtools.di.DaggerExpertComponent;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.Params;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.search.AbstractSearchOrchestrator;
 import com.github.istin.dmtools.search.CodebaseSearchOrchestrator;
@@ -81,29 +85,36 @@ public class Expert extends AbstractJob<ExpertParams> {
     public void runJob(ExpertParams expertParams) throws Exception {
         String projectContext = expertParams.getProjectContext();
         String request = expertParams.getRequest();
+        String systemRequest = expertParams.getSystemRequest();
+        String systemRequestCommentAlias = expertParams.getSystemRequestCommentAlias();
         String[] confluencePages = expertParams.getConfluencePages();
         ExpertParams.OutputType outputType = expertParams.getOutputType();
         String initiator = expertParams.getInitiator();
         String inputJQL = expertParams.getInputJql();
         String fieldName = expertParams.getFieldName();
 
+        if (systemRequest != null && systemRequest.startsWith("https://")) {
+            systemRequest = HtmlCleaner.cleanOnlyStylesAndSizes(confluence.contentByUrl(systemRequest).getStorage().getValue());
+        }
+
         if (projectContext != null && projectContext.startsWith("https://")) {
-            projectContext = confluence.contentByUrl(projectContext).getStorage().getValue();
+            projectContext = HtmlCleaner.cleanOnlyStylesAndSizes(confluence.contentByUrl(projectContext).getStorage().getValue());
         }
 
         if (confluencePages != null) {
-            new ConfluencePagesContext(contextOrchestrator, confluencePages, confluence);
+            new ConfluencePagesContext(contextOrchestrator, confluencePages, confluence, expertParams.isTransformConfluencePagesToMarkdown());
         }
 
         List<? extends UriToObject> uriProcessingSources = new UriToObjectFactory().createUriProcessingSources();
 
         String finalProjectContext = projectContext;
+        String finalSystemRequest = systemRequest;
         trackerClient.searchAndPerform(ticket -> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext(true);
             contextOrchestrator.processFullContent(ticket.getKey(), ticketContext.toText() + "\n" + ticket.getAttachments() + "\n", (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
             List<ChunkPreparation.Chunk> chunksContext = contextOrchestrator.summarize();
-            RequestDecompositionAgent.Params requestDecompositionParams = new RequestDecompositionAgent.Params(request, finalProjectContext + "\n" + ticketContext.toText(), null, chunksContext);
+            RequestDecompositionAgent.Params requestDecompositionParams = new RequestDecompositionAgent.Params(finalSystemRequest + "\n" + request, finalProjectContext + "\n" + ticketContext.toText(), null, expertParams.getRequestDecompositionChunkProcessing() ? chunksContext : null);
             RequestDecompositionAgent.Result structuredRequest = requestDecompositionAgent.run(requestDecompositionParams);
 
             if (expertParams.isCodeAsSource() || expertParams.isConfluenceAsSource() || expertParams.isTrackerAsSource()) {
@@ -124,12 +135,18 @@ public class Expert extends AbstractJob<ExpertParams> {
             TeamAssistantAgent.Params params = new TeamAssistantAgent.Params(structuredRequest, null, chunksContext, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
             String response = teamAssistantAgent.run(params);
             attachResponse(teamAssistantAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");
-            if (outputType == ExpertParams.OutputType.field) {
+            if (outputType == Params.OutputType.field) {
                 String fieldCustomCode = ((JiraClient) BasicJiraClient.getInstance()).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
-                trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, StringUtils.convertToMarkdown(response)));
-                trackerClient.postComment(ticket.getTicketKey(), trackerClient.tag(initiator) + ", there is AI response in '"+ fieldName + "' on your request: \n" + request);
+                String currentFieldValue = ticket.getFields().getString(fieldCustomCode);
+                if (expertParams.getOperationType() == Params.OperationType.Append) {
+                    trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, currentFieldValue + "\n\n" + StringUtils.convertToMarkdown(response)));
+                } else if (expertParams.getOperationType() == Params.OperationType.Replace) {
+                    trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, StringUtils.convertToMarkdown(response)));
+                }
+                trackerClient.postComment(ticket.getTicketKey(), trackerClient.tag(initiator) + ", there is AI response in '"+ fieldName + "' on your request: \n"+
+                        "System Request: " + systemRequestCommentAlias + "\n" + request);
             } else {
-                trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", there is response on your request: \n" + request + "\n\nAI Response is: \n" + response);
+                trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", there is response on your request: \n" + "System Request: " + systemRequestCommentAlias + "\n"+ request + "\n\nAI Response is: \n" + response);
             }
             return false;
         }, inputJQL, trackerClient.getExtendedQueryFields());
@@ -169,6 +186,11 @@ public class Expert extends AbstractJob<ExpertParams> {
 
     public void attachResponse(Object orchestratorClass, String file, String result, String ticketKey, String contentType) throws IOException {
         String fileNameResult = orchestratorClass.getClass().getSimpleName() + file;
+        String[] fields = {Fields.ATTACHMENT, Fields.SUMMARY};
+        ITicket t = trackerClient.performTicket(ticketKey, fields);
+        List<? extends IAttachment> attachments = t.getAttachments();
+        fileNameResult = IAttachment.Utils.generateUniqueFileName(fileNameResult, attachments);
+
         File tempFileResult = File.createTempFile(fileNameResult, null);
 
         // Write JSON to file using Commons IO

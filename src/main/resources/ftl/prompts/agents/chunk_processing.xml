@@ -27,143 +27,201 @@
         </metadata>
         <chunk>${args.chunk.text}</chunk>
     </chunk_input>
-
     <rules>
+        <primary_rules>
+            <rule>Do not generate final output until all chunks are processed</rule>
+            <rule>Each chunk analysis must be returned in markdown format</rule>
+            <rule>Maintain consistent markdown headers and structure across chunks</rule>
+            <rule>Track dependencies between chunks</rule>
+        </primary_rules>
         <rule>When processing chunks, analyze each piece separately first</rule>
         <rule>Keep track of key findings from each chunk</rule>
         <rule>Use metadata tag to indicate what is number of the chunk</rule>
         <rule>For code chunks, maintain file context between related pieces, keep file names in responses</rule>
+        <output_format>
+            <format>markdown</format>
+            <structure>
+                <section>## Chunk Analysis</section>
+                <section>### Metadata</section>
+                <section>### Key Findings</section>
+                <section>### Required Information</section>
+                <section>### Preserved Data</section>
+            </structure>
+        </output_format>
+        <response_rules>
+            <rule>For chunks 1 to N-1: Return only analysis in markdown</rule>
+            <rule>For final chunk: Generate complete solution using all collected data</rule>
+            <rule>Use markdown code blocks for preserving code snippets</rule>
+            <rule>Use markdown checklists for tracking requirements</rule>
+        </response_rules>
     </rules>
-
     <examples>
         <example>
-            <input_data>
-                <ai_role>Code Analyzer</ai_role>
-                <request>Analyze these code files for security issues</request>
-                <metadata>
-                    <chunk_index>1</chunk_index>
-                    <total_chunks>3</total_chunks>
-                </metadata>
-                <chunk>
+            <input>
+                <chunk_number>1</chunk_number>
+                <total_chunks>3</total_chunks>
+                <content_type>configuration</content_type>
+                <data>[Configuration data]</data>
+            </input>
+            <output>
+                ```markdown
+                ## Chunk Analysis
+                ### Metadata
+                - Chunk: 1/3
+                - Chunk References: [links from data to exact pages|exact files|etc.]
+                - Type: Configuration
+
+                ### Key Findings
+                - Configuration patterns identified which are related to user task: full description of pattern1, pattern2
+                - Variable naming conventions found which are related to user task: full description of naming convention
+                - Existing implementation references related to current task: reference1, reference2
+
+                ### Preserved Data
+                ```javascript
+                {
+                "variables": ["example.var1", "example.var2"]
+                }
+                ```
+            </output>
+        </example>
+        <example>
+            <input>
+                <chunk_number>1</chunk_number>
+                <total_chunks>3</total_chunks>
+                <content_type>code</content_type>
+                <data>
                     LoginService.java
                     @PostMapping("/login")
                     public String login(String username, String password) {
                     return authService.login(username, password);
                     }
-                </chunk>
-            </input_data>
-            <response>
-                <p><strong>Chunk 1 Analysis of LoginService.java:</strong></p>
-                <ul>
-                    <li>Missing input validation</li>
-                    <li>No rate limiting implemented</li>
-                </ul>
-            </response>
-        </example>
+                </data>
+            </input>
+            <output>
+                ```markdown
+                ## Chunk Analysis
+                ### Metadata
+                - Chunk: 1/3
+                - Type: Java Code
+                - File: LoginService.java
 
-        <example>
-            <input_data>
-                <ai_role>Code Analyzer</ai_role>
-                <request>Analyze these code files for security issues of UserService.java</request>
-                <metadata>
-                    <chunk_index>2</chunk_index>
-                    <total_chunks>3</total_chunks>
-                </metadata>
-                <chunk>
-                    public String login(String username, String password) {
-                    User user = userRepo.findByUsername(username);
-                    if(password.equals(user.getPassword())) {
-                    return generateToken(user);
-                    }
-                    return null;
-                    }
-                </chunk>
-            </input_data>
-            <response>
-                <p><strong>Chunk 2 Analysis of UserService.java:</strong></p>
-                <ul>
-                    <li>Plain text password comparison</li>
-                    <li>No password hashing</li>
-                    <li>Potential null pointer exception</li>
-                </ul>
-            </response>
-        </example>
+                ### Key Findings
+                - Security Issues:
+                - Missing input validation
+                - No rate limiting implemented
 
+                ### Preserved Data
+                ```java
+                @PostMapping("/login")
+                public String login(String username, String password) {
+                return authService.login(username, password);
+                }
+                ```
+
+                ### Dependencies
+                - [ ] Need authentication service implementation
+                - [ ] Need security configuration
+                ```
+            </output>
+        </example>
         <example>
-            <input_data>
-                <ai_role>UI Developer</ai_role>
-                <request>Create responsive product card component</request>
-                <metadata>
-                    <chunk_index>1</chunk_index>
-                    <total_chunks>1</total_chunks>
-                </metadata>
-                <chunk>[attached image product_card_design.png showing modern e-commerce product card]</chunk>
-            </input_data>
-            <response>
-                <p>Implementing responsive product card based on the provided design based on product_card_design.png:</p>
-                <code class="html">
-                    <div class="product-card">
-                        <img class="product-image" src="product.jpg" alt="Product"/>
-                        <div class="product-info">
-                            <h3 class="product-title">Product Name</h3>
-                            <p class="product-price">$99.99</p>
-                            <button class="buy-button">Add to Cart</button>
-                        </div>
+            <input>
+                <chunk_number>1</chunk_number>
+                <total_chunks>1</total_chunks>
+                <content_type>image</content_type>
+                <data>[attached image product_card_design.png showing modern e-commerce product card]</data>
+            </input>
+            <output>
+                ```markdown
+                ## Chunk Analysis
+                ### Metadata
+                - Chunk: 1/1
+                - Type: UI Design
+                - File: product_card_design.png
+
+                ### Key Findings
+                - Component: Product Card
+                - Responsive design requirements identified
+                - Layout structure analyzed
+
+                ### Preserved Data
+                ```html
+                <div class="product-card">
+                    <img class="product-image" src="product.jpg" alt="Product"/>
+                    <div class="product-info">
+                        <h3 class="product-title">Product Name</h3>
+                        <p class="product-price">$99.99</p>
+                        <button class="buy-button">Add to Cart</button>
                     </div>
-                </code>
-                <p>Associated styles:</p>
-                <code class="css">
-                    .product-card {
-                    display: flex;
-                    flex-direction: column;
-                    max-width: 300px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    border-radius: 8px;
-                    overflow: hidden;
-                    }
-                    @media (max-width: 768px) {
-                    .product-card {
-                    max-width: 100%;
-                    }
-                    }
-                </code>
-            </response>
-        </example>
+                </div>
+                ```
 
+                ```css
+                .product-card {
+                display: flex;
+                flex-direction: column;
+                max-width: 300px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                border-radius: 8px;
+                overflow: hidden;
+                }
+                @media (max-width: 768px) {
+                .product-card {
+                max-width: 100%;
+                }
+                }
+                ```
+                ```
+            </output>
+        </example>
         <example>
-            <input_data>
-                <ai_role>Backend Developer</ai_role>
-                <request>Add validation to user registration</request>
-                <metadata>
-                    <chunk_index>1</chunk_index>
-                    <total_chunks>1</total_chunks>
-                </metadata>
-                <chunk>
+            <input>
+                <chunk_number>1</chunk_number>
+                <total_chunks>1</total_chunks>
+                <content_type>code</content_type>
+                <data>
                     UserService.java
                     public class UserService {
                     public void registerUser(User user) {
                     userRepository.save(user);
                     }
                     }
-                </chunk>
-            </input_data>
-            <response>
-                <p>Adding validation to the user registration  in UserService.java:</p>
-                <code class="java">
-                    public class UserService {
-                    @Autowired
-                    private UserValidator validator;
+                </data>
+            </input>
+            <output>
+                ```markdown
+                ## Chunk Analysis
+                ### Metadata
+                - Chunk: 1/1
+                - Type: Java Code
+                - File: UserService.java
 
-                    public void registerUser(User user) {
-                    ValidationResult result = validator.validate(user);
-                    if (!result.isValid()) {
-                    throw new ValidationException(result.getErrors());
-                    }
-                    userRepository.save(user);
-                    }
-                    }
-                </code>
-            </response>
+                ### Key Findings
+                - Missing validation implementation
+                - Direct repository access without checks
+                - No error handling
+
+                ### Preserved Data
+                ```java
+                public class UserService {
+                @Autowired
+                private UserValidator validator;
+
+                public void registerUser(User user) {
+                ValidationResult result = validator.validate(user);
+                if (!result.isValid()) {
+                throw new ValidationException(result.getErrors());
+                }
+                userRepository.save(user);
+                }
+                }
+                ```
+
+                ### Dependencies
+                - [ ] Need UserValidator implementation
+                - [ ] Need ValidationException class
+                ```
+            </output>
         </example>
     </examples>
 </chunk_processing>

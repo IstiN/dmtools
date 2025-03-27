@@ -1,9 +1,11 @@
 package com.github.istin.dmtools.common.utils;
 
+import com.github.istin.dmtools.common.model.ToText;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -76,6 +78,18 @@ public class StringUtils {
         return null;
     }
 
+    public static StringBuilder transformArrayToText(StringBuilder textBuilder, List<? extends ToText> array, boolean ignoreDescription) {
+        textBuilder.append("[");
+        for (ToText el : array) {
+            try {
+                textBuilder.append(el.toText());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return textBuilder.append("]");
+    }
+
     public static StringBuilder transformJSONToText(StringBuilder textBuilder, JSONObject fields, boolean ignoreDescription) {
         for (String field : fields.keySet()) {
             // Skip values that contain only self links and IDs
@@ -87,6 +101,7 @@ public class StringUtils {
                     || field.equalsIgnoreCase("subtask")
                     || field.equalsIgnoreCase("timeZone")
                     || field.equalsIgnoreCase("hierarchyLevel")
+                    || field.equalsIgnoreCase("thumbnail")
                     || field.equalsIgnoreCase("active")
                     || ignoreDescription && field.equalsIgnoreCase("description")
             ) {

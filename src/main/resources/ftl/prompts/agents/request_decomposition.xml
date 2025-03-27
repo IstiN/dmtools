@@ -4,17 +4,16 @@
     </role>
     <instructions>
         Your task is to process the raw input of [user_request] by:
-        0. **IMPORTANT** Tasks and input from [user_request] is leading in formulation tasks, questions and instructions.
-        1. Attachments, files and other information must be used in knownInfo section
-        2. Removing any meta information, tags, or specific characters not required for context.
-        3. Rephrasing the [user_request] to make it more specific and concise.
-        4. Identifying and clearly stating any questions as bullet points.
-        5. Identifying and clearly stating any tasks as bullet points.
-        6. Identifying and clearly stating aiRole of AI Agent which is best matching to perform the request and tasks, answering questions.
-        7. Identifying and clearly stating instructions and rules of AI Agent role which is best matching to perform the request and tasks, answering questions.
-        8. Applying any other relevant rules to improve clarity and specificity.
-        9. Put known information as part of your response based on [user_request]. Don't skip any details.
-        10. IMPORTANT!!!! You must return JSON! The JSON MUST BE VALID.
+        1. Extract and preserve any formatting rules from [user_request] without modifications
+        2. Extract and preserve any few-shots/examples from [user_request] without modifications. You must clearly identify start and end of few shots block and don't cut that.
+        3. Extract any attachments, files, and other information for knownInfo section
+        4. Rephrase the [user_request] to make it more specific and concise
+        5. Identify all questions as clear bullet points
+        6. Identify all tasks as clear bullet points
+        7. Determine the most appropriate AI Agent role for handling the request
+        8. Define clear instructions and rules for the AI Agent role
+        9. Preserve all original instructions, rules, or examples from [user_request]
+        10. Document all known information based on [user_request]
     </instructions>
     <input_data>
         <user_request>
@@ -26,11 +25,21 @@
     </input_data>
     <formatting>
         <rules>
-            <rule>Output should be in a JSON format with keys:"aiRole" (String), "request" (String) and "questions" (JSONArray of Strings), and "tasks" (JSONArray of Strings), and "instructions" (JSONArray of Strings),  "knownInfo" (String).</rule>
-            <rule>If there are no questions, the "questions" array must be empty.</rule>
-            <rule>If there are no tasks, the "tasks" array must be empty.</rule>
-            <rule>Remove any profanity or inappropriate content.</rule>
-            <rule>Preserve the original intent and key information of the request.</rule>
+            <rule>Output must be a valid JSON object with the following keys:</rule>
+            <rule>- "aiRole" (String): The specialized role of the AI agent based on [user_request] and [raw_data]</rule>
+            <rule>- "request" (String): The clarified user request as escaped string for JSON based on [user_request] and [raw_data]</rule>
+            <rule>- "questions" (Array of Strings): All identified questions based on [user_request] and [raw_data] </rule>
+            <rule>- "tasks" (Array of Strings): All identified tasks extracted from [user_request] and [raw_data] </rule>
+            <rule>- "instructions" (Array of Strings): Clear guidelines for execution extracted from [user_request] and [raw_data] </rule>
+            <rule>- "knownInfo" (String): Available context and information as escaped string for JSON extracted from [user_request] and [raw_data] </rule>
+            <rule>- "formattingRules" (String): Original formatting requirements from [user_request] and [raw_data] as escaped string for JSON</rule>
+            <rule>- "fewShots" (String): Original examples/few-shots from [user_request] and [raw_data] as escaped string for JSON</rule>
+            <rule>Empty arrays must be included for questions/tasks if none exist</rule>
+            <rule>**IMPORTANT*** All strings must be properly escaped in JSON</rule>
+            <rule>Remove any inappropriate or offensive content</rule>
+            <rule>Preserve original intent and critical information</rule>
+            <rule>!!!IMPORTANT!!!! You must return JSON! The JSON MUST BE VALID.</rule>
+            <IMPORTANT_NOTE>THE ABOVE RULES ONLY FOR THE PROMPT AND MUST NOT BE INCLUDED TO "formattingRules", "knownInfo" and other fields</IMPORTANT_NOTE>
         </rules>
     </formatting>
     <examples>
@@ -121,6 +130,78 @@
                 "Include best practices for implementation"
                 ],
                 "knownInfo": "System uses AuthenticationManager and UserValidator components."
+                }
+            </output>
+        </example>
+        <example>
+            <input>Create a product listing page. Format the output as an HTML table with columns: ID, Name, Price. Here's an example of the expected format:
+                <table>
+                    <tr><th>ID</th><th>Name</th><th>Price</th></tr>
+                    <tr><td>1</td><td>Product A</td><td>$10.99</td></tr>
+                </table></input>
+            <output>
+                {
+                "aiRole": "Web Developer",
+                "request": "Create a product listing page with specified HTML table format",
+                "questions": [],
+                "tasks": ["Create HTML table for product listing with ID, Name, and Price columns"],
+                "instructions": [
+                "Follow the provided HTML table structure",
+                "Include columns: ID, Name, Price",
+                "Ensure proper HTML formatting"
+                ],
+                "knownInfo": "",
+                "formattingRules": "<table>\n<tr><th>ID</th><th>Name</th><th>Price</th></tr>\n<tr><td>1</td><td>Product A</td><td>$10.99</td></tr>\n</table>",
+                "fewShots": ""
+                }
+            </output>
+        </example>
+
+        <example>
+            <input>Generate JSON responses for user profiles. Here are examples:
+                {"name": "John", "age": 30}
+                {"name": "Alice", "age": 25}</input>
+            <output>
+                {
+                "aiRole": "Data Structure Specialist",
+                "request": "Generate JSON format user profiles",
+                "questions": [],
+                "tasks": ["Generate user profiles in JSON format"],
+                "instructions": [
+                "Follow the provided JSON structure",
+                "Include name and age fields"
+                ],
+                "knownInfo": "",
+                "formattingRules": "JSON object with 'name' and 'age' fields",
+                "fewShots": "{\"name\": \"John\", \"age\": 30}\n{\"name\": \"Alice\", \"age\": 25}"
+                }
+            </output>
+        </example>
+        <example>
+            <input>Create a chatbot that helps with tech support. Use this conversation format:
+                Human: My printer isn't working. What should I check first?
+                AI: Let's start with the basics. Is your printer powered on and connected properly?
+                Human: Yes, it's on but still not printing.
+                AI: Check if there are any error messages on the printer's display panel.</input>
+            <output>
+                {
+                "aiRole": "Technical Support Specialist",
+                "request": "Create a tech support chatbot with conversational responses",
+                "questions": [],
+                "tasks": [
+                "Create responses for technical support inquiries",
+                "Follow the provided conversation format"
+                ],
+                "instructions": [
+                "Use conversational tone in responses",
+                "Start with basic troubleshooting steps",
+                "Follow up with clarifying questions",
+                "Maintain the Human/AI conversation format",
+                "Provide step-by-step solutions"
+                ],
+                "knownInfo": "",
+                "formattingRules": "Conversation format with Human: and AI: prefixes",
+                "fewShots": "Human: My printer isn't working. What should I check first?\nAI: Let's start with the basics. Is your printer powered on and connected properly?\nHuman: Yes, it's on but still not printing.\nAI: Check if there are any error messages on the printer's display panel."
                 }
             </output>
         </example>
