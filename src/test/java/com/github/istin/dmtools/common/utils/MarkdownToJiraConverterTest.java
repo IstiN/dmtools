@@ -20,10 +20,17 @@ public class MarkdownToJiraConverterTest {
     public void testAdvancedTable() throws Exception {
         String html = "<p><strong>Sample Data Collection Table</strong></p> <table> <tr> <th>Action: Main Event Tracking</th> <th></th> <th></th> <th></th> <th></th> </tr> <tr> <td colspan=\"5\">When user performs primary action X<br>trackEvent(\"main-event\", contextData)</td> </tr> <tr> <td><strong>Variable</strong></td> <td><strong>Description</strong></td> <td><strong>When to set</strong></td> <td><strong>Syntax / Allowed Values</strong></td> <td><strong>Example</strong></td> </tr> <tr> <td>event.name</td> <td>Event identifier</td> <td>Always</td> <td>main-event</td> <td>main-event</td> </tr> <tr> <td>event.location</td> <td>Where event occurred</td> <td>Always</td> <td>[location_value]</td> <td>page:section</td> </tr> <tr> <td>event.status</td> <td>Current state</td> <td>Always</td> <td>[status_value]</td> <td>active</td> </tr> <tr> <td>event.type</td> <td>Type of event</td> <td>Always</td> <td>type1 | type2</td> <td>type1</td> </tr> </table>";
 
-        String expected = "*Given* the user is on the Google search page\n" +
-                "*When* the user clicks the 'Search' button\n" +
-                "*Then* the results page should appear\n" +
-                "*And* the page should contain 'Search results' and 'Filter options'";
+        String expected = "*Sample Data Collection Table*\n" +
+                "\n" +
+                "||Action: Main Event Tracking|| || || || ||\n" +
+                "|When user performs primary action X\n" +
+                "\\\\\n" +
+                "trackEvent(\"main-event\", contextData)| | | | |\n" +
+                "|*Variable*|*Description*|*When to set*|*Syntax / Allowed Values*|*Example*|\n" +
+                "|event.name|Event identifier|Always|main-event|main-event|\n" +
+                "|event.location|Where event occurred|Always|[location_value]|page:section|\n" +
+                "|event.status|Current state|Always|[status_value]|active|\n" +
+                "|event.type|Type of event|Always|type1 / type2|type1|";
 
         assertEquals(expected, publishMarkdown(MarkdownToJiraConverter.convertToJiraMarkdown(html)));
     }
