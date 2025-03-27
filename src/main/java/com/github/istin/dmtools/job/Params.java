@@ -19,6 +19,7 @@ public class Params {
     public static final String IS_CODE_AS_SOURCE = "isCodeAsSource";
     public static final String IS_CONFLUENCE_AS_SOURCE = "isConfluenceAsSource";
     public static final String IS_TRACKER_AS_SOURCE = "isTrackerAsSource";
+    public static final String TRANSFORM_CONFLUENCE_PAGES_TO_MARKDOWN = "transformConfluencePagesToMarkdown";
     public static final String TICKET_CONTEXT_DEPTH = "ticketContextDepth";
     public static final String CHUNKS_PROCESSING_TIMEOUT_IN_MINUTES = "chunksProcessingTimeout";
     public static final String FILES_LIMIT = "filesLimit";
@@ -30,6 +31,9 @@ public class Params {
     public static final String TRACKER_ITERATIONS = "trackerIterations";
 
     public static final String METADATA = "metadata";
+    public static final String OPERATION_TYPE = "operationType";
+    public static final String OUTPUT_TYPE = "outputType";
+    public static final String FIELD_NAME = "fieldName";
 
     @SerializedName(INPUT_JQL)
     private String inputJql;
@@ -48,6 +52,8 @@ public class Params {
 
     @SerializedName(IS_TRACKER_AS_SOURCE)
     private boolean isTrackerAsSource = false;
+    @SerializedName(TRANSFORM_CONFLUENCE_PAGES_TO_MARKDOWN)
+    private boolean transformConfluencePagesToMarkdown = true;
 
     @SerializedName(CONFLUENCE_PAGES)
     private String[] confluencePages;
@@ -89,4 +95,22 @@ public class Params {
     public void setConfluencePages(String... confluencePages) {
         this.confluencePages = confluencePages;
     }
+
+    public enum OutputType {
+        comment, field, creation
+    }
+
+    public enum OperationType {
+        Replace, Append
+    }
+
+    @SerializedName(FIELD_NAME)
+    private String fieldName;
+
+    @SerializedName(OUTPUT_TYPE)
+    private OutputType outputType = OutputType.comment;
+
+    @SerializedName(OPERATION_TYPE)
+    private OperationType operationType = OperationType.Replace;
+
 }

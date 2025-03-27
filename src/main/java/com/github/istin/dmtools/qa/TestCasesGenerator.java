@@ -59,7 +59,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
             List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext();
-            String additionalRules = new ConfluencePagesContext(params.getConfluencePages(), confluence).toText();
+            String additionalRules = new ConfluencePagesContext(params.getConfluencePages(), confluence, false).toText();
             generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params);
             trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
             return false;
@@ -107,7 +107,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
     @NotNull
     public List<ITicket> findAndLinkSimilarTestCasesBySummary(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink, String relationship) throws Exception {
         List<ITicket> finaResults = new ArrayList<>();
-        String extraRelatedTestCaseRulesFromConfluence = new ConfluencePagesContext(new String[]{relatedTestCasesRulesLink}, confluence).toText();
+        String extraRelatedTestCaseRulesFromConfluence = new ConfluencePagesContext(new String[]{relatedTestCasesRulesLink}, confluence, false).toText();
         int batchSize = 50;
         for (int i = 0; i < listOfAllTestCases.size(); i += batchSize) {
             List<? extends ITicket> batch = listOfAllTestCases.subList(i, Math.min(i + batchSize, listOfAllTestCases.size()));

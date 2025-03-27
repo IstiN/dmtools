@@ -835,6 +835,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             contentType = "image/*";
         }
         String[] fields = {Fields.ATTACHMENT, Fields.SUMMARY};
+        clearCache(createPerformTicketRequest(ticketKey, fields));
         T t = performTicket(ticketKey, fields);
         List<? extends IAttachment> attachments = t.getAttachments();
         for (IAttachment attachment : attachments) {

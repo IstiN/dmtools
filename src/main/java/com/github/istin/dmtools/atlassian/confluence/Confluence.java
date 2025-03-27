@@ -9,6 +9,7 @@ import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
+import com.github.istin.dmtools.common.utils.MarkdownToJiraConverter;
 import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.*;
@@ -376,7 +377,11 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
     @Override
     public Object uriToObject(String uri) throws Exception {
         try {
-            return contentByUrl(uri);
+            Content content = contentByUrl(uri);
+            if (content != null) {
+                return MarkdownToJiraConverter.convertToJiraMarkdown(HtmlCleaner.cleanOnlyStylesAndSizes(content.getStorage().getValue()));
+            }
+            return null;
         } catch (Exception ignored){
             return null;
         }

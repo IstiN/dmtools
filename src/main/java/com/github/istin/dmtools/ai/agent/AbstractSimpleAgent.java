@@ -51,7 +51,8 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
                             if (i != 0) {
                                 chunksSummaries.append("\n");
                             }
-                            chunksSummaries.append(processSinglePrompt(params, i + 1, chunk, chunks.size()));
+                            Result result = processSinglePrompt(params, i + 1, chunk, chunks.size());
+                            chunksSummaries.append(result);
                         } else {
                             System.out.println("Timeout of chunks processing was processed only " + (i+1) + " chunks from " + chunks.size());
                             break;

@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.expert;
 
+import com.github.istin.dmtools.job.Params;
 import com.google.gson.Gson;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -43,13 +44,13 @@ public class ExpertParamsTest {
 
     @Test
     public void testGetOutputTypeDefault() {
-        assertEquals(ExpertParams.OutputType.comment, expertParams.getOutputType());
+        assertEquals(Params.OutputType.comment, expertParams.getOutputType());
     }
 
     @Test
     public void testGetOutputType() {
-        expertParams.setOutputType(ExpertParams.OutputType.field);
-        assertEquals(ExpertParams.OutputType.field, expertParams.getOutputType());
+        expertParams.setOutputType(Params.OutputType.field);
+        assertEquals(Params.OutputType.field, expertParams.getOutputType());
     }
 
 

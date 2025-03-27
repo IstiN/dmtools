@@ -13,15 +13,10 @@ import lombok.NoArgsConstructor;
 public class TestCasesGeneratorParams extends Params {
 
     public static final String EXISTING_TEST_CASES_JQL = "existingTestCasesJql";
-    public static final String OUTPUT_TYPE = "outputType";
     public static final String TEST_CASES_PRIORITIES = "testCasesPriorities";
     public static final String RELATED_TEST_CASES_RULES = "relatedTestCasesRules";
     public static final String TEST_CASE_ISSUE_TYPE = "testCaseIssueType";
     public static final String TEST_CASE_LINK_RELATIONSHIP = "testCaseLinkRelationship";
-
-    public enum OutputType {
-        comment, creation
-    }
 
     @SerializedName(EXISTING_TEST_CASES_JQL)
     private String existingTestCasesJql;
@@ -34,6 +29,4 @@ public class TestCasesGeneratorParams extends Params {
     @SerializedName(TEST_CASE_LINK_RELATIONSHIP)
     private String testCaseLinkRelationship = Relationship.IS_TESTED_BY;
 
-    @SerializedName(OUTPUT_TYPE)
-    private OutputType outputType = OutputType.comment;
 }
