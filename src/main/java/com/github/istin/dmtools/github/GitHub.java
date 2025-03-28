@@ -596,4 +596,33 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
     public Object uriToObject(String uri) throws Exception {
         return null;
     }
+
+    @Override
+    public String addPullRequestReviewComment(String workspace, String repository, String pullRequestId, String commitId, String filePath, int line, Integer startLine, String comment) throws IOException {
+        String path = path(String.format("repos/%s/%s/pulls/%s/comments", workspace, repository, pullRequestId));
+        GenericRequest postRequest = new GenericRequest(this, path);
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("body", comment);
+        jsonObject.put("commit_id", commitId);
+        jsonObject.put("path", filePath);
+        jsonObject.put("line", line);
+        if (startLine != null && startLine != line) {
+            jsonObject.put("start_line", startLine);
+        }
+        jsonObject.put("side", "RIGHT");
+        postRequest.setBody(jsonObject.toString());
+        return post(postRequest);
+    }
+
+    @Override
+    public List<ICommit> getCommitsFromPullRequest(String workspace, String repository, String pullRequestId)
+        throws IOException {
+        String path = path(String.format("repos/%s/%s/pulls/%s/commits", workspace, repository, pullRequestId));
+        GenericRequest getRequest = new GenericRequest(this, path);
+        String response = execute(getRequest);
+        if (response == null) {
+            return Collections.emptyList();
+        }
+        return JSONModel.convertToModels(GitHubCommit.class, new JSONArray(response));
+    }
 }
