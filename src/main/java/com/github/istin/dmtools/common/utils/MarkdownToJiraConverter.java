@@ -31,7 +31,7 @@ public class MarkdownToJiraConverter {
         }
 
         // If it's purely HTML entities
-        if (input.contains("&") && !containsHtml(input.replaceAll("&[a-zA-Z]+;", ""))) {
+        if (containsOnlyHtmlEntities(input)) {
             return decodeEntities(input);
         }
 
@@ -45,6 +45,17 @@ public class MarkdownToJiraConverter {
         } else {
             return convertMarkdownToJiraMarkdown(input);
         }
+    }
+
+    private static boolean containsOnlyHtmlEntities(String input) {
+        // Regex to match HTML entities (e.g., &lt;, &gt;, &amp;)
+        Pattern htmlEntityPattern = Pattern.compile("&[a-zA-Z]+;");
+
+        // Replace all HTML entities and check if the remaining content is empty
+        String withoutEntities = input.replaceAll(htmlEntityPattern.pattern(), "").trim();
+
+        // If the input contains `&` and the remaining content is empty, it's purely HTML entities
+        return input.contains("&") && withoutEntities.isEmpty();
     }
 
     private static String convertMixedContent(String input) {
@@ -94,8 +105,7 @@ public class MarkdownToJiraConverter {
                     // special <strong> + <ul>
                     if ("strong".equals(tag) && (i + 1 < nodes.size())) {
                         Node nxt = nodes.get(i + 1);
-                        if (nxt instanceof Element) {
-                            Element nxtEl = (Element) nxt;
+                        if (nxt instanceof Element nxtEl) {
                             if ("ul".equalsIgnoreCase(nxtEl.tagName())) {
                                 String heading = "# *" + el.text().trim() + "*";
                                 blocks.add(heading + "\n" + processUnorderedList(nxtEl));
@@ -110,8 +120,7 @@ public class MarkdownToJiraConverter {
                         StringBuilder combined = new StringBuilder(trimLeadingSpaces(el.outerHtml()));
                         while (i + 1 < nodes.size()) {
                             Node nxt = nodes.get(i + 1);
-                            if (nxt instanceof Element) {
-                                Element nxtEl = (Element) nxt;
+                            if (nxt instanceof Element nxtEl) {
                                 if ("b".equalsIgnoreCase(nxtEl.tagName())) {
                                     combined.append(" ").append(trimLeadingSpaces(nxtEl.outerHtml()));
                                     i++;
@@ -128,8 +137,7 @@ public class MarkdownToJiraConverter {
                         StringBuilder combined = new StringBuilder(trimLeadingSpaces(el.outerHtml()));
                         while (i + 1 < nodes.size()) {
                             Node nxt = nodes.get(i + 1);
-                            if (nxt instanceof Element) {
-                                Element nxtEl = (Element) nxt;
+                            if (nxt instanceof Element nxtEl) {
                                 if ("i".equalsIgnoreCase(nxtEl.tagName())) {
                                     combined.append(" ").append(trimLeadingSpaces(nxtEl.outerHtml()));
                                     i++;
@@ -257,57 +265,69 @@ public class MarkdownToJiraConverter {
     }
 
     private static String convertMarkdownToJiraMarkdown(String markdown) {
+        // Split the input into lines
         String[] lines = markdown.split("\n");
         List<String> blocks = new ArrayList<>();
 
-        boolean inCodeBlock = false;
-        StringBuilder codeBuf = new StringBuilder();
-        String codeLang = "";
-        StringBuilder paragraph = new StringBuilder();
+        boolean inCodeBlock = false; // Flag to track if we are inside a code block
+        StringBuilder codeBuf = new StringBuilder(); // Buffer to accumulate code block content
+        String codeLang = ""; // Language of the code block
+        StringBuilder paragraph = new StringBuilder(); // Buffer to accumulate paragraph content
 
         for (String line : lines) {
-            if (line.startsWith("```")) {
+            // Use trimmed line only for code block recognition
+            String trimmedLine = line.trim();
+
+            // Check if the line starts or ends a code block
+            if (trimmedLine.startsWith("```")) {
                 if (!inCodeBlock) {
-                    if (paragraph.length() > 0) {
+                    // If entering a code block, flush any accumulated paragraph content
+                    if (!paragraph.isEmpty()) {
                         blocks.add(processTextParagraph(paragraph.toString()));
                         paragraph.setLength(0);
                     }
-                    inCodeBlock = true;
-                    codeLang = line.substring(3).trim();
+                    inCodeBlock = true; // Mark that we are inside a code block
+                    codeLang = trimmedLine.substring(3).trim(); // Extract the language (if specified)
                 } else {
+                    // If exiting a code block, process the accumulated code content
                     String code = codeBuf.toString()
-                            .replaceAll("^[\\r\\n]+", "")
+                            .replaceAll("^[\\r\\n]+", "") // Remove leading newlines
                             .replaceAll("[\\r\\n]+$", "")
-                            ;
+                            ; // Remove trailing newlines
                     blocks.add("{code:" + (codeLang.isEmpty() ? "java" : codeLang) + "}" + code + "{code}");
-                    inCodeBlock = false;
-                    codeBuf.setLength(0);
-                    codeLang = "";
+                    inCodeBlock = false; // Mark that we are outside the code block
+                    codeBuf.setLength(0); // Reset the code buffer
+                    codeLang = ""; // Reset the language
                 }
-                continue;
+                continue; // Skip further processing for this line
             }
 
             if (inCodeBlock) {
+                // If inside a code block, preserve the original line content
                 codeBuf.append(line).append("\n");
             } else {
-                if (line.trim().isEmpty()) {
-                    if (paragraph.length() > 0) {
+                if (trimmedLine.isEmpty()) {
+                    // If the line is empty, flush the paragraph buffer
+                    if (!paragraph.isEmpty()) {
                         blocks.add(processTextParagraph(paragraph.toString()));
                         paragraph.setLength(0);
                     }
                 } else {
-                    if (paragraph.length() > 0) {
+                    // Accumulate non-empty lines into the paragraph buffer
+                    if (!paragraph.isEmpty()) {
                         paragraph.append("\n");
                     }
-                    paragraph.append(line);
+                    paragraph.append(line); // Use the original line content for paragraphs
                 }
             }
         }
 
-        if (paragraph.length() > 0) {
+        // Flush any remaining paragraph content
+        if (!paragraph.isEmpty()) {
             blocks.add(processTextParagraph(paragraph.toString()));
         }
 
+        // Join all blocks with double newlines and return the result
         return String.join("\n\n", blocks).trim();
     }
 
@@ -530,7 +550,7 @@ public class MarkdownToJiraConverter {
         for (Element row : rows) {
             Elements cells = row.select("th, td");
             if (cells.isEmpty()) continue;
-            if (!headerDone && row.select("th").size() > 0) {
+            if (!headerDone && !row.select("th").isEmpty()) {
                 sb.append("||");
                 for (Element th : cells) {
                     String trimmed = th.text().trim();
