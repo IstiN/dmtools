@@ -1,0 +1,214 @@
+/* Base styles for dark theme */
+html, body {
+    background-color: #121212 !important;
+    color: #e0e0e0 !important;
+    margin: 0;
+    padding: 0;
+}
+
+/* Override any bootstrap or external styles that might be causing issues */
+.container, .container-fluid, .row, .col, div {
+    background-color: inherit !important;
+    color: inherit !important;
+}
+
+/* Table styles */
+table, th, td {
+    border-collapse: collapse !important;
+    word-wrap: break-word !important;
+    max-width: 600px !important;
+    min-width: 160px !important;
+    text-align: left !important;
+    font-weight: normal !important;
+    font-family: 'Source Sans Pro', sans-serif !important;
+    font-size: 10pt !important;
+    color: #e0e0e0 !important;
+    background-color: #1e1e1e !important;
+}
+
+/* Table headers */
+th {
+    background-color: #2d2d2d !important;
+    color: #e0e0e0 !important;
+    border-bottom: 1px solid #444 !important;
+}
+
+/* Table cells */
+td {
+    border: 2px solid #2d2d2d !important;
+    padding-left: 6px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    vertical-align: top !important;
+}
+
+/* Links */
+a {
+    color: #64D2FF !important;
+    text-decoration: none !important;
+}
+
+a:hover {
+    text-decoration: underline !important;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    color: #64D2FF !important;
+    font-family: 'Source Sans Pro', sans-serif !important;
+}
+
+h2 {
+    font-size: 20pt !important;
+    font-weight: normal !important;
+}
+
+h1 {
+    font-size: 14pt !important;
+    font-weight: bolder !important;
+}
+
+/* Table row colors */
+tr:nth-child(odd) {
+    background-color: #1e1e1e !important;
+}
+
+tr:nth-child(even) {
+    background-color: #2d2d2d !important;
+}
+
+/* Special rows */
+tr.sprint > th {
+    color: #64D2FF !important;
+    font-family: "Oswald", sans-serif !important;
+    font-weight: normal !important;
+    font-size: 14pt !important;
+}
+
+tr.date > th {
+    color: #b0b0b0 !important;
+    font-family: "Oswald", sans-serif !important;
+    font-weight: lighter !important;
+}
+
+tr.version > th {
+    border-bottom: 1px solid #555 !important;
+    margin-bottom: 10px !important;
+    font-family: "Oswald", sans-serif !important;
+    padding-bottom: 0.5em !important;
+    font-weight: bolder !important;
+}
+
+/* Analytics section */
+.analytics-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 10px 0 !important;
+    background-color: #1e1e1e !important;
+}
+
+.analytics-table th {
+    background-color: #2d2d2d !important;
+    text-align: left !important;
+    padding: 8px !important;
+    color: #e0e0e0 !important;
+}
+
+.analytics-table td {
+    padding: 8px !important;
+    border-top: 1px solid #444 !important;
+    background-color: #1e1e1e !important;
+}
+
+.analytics-table tr:hover {
+    background-color: #333 !important;
+}
+
+.analytics-section {
+    margin: 20px 0 !important;
+    background-color: #121212 !important;
+}
+
+.analytics-header {
+    color: #e0e0e0 !important;
+    font-size: 16px !important;
+    margin: 16px 0 8px 0 !important;
+}
+
+.analytics-count {
+    color: #b0b0b0 !important;
+    font-size: 12px !important;
+    margin-left: 8px !important;
+}
+
+.analytics-table td.pattern-cell {
+    background-color: #2c3e50 !important;
+}
+
+/* Charts and visualizations */
+#chart_div_postnl_ai_agents_report_cbs_sp,
+#chart_div_AI_Teammate {
+    background-color: #1e1e1e !important;
+}
+
+/* Bootstrap overrides */
+.btn, .btn-default {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: #555 !important;
+}
+
+.panel, .well {
+    background-color: #1e1e1e !important;
+    border-color: #444 !important;
+}
+
+/* Force all text to be visible on dark background */
+* {
+    color: #e0e0e0 !important;
+}
+
+/* Exception for specific elements that need different colors */
+a, h1, h2, h3, tr.sprint > th {
+    color: #64D2FF !important;
+}
+
+.current:after {
+    background: #ff5252 !important;
+}
+
+/* Percentage indicators with adjusted colors for dark theme */
+.per_100 {
+    background: #4CAF50 !important;
+    color: #000 !important;
+}
+
+.per_80 {
+    background: #689F38 !important;
+    color: #000 !important;
+}
+
+.per_60 {
+    background: #827717 !important;
+    color: #fff !important;
+}
+
+.per_40 {
+    background: #9E9D24 !important;
+    color: #000 !important;
+}
+
+.per_20 {
+    background: #5D4037 !important;
+    color: #fff !important;
+}
+
+.per_0 {
+    background: #263238 !important;
+    color: #fff !important;
+}
+
+.no_capacity {
+    background: #B71C1C !important;
+    color: #fff !important;
+}

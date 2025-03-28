@@ -1,12 +1,54 @@
 <head>
     <meta charset="utf-8"/>
     <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro' rel='stylesheet' type='text/css'>
-    <style type="text/css"><#include "main.css"></style>
+    <#if isDarkMode?? && isDarkMode>
+        <style type="text/css"><#include "dark_main.css"></style>
+        <#else>
+        <style type="text/css"><#include "main.css"></style>
+    </#if>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+<#if isDarkMode?? && isDarkMode>
+<!-- Bootstrap overrides for dark mode -->
+<style>
+    /* Override Bootstrap styles for dark mode */
+    .container, .container-fluid {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
 
+    .panel, .well {
+        background-color: #1e1e1e;
+        border-color: #444;
+    }
+
+    .btn, .btn-default {
+        background-color: #333;
+        color: #e0e0e0;
+        border-color: #555;
+    }
+
+    .table-striped > tbody > tr:nth-of-type(odd) {
+        background-color: #1e1e1e;
+    }
+
+    .table-striped > tbody > tr:nth-of-type(even) {
+        background-color: #2d2d2d;
+    }
+
+    .table > thead > tr > th {
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+        border-bottom: 2px solid #444;
+    }
+
+    .table > tbody > tr > td {
+        border-top: 1px solid #444;
+    }
+</style>
+</#if>
 
 
 </head>

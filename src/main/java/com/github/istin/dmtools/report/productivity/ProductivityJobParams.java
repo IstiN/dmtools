@@ -11,6 +11,7 @@ public class ProductivityJobParams extends BaseJobParams {
     public static String IGNORE_TICKET_PREFIXES = "ignore_ticket_prefixes";
     public static String REPORT_NAME = "report_name";
     public static String IS_WEIGHT = "is_weight";
+    public static String IS_DARK_MODE = "is_dark_mode";
     public static final String START_DATE = "start_date";
     public static final String END_DATE = "end_date";
 
@@ -52,4 +53,9 @@ public class ProductivityJobParams extends BaseJobParams {
     public Boolean isWeight() {
         return getBoolean(IS_WEIGHT);
     }
+
+    public Boolean isDarkMode() {
+        return getBoolean(IS_DARK_MODE);
+    }
+
 }
