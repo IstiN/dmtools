@@ -1,0 +1,97 @@
+<prompt>
+    <role>You are a highly skilled expert with extensive experience in code reviews and best practices.</role>
+    <instructions>
+        <p>Generate a comprehensive code review guideline that incorporates the feedback from the pull request comments and code differences, analyze 'change_requests' section for that. The guideline should suggest best practices for future code reviews, covering topics such as coding standards, performance optimization, security considerations, and maintainability.</p>
+        <p>Additionally, ensure it includes the following Key Points:
+           - Readability and clarity. Ensure the code is easy to understand, with meaningful names for variables, functions, and classes. Use comments where necessary, and follow consistent formatting standards.
+           - Correctness and accuracy. Verify that the logic is implemented correctly, edge cases are handled, and errors are managed appropriately.
+           - Performance. Check for inefficient algorithms, redundant computations, and ensure optimal resource usage, such as database queries.
+           - Security. Ensure the code is protected against vulnerabilities like SQL injection, XSS, and that sensitive data is handled securely.
+           - Testability. Ensure the code is modular, covered by tests, and uses mocks or stubs for isolated testing.
+           - Architecture and design. Verify adherence to SOLID principles, proper use of design patterns, and low coupling with high cohesion.
+           - Compatibility and integration. Ensure the code integrates well with other systems, maintains API compatibility, and uses up-to-date dependencies.
+           - Documentation. Confirm that changes are documented, and API documentation is updated if applicable.
+           - Compliance with standards. Ensure the code follows team coding standards and commit message conventions.
+           - General recommendations. Focus on improving the code, not criticizing the author. Provide constructive feedback and maintain a balance between strictness and flexibility.</p>
+        <p>If possible, include an example of a problem within the code.</p>
+        <p>If the `<existing_guideline>` block is not empty, merge your response with the existing guideline, updating or adding sections as necessary.</p>
+        <p>Include the project name ('project_name' parameter) in the header of the generated document and identify the project's programming language.</p>
+    </instructions>
+    <input_data>
+        <project_name>{{project_name}}</project_name>
+        <existing_guideline>
+            {{existing_guideline}}
+        </existing_guideline>
+        <change_requests>
+            {{change_requests}}
+        </change_requests>
+    </input_data>
+    <formatting>
+        <rules>
+            <rule>Return the code review guideline in Markdown format, with appropriate headings, subheadings, and formatting for readability.</rule>
+            <rule>Do not put the guideline text to the '```markdown ... ```' section, it should be a clear and beautiful Markdown document.</rule>
+            <rule>Ensure that the guideline is structured logically, with clear sections and subsections.</rule>
+            <rule>Provide examples or code snippets where relevant to illustrate best practices or common pitfalls.</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <input_data>
+                <existing_guideline>
+### Coding Standards
+- Follow Salesforce naming conventions for Apex classes, methods, and variables.
+- Use descriptive and meaningful names for variables, methods, and classes.
+- Adhere to the Salesforce code style guide for indentation, whitespace, and formatting.
+                </existing_guideline>
+                <change_requests>
+                    <change_request>
+                        <pull_request_comment>Consider using a more descriptive name for the `myString` variable.</pull_request_comment>
+                        <pull_request_diff_hunk>
+```diff
++ public class MyController {
++     public String myString { get; set; }
++
++     public void myMethod() {
+-         myString = 'Hello World';
++         myString = 'Hello, Salesforce!';
++     }
++ }
+                        </pull_request_diff_hunk>
+                    </change_request>
+                </change_requests>
+            </input_data>
+            <ai_response>
+***Review Comments***
+
+    Consider using a more descriptive name for the myString variable.
+    The myMethod could be made more efficient by using string concatenation instead of reassigning the entire string.
+
+***Coding Standards***
+
+    Follow Salesforce naming conventions for Apex classes, methods, and variables.
+    Use descriptive and meaningful names for variables, methods, and classes.
+    Adhere to the Salesforce code style guide for indentation, whitespace, and formatting.
+
+***Naming Conventions***
+
+    Variable names should be clear and self-explanatory, describing their purpose or content.
+    Avoid using single-letter variable names, except for loop counters or temporary variables with a very limited scope.
+
+***Performance Optimization***
+
+    Use string concatenation or string builders for building larger strings, as reassigning strings can be inefficient.
+    Avoid unnecessary object creation or method calls within loops to improve performance.
+
+***Code Readability***
+
+    Add comments to explain complex or non-obvious code sections.
+    Break down large methods into smaller, more focused methods for better maintainability.
+
+***Security Considerations***
+
+    Validate and sanitize user input to prevent injection attacks.
+    Follow Salesforce security best practices for data access and sharing rules
+            </ai_response>
+        </example>
+    </examples>
+</prompt>
