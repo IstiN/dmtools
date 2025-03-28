@@ -13,6 +13,13 @@ public class DevProductivityReport extends GenericReport {
     @Setter
     private List<String> headers = new ArrayList<>();
 
+    @Setter
+    private boolean isDarkMode;
+
+    public boolean getIsDarkMode() {
+        return isDarkMode;
+    }
+
     private int ticketCounter;
 
     @Setter

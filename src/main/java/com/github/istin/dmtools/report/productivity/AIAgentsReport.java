@@ -62,18 +62,19 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams> {
     private List<String> listOfRequests = new ArrayList<>();
 
     @Override
-    public void runJob(AIAgentsReportParams qaProductivityReportParams) throws Exception {
+    public void runJob(AIAgentsReportParams aiAgentsReportParams) throws Exception {
         usersPerRegex.clear();
         interactionsPerRegexPerUser.clear();
         allUsers.clear();
 
-        WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(qaProductivityReportParams.getStartDate());
-        String formula = qaProductivityReportParams.getFormula();
+        WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(aiAgentsReportParams.getStartDate());
+        String formula = aiAgentsReportParams.getFormula();
         TrackerClient<? extends ITicket> jira = BasicJiraClient.getInstance();
-        ProductivityTools.generate(jira, releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(qaProductivityReportParams.getEmployees()), qaProductivityReportParams.getIgnoreTicketPrefixes(), new HtmlInjection() {
+        ProductivityTools.generate(jira, releaseGenerator, aiAgentsReportParams.getReportName() + (aiAgentsReportParams.isWeight() ? "_sp" : ""), formula, aiAgentsReportParams.getInputJQL(), generateListOfMetrics(aiAgentsReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(aiAgentsReportParams.getEmployees()), aiAgentsReportParams.getIgnoreTicketPrefixes(), new HtmlInjection() {
             @Override
             public String getHtmBeforeTimeline(DevProductivityReport productivityReport) {
                 try {
+                    productivityReport.setDarkMode(aiAgentsReportParams.isDarkMode());
                     return generateAnalyticsHtml((BasicJiraClient)jira);
                 } catch (Exception e) {
                     throw new RuntimeException(e);

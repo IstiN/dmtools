@@ -33,39 +33,70 @@ ${htmlBeforeTimeline}
 
 <#list listDevCharts as devChart>
 <script type="text/javascript">
-      google.charts.load('current', {'packages':['corechart']});
-      google.charts.setOnLoadCallback(drawVisualization);
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(drawVisualization);
 
-      function drawVisualization() {
-        // Some raw data (not necessarily accurate)
-        var data = google.visualization.arrayToDataTable([
-          ['Sprint',<#list headers as header>'${header}',</#list>'Score'],
-          <#list devChart.reportIterationDataList as reportIterationData>
-          [
-            '${reportIterationData.reportIterationName}',
-            <#list reportIterationData.customMetrics as customMetric>
-            ${customMetric},
-            </#list>
-            ${reportIterationData.score}
-            ],
+    function drawVisualization() {
+      // Some raw data (not necessarily accurate)
+      var data = google.visualization.arrayToDataTable([
+        ['Sprint',<#list headers as header>'${header}',</#list>'Score'],
+        <#list devChart.reportIterationDataList as reportIterationData>
+        [
+          '${reportIterationData.reportIterationName}',
+          <#list reportIterationData.customMetrics as customMetric>
+          ${customMetric},
           </#list>
-        ]);
+          ${reportIterationData.score}
+          ],
+        </#list>
+      ]);
 
-        var options = {
-          title : 'Score ${devChart.devName} (${devChart.avgScore}) ${devChart.level}',
-          vAxis: {minValue: 20},
-          hAxis: {title: 'Iterations'},
-          seriesType: 'bars',
-          legend: {position: 'top'},
-            chartArea : { left: "5%", width: "100%" },
-            bar: { groupWidth: "85%" },
-          series: {${headers?size}: {type: 'line'}}        };
+      <#if isDarkMode?? && isDarkMode>
+      // Dark mode options
+      var options = {
+        title: 'Score ${devChart.devName} (${devChart.avgScore}) ${devChart.level}',
+        seriesType: 'bars',
+        legend: {position: 'top'},
+        chartArea: { left: "5%", width: "100%" },
+        bar: { groupWidth: "85%" },
+        series: {${headers?size}: {type: 'line', color: '#FF7043'}},
 
-        var chart = new google.visualization.ComboChart(document.getElementById('chart_div_${devChart.id}'));
-        chart.draw(data, options);
-      }
-    </script>
-    <div id="chart_div_${devChart.id}" style="width: 2400px; height: 700px;"></div>
+        // Dark theme colors
+        backgroundColor: '#1e1e1e',
+        titleTextStyle: {color: '#e0e0e0'},
+        legendTextStyle: {color: '#e0e0e0'},
+        hAxis: {
+          title: 'Iterations',
+          titleTextStyle: {color: '#e0e0e0'},
+          textStyle: {color: '#e0e0e0'},
+          gridlines: {color: '#333333'}
+        },
+        vAxis: {
+          minValue: 20,
+          textStyle: {color: '#e0e0e0'},
+          gridlines: {color: '#333333'}
+        },
+        colors: ['#4285F4', '#DB4437', '#F4B400', '#0F9D58', '#AB47BC', '#00ACC1']
+      };
+      <#else>
+      // Light mode options
+      var options = {
+        title: 'Score ${devChart.devName} (${devChart.avgScore}) ${devChart.level}',
+        vAxis: {minValue: 20},
+        hAxis: {title: 'Iterations'},
+        seriesType: 'bars',
+        legend: {position: 'top'},
+        chartArea: { left: "5%", width: "100%" },
+        bar: { groupWidth: "85%" },
+        series: {${headers?size}: {type: 'line'}}
+      };
+      </#if>
+
+      var chart = new google.visualization.ComboChart(document.getElementById('chart_div_${devChart.id}'));
+      chart.draw(data, options);
+    }
+</script>
+<div id="chart_div_${devChart.id}" style="width: 2400px; height: 700px;"></div>
 </#list>
 <style>
       /* NAME COLUMN AS STICKY  HEADER */
