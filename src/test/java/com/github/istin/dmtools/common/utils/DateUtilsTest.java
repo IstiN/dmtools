@@ -19,4 +19,10 @@ public class DateUtilsTest extends TestCase {
 
     }
 
+    public void testParseJiraDateNegativeOffset() {
+        Date date = DateUtils.parseJiraDate2("2025-04-05T03:04:28.313-0400");
+        System.out.println(date);
+
+    }
+
 }

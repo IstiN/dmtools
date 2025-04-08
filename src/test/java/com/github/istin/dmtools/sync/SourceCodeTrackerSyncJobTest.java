@@ -63,7 +63,7 @@ public class SourceCodeTrackerSyncJobTest {
 
         SourceCodeTrackerSyncJob.checkAndSyncPullRequests(
                 sourceCode, "workspace", "repository", "open", issuesIDsParser, tracker,
-                s -> "icon", statusSyncDelegate, true, true, "status1", "status2"
+                s -> "icon", s -> "", statusSyncDelegate, true, true, "status1", "status2"
         );
 
         verify(sourceCode, atLeastOnce()).pullRequests(anyString(), anyString(), anyString(), anyBoolean(), any());
@@ -86,7 +86,7 @@ public class SourceCodeTrackerSyncJobTest {
         when(ticket.getPriority()).thenReturn("high");
 
         SourceCodeTrackerSyncJob.renamePullRequest(
-                "workspace", "repo", sourceCode, pullRequest, ticket, s -> "icon", true
+                "workspace", "repo", sourceCode, pullRequest, ticket, s -> "icon", s -> "", true
         );
 
         verify(sourceCode, atLeastOnce()).renamePullRequest(anyString(), anyString(), any(), anyString());

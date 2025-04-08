@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Analysis Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        <#include "styles.css">
+    </style>
+</head>
+<body>
+    <div class="theme-switch">
+        <button id="theme-toggle">Switch to Dark Theme</button>
+    </div>
+    
+    <div class="print-button">
+        <button id="print-slides">Print Slides</button>
+    </div>
+
+    <div class="container">
+        <h1>Ticket Analysis Report</h1>
+        
+        <div id="slides-container">
+            <!-- Slides will be generated here -->
+        </div>
+    </div>
+
+    <script>
+        // Predefined presentation data
+        const presentationData = ${presentationData};
+        <#include "main.js">
+    </script>
+</body>
+</html>

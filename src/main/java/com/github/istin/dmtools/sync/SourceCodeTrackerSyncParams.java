@@ -7,6 +7,8 @@ public class SourceCodeTrackerSyncParams extends JSONModel {
     public static final String PULL_REQUESTS_STATE = "pull_requests_state";
     public static final String ISSUE_ID_CODES = "issue_id_codes";
     public static final String PRIORITY_HIGH_ATTENTION_ICON = "priority_high_attention_icon";
+    public static final String BUG_ICON = "bug_icon";
+    public static final String STORY_ICON = "story_icon";
     public static final String PRIORITY_NORMAL_ICON = "priority_normal_icon";
     public static final String PRIORITY_LOW_ICON = "priority_low_icon";
     public static final String PRIORITY_DEFAULT_ICON = "priority_default_icon";
@@ -24,6 +26,8 @@ public class SourceCodeTrackerSyncParams extends JSONModel {
         public static final String NORMAL = "\uD83D\uDFE0";
         public static final String LOW = "\uD83D\uDFE1";
         public static final String DEFAULT = "\uD83D\uDFE2";
+        public static final String BUG = "\uD83D\uDC1E";
+        public static final String STORY = "\uD83D\uDD16";
     }
 
     public String getPullRequestState() {
@@ -38,6 +42,22 @@ public class SourceCodeTrackerSyncParams extends JSONModel {
         String icon = getString(PRIORITY_HIGH_ATTENTION_ICON);
         if (icon == null) {
             return Icons.HIGH_ATTENTION;
+        }
+        return icon;
+    }
+
+    public String getBugIcon() {
+        String icon = getString(BUG_ICON);
+        if (icon == null) {
+            return Icons.BUG;
+        }
+        return icon;
+    }
+
+    public String getStoryIcon() {
+        String icon = getString(STORY_ICON);
+        if (icon == null) {
+            return Icons.STORY;
         }
         return icon;
     }
