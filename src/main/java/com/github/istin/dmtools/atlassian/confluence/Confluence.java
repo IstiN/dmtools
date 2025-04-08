@@ -15,6 +15,7 @@ import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -258,20 +259,16 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
     }
 
     public Content updatePage(String contentId, String title, String parentId, String body, String space, String historyComment) throws IOException {
-        body = body.replaceAll("<br>", "\n").replaceAll("<br/>", "\n");
+        body = prepareBodyForConfluence(body);
         logger.info("{} {} {} {} {} {}", contentId, title, parentId, body, space, historyComment);
         Content oldContent = new Content(new GenericRequest(this, path("content/" + contentId + "?expand=version")).execute());
-        body = HtmlCleaner.convertLinksUrlsToConfluenceFormat(body);
 
         logger.info("{}, {}, {}, {}, {}, {}", contentId, title, parentId, body, space, historyComment);
 
         GenericRequest content = new GenericRequest(this, path("content/"+contentId));
 
         String value = body;
-        String oldStorageValue = oldContent.getStorage().getValue();
-        if (oldStorageValue != null && oldStorageValue.equals(value) && title != null && title.equals(oldContent.getTitle())) {
-            return oldContent;
-        }
+
         content.setBody(new JSONObject()
                 .put("id", contentId)
                 .put("type", "page")
@@ -289,6 +286,13 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         String putResponse = content.put();
         logger.info(putResponse);
         return new Content(putResponse);
+    }
+
+    @NotNull
+    public static String prepareBodyForConfluence(String body) {
+        body = body.replaceAll("<br>", "\n").replaceAll("<br/>", "\n");
+        body = HtmlCleaner.convertLinksUrlsToConfluenceFormat(body);
+        return body;
     }
 
     public static String macroHTML(String body) {
