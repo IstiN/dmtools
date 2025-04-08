@@ -4,6 +4,7 @@ import com.github.istin.dmtools.ai.agent.*;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.context.ContextOrchestrator;
+import com.github.istin.dmtools.presentation.PresentationMakerOrchestrator;
 import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import dagger.Module;
@@ -105,6 +106,11 @@ public class AIAgentsModule {
     @Provides
     ContextOrchestrator provideContextOrchestrator() {
         return new ContextOrchestrator();
+    }
+
+    @Provides
+    PresentationMakerOrchestrator providePresentationMakerOrchestrator() {
+        return new PresentationMakerOrchestrator();
     }
 
 }

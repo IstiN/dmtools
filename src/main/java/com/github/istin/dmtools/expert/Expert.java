@@ -17,6 +17,7 @@ import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
+import com.github.istin.dmtools.common.utils.MarkdownToJiraConverter;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.context.ContextOrchestrator;
 import com.github.istin.dmtools.context.UriToObject;
@@ -93,16 +94,23 @@ public class Expert extends AbstractJob<ExpertParams> {
         String inputJQL = expertParams.getInputJql();
         String fieldName = expertParams.getFieldName();
 
+        boolean transformConfluencePagesToMarkdown = expertParams.isTransformConfluencePagesToMarkdown();
         if (systemRequest != null && systemRequest.startsWith("https://")) {
             systemRequest = HtmlCleaner.cleanOnlyStylesAndSizes(confluence.contentByUrl(systemRequest).getStorage().getValue());
+            if (transformConfluencePagesToMarkdown) {
+                systemRequest = MarkdownToJiraConverter.convertToJiraMarkdown(systemRequest);
+            }
         }
 
         if (projectContext != null && projectContext.startsWith("https://")) {
             projectContext = HtmlCleaner.cleanOnlyStylesAndSizes(confluence.contentByUrl(projectContext).getStorage().getValue());
+            if (transformConfluencePagesToMarkdown) {
+                projectContext = MarkdownToJiraConverter.convertToJiraMarkdown(projectContext);
+            }
         }
 
         if (confluencePages != null) {
-            new ConfluencePagesContext(contextOrchestrator, confluencePages, confluence, expertParams.isTransformConfluencePagesToMarkdown());
+            new ConfluencePagesContext(contextOrchestrator, confluencePages, confluence, transformConfluencePagesToMarkdown);
         }
 
         List<? extends UriToObject> uriProcessingSources = new UriToObjectFactory().createUriProcessingSources();

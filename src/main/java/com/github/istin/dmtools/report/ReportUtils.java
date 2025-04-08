@@ -13,6 +13,10 @@ import java.io.*;
 
 public class ReportUtils {
 
+    public File write(String reportFriendlyName, String root, Object model) throws IOException, TemplateException {
+        return write(reportFriendlyName, root, model, null);
+    }
+
     public File write(String reportFriendlyName, String root, Object model, Writer writer) throws IOException, TemplateException {
         return write(reportFriendlyName, root, model, writer, "/ftl");
     }

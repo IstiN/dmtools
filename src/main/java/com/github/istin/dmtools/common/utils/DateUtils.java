@@ -307,7 +307,11 @@ public class DateUtils {
             return Date.from(instant);
 
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Invalid ISO 8601 date: " + dateString, e);
+            try {
+                return smartParseDate(dateString);
+            } catch (Exception e1) {
+                throw new IllegalArgumentException("Invalid ISO 8601 date: " + dateString, e);
+            }
         }
     }
 

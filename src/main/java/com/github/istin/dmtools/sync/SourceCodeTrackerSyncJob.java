@@ -55,6 +55,13 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
                             return sourceCodeTrackerSyncParams.getPriorityDefaultIcon();
                         }
                     },
+                    s -> {
+                        if (IssueType.isBug(s)) {
+                            return sourceCodeTrackerSyncParams.getBugIcon();
+                        } else {
+                            return sourceCodeTrackerSyncParams.getStoryIcon();
+                        }
+                    },
                     new SourceCodeTrackerSyncJob.StatusSyncDelegate() {
 
                         @Override
@@ -108,19 +115,19 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
 
     }
 
-    public static void checkAndSyncPullRequests(SourceCode sourceCode, String workspace, String repository, String pullRequestState, IssuesIDsParser issuesIDsParser, TrackerClient tracker, Function<String, String> priorityToIcon, StatusSyncDelegate statusSyncDelegate, boolean checkAllPullRequests, boolean addPullRequestLabels, String... inProgressReopenedStatuses) throws IOException {
+    public static void checkAndSyncPullRequests(SourceCode sourceCode, String workspace, String repository, String pullRequestState, IssuesIDsParser issuesIDsParser, TrackerClient tracker, Function<String, String> priorityToIcon, Function<String, String> issueTypeToIcon, StatusSyncDelegate statusSyncDelegate, boolean checkAllPullRequests, boolean addPullRequestLabels, String... inProgressReopenedStatuses) throws IOException {
         List<IPullRequest> bitbucketPullRequests = sourceCode.pullRequests(workspace, repository, pullRequestState, checkAllPullRequests, null);
         for (IPullRequest pullRequest : bitbucketPullRequests) {
             List<String> keys = issuesIDsParser.parseIssues(pullRequest.getTitle(), pullRequest.getSourceBranchName(), pullRequest.getDescription());
             boolean wasRenamed = false;
             for (String key : keys) {
                 logger.info(key);
-                wasRenamed = syncTicket(sourceCode, workspace, repository, pullRequestState, tracker, priorityToIcon, statusSyncDelegate, pullRequest, key, wasRenamed, addPullRequestLabels, inProgressReopenedStatuses);
+                wasRenamed = syncTicket(sourceCode, workspace, repository, pullRequestState, tracker, priorityToIcon, issueTypeToIcon, statusSyncDelegate, pullRequest, key, wasRenamed, addPullRequestLabels, inProgressReopenedStatuses);
             }
         }
     }
 
-    public static boolean syncTicket(SourceCode sourceCode, String workspace, String repository, String pullRequestState, TrackerClient tracker, Function<String, String> priorityToIcon, StatusSyncDelegate statusSyncDelegate, IPullRequest pullRequest, String key, boolean wasRenamed, boolean addPullRequestLabels, String... inProgressReopenedStatuses) throws IOException {
+    public static boolean syncTicket(SourceCode sourceCode, String workspace, String repository, String pullRequestState, TrackerClient tracker, Function<String, String> priorityToIcon, Function<String, String> issueTypeToIcon, StatusSyncDelegate statusSyncDelegate, IPullRequest pullRequest, String key, boolean wasRenamed, boolean addPullRequestLabels, String... inProgressReopenedStatuses) throws IOException {
         ITicket ticket = null;
         try {
             ticket = tracker.performTicket(key, tracker.getDefaultQueryFields());
@@ -152,7 +159,7 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
         } else {
             if (!wasRenamed) {
                 wasRenamed = true;
-                renamePullRequest(workspace, repository, sourceCode, pullRequest, ticket, priorityToIcon, addPullRequestLabels);
+                renamePullRequest(workspace, repository, sourceCode, pullRequest, ticket, priorityToIcon, issueTypeToIcon, addPullRequestLabels);
             }
 
             if (statusSyncDelegate != null) {
@@ -166,18 +173,15 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
         return wasRenamed;
     }
 
-    protected static void renamePullRequest(String workspace, String repo, SourceCode sourceCode, IPullRequest pullRequest, ITicket ticket, Function<String, String> priorityToIcon, boolean addPullRequestLabels) throws IOException {
+    protected static void renamePullRequest(String workspace, String repo, SourceCode sourceCode, IPullRequest pullRequest, ITicket ticket, Function<String, String> priorityToIcon, Function<String, String> issueTypeToIcon, boolean addPullRequestLabels) throws IOException {
         String summary = ticket.getTicketTitle();
-        String issueType = ticket.getIssueType();
+        String ticketIssueType = ticket.getIssueType();
+        String ticketPriority = ticket.getPriority();
         if (addPullRequestLabels) {
-            sourceCode.addPullRequestLabel(workspace, repo, String.valueOf(pullRequest.getId()), issueType);
+            sourceCode.addPullRequestLabel(workspace, repo, String.valueOf(pullRequest.getId()), ticketIssueType);
         }
-        if (IssueType.isBug(issueType)) {
-            issueType = "\uD83D\uDC1E";
-        } else {
-            issueType = "\uD83D\uDD16";
-        }
-        String priority = priorityToIcon == null ? ticket.getPriority() : priorityToIcon.apply(ticket.getPriority());
+        String issueType = issueTypeToIcon == null ? ticketIssueType : issueTypeToIcon.apply(ticketIssueType);
+        String priority = priorityToIcon == null ? ticketPriority : priorityToIcon.apply(ticketPriority);
         sourceCode.renamePullRequest(workspace, repo, pullRequest,  priority + " " + issueType + " " + ticket.getKey() + " " + summary);
     }
 

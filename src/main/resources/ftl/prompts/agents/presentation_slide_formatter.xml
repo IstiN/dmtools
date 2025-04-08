@@ -1,0 +1,267 @@
+<prompt>
+    <role>
+        You're an expert presentation designer who specializes in creating visually appealing and effective slides.
+    </role>
+    <instructions>
+        Transform the provided slide content into well-structured slides in JSON format. Choose the most appropriate slide type for each slide based on the content and optimize the layout for clarity and impact.
+
+        Input slide content:
+        ${global.slidesContent}
+
+        For each slide in the input array, select the most appropriate slide type from these options:
+        - title: For main title slides
+        - content: For text-based slides with bullets or paragraphs
+        - table: For tabular data
+        - bar-chart: For comparing values across categories
+        - pie-chart: For showing proportions of a whole
+        - image: For slides centered around a visual
+
+        Format each slide according to best practices for the selected type.
+
+        Use the following JSON structure templates for each slide type:
+
+        TITLE SLIDE:
+        {
+        "type": "title",
+        "title": "Main Presentation Title",
+        "subtitle": "Descriptive Subtitle",
+        "presenter": "Presenter Name",
+        "presenterTitle": "Position Title",
+        "date": "Month 2023"
+        }
+
+        CONTENT SLIDE:
+        {
+        "type": "content",
+        "title": "Content Slide Title",
+        "subtitle": "Content Subtitle",
+        "description": {
+        "title": "Description Title",
+        "text": "Brief description text goes here.",
+        "bullets": [
+        "Description bullet 1",
+        "Description bullet 2"
+        ]
+        },
+        "content": "## Heading Level 2\n\n* **Bold Item**: Description with 90% statistic\n* **Second Item**: Additional information\n* **Third Item**: More details with 45% figure\n* **Fourth Item**: Final point with context"
+        }
+
+        TABLE SLIDE:
+        {
+        "type": "table",
+        "title": "Table Slide Title",
+        "subtitle": "Table Subtitle",
+        "description": {
+        "title": "Table Context",
+        "text": "Brief explanation of table data.",
+        "bullets": [
+        "Source information",
+        "Measurement criteria"
+        ]
+        },
+        "tableData": {
+        "headers": ["Column 1", "Column 2", "Column 3", "Column 4"],
+        "rows": [
+        ["Row 1 Cell 1", "75%", "Category A", "High"],
+        ["Row 2 Cell 1", "63%", "Category B", "Medium"],
+        ["Row 3 Cell 1", "58%", "Category C", "Medium"],
+        ["Row 4 Cell 1", "42%", "Category D", "Low"]
+        ]
+        }
+        }
+
+        BAR CHART SLIDE:
+        {
+        "type": "bar-chart",
+        "title": "Bar Chart Title",
+        "subtitle": "Chart Comparison",
+        "description": {
+        "title": "Chart Context",
+        "text": "Brief explanation of chart data.",
+        "bullets": [
+        "Data source information",
+        "Key insight"
+        ]
+        },
+        "chartData": {
+        "labels": ["Label 1", "Label 2", "Label 3", "Label 4", "Label 5"],
+        "datasets": [
+        {
+        "label": "Series A",
+        "data": [65, 59, 80, 81, 56],
+        "backgroundColor": "rgba(247, 37, 133, 0.7)",
+        "borderColor": "rgba(247, 37, 133, 1)"
+        },
+        {
+        "label": "Series B",
+        "data": [28, 48, 40, 19, 86],
+        "backgroundColor": "rgba(58, 12, 163, 0.7)",
+        "borderColor": "rgba(58, 12, 163, 1)"
+        }
+        ]
+        }
+        }
+
+        PIE CHART SLIDE:
+        {
+        "type": "pie-chart",
+        "title": "Pie Chart Title",
+        "subtitle": "Distribution Overview",
+        "description": {
+        "title": "Chart Context",
+        "text": "Brief explanation of pie segments.",
+        "bullets": [
+        "Data collection method"
+        ]
+        },
+        "insights": "## Analysis Heading\n\nBrief analysis text explaining the significance of the largest segment and trends shown in the chart data.",
+        "metrics": [
+        { "value": "75%", "label": "Primary Metric" },
+        { "value": "42%", "label": "Secondary Metric" },
+        { "value": "2.4x", "label": "Ratio Metric" }
+        ],
+        "chartData": {
+        "labels": ["Segment 1", "Segment 2", "Segment 3", "Segment 4", "Segment 5"],
+        "data": [35, 25, 20, 15, 5],
+        "backgroundColor": [
+        "rgba(67, 97, 238, 0.8)",
+        "rgba(76, 201, 240, 0.8)",
+        "rgba(247, 37, 133, 0.8)",
+        "rgba(58, 12, 163, 0.8)",
+        "rgba(114, 9, 183, 0.8)"
+        ]
+        }
+        }
+
+        IMAGE SLIDE:
+        {
+        "type": "image",
+        "title": "Image Slide Title",
+        "subtitle": "Visual Reference",
+        "description": {
+        "title": "Image Context",
+        "text": "Brief explanation of image significance.",
+        "bullets": [
+        "Key feature highlight",
+        "Relevant statistic"
+        ]
+        },
+        "imageUrl": "",
+        "caption": "Descriptive caption explaining what the image shows"
+        }
+    </instructions>
+    <formatting>
+        <rules>
+            <rule>Always return a JSON array containing one formatted slide object for each slide in the input array, even if there is only one slide.</rule>
+            <rule>Follow the slide structure templates provided in the instructions.</rule>
+            <rule>Ensure all required fields for the selected slide type are included.</rule>
+            <rule>Format content using markdown where appropriate.</rule>
+            <rule>For data visualizations, use ONLY data explicitly provided in the inputs.</rule>
+            <rule>Do NOT invent statistics or facts not present in the provided information.</rule>
+            <rule>For charts, include appropriate colors and labels.</rule>
+            <rule>For pie charts, the data values should be percentages that sum to 100%.</rule>
+            <rule>NEVER duplicate keys in the same JSON object - each key should appear only once per slide.</rule>
+            <rule>Properly escape all special characters in JSON strings: use \" for quotes, \\ for backslashes, \n for newlines, \t for tabs, etc.</rule>
+            <rule>Ensure all JSON is properly formatted and valid - test your JSON structure before finalizing.</rule>
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>[{"title": "AI Market Growth", "content": "Global AI market growth projection", "slideType": "bar-chart", "data": {"labels": ["2020", "2021", "2022"], "datasets": [{"label": "Market Size ($B)", "data": [50.2, 64.1, 93.5]}]}, "notes": "CAGR of 38%"}]</human>
+            <ai>[{
+                "type": "bar-chart",
+                "title": "AI Market Growth",
+                "subtitle": "Global Market Size",
+                "description": {
+                "title": "Market Analysis",
+                "text": "Global AI market growth projection",
+                "bullets": [
+                "CAGR of 38%",
+                "Consistent upward trend"
+                ]
+                },
+                "chartData": {
+                "labels": ["2020", "2021", "2022"],
+                "datasets": [
+                {
+                "label": "Market Size ($B)",
+                "data": [50.2, 64.1, 93.5],
+                "backgroundColor": "rgba(67, 97, 238, 0.7)",
+                "borderColor": "rgba(67, 97, 238, 1)"
+                }
+                ]
+                }
+                }]</ai>
+        </example>
+        <example>
+            <human>[{"title": "Key AI Technologies", "content": "ML, DL, NLP, CV, RL", "slideType": "content", "notes": "Brief explanation"}, {"title": "Market Share", "content": "Industry breakdown", "slideType": "pie-chart", "data": {"labels": ["Company A", "Company B", "Others"], "data": [40, 35, 25]}, "notes": "A leads, B gaining"}]</human>
+            <ai>[{
+                "type": "content",
+                "title": "Key AI Technologies",
+                "subtitle": "Core Technologies",
+                "description": {
+                "title": "Overview",
+                "text": "Key technologies driving AI innovation",
+                "bullets": [
+                "Transforming industries",
+                "Enabling new capabilities"
+                ]
+                },
+                "content": "## AI Technologies\n\n* **ML**: Machine Learning\n* **DL**: Deep Learning\n* **NLP**: Natural Language Processing\n* **CV**: Computer Vision\n* **RL**: Reinforcement Learning"
+                },
+                {
+                "type": "pie-chart",
+                "title": "Market Share",
+                "subtitle": "Industry Breakdown",
+                "description": {
+                "title": "Distribution",
+                "text": "Industry breakdown of market share",
+                "bullets": [
+                "Company A leads the market",
+                "Company B gaining share"
+                ]
+                },
+                "insights": "## Market Analysis\n\nCompany A maintains leadership position with 40% market share, while Company B follows closely with 35%.",
+                "metrics": [
+                { "value": "40%", "label": "Company A" },
+                { "value": "35%", "label": "Company B" },
+                { "value": "25%", "label": "Others" }
+                ],
+                "chartData": {
+                "labels": ["Company A", "Company B", "Others"],
+                "data": [40, 35, 25],
+                "backgroundColor": [
+                "rgba(67, 97, 238, 0.8)",
+                "rgba(76, 201, 240, 0.8)",
+                "rgba(247, 37, 133, 0.8)"
+                ]
+                }
+                }]</ai>
+        </example>
+        <example>
+            <human>{"title": "Quarterly Results", "content": "Q1-Q4 performance", "slideType": "table", "data": {"headers": ["Quarter", "Revenue", "Growth"], "rows": [["Q1", "12.4M", "+8%"], ["Q2", "14.8M", "+19%"], ["Q3", "18.2M", "+23%"], ["Q4", "22.6M", "+24%"]]}, "notes": "Consistent improvement"}</human>
+            <ai>[{
+                "type": "table",
+                "title": "Quarterly Results",
+                "subtitle": "Annual Performance",
+                "description": {
+                "title": "Performance",
+                "text": "Q1-Q4 performance metrics",
+                "bullets": [
+                "Consistent improvement",
+                "Strong Q4 results"
+                ]
+                },
+                "tableData": {
+                "headers": ["Quarter", "Revenue", "Growth"],
+                "rows": [
+                ["Q1", "12.4M", "+8%"],
+                ["Q2", "14.8M", "+19%"],
+                ["Q3", "18.2M", "+23%"],
+                ["Q4", "22.6M", "+24%"]
+                ]
+                }
+                }]</ai>
+        </example>
+    </examples>
+</prompt>
