@@ -268,6 +268,10 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         GenericRequest content = new GenericRequest(this, path("content/"+contentId));
 
         String value = body;
+        String oldStorageValue = oldContent.getStorage().getValue();
+        if (oldStorageValue != null && oldStorageValue.equals(value) && title != null && title.equals(oldContent.getTitle())) {
+            return oldContent;
+        }
         content.setBody(new JSONObject()
                 .put("id", contentId)
                 .put("type", "page")
