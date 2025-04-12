@@ -1,3 +1,4 @@
+<#noparse>
 :root {
     /* Light theme */
     --bg-color: #f8f9fa;
@@ -613,3 +614,4 @@ button:hover {
         max-height: 350px;
     }
 }
+</#noparse>

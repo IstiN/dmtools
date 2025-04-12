@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.report.productivity;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.AIProvider;
 import com.github.istin.dmtools.ai.curl.BasicCUrlAIClient;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
@@ -11,6 +12,7 @@ import com.github.istin.dmtools.common.timeline.Release;
 import com.github.istin.dmtools.common.timeline.WeeksReleaseGenerator;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
+import com.github.istin.dmtools.di.AIComponentsModule;
 import com.github.istin.dmtools.expert.ExpertRequest;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.metrics.Metric;
@@ -191,9 +193,8 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams> {
         }
         html.append("</table></div>");
         addRecentUsersSection(html, userNames);
-
         if (!listOfRequests.isEmpty()) {
-            html.append("<p>" + BasicCUrlAIClient.getInstance().chat("Give me summary of the user requests to LLM. I'm interesting in main topics and categories where users ask help. Your response must be nice looking html without tags: html, body because it will be injected to another html page. Use priorities of your statements most often used must be top, add some indications how many times it was used. \n" + listOfRequests) +"</p>");
+            html.append("<p>" + AIProvider.getCustomAI().chat("Give me summary of the user requests to LLM. I'm interesting in main topics and categories where users ask help. Your response must be nice looking html without tags: html, body because it will be injected to another html page. Use priorities of your statements most often used must be top, add some indications how many times it was used. \n" + listOfRequests) +"</p>");
             html.append("<div class='request-section'>")
                     .append("<div class='request-header' onclick='toggleRequests()'>")
                     .append("<span id='requests-toggle' class='request-toggle'>▶</span>")
