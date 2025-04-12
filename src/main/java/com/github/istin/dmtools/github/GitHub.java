@@ -462,12 +462,76 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
         return JSONModel.convertToModels(GitHubFile.class, new JSONObject(response).getJSONArray("tree"));
     }
 
+    /**
+     * Gets file content from either a GitHub API blob URL or a standard GitHub web URL.
+     *
+     * @param fileUrl The URL to the file (either API blob URL or standard GitHub URL)
+     * @return The content of the file
+     * @throws IOException If there's an error fetching the file
+     */
     @Override
-    public String getFileContent(String selfLink) throws IOException {
-        GenericRequest getRequest = new GenericRequest(this, selfLink);
+    public String getFileContent(String fileUrl) throws IOException {
+        if (fileUrl.contains("github.com/") && fileUrl.contains("/blob/")) {
+            // Handle standard GitHub web URL
+            return getFileContentFromGithubWebUrl(fileUrl);
+        } else {
+            // Handle GitHub API blob URL
+            return getFileContentFromApiUrl(fileUrl);
+        }
+    }
+
+    /**
+     * Gets file content from a GitHub API blob URL.
+     *
+     * @param apiUrl The GitHub API URL to the blob
+     * @return The content of the file
+     * @throws IOException If there's an error fetching the file
+     */
+    private String getFileContentFromApiUrl(String apiUrl) throws IOException {
+        GenericRequest getRequest = new GenericRequest(this, apiUrl);
         String response = execute(getRequest);
         String content = new JSONModel(response).getString("content").replaceAll("\\r\\n|\\r|\\n", "");
         return JobRunner.decodeBase64(content);
+    }
+
+    /**
+     * Gets file content from a standard GitHub web URL.
+     * Converts URLs like https://github.com/{owner}/{repo}/blob/{branch}/{path}
+     * to the corresponding API URL format.
+     *
+     * @param githubWebUrl The GitHub web URL of the file
+     * @return The content of the file
+     * @throws IOException If there's an error fetching the file
+     */
+    private String getFileContentFromGithubWebUrl(String githubWebUrl) throws IOException {
+        // Parse the URL
+        String[] parts = githubWebUrl.replace("https://github.com/", "").split("/blob/", 2);
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("Could not parse GitHub URL: " + githubWebUrl);
+        }
+
+        String ownerRepo = parts[0]; // owner/repo
+        String[] branchAndPath = parts[1].split("/", 2);
+        if (branchAndPath.length != 2) {
+            throw new IllegalArgumentException("Could not extract branch and path from URL: " + githubWebUrl);
+        }
+
+        String branch = branchAndPath[0];
+        String path = branchAndPath[1];
+
+        // First get the file metadata to get the SHA
+        String contentsPath = String.format("repos/%s/contents/%s", ownerRepo, path);
+        GenericRequest metadataRequest = new GenericRequest(this, path(contentsPath));
+        metadataRequest.param("ref", branch);
+
+        String metadataResponse = execute(metadataRequest);
+        String sha = new JSONModel(metadataResponse).getString("sha");
+
+        // Now get the blob using the SHA
+        String blobPath = String.format("repos/%s/git/blobs/%s", ownerRepo, sha);
+
+        // Use the API URL method to get the content
+        return getFileContentFromApiUrl(path(blobPath));
     }
 
     @Override
