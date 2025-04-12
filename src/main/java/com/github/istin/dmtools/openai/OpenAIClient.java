@@ -93,19 +93,19 @@ public class OpenAIClient extends AbstractRestClient implements AI {
         if (imageFile != null) {
             String extension = ImageUtils.getExtension(imageFile);
             String imageBase64 = ImageUtils.convertToBase64(imageFile, "png");
+            JSONArray content = new JSONArray()
+                    .put(new JSONObject()
+                            .put("type", "text")
+                            .put("text", message)
+                    )
+                    .put(new JSONObject()
+                            .put("type", "image_url")
+                            .put("image_url", new JSONObject()
+                                    .put("url", "data:image/" + extension + ";base64," + imageBase64))
+                    );
             messages.put(new JSONObject()
                     .put("role", "user")
-                    .put("content", new JSONArray()
-                            .put(new JSONObject()
-                                    .put("type", "text")
-                                    .put("text", message)
-                            )
-                            .put(new JSONObject()
-                                    .put("type", "image_url")
-                                    .put("image_url", new JSONObject()
-                                            .put("url", "data:image/"+extension+";base64," + imageBase64))
-                            )
-                    ));
+                    .put("content", content));
         } else {
             messages.put(new JSONObject()
                     .put("role", "user")

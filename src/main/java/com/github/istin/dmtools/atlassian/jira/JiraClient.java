@@ -14,6 +14,8 @@ import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.context.UriToObject;
 import kotlin.Pair;
+import lombok.Getter;
+import lombok.Setter;
 import okhttp3.*;
 import okhttp3.OkHttpClient.Builder;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -51,10 +53,14 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     private String basePath;
     private boolean isReadCacheGetRequestsEnabled = true;
     private boolean isWaitBeforePerform = false;
+    @Setter
+    @Getter
     private long sleepTimeRequest;
     private String authorization;
     private String cacheFolderName;
     private boolean isClearCache = false;
+    @Setter
+    @Getter
     private String authType = "Basic";
     private Long instanceCreationTime = System.currentTimeMillis();
 
@@ -82,14 +88,6 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         this.client = builder.build();
 
         setCacheFolderNameAndReinit("cache" + getClass().getSimpleName());
-    }
-
-    public long getSleepTimeRequest() {
-        return sleepTimeRequest;
-    }
-
-    public void setSleepTimeRequest(long sleepTimeRequest) {
-        this.sleepTimeRequest = sleepTimeRequest;
     }
 
     protected void initCache() throws IOException {
@@ -181,14 +179,6 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     public void deleteLabelInTicket(T ticket, String label) throws IOException {
         throw new UnsupportedOperationException();
-    }
-
-    public String getAuthType() {
-        return authType;
-    }
-
-    public void setAuthType(String authType) {
-        this.authType = authType;
     }
 
     @NotNull

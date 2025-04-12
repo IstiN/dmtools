@@ -149,4 +149,55 @@ public class StringUtils {
 
         return textBuilder;
     }
+
+    /**
+     * Checks if the input string matches the expected Confluence YAML format.
+     * @param input The input string to check
+     * @return true if the input matches the expected format, false otherwise
+     */
+    public static boolean isConfluenceYamlFormat(String input) {
+        // Check if the content has the expected structure
+        if (!input.startsWith("<ac:structured-macro")) {
+            return false;
+        }
+
+        // Check if it's a YAML content by looking for the language parameter
+        Pattern languagePattern = Pattern.compile("<ac:parameter ac:name=\"language\">(.*?)</ac:parameter>", Pattern.DOTALL);
+        Matcher languageMatcher = languagePattern.matcher(input);
+
+        if (!languageMatcher.find() || !languageMatcher.group(1).equalsIgnoreCase("yaml")) {
+            return false;
+        }
+
+        // Check if it has CDATA content
+        Pattern pattern = Pattern.compile("<ac:plain-text-body><!\\[CDATA\\[(.*?)\\]\\]></ac:plain-text-body>", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(input);
+
+        return matcher.find();
+    }
+
+    /**
+     * Extracts YAML content from the input string if it has the expected structure.
+     * @param input The input string that may contain YAML content in a specific structure
+     * @return The extracted YAML content if found, otherwise the original input
+     */
+    public static String extractYamlContentFromConfluence(String input) {
+        // First check if the input matches the expected format
+        if (!isConfluenceYamlFormat(input)) {
+            return input;
+        }
+
+        // Extract content between CDATA tags
+        Pattern pattern = Pattern.compile("<ac:plain-text-body><!\\[CDATA\\[(.*?)\\]\\]></ac:plain-text-body>", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(input);
+
+        // We already checked that the pattern matches in isConfluenceYamlFormat,
+        // so we can safely assume matcher.find() will return true
+        if (matcher.find()) {
+            return matcher.group(1);
+        } else {
+            // This should never happen if isConfluenceYamlFormat returned true
+            return input;
+        }
+    }
 }

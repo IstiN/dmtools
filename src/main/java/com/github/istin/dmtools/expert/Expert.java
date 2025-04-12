@@ -96,9 +96,14 @@ public class Expert extends AbstractJob<ExpertParams> {
 
         boolean transformConfluencePagesToMarkdown = expertParams.isTransformConfluencePagesToMarkdown();
         if (systemRequest != null && systemRequest.startsWith("https://")) {
-            systemRequest = HtmlCleaner.cleanOnlyStylesAndSizes(confluence.contentByUrl(systemRequest).getStorage().getValue());
-            if (transformConfluencePagesToMarkdown) {
-                systemRequest = MarkdownToJiraConverter.convertToJiraMarkdown(systemRequest);
+            String value = confluence.contentByUrl(systemRequest).getStorage().getValue();
+            if (StringUtils.isConfluenceYamlFormat(value)) {
+                systemRequest = StringUtils.extractYamlContentFromConfluence(value);
+            } else {
+                systemRequest = HtmlCleaner.cleanOnlyStylesAndSizes(value);
+                if (transformConfluencePagesToMarkdown) {
+                    systemRequest = MarkdownToJiraConverter.convertToJiraMarkdown(systemRequest);
+                }
             }
         }
 
@@ -120,7 +125,13 @@ public class Expert extends AbstractJob<ExpertParams> {
         trackerClient.searchAndPerform(ticket -> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext(true);
-            contextOrchestrator.processFullContent(ticket.getKey(), ticketContext.toText() + "\n" + ticket.getAttachments() + "\n", (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
+            List<? extends IAttachment> attachments = ticket.getAttachments();
+            contextOrchestrator.processFullContent(ticket.getKey(), ticketContext.toText(), (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
+            if (attachments != null && !attachments.isEmpty()) {
+                for (IAttachment attachment : attachments) {
+                    contextOrchestrator.processFullContent(attachment.getUrl(), ((UriToObject) trackerClient).uriToObject(attachment.getUrl()), (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
+                }
+            }
             List<ChunkPreparation.Chunk> chunksContext = contextOrchestrator.summarize();
             RequestDecompositionAgent.Params requestDecompositionParams = new RequestDecompositionAgent.Params(finalSystemRequest + "\n" + request, finalProjectContext + "\n" + ticketContext.toText(), null, expertParams.getRequestDecompositionChunkProcessing() ? chunksContext : null);
             RequestDecompositionAgent.Result structuredRequest = requestDecompositionAgent.run(requestDecompositionParams);
@@ -250,6 +261,7 @@ public class Expert extends AbstractJob<ExpertParams> {
         saveAndAttachStats(ticketKey, response, trackerSearchOrchestrator);
         return response;
     }
+
 
 
 }
