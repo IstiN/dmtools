@@ -67,7 +67,7 @@ public class BasicJiraClient extends JiraClient<Ticket> {
     private static BasicJiraClient instance;
     private final String[] defaultJiraFields;
     private final String[] extendedJiraFields;
-
+    private final String[] customCodesOfConfigFields;
 
     public static TrackerClient<? extends ITicket> getInstance() throws IOException {
         if (instance == null) {
@@ -94,9 +94,15 @@ public class BasicJiraClient extends JiraClient<Ticket> {
         defaultFields.addAll(Arrays.asList(DEFAULT_QUERY_FIELDS));
 
         if (JIRA_EXTRA_FIELDS_PROJECT != null && JIRA_EXTRA_FIELDS != null) {
-            for (String extraField : JIRA_EXTRA_FIELDS) {
-                defaultFields.add(getFieldCustomCode(JIRA_EXTRA_FIELDS_PROJECT, extraField));
+            customCodesOfConfigFields = new String[JIRA_EXTRA_FIELDS.length];
+            for (int i = 0; i < JIRA_EXTRA_FIELDS.length; i++) {
+                String extraField = JIRA_EXTRA_FIELDS[i];
+                String fieldCustomCode = getFieldCustomCode(JIRA_EXTRA_FIELDS_PROJECT, extraField);
+                customCodesOfConfigFields[i] = fieldCustomCode;
+                defaultFields.add(fieldCustomCode);
             }
+        } else {
+            customCodesOfConfigFields = null;
         }
 
         defaultJiraFields = defaultFields.toArray(new String[0]);
@@ -108,6 +114,28 @@ public class BasicJiraClient extends JiraClient<Ticket> {
         extendedJiraFields = extendedFields.toArray(new String[0]);
     }
 
+
+    @Override
+    public String getTextFieldsOnly(ITicket ticket) {
+        StringBuilder ticketDescription = null;
+        try {
+            ticketDescription = new StringBuilder(ticket.getTicketTitle());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        ticketDescription.append("\n").append(ticket.getTicketDescription());
+        if (customCodesOfConfigFields != null) {
+            for (String customField : customCodesOfConfigFields) {
+                if (customField != null) {
+                    String value = ticket.getFields().getString(customField);
+                    if (value != null) {
+                        ticketDescription.append("\n").append(value);
+                    }
+                }
+            }
+        }
+        return ticketDescription.toString();
+    }
 
     @Override
     public void deleteCommentIfExists(String ticketKey, String comment) throws IOException {

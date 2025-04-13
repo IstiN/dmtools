@@ -18,6 +18,8 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
 
     String tag(String initiator);
 
+    String getTextFieldsOnly(ITicket ticket);
+
     enum TextType {
         HTML, MARKDOWN
     }

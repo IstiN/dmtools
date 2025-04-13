@@ -29,6 +29,11 @@ public class JiraClientTest {
         mockClient = mock(OkHttpClient.class);
         jiraClient = new JiraClient<Ticket>("http://example.com", "auth") {
             @Override
+            public String getTextFieldsOnly(ITicket ticket) {
+                return ticket.getTicketDescription();
+            }
+
+            @Override
             public String[] getDefaultQueryFields() {
                 return new String[0];
             }
