@@ -111,6 +111,6 @@ public class Params {
     private OutputType outputType = OutputType.comment;
 
     @SerializedName(OPERATION_TYPE)
-    private OperationType operationType = OperationType.Replace;
+    private OperationType operationType = OperationType.Append;
 
 }
