@@ -87,39 +87,43 @@ public class ContextOrchestrator {
         }
 
         if (depth != 0 && !(object instanceof File) && uriToObjectList != null) {
-            for (UriToObject processor : uriToObjectList) {
-                Set<String> uris = processor.parseUris(String.valueOf(object));
-                if (!uris.isEmpty()) {
-                    // Create futures for parallel URI object resolution
-                    List<Future<ObjectUriPair>> futures = new ArrayList<>();
+            processUrisInContent(object, uriToObjectList, depth);
+        }
+        return false;
+    }
 
-                    for (String uri : uris) {
-                        futures.add(executorService.submit(() -> {
-                            try {
-                                Object resolvedObj = processor.uriToObject(uri);
-                                return new ObjectUriPair(uri, resolvedObj);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                                return new ObjectUriPair(uri, null);
-                            }
-                        }));
-                    }
+    public void processUrisInContent(Object object, List<? extends UriToObject> uriToObjectList, int depth) throws Exception {
+        for (UriToObject processor : uriToObjectList) {
+            Set<String> uris = processor.parseUris(String.valueOf(object));
+            if (!uris.isEmpty()) {
+                // Create futures for parallel URI object resolution
+                List<Future<ObjectUriPair>> futures = new ArrayList<>();
 
-                    // Process results sequentially
-                    for (Future<ObjectUriPair> future : futures) {
+                for (String uri : uris) {
+                    futures.add(executorService.submit(() -> {
                         try {
-                            ObjectUriPair pair = future.get(30, TimeUnit.SECONDS);
-                            if (pair.object != null) {
-                                processFullContent(pair.uri, pair.object, processor, uriToObjectList, depth - 1);
-                            }
+                            Object resolvedObj = processor.uriToObject(uri);
+                            return new ObjectUriPair(uri, resolvedObj);
                         } catch (Exception e) {
                             e.printStackTrace();
+                            return new ObjectUriPair(uri, null);
                         }
+                    }));
+                }
+
+                // Process results sequentially
+                for (Future<ObjectUriPair> future : futures) {
+                    try {
+                        ObjectUriPair pair = future.get(30, TimeUnit.SECONDS);
+                        if (pair.object != null) {
+                            processFullContent(pair.uri, pair.object, processor, uriToObjectList, depth - 1);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
             }
         }
-        return false;
     }
 
     // Helper class to keep uri and object together

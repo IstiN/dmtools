@@ -127,11 +127,9 @@ public class Expert extends AbstractJob<ExpertParams> {
             ticketContext.prepareContext(true);
             List<? extends IAttachment> attachments = ticket.getAttachments();
             contextOrchestrator.processFullContent(ticket.getKey(), ticketContext.toText(), (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
-            if (attachments != null && !attachments.isEmpty()) {
-                for (IAttachment attachment : attachments) {
-                    contextOrchestrator.processFullContent(attachment.getUrl(), ((UriToObject) trackerClient).uriToObject(attachment.getUrl()), (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
-                }
-            }
+            String textFieldsOnly = trackerClient.getTextFieldsOnly(ticket);
+            contextOrchestrator.processUrisInContent(textFieldsOnly, uriProcessingSources, 1);
+            contextOrchestrator.processUrisInContent(attachments, uriProcessingSources, 1);
             List<ChunkPreparation.Chunk> chunksContext = contextOrchestrator.summarize();
             RequestDecompositionAgent.Params requestDecompositionParams = new RequestDecompositionAgent.Params(finalSystemRequest + "\n" + request, finalProjectContext + "\n" + ticketContext.toText(), null, expertParams.getRequestDecompositionChunkProcessing() ? chunksContext : null);
             RequestDecompositionAgent.Result structuredRequest = requestDecompositionAgent.run(requestDecompositionParams);
