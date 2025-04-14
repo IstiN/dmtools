@@ -6,6 +6,8 @@ import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.ba.BusinessAnalyticDORGeneration;
 import com.github.istin.dmtools.ba.RequirementsCollector;
 import com.github.istin.dmtools.ba.UserStoryGenerator;
+import com.github.istin.dmtools.codereview.CodeReviewAgent;
+import com.github.istin.dmtools.codereview.GuidelinesAgent;
 import com.github.istin.dmtools.dev.CodeGenerator;
 import com.github.istin.dmtools.dev.CommitsTriage;
 import com.github.istin.dmtools.dev.UnitTestsGenerator;
@@ -48,7 +50,9 @@ public class JobRunner {
             new SourceCodeCommitTrackerSyncJob(),
             new UserStoryGenerator(),
             new UnitTestsGenerator(),
-            new CommitsTriage()
+            new CommitsTriage(),
+            new CodeReviewAgent(),
+            new GuidelinesAgent()
     );
 
     public static void main(String[] args) throws Exception {
