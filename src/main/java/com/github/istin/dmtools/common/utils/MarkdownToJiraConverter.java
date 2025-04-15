@@ -306,6 +306,9 @@ public class MarkdownToJiraConverter {
                 // If inside a code block, preserve the original line content
                 codeBuf.append(line).append("\n");
             } else {
+                // Process images in the line
+                line = processImages(line);
+
                 if (trimmedLine.isEmpty()) {
                     // If the line is empty, flush the paragraph buffer
                     if (!paragraph.isEmpty()) {
@@ -317,7 +320,7 @@ public class MarkdownToJiraConverter {
                     if (!paragraph.isEmpty()) {
                         paragraph.append("\n");
                     }
-                    paragraph.append(line); // Use the original line content for paragraphs
+                    paragraph.append(line); // Use the processed line content for paragraphs
                 }
             }
         }
@@ -331,7 +334,46 @@ public class MarkdownToJiraConverter {
         return String.join("\n\n", blocks).trim();
     }
 
+    /**
+     * Converts Markdown image syntax to Jira image syntax
+     * ![alt](url) -> !url!
+     * ![alt|attributes] -> !attributes!
+     */
+    /**
+     * Converts Markdown image syntax to Jira image syntax
+     * ![alt](url) -> !url!
+     * ![alt|attributes] -> !attributes!
+     */
+    private static final Pattern IMAGE_PATTERN = Pattern.compile("!\\[(.*?)\\|([^\\]]+)\\]");
+
+    /**
+     * Converts Markdown image syntax to Jira image syntax
+     * ![image-name|attributes] -> !image-name|attributes!
+     */
+    private static String processImages(String text) {
+        if (text == null || !text.contains("![")) {
+            return text;
+        }
+
+        Matcher imageMatcher = IMAGE_PATTERN.matcher(text);
+        StringBuffer sb = new StringBuffer();
+
+        while (imageMatcher.find()) {
+            // Format: ![image-name|attributes]
+            String imageName = imageMatcher.group(1);
+            String attributes = imageMatcher.group(2);
+            String replacement = "!" + imageName + "|" + attributes + "!";
+            imageMatcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+
+        imageMatcher.appendTail(sb);
+        return sb.toString();
+    }
+
     private static String processTextParagraph(String text) {
+        // First process images
+        text = processImages(text);
+
         String[] lines = text.split("\n");
         List<String> output = new ArrayList<>();
 
