@@ -9,6 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Add JSON Editor dependencies -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.0/jsoneditor.min.css" rel="stylesheet" type="text/css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.0/jsoneditor.min.js"></script>
+
     <style>
         <#include "styles.css">
     </style>
@@ -20,6 +24,26 @@
     
     <div class="print-button">
         <button id="print-slides">Print Slides</button>
+    </div>
+
+    <!-- Add JSON Editor container -->
+    <div id="editor-overlay" class="editor-overlay">
+        <div class="editor-container">
+            <div class="editor-header">
+                <h3>Edit Slide</h3>
+                <button id="close-editor">×</button>
+            </div>
+            <div id="jsoneditor"></div>
+            <div class="editor-ai-section">
+                <div class="ai-input-container">
+                    <input type="text" id="ai-prompt" placeholder="Ask AI to help with this slide (e.g., 'Improve the title')">
+                    <button id="ask-ai-button">Ask AI</button>
+                </div>
+            </div>
+            <div class="editor-footer">
+                <button id="save-slide">Save Changes</button>
+            </div>
+        </div>
     </div>
 
     <div class="container">

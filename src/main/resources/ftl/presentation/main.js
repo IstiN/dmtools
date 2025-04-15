@@ -54,9 +54,17 @@ themeToggle.addEventListener('click', function() {
     if (document.body.classList.contains('dark-theme')) {
         themeToggle.textContent = 'Switch to Light Theme';
         updateAllCharts(true);
+        // Update editor theme if editor is open
+        if (jsonEditor) {
+            updateEditorTheme();
+        }
     } else {
         themeToggle.textContent = 'Switch to Dark Theme';
         updateAllCharts(false);
+        // Update editor theme if editor is open
+        if (jsonEditor) {
+            updateEditorTheme();
+        }
     }
 });
 
@@ -116,10 +124,187 @@ function updateAllCharts(isDark) {
     });
 }
 
-// Create a single slide based on type
+// JSON Editor variables
+let jsonEditor = null;
+let currentEditingSlideIndex = -1;
+
+// Initialize JSON Editor
+function initJsonEditor() {
+    const container = document.getElementById('jsoneditor');
+    const options = {
+        mode: 'tree',
+        modes: ['tree', 'view', 'form', 'code', 'text'],
+        onError: function(err) {
+            alert('JSON Error: ' + err.toString());
+        },
+        onModeChange: function(newMode, oldMode) {
+            // Adjust height for different modes
+            if (newMode === 'code' || newMode === 'text') {
+                container.style.height = '100%';
+            }
+        }
+    };
+
+    jsonEditor = new JSONEditor(container, options);
+}
+
+// Show editor with slide data and animation
+// Show editor with slide data and animation
+function showEditor(slideIndex) {
+    const editorOverlay = document.getElementById('editor-overlay');
+    currentEditingSlideIndex = slideIndex;
+
+    // Set the editor content
+    jsonEditor.set(presentationData.slides[slideIndex]);
+
+    // Clear the AI prompt input
+    document.getElementById('ai-prompt').value = '';
+
+    // Show the editor with animation
+    editorOverlay.style.display = 'flex';
+    editorOverlay.style.opacity = '0';
+
+    // Force reflow to ensure animation works
+    void editorOverlay.offsetWidth;
+
+    // Fade in
+    editorOverlay.style.opacity = '1';
+
+    // Apply theme to editor
+    updateEditorTheme();
+}
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // If editor is open
+    if (document.getElementById('editor-overlay').style.display === 'flex') {
+        // Escape key closes the editor
+        if (e.key === 'Escape') {
+            closeEditor();
+        }
+
+        // Ctrl+Enter or Cmd+Enter to save changes
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            saveSlideChanges();
+        }
+
+        // Alt+A to trigger Ask AI
+        if (e.altKey && e.key === 'a') {
+            askAI();
+        }
+    }
+});
+
+// Cycle through AI prompt suggestions
+function setupAIPromptPlaceholders() {
+    const promptInput = document.getElementById('ai-prompt');
+    const suggestions = [
+        "Improve the title of this slide",
+        "Make the content more engaging",
+        "Suggest better colors for the chart",
+        "Simplify the language in this slide",
+        "Add a compelling conclusion",
+        "Make this slide more visually appealing",
+        "Suggest data points to highlight",
+        "Rewrite this in a more professional tone",
+        "Add relevant bullet points to this slide"
+    ];
+
+    let currentIndex = 0;
+
+    // Change placeholder every 5 seconds
+    setInterval(() => {
+        promptInput.setAttribute('placeholder', suggestions[currentIndex]);
+        currentIndex = (currentIndex + 1) % suggestions.length;
+    }, 5000);
+}
+
+
+// Close the editor with animation
+function closeEditor() {
+    const editorOverlay = document.getElementById('editor-overlay');
+
+    // Fade out
+    editorOverlay.style.opacity = '0';
+
+    // Hide after animation completes
+    setTimeout(() => {
+        editorOverlay.style.display = 'none';
+        currentEditingSlideIndex = -1;
+    }, 300);
+}
+
+// Update editor theme based on current page theme
+function updateEditorTheme() {
+    if (document.body.classList.contains('dark-theme')) {
+        document.querySelector('.jsoneditor').classList.add('jsoneditor-dark');
+    } else {
+        document.querySelector('.jsoneditor').classList.remove('jsoneditor-dark');
+    }
+}
+
+// Save changes from editor
+function saveSlideChanges() {
+    try {
+        // Get the edited JSON
+        const updatedSlideData = jsonEditor.get();
+
+        // Update the presentation data
+        presentationData.slides[currentEditingSlideIndex] = updatedSlideData;
+
+        // Regenerate the presentation
+        generatePresentation(presentationData);
+
+        // Close the editor
+        closeEditor();
+
+        // Show success message
+        showNotification('Slide updated successfully!');
+    } catch (err) {
+        alert('Error saving changes: ' + err.toString());
+    }
+}
+
+// Show notification
+function showNotification(message) {
+    // Create notification element if it doesn't exist
+    let notification = document.getElementById('notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'notification';
+        notification.className = 'notification';
+        document.body.appendChild(notification);
+    }
+
+    // Set message and show
+    notification.textContent = message;
+    notification.classList.add('show');
+
+    // Hide after 3 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
+// Modify createSlide function to add edit button
+// Modify createSlide function to add edit button with SVG icon
 function createSlide(slideData, index) {
     const slideDiv = document.createElement('div');
     slideDiv.className = `slide ${slideData.type}-slide`;
+
+    // Add edit button with SVG icon
+    const editButton = document.createElement('button');
+    editButton.className = 'edit-button';
+    editButton.title = 'Edit slide';
+    editButton.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+        </svg>
+    `;
+    editButton.onclick = function(e) {
+        e.stopPropagation();
+        showEditor(index);
+    };
 
     let slideContent = '';
 
@@ -149,7 +334,132 @@ function createSlide(slideData, index) {
     }
 
     slideDiv.innerHTML = slideContent;
+    slideDiv.appendChild(editButton);
     return slideDiv;
+}
+
+// Initialize the editor and AI functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the JSON editor
+    initJsonEditor();
+
+    // Close editor button
+    document.getElementById('close-editor').addEventListener('click', closeEditor);
+
+    // Save slide button
+    document.getElementById('save-slide').addEventListener('click', saveSlideChanges);
+
+    // Ask AI button
+    document.getElementById('ask-ai-button').addEventListener('click', askAI);
+
+    // Close editor when clicking outside
+    document.getElementById('editor-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeEditor();
+        }
+    });
+
+    // Add notification styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: var(--accent-color);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1100;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            min-width: 300px;
+            justify-content: center;
+        }
+
+        .notification.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .notification::before {
+            content: "✓";
+            margin-right: 10px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Update editor theme when page theme changes
+    themeToggle.addEventListener('click', function() {
+        if (jsonEditor) {
+            setTimeout(updateEditorTheme, 100);
+        }
+    });
+
+    setupAIPromptPlaceholders();
+});
+
+// Ask AI function
+function askAI() {
+    // Get the current slide data from the editor
+    const slideData = jsonEditor.get();
+
+    // Get the prompt from the input field
+    const promptInput = document.getElementById('ai-prompt');
+    const prompt = promptInput.value.trim();
+
+    if (!prompt) {
+        alert("Please enter a prompt for the AI.");
+        return;
+    }
+
+    // Create the data to send to AI
+    const aiRequestData = {
+        slideData: slideData,
+        prompt: prompt
+    };
+
+    // For now, just show an alert with the data
+    alert("AI Request:\n\nPrompt: " + prompt + "\n\nSlide Data: " + JSON.stringify(slideData, null, 2));
+
+    // Clear the input field
+    promptInput.value = '';
+
+    // In a real implementation, you would send this to your backend
+    // sendToAIService(aiRequestData);
+}
+
+// Example of how you might implement the AI service call
+function sendToAIService(data) {
+    // This is a placeholder for the actual implementation
+    // You would use fetch or another method to call your backend
+
+    fetch('/api/ai/assist', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        // Handle the AI response
+        if (result.updatedSlide) {
+            // Update the editor with the AI's suggestions
+            jsonEditor.set(result.updatedSlide);
+            showNotification("AI suggestions applied!");
+        }
+    })
+    .catch(error => {
+        console.error('Error calling AI service:', error);
+        alert('Error calling AI service. Please try again.');
+    });
 }
 
 // Create title slide
@@ -539,4 +849,32 @@ window.addEventListener('beforeprint', function() {
 window.addEventListener('afterprint', function() {
     restoreAfterPrint();
 });
+
+// Show notification
+function showNotification(message) {
+    // Create notification element if it doesn't exist
+    let notification = document.getElementById('notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'notification';
+        notification.className = 'notification';
+        document.body.appendChild(notification);
+    }
+
+    // Set message and show
+    notification.textContent = message;
+    notification.classList.add('show');
+
+    // Hide after 3 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+
+        // Remove from DOM after animation completes
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 400);
+    }, 3000);
+}
 </#noparse>

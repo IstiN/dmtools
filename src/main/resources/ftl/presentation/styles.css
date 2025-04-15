@@ -27,6 +27,21 @@
     --code-color: #3a0ca3;
     --blockquote-bg: #f8f9fa;
     --blockquote-border: #4361ee;
+    --editor-bg: #ffffff;
+    --editor-text: #212529;
+    --editor-border: #dee2e6;
+    --editor-nav-bg: #f8f9fa;
+    --editor-menu-bg: #4361ee;
+    --editor-menu-text: #ffffff;
+    --editor-highlight: rgba(67, 97, 238, 0.1);
+    --editor-active-field: #f5f7ff;
+    --editor-error: #f72585;
+    --editor-section-bg: rgba(0, 0, 0, 0.02);
+    --editor-input-bg: #ffffff;
+    --editor-input-border: #dee2e6;
+    --editor-input-focus: #4361ee;
+    --editor-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    --editor-overlay-bg: rgba(0, 0, 0, 0.6);
 }
 
 .dark-theme {
@@ -57,6 +72,21 @@
     --code-color: #90cdf4;
     --blockquote-bg: #2d3748;
     --blockquote-border: #4cc9f0;
+    --editor-bg: #1e1e1e;
+    --editor-text: #e9ecef;
+    --editor-border: #495057;
+    --editor-nav-bg: #2d2d2d;
+    --editor-menu-bg: #4cc9f0;
+    --editor-menu-text: #ffffff;
+    --editor-highlight: rgba(76, 201, 240, 0.1);
+    --editor-active-field: #2d3748;
+    --editor-error: #f72585;
+    --editor-section-bg: rgba(255, 255, 255, 0.02);
+    --editor-input-bg: #2d2d2d;
+    --editor-input-border: #495057;
+    --editor-input-focus: #4cc9f0;
+    --editor-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    --editor-overlay-bg: rgba(0, 0, 0, 0.75);
 }
 
 * {
@@ -613,5 +643,537 @@ button:hover {
     .pie-chart-wrapper {
         max-height: 350px;
     }
+}
+
+/* JSON Editor styles - FIXED */
+.editor-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--editor-overlay-bg);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(3px);
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.editor-container {
+    width: 85%;
+    max-width: 1000px;
+    height: 85%;
+    background-color: var(--slide-bg);
+    border-radius: 12px;
+    box-shadow: var(--editor-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeIn 0.3s ease;
+    border: 1px solid var(--editor-border);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--editor-border);
+    background-color: var(--slide-bg);
+    border-radius: 12px 12px 0 0;
+}
+
+.dark-theme .editor-header {
+    background-color: var(--slide-bg);
+}
+
+.editor-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    color: var(--header-color);
+}
+
+.editor-header button {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: var(--text-color);
+    padding: 0 5px;
+    transition: all 0.2s ease;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.editor-header button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    transform: scale(1.1);
+}
+
+.dark-theme .editor-header button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#jsoneditor {
+    flex: 1;
+    min-height: 0; /* Important for flex child to respect container size */
+    overflow: hidden;
+}
+
+/* Fix for JSONEditor styling in both themes */
+.jsoneditor {
+    border: 1px solid var(--editor-border) !important;
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-menu {
+    background-color: var(--editor-menu-bg) !important;
+    border-bottom: 1px solid var(--editor-border) !important;
+}
+
+.jsoneditor-menu a {
+    color: var(--editor-menu-text) !important;
+}
+
+.jsoneditor-navigation-bar {
+    background-color: var(--editor-nav-bg) !important;
+    border-bottom: 1px solid var(--editor-border) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-tree {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-field, .jsoneditor-value {
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-readonly {
+    color: var(--text-muted) !important;
+}
+
+.jsoneditor-selected {
+    background-color: var(--editor-highlight) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-highlight {
+    background-color: var(--editor-highlight) !important;
+}
+
+.jsoneditor-separator {
+    color: var(--text-muted) !important;
+}
+
+.jsoneditor-field.jsoneditor-highlight,
+.jsoneditor-value.jsoneditor-highlight {
+    background-color: var(--editor-highlight) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-search input {
+    background-color: var(--editor-input-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-input-border) !important;
+}
+
+.jsoneditor-search input:focus {
+    border-color: var(--editor-input-focus) !important;
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2) !important;
+}
+
+.jsoneditor-frame {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-border) !important;
+}
+
+.jsoneditor-statusbar {
+    background-color: var(--editor-nav-bg) !important;
+    border-top: 1px solid var(--editor-border) !important;
+    color: var(--text-secondary) !important;
+}
+
+.jsoneditor-text {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-text textarea {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-contextmenu {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-border) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.jsoneditor-contextmenu ul li button {
+    background-color: transparent !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-contextmenu ul li button:hover,
+.jsoneditor-contextmenu ul li button:focus {
+    background-color: var(--editor-highlight) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-modal {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-border) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.jsoneditor-modal input,
+.jsoneditor-modal select,
+.jsoneditor-modal textarea {
+    background-color: var(--editor-input-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-input-border) !important;
+}
+
+.jsoneditor-modal input:focus,
+.jsoneditor-modal select:focus,
+.jsoneditor-modal textarea:focus {
+    border-color: var(--editor-input-focus) !important;
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2) !important;
+}
+
+.jsoneditor-modal .pico-close {
+    color: var(--editor-text) !important;
+}
+
+/* Fix for code mode */
+.ace-jsoneditor {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.ace-jsoneditor .ace_gutter {
+    background-color: var(--editor-nav-bg) !important;
+    color: var(--text-secondary) !important;
+}
+
+.ace-jsoneditor .ace_marker-layer .ace_active-line {
+    background-color: var(--editor-highlight) !important;
+}
+
+.ace-jsoneditor .ace_cursor {
+    color: var(--editor-text) !important;
+}
+
+.ace-jsoneditor .ace_string {
+    color: var(--success-color) !important;
+}
+
+.ace-jsoneditor .ace_constant.ace_numeric {
+    color: var(--accent-color) !important;
+}
+
+.ace-jsoneditor .ace_constant.ace_boolean {
+    color: var(--warning-color) !important;
+}
+
+.ace-jsoneditor .ace_variable {
+    color: var(--editor-text) !important;
+}
+
+/* Editor footer and AI section */
+.editor-footer {
+    padding: 15px 24px;
+    border-top: 1px solid var(--editor-border);
+    text-align: right;
+    background-color: var(--editor-section-bg);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.editor-footer button {
+    padding: 12px 24px;
+    font-weight: 600;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.editor-footer button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* AI section styling */
+.editor-ai-section {
+    padding: 15px 24px;
+    border-top: 1px solid var(--editor-border);
+    background-color: var(--editor-section-bg);
+}
+
+.ai-input-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#ai-prompt {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid var(--editor-input-border);
+    border-radius: 6px;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 14px;
+    background-color: var(--editor-input-bg);
+    color: var(--editor-text);
+    transition: all 0.2s ease;
+    height: 44px;
+}
+
+#ai-prompt:focus {
+    outline: none;
+    border-color: var(--editor-input-focus);
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2);
+}
+
+#ask-ai-button {
+    padding: 10px 20px;
+    background-color: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+}
+
+#ask-ai-button::before {
+    content: "✨";
+    font-size: 16px;
+}
+
+#ask-ai-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Edit button styling */
+.edit-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    padding: 0;
+}
+
+.slide:hover .edit-button {
+    opacity: 0.85;
+}
+
+.edit-button:hover {
+    opacity: 1 !important;
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.edit-button svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+/* Add a subtle animation for the edit button */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.edit-button:focus {
+    outline: none;
+    animation: pulse 1s infinite;
+}
+
+/* Notification styling */
+.notification {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background-color: var(--accent-color);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 1100;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    min-width: 300px;
+    justify-content: center;
+}
+
+.notification.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.notification::before {
+    content: "✓";
+    margin-right: 10px;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+/* Hide edit buttons when printing */
+@media print {
+    .edit-button, .editor-overlay {
+        display: none !important;
+    }
+}
+
+/* Fix for Save Changes button */
+#save-slide {
+    background-color: var(--accent-color);
+    color: white;
+    font-weight: 600;
+}
+
+#save-slide:hover {
+    background-color: var(--accent-dark);
+}
+
+#close-editor {
+    color: var(--text-color);
+    background: none;
+    box-shadow: none;
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+#close-editor:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    transform: scale(1.1);
+}
+
+.dark-theme #close-editor:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Improved selection highlighting for JSON editor in dark theme */
+.dark-theme .jsoneditor-selected,
+.dark-theme .jsoneditor-highlight,
+.dark-theme .jsoneditor-field.jsoneditor-highlight,
+.dark-theme .jsoneditor-value.jsoneditor-highlight {
+    background-color: rgba(76, 201, 240, 0.3) !important; /* Brighter blue with higher opacity */
+    color: #ffffff !important; /* White text for better contrast */
+    border-radius: 3px;
+}
+
+/* Improve text input highlighting in dark theme */
+.dark-theme .jsoneditor input {
+    background-color: rgba(76, 201, 240, 0.2) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(76, 201, 240, 0.5) !important;
+}
+
+.dark-theme .jsoneditor input:focus {
+    background-color: rgba(76, 201, 240, 0.3) !important;
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.3) !important;
+}
+
+/* Improve active field highlighting */
+.dark-theme .jsoneditor-field.jsoneditor-highlight-active,
+.dark-theme .jsoneditor-field[contenteditable=true]:focus,
+.dark-theme .jsoneditor-field[contenteditable=true]:hover,
+.dark-theme .jsoneditor-value.jsoneditor-highlight-active,
+.dark-theme .jsoneditor-value[contenteditable=true]:focus,
+.dark-theme .jsoneditor-value[contenteditable=true]:hover {
+    background-color: rgba(76, 201, 240, 0.4) !important;
+    border-radius: 3px;
+    color: #ffffff !important;
+}
+
+/* Improve the text input field in dark mode */
+.dark-theme .jsoneditor-field,
+.dark-theme .jsoneditor-value {
+    border: 1px solid transparent;
+}
+
+.dark-theme .jsoneditor-field:hover,
+.dark-theme .jsoneditor-value:hover {
+    border-color: rgba(76, 201, 240, 0.3) !important;
+    background-color: rgba(76, 201, 240, 0.1) !important;
+}
+
+/* Make the currently edited value more visible */
+.dark-theme .jsoneditor-value.jsoneditor-string {
+    color: #4cc9f0 !important; /* Light blue for string values */
+}
+
+.dark-theme .jsoneditor-value.jsoneditor-number {
+    color: #f72585 !important; /* Pink for number values */
+}
+
+.dark-theme .jsoneditor-value.jsoneditor-boolean {
+    color: #4361ee !important; /* Blue for boolean values */
+}
+
+.dark-theme .jsoneditor-value.jsoneditor-null {
+    color: #adb5bd !important; /* Gray for null values */
+}
+
+/* Improve the search highlight */
+.dark-theme mark.jsoneditor-highlight {
+    background-color: rgba(247, 37, 133, 0.4) !important; /* Warning color for search highlights */
+    color: #ffffff !important;
+    border-radius: 2px;
 }
 </#noparse>
