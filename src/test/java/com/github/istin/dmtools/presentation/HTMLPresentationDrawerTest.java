@@ -109,6 +109,35 @@ public class HTMLPresentationDrawerTest {
         //result.delete();
     }
 
+    @Test
+    public void testPrintPresentationWithMermaidDiagrams() throws TemplateException, IOException {
+        // Arrange
+        String topic = "MermaidTest";
+        JSONObject presentation = createMermaidPresentation();
+
+        // Act
+        File result = htmlPresentationDrawer.printPresentation(topic, presentation);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.exists());
+        assertEquals(topic + "_presentation.html", result.getName());
+
+        // Verify file content contains expected elements from different mermaid slide types
+        String content = new String(Files.readAllBytes(result.toPath()));
+
+        // Verify markers for each diagram type
+        assertTrue("File should contain flowchart", content.contains("graph LR"));
+        assertTrue("File should contain sequence diagram", content.contains("sequenceDiagram"));
+        assertTrue("File should contain class diagram", content.contains("classDiagram"));
+        assertTrue("File should contain state diagram", content.contains("stateDiagram-v2"));
+        assertTrue("File should contain user journey diagram", content.contains("journey"));
+        assertTrue("File should contain complex flowchart", content.contains("subgraph Process")); // Marker for complex flowchart
+
+        // Clean up
+        // result.delete(); // Keep the file for visual inspection
+    }
+
     private JSONObject createSamplePresentation() {
         // Create a basic sample presentation JSON structure
         JSONObject presentation = new JSONObject();
@@ -413,6 +442,90 @@ public class HTMLPresentationDrawerTest {
         mermaidSlide.put("diagramCode", diagramCode);
         mermaidSlide.put("description", mermaidDescription);
         slides.put(mermaidSlide);
+
+        presentation.put("slides", slides);
+        return presentation;
+    }
+
+    private JSONObject createMermaidPresentation() {
+        JSONObject presentation = new JSONObject();
+        presentation.put("title", "Mermaid Diagrams Showcase (Simplified)");
+
+        JSONArray slides = new JSONArray();
+
+        // 1. Flowchart (Simple - Wider) - Keep as is, seemed ok
+        JSONObject flowchartSlide = new JSONObject();
+        flowchartSlide.put("type", "mermaid");
+        flowchartSlide.put("title", "Simple Flowchart (Wider)");
+        flowchartSlide.put("diagramCode", "graph LR\n    A[Start] --> B(Process 1); \n    B --> C{Decision 1?}; \n    C -->|Yes| D[SubProcess Y1]; \n    D --> D1[Result Y1]; \n    D --> D2{Decision 2?}; \n    D2 -->|Y| D2Y[End Y2]; \n    D2 -->|N| D2N[End Alt]; \n    C -->|No| E[Process 2]; \n    E --> F((Result N)); \n    D1 --> G[Final End]; \n    D2Y --> G; \n    D2N --> G; \n    F --> G;\n    B --> H(Parallel Task); \n    H --> G;" );
+        slides.put(flowchartSlide);
+
+        // 2. Sequence Diagram (Simplified)
+        JSONObject sequenceSlide = new JSONObject();
+        sequenceSlide.put("type", "mermaid");
+        sequenceSlide.put("title", "Sequence Diagram (Simplified)");
+        sequenceSlide.put("diagramCode", "sequenceDiagram\n    participant LB as LoadBalancer\n    participant User\n    participant WebServer\n    participant ApiService\n    participant Database\n    User->>LB: Request Page\n    LB->>WebServer: Forward Request\n    WebServer->>ApiService: GetData(UserID)\n    ApiService->>Database: Query(UserID)\n    Database-->>ApiService: UserData\n    ApiService-->>WebServer: FormattedData\n    WebServer-->>User: Render Page (HTML)");
+        slides.put(sequenceSlide);
+
+        // 3. Class Diagram (Simplified)
+        JSONObject classSlide = new JSONObject();
+        classSlide.put("type", "mermaid");
+        classSlide.put("title", "Class Diagram (Simplified)");
+        classSlide.put("diagramCode", "classDiagram\n    direction LR\n    class Vehicle {\n        +String registrationNumber\n        +start()\n        +stop()\n    }\n    class Car {\n        +int numberOfDoors\n        +openTrunk()\n    }\n    class Truck {\n        +float cargoCapacity\n        +loadCargo()\n    }\n    class Engine {\n        +int horsepower\n        +accelerate()\n    }\n    Vehicle <|-- Car\n    Vehicle <|-- Truck\n    Vehicle --> \"1\" Engine : hasA");
+        slides.put(classSlide);
+
+        // 4. State Diagram (More Horizontal Internals) - Keep as is, seemed ok
+        JSONObject stateSlide = new JSONObject();
+        stateSlide.put("type", "mermaid");
+        stateSlide.put("title", "State Diagram (More Horizontal Internals)");
+        stateSlide.put("diagramCode", "stateDiagram-v2\n    direction LR\n    [*] --> Idle\n    state Processing {\n        direction LR \n        FetchingData --> Analyzing : Data Ready\n        Analyzing --> GeneratingReport : Analysis Complete\n        GeneratingReport --> Done\n    }\n    Idle --> Processing : Start Request\n    Processing --> Idle : Cancelled / Completed\n    Processing.Done --> Idle\n    state Verification {\n        direction LR\n        Pending --> Checking : Start Check\n        Checking --> Verified : Check OK\n        Checking --> Failed : Check Failed\n    }\n    Idle --> Verification : Needs Check\n    Verification --> Idle : Process Done");
+        slides.put(stateSlide);
+
+        // 7. User Journey (Expanded) - Keep as is, seemed ok
+        JSONObject journeySlide = new JSONObject();
+        journeySlide.put("type", "mermaid");
+        journeySlide.put("title", "User Journey (Expanded)");
+        journeySlide.put("diagramCode", "journey\n    title My working day\n    section Morning Prep\n      Wake up: 1: Me\n      Make tea: 5: Me\n      Check email: 3: Me\n    section Commute & Work\n      Go upstairs: 3: Me\n      Team meeting: 2: Me, Colleagues\n      Do work: 1: Me, Cat\n      Lunch break: 4: Me\n    section Evening\n      Go downstairs: 5: Me\n      Cook dinner: 4: Me\n      Sit down: 3: Me\n      Watch TV: 2: Me, Cat");
+        slides.put(journeySlide);
+
+        // 8. Flowchart (Complex - Wider Distribution) - Keep as is, seemed ok
+         JSONObject complexFlowchartSlide = new JSONObject();
+         complexFlowchartSlide.put("type", "mermaid");
+         complexFlowchartSlide.put("title", "Complex Flowchart (Wider Distribution)");
+         complexFlowchartSlide.put("diagramCode",
+             "graph LR\n" +
+             "    StartInput[External Trigger]-->Input\n" +
+             "    subgraph Input\n" +
+             "        direction LR\n" +
+             "        a1[Data Source 1]\n" +
+             "        a2[Data Source 2]\n" +
+             "        a3(Validate Input)\n" +
+             "        a1 --> a3\n" +
+             "        a2 --> a3\n" +
+             "    end\n" +
+             "    subgraph Process\n" +
+             "        direction LR\n" +
+             "        b1{Combine Data}\n" +
+             "        b2(Analyze Patterns)\n" +
+             "        b3((Generate Report))\n" +
+             "        b1 --> b2 --> b3\n" +
+             "    end\n" +
+             "    subgraph Output\n" +
+             "       direction LR\n" +
+             "       d1[Display Dashboard]\n" +
+             "       d2>Save Results]\n" +
+             "       d3{Archive?}\n" +
+             "       d2 --> d3\n" +
+             "    end\n" +
+             "    Output --> FinalStep[Notify User]\n" +
+             "    Input -- Validated Data --> Process\n" +
+             "    Process -- Report Data --> Output\n" +
+             "    a3 --> b1\n" +
+             "    b3 --> d1\n" +
+             "    b3 --> d2"
+         );
+         slides.put(complexFlowchartSlide);
+
 
         presentation.put("slides", slides);
         return presentation;
