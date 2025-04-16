@@ -200,4 +200,31 @@ public class StringUtils {
             return input;
         }
     }
+
+    /**
+     * Removes URLs from text
+     */
+    public static String removeUrls(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+
+        // Regex pattern to match URLs
+        String urlPattern = "\\b(https?|ftp)://\\S+|\\bwww\\.\\S+";
+        return input.replaceAll(urlPattern, "");
+    }
+
+    /**
+     * Cleans and formats text for markdown tables
+     */
+    public static String cleanTextForMarkdown(String text) {
+        if (text == null) {
+            return "";
+        }
+
+        return text.replaceAll("[\\r\\n]", " ")
+                .replaceAll("\\|", "\\\\|")  // Escape pipe characters
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
 }

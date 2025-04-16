@@ -1176,4 +1176,120 @@ button:hover {
     color: #ffffff !important;
     border-radius: 2px;
 }
+
+/* Mermaid diagram styling */
+.mermaid-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    padding: 10px;
+    background-color: var(--slide-bg);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+}
+
+.mermaid svg {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Ensure mermaid diagrams are visible in print */
+@media print {
+    .mermaid-container {
+        min-height: 300px;
+        max-height: 400px;
+    }
+
+    .mermaid svg {
+        max-height: 350px;
+    }
+}
+
+/* Fix for mermaid dark theme */
+.dark-theme .mermaid-container {
+    background-color: var(--slide-bg);
+}
+
+/* PDF generation styles */
+.generating-pdf .slide {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 0;
+    height: auto !important;
+    padding-bottom: 0 !important;
+}
+
+.generating-pdf .edit-button {
+    display: none !important;
+}
+
+/* Improve button styling */
+#print-slides {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#print-slides::before {
+    content: "📄";
+    font-size: 16px;
+}
+
+#print-slides:disabled {
+    background-color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* PDF loading overlay */
+.pdf-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    display: none;
+}
+
+.pdf-loading-overlay.active {
+    display: flex;
+}
+
+.pdf-loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--accent-color);
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 20px;
+}
+
+.pdf-loading-text {
+    color: white;
+    font-size: 18px;
+    font-family: 'Montserrat', sans-serif;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
 </#noparse>

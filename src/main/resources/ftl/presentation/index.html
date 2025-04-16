@@ -12,6 +12,11 @@
     <!-- Add JSON Editor dependencies -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.0/jsoneditor.min.css" rel="stylesheet" type="text/css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.0/jsoneditor.min.js"></script>
+    <!-- Add Mermaid library -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <!-- Add PDF generation libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
         <#include "styles.css">
@@ -21,9 +26,9 @@
     <div class="theme-switch">
         <button id="theme-toggle">Switch to Dark Theme</button>
     </div>
-    
+
     <div class="print-button">
-        <button id="print-slides">Print Slides</button>
+        <button id="print-slides">Download PDF</button>
     </div>
 
     <!-- Add JSON Editor container -->
@@ -52,6 +57,11 @@
         <div id="slides-container">
             <!-- Slides will be generated here -->
         </div>
+    </div>
+
+    <div id="pdf-loading-overlay" class="pdf-loading-overlay">
+        <div class="pdf-loading-spinner"></div>
+        <div class="pdf-loading-text">Generating PDF...</div>
     </div>
 
     <script>

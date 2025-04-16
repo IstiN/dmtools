@@ -66,28 +66,142 @@ themeToggle.addEventListener('click', function() {
             updateEditorTheme();
         }
     }
+    // Reinitialize mermaid diagrams with new theme
+    initializeMermaidDiagrams();
 });
 
-// Print button functionality
+// PDF generation and download functionality
 document.getElementById('print-slides').addEventListener('click', function() {
-    // Prepare for printing
-    prepareForPrint();
+    // Show loading overlay
+    const loadingOverlay = document.getElementById('pdf-loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.classList.add('active');
+    }
 
-    // Open print dialog
-    window.print();
+    // Change button text to show processing
+    const printButton = document.getElementById('print-slides');
+    const originalButtonText = printButton.textContent;
+    printButton.textContent = 'Generating PDF...';
+    printButton.disabled = true;
 
-    // Restore after print dialog closes
-    setTimeout(function() {
-        restoreAfterPrint();
-    }, 1000);
+    // Force light theme for PDF generation
+    const wasInDarkMode = document.body.classList.contains('dark-theme');
+    if (wasInDarkMode) {
+        document.body.classList.remove('dark-theme');
+        updateAllCharts(false);
+    }
+
+    // Prepare mermaid diagrams and then generate PDF
+    prepareMermaidDiagrams().then(() => {
+        // Get all slides
+        const slides = document.querySelectorAll('.slide');
+
+        // Create PDF with landscape orientation
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        // Hide edit buttons during PDF generation
+        document.querySelectorAll('.edit-button').forEach(button => {
+            button.style.display = 'none';
+        });
+
+        // Function to process each slide
+        const processSlide = function(index) {
+            if (index >= slides.length) {
+                // All slides processed, download PDF
+                pdf.save('presentation.pdf');
+
+                // Restore theme if needed
+                if (wasInDarkMode) {
+                    document.body.classList.add('dark-theme');
+                    updateAllCharts(true);
+                    initializeMermaidDiagrams();
+                }
+
+                // Show edit buttons again
+                document.querySelectorAll('.edit-button').forEach(button => {
+                    button.style.display = '';
+                });
+
+                // Restore button
+                printButton.textContent = originalButtonText;
+                printButton.disabled = false;
+
+                // Hide loading overlay
+                if (loadingOverlay) {
+                    loadingOverlay.classList.remove('active');
+                }
+
+                return;
+            }
+
+            const slide = slides[index];
+
+            // Capture the slide as an image
+            html2canvas(slide, {
+                scale: 2, // Higher resolution
+                useCORS: true, // Allow cross-origin images
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                logging: false
+            }).then(function(canvas) {
+                // Calculate dimensions to fit the slide properly on the PDF page
+                const imgData = canvas.toDataURL('image/png');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+
+                const imgWidth = pageWidth - 20; // 10mm margin on each side
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                // Add new page if not the first slide
+                if (index > 0) {
+                    pdf.addPage();
+                }
+
+                // Add the image centered on the page
+                pdf.addImage(
+                    imgData,
+                    'PNG',
+                    10, // x position (10mm from left)
+                    (pageHeight - imgHeight) / 2, // y position (centered vertically)
+                    imgWidth,
+                    imgHeight
+                );
+
+                // Process next slide
+                setTimeout(function() {
+                    processSlide(index + 1);
+                }, 200);
+
+            }).catch(function(error) {
+                console.error('Error generating PDF for slide', index, error);
+
+                // Continue with next slide even if there's an error
+                setTimeout(function() {
+                    processSlide(index + 1);
+                }, 200);
+            });
+        };
+
+        // Start processing slides
+        processSlide(0);
+    });
 });
 
+// Add this to your prepareForPrint function
+// Prepare for printing - keep as synchronous function
 function prepareForPrint() {
     // Force light theme for printing
     const wasInDarkMode = document.body.classList.contains('dark-theme');
     if (wasInDarkMode) {
         document.body.classList.remove('dark-theme');
         updateAllCharts(false);
+        // Reinitialize mermaid diagrams with light theme
+        initializeMermaidDiagrams();
     }
     document.body.setAttribute('data-was-dark', wasInDarkMode);
 
@@ -96,6 +210,16 @@ function prepareForPrint() {
         const chart = charts[chartId];
         chart.resize();
     });
+
+    // Give mermaid diagrams time to render properly before printing
+    setTimeout(() => {
+        window.print();
+
+        // Restore after print dialog closes
+        setTimeout(function() {
+            restoreAfterPrint();
+        }, 1000);
+    }, 500);
 }
 
 function restoreAfterPrint() {
@@ -104,6 +228,8 @@ function restoreAfterPrint() {
     if (wasInDarkMode) {
         document.body.classList.add('dark-theme');
         updateAllCharts(true);
+        // Reinitialize mermaid diagrams with dark theme
+        initializeMermaidDiagrams();
     }
 }
 
@@ -286,11 +412,10 @@ function showNotification(message) {
     }, 3000);
 }
 
-// Modify createSlide function to add edit button
-// Modify createSlide function to add edit button with SVG icon
 function createSlide(slideData, index) {
     const slideDiv = document.createElement('div');
     slideDiv.className = `slide ${slideData.type}-slide`;
+    slideDiv.id = `slide-${index}`;
 
     // Add edit button with SVG icon
     const editButton = document.createElement('button');
@@ -326,6 +451,9 @@ function createSlide(slideData, index) {
             break;
         case 'image':
             slideContent = createImageSlide(slideData);
+            break;
+        case 'mermaid':
+            slideContent = createMermaidSlide(slideData);
             break;
         default:
             slideContent = `<div class="slide-content-wrapper">
@@ -832,6 +960,7 @@ function generatePresentation(data) {
     // Initialize charts after DOM is updated
     setTimeout(() => {
         initializeCharts();
+        initializeMermaidDiagrams();
     }, 100);
 }
 
@@ -876,5 +1005,81 @@ function showNotification(message) {
             }
         }, 400);
     }, 3000);
+}
+
+// Create mermaid diagram slide
+function createMermaidSlide(data) {
+    const diagramId = `mermaid-diagram-${Math.random().toString(36).substring(2, 11)}`;
+
+    return `
+        <div class="slide-content-wrapper">
+            <div class="slide-header">
+                <div class="slide-title">${escapeHtml(data.title)}</div>
+                ${data.subtitle ? `<div class="slide-subtitle">${escapeHtml(data.subtitle)}</div>` : ''}
+            </div>
+
+            ${data.description ? createDescriptionBlock(data.description) : ''}
+
+            <div class="slide-content">
+                <div class="mermaid-container">
+                    <div class="mermaid" id="${diagramId}">
+                        ${data.diagramCode || ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Initialize mermaid diagrams
+function initializeMermaidDiagrams() {
+    // Configure mermaid based on current theme
+    const isDark = document.body.classList.contains('dark-theme');
+
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: isDark ? 'dark' : 'default',
+        securityLevel: 'loose',
+        fontFamily: "'Open Sans', sans-serif",
+        fontSize: 14,
+        flowchart: {
+            htmlLabels: true,
+            curve: 'basis'
+        },
+        themeVariables: isDark ? {
+            primaryColor: '#4cc9f0',
+            primaryTextColor: '#e9ecef',
+            primaryBorderColor: '#4cc9f0',
+            lineColor: '#adb5bd',
+            secondaryColor: '#3a0ca3',
+            tertiaryColor: '#2d3748'
+        } : {
+            primaryColor: '#4361ee',
+            primaryTextColor: '#212529',
+            primaryBorderColor: '#4361ee',
+            lineColor: '#495057',
+            secondaryColor: '#4895ef',
+            tertiaryColor: '#f5f7ff'
+        }
+    });
+
+    // Render all mermaid diagrams
+    mermaid.run();
+}
+
+function prepareMermaidDiagrams() {
+    // Force re-render of all mermaid diagrams
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose'
+    });
+
+    // Return a promise that resolves when diagrams are rendered
+    return new Promise(resolve => {
+        mermaid.run().then(() => {
+            setTimeout(resolve, 300);
+        });
+    });
 }
 </#noparse>
