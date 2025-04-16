@@ -99,6 +99,12 @@ public class HTMLPresentationDrawerTest {
         assertTrue("File should contain image caption",
                 content.contains("System architecture diagram"));
 
+        // Add this to your testPrintPresentationWithAllSlideTypes method
+        // Mermaid diagram slide elements
+        assertTrue("File should contain mermaid diagram slide",
+                content.contains("User Flow Diagram"));
+        assertTrue("File should contain mermaid diagram code",
+                content.contains("graph LR"));
         // Clean up
         //result.delete();
     }
@@ -377,6 +383,36 @@ public class HTMLPresentationDrawerTest {
         conclusionSlide.put("description", conclusionDescription);
         conclusionSlide.put("content", "## Thank You\n\n* Questions?\n* Comments?\n* Feedback?");
         slides.put(conclusionSlide);
+
+        // Add this to your createComprehensivePresentation method
+// 8. Mermaid diagram slide
+        JSONObject mermaidSlide = new JSONObject();
+        mermaidSlide.put("type", "mermaid");
+        mermaidSlide.put("title", "User Flow Diagram");
+        mermaidSlide.put("subtitle", "Mobile App Navigation");
+
+        JSONObject mermaidDescription = new JSONObject();
+        mermaidDescription.put("title", "Flow Visualization");
+        mermaidDescription.put("text", "User journey through the application");
+
+        JSONArray mermaidBullets = new JSONArray();
+        mermaidBullets.put("Login flow");
+        mermaidBullets.put("Main navigation paths");
+        mermaidDescription.put("bullets", mermaidBullets);
+
+// Sample flowchart diagram code
+        String diagramCode = "graph LR\n" +
+                "    A[Start] --> B{Login?}\n" +
+                "    B -->|Yes| C[Dashboard]\n" +
+                "    B -->|No| D[Registration]\n" +
+                "    D --> B\n" +
+                "    C --> E[Profile]\n" +
+                "    C --> F[Settings]\n" +
+                "    C --> G[Logout]";
+
+        mermaidSlide.put("diagramCode", diagramCode);
+        mermaidSlide.put("description", mermaidDescription);
+        slides.put(mermaidSlide);
 
         presentation.put("slides", slides);
         return presentation;
