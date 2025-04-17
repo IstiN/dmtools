@@ -35,14 +35,14 @@ public class TableFactory {
             case TASKS_AND_STORIES:
                 return new TasksAndStoriesTableGenerator(baseTableGenerator);
             case TIMELINE:
-                return new TimelineTableGenerator(baseTableGenerator);
+                return new TimelineTableGenerator(baseTableGenerator, ticketSorter);
             default:
                 throw new IllegalArgumentException("Unknown table type: " + type);
         }
     }
 
     public TimelineTableGenerator createTimelineTableGenerator() {
-        return new TimelineTableGenerator(baseTableGenerator);
+        return new TimelineTableGenerator(baseTableGenerator, ticketSorter);
     }
 
     public SummaryTableGenerator createSummaryTableGenerator() {

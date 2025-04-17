@@ -25,7 +25,7 @@ public class ProjectReportFacade {
     }
 
     public String generateSummaryReport(String jql, Calendar startDate) throws Exception {
-        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate);
+        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate,false);
         ticketSorter.sortTickets(tickets);
 
         StringBuilder report = new StringBuilder();
@@ -67,7 +67,7 @@ public class ProjectReportFacade {
     }
 
     public String generateCustomReport(String jql, Calendar startDate, List<TableType> tableTypes) throws Exception {
-        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate);
+        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate, false);
         ticketSorter.sortTickets(tickets);
 
         StringBuilder report = new StringBuilder();
@@ -122,7 +122,7 @@ public class ProjectReportFacade {
     }
 
     public String generateBugReport(String jql, Calendar startDate) throws Exception {
-        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate);
+        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate, false);
         Map<Boolean, List<ITicket>> splitTickets = dataFetcher.splitTicketsByType(tickets);
         List<ITicket> bugs = splitTickets.get(true);
 
@@ -141,7 +141,7 @@ public class ProjectReportFacade {
     }
 
     public String generateRoleBasedReport(String jql, Calendar startDate) throws Exception {
-        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate);
+        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate, false);
         ticketSorter.sortTickets(tickets);
 
         StringBuilder report = new StringBuilder();
@@ -153,7 +153,7 @@ public class ProjectReportFacade {
     }
 
     public String generateTimelineReport(String jql, Calendar startDate, TimelinePeriod period) throws Exception {
-        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate);
+        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate, false);
         ticketSorter.sortTickets(tickets);
 
         StringBuilder report = new StringBuilder();
@@ -175,7 +175,7 @@ public class ProjectReportFacade {
      * @return A formatted report with label analysis
      */
     public String generateLabelAnalysisReport(String jql, Calendar startDate, TimelinePeriod period, List<String> focusLabels) throws Exception {
-        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate);
+        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate, false);
         ticketSorter.sortTickets(tickets);
 
         LabelAnalysisGenerator labelAnalysisGenerator = tableFactory.createLabelAnalysisGenerator();

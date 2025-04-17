@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.report.projectstatus.presentation.tables;
 
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.report.projectstatus.data.TicketSorter;
 import com.github.istin.dmtools.report.projectstatus.data.TicketStatisticsCalculator;
 import com.github.istin.dmtools.report.projectstatus.model.TableData;
 import com.github.istin.dmtools.report.projectstatus.model.TimelinePeriod;
@@ -10,12 +11,15 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.io.IOException;
 
 public class TimelineTableGenerator implements TableGenerator {
     private final TableGenerator baseTableGenerator;
+    private final TicketSorter ticketSorter;
 
-    public TimelineTableGenerator(TableGenerator baseTableGenerator) {
+    public TimelineTableGenerator(TableGenerator baseTableGenerator, TicketSorter ticketSorter) {
         this.baseTableGenerator = baseTableGenerator;
+        this.ticketSorter = ticketSorter;
     }
 
     @Override
@@ -65,6 +69,8 @@ public class TimelineTableGenerator implements TableGenerator {
                 .filter(type -> !bugTypes.contains(type))
                 .collect(Collectors.toList());
 
+        boolean onlyBugs = featureTypes.isEmpty() && !bugTypes.isEmpty(); // Check if only bugs are present
+
         StringBuilder result = new StringBuilder();
 
         // Generate the main timeline table
@@ -76,13 +82,89 @@ public class TimelineTableGenerator implements TableGenerator {
 
         // Generate the averages summary
         result.append("\n");
-        result.append(generateAveragesSummary(ticketsByPeriodAndType, sortedPeriods, bugTypes, featureTypes, period));
+        result.append(generateAveragesSummary(ticketsByPeriodAndType, sortedPeriods, bugTypes, featureTypes, period, onlyBugs));
 
         // Generate the dual-column chart
         result.append("\n");
-        result.append(generateDualColumnChart(ticketsByPeriodAndType, sortedPeriods, bugTypes, period));
+        result.append(generateDualColumnChart(ticketsByPeriodAndType, sortedPeriods, bugTypes, period, onlyBugs));
 
         return result.toString();
+    }
+
+    /**
+     * Generates a timeline table showing bugs created over time, grouped by priority.
+     *
+     * @param bugs   The list of bug tickets to analyze.
+     * @param period The time period to group by (WEEK, TWO_WEEKS, MONTH, QUARTER).
+     * @return A formatted table showing created bugs over time by priority.
+     */
+    public String generateTimelineByCreationAndPriority(List<ITicket> bugs, TimelinePeriod period) {
+        // Group bugs by time period (creation date) and priority
+        Map<String, Map<String, List<ITicket>>> bugsByPeriodAndPriority = groupBugsByCreationPeriodAndPriority(bugs, period);
+
+        // Get sorted list of periods
+        List<String> sortedPeriods = new ArrayList<>(bugsByPeriodAndPriority.keySet());
+        Collections.sort(sortedPeriods);
+
+        // Get all unique priorities across all periods
+        Set<String> allPriorities = new TreeSet<>(Comparator.nullsLast(Comparator.naturalOrder())); // Handle potential null priorities
+        for (Map<String, List<ITicket>> priorityMap : bugsByPeriodAndPriority.values()) {
+            allPriorities.addAll(priorityMap.keySet());
+        }
+        List<String> sortedPriorities = new ArrayList<>(allPriorities);
+        // TODO: Consider using TicketSorter to sort priorities if a specific order is needed
+
+        // Create table headers
+        List<String> headers = new ArrayList<>();
+        headers.add("Creation Period");
+        headers.addAll(sortedPriorities.stream().map(p -> p != null ? p : "No Priority").collect(Collectors.toList())); // Use "No Priority" for null
+        headers.add("Total Created");
+
+        TableData tableData = new TableData(
+                "Created Bugs Timeline by Priority (" + period.getDescription() + ")",
+                headers,
+                "Shows the number of bugs created over time periods, grouped by priority."
+        );
+
+        // Add data rows
+        Map<String, Integer> priorityTotals = new HashMap<>();
+        int grandTotal = 0;
+
+        for (String periodKey : sortedPeriods) {
+            Map<String, List<ITicket>> priorityMap = bugsByPeriodAndPriority.get(periodKey);
+            List<String> row = new ArrayList<>();
+            row.add(periodKey);
+
+            int periodTotal = 0;
+
+            // Add counts for each priority
+            for (String priority : sortedPriorities) {
+                int count = priorityMap.getOrDefault(priority, Collections.emptyList()).size();
+                row.add(String.valueOf(count));
+                periodTotal += count;
+
+                // Update priority totals
+                priorityTotals.put(priority, priorityTotals.getOrDefault(priority, 0) + count);
+            }
+
+            row.add(String.valueOf(periodTotal));
+            tableData.addRow(row);
+
+            // Update grand total
+            grandTotal += periodTotal;
+        }
+
+        // Add totals row
+        List<String> totalsRow = new ArrayList<>();
+        totalsRow.add("**Total**");
+
+        for (String priority : sortedPriorities) {
+            totalsRow.add(String.valueOf(priorityTotals.getOrDefault(priority, 0)));
+        }
+        totalsRow.add(String.valueOf(grandTotal));
+        tableData.addRow(totalsRow);
+
+        return baseTableGenerator.generateTable(tableData);
     }
 
     /**
@@ -236,7 +318,7 @@ public class TimelineTableGenerator implements TableGenerator {
      */
     private String generateAveragesSummary(Map<String, Map<String, List<ITicket>>> ticketsByPeriodAndType,
                                            List<String> sortedPeriods, List<String> bugTypes, List<String> featureTypes,
-                                           TimelinePeriod period) {
+                                           TimelinePeriod period, boolean onlyBugs) {
         StringBuilder summary = new StringBuilder();
         summary.append("## Average Metrics per ").append(period.getDescription()).append(" Period\n\n");
 
@@ -269,135 +351,174 @@ public class TimelineTableGenerator implements TableGenerator {
 
         int periodCount = sortedPeriods.size();
         if (periodCount > 0) {
-            // Create a table for the averages
-            List<String> headers = Arrays.asList(
-                    "Metric", "Total", "Average per " + period.getDescription(), "% of Total Work"
-            );
+            if (onlyBugs) {
+                // Simplified summary for bugs only
+                List<String> headers = Arrays.asList(
+                        "Metric", "Total", "Average per " + period.getDescription()
+                );
+                TableData tableData = new TableData("Bug Metrics Averages", headers);
 
-            TableData tableData = new TableData("Work Distribution Averages", headers);
+                double avgBugsPerPeriod = (double) totalBugs / periodCount;
+                tableData.addRow(Arrays.asList(
+                        "Bugs Completed",
+                        String.valueOf(totalBugs),
+                        String.format("%.1f", avgBugsPerPeriod)
+                ));
 
-            // Bug metrics
-            double avgBugsPerPeriod = (double) totalBugs / periodCount;
-            double bugPercentage = totalBugs * 100.0 / (totalBugs + totalFeatures);
-            List<String> bugRow = Arrays.asList(
-                    "Bugs Fixed",
-                    String.valueOf(totalBugs),
-                    String.format("%.1f", avgBugsPerPeriod),
-                    String.format("%.1f%%", bugPercentage)
-            );
-            tableData.addRow(bugRow);
+                double avgBugPointsPerPeriod = totalBugPoints / periodCount;
+                tableData.addRow(Arrays.asList(
+                        "Bug Story Points",
+                        String.format("%.1f", totalBugPoints),
+                        String.format("%.1f", avgBugPointsPerPeriod)
+                ));
 
-            // Feature work metrics
-            double avgFeaturesPerPeriod = (double) totalFeatures / periodCount;
-            double featureWorkPercentage = totalFeatures * 100.0 / (totalBugs + totalFeatures);
-            List<String> featureWorkRow = Arrays.asList(
-                    "Feature Work (" + String.join(", ", featureTypes) + ")",
-                    String.valueOf(totalFeatures),
-                    String.format("%.1f", avgFeaturesPerPeriod),
-                    String.format("%.1f%%", featureWorkPercentage)
-            );
-            tableData.addRow(featureWorkRow);
+                summary.append(baseTableGenerator.generateTable(tableData));
 
-            // Add individual feature type rows
-            for (String featureType : featureTypes) {
-                int typeTotal = 0;
-                for (Map<String, List<ITicket>> typeMap : ticketsByPeriodAndType.values()) {
-                    typeTotal += typeMap.getOrDefault(featureType, Collections.emptyList()).size();
+                // Simplified Key Insights
+                summary.append("### Key Insights\n\n");
+                summary.append("- **Average Bug Velocity**: ")
+                        .append(String.format("%.1f", avgBugsPerPeriod))
+                        .append(" bugs / ")
+                        .append(String.format("%.1f", avgBugPointsPerPeriod))
+                        .append(" SPs per ")
+                        .append(period.getDescription().toLowerCase())
+                        .append("\n");
+                double avgPointsPerBug = totalBugs > 0 ? totalBugPoints / totalBugs : 0;
+                summary.append("- **Average Points per Bug**: ")
+                        .append(String.format("%.2f", avgPointsPerBug))
+                        .append("\n");
+
+            } else {
+                // Create a table for the averages
+                List<String> headers = Arrays.asList(
+                        "Metric", "Total", "Average per " + period.getDescription(), "% of Total Work"
+                );
+
+                TableData tableData = new TableData("Work Distribution Averages", headers);
+
+                // Bug metrics
+                double avgBugsPerPeriod = (double) totalBugs / periodCount;
+                double bugPercentage = totalBugs * 100.0 / (totalBugs + totalFeatures);
+                List<String> bugRow = Arrays.asList(
+                        "Bugs Fixed",
+                        String.valueOf(totalBugs),
+                        String.format("%.1f", avgBugsPerPeriod),
+                        String.format("%.1f%%", bugPercentage)
+                );
+                tableData.addRow(bugRow);
+
+                // Feature work metrics
+                double avgFeaturesPerPeriod = (double) totalFeatures / periodCount;
+                double featureWorkPercentage = totalFeatures * 100.0 / (totalBugs + totalFeatures);
+                List<String> featureWorkRow = Arrays.asList(
+                        "Feature Work (" + String.join(", ", featureTypes) + ")",
+                        String.valueOf(totalFeatures),
+                        String.format("%.1f", avgFeaturesPerPeriod),
+                        String.format("%.1f%%", featureWorkPercentage)
+                );
+                tableData.addRow(featureWorkRow);
+
+                // Add individual feature type rows
+                for (String featureType : featureTypes) {
+                    int typeTotal = 0;
+                    for (Map<String, List<ITicket>> typeMap : ticketsByPeriodAndType.values()) {
+                        typeTotal += typeMap.getOrDefault(featureType, Collections.emptyList()).size();
+                    }
+
+                    double avgPerPeriod = (double) typeTotal / periodCount;
+                    double percentage = typeTotal * 100.0 / (totalBugs + totalFeatures);
+
+                    List<String> typeRow = Arrays.asList(
+                            featureType + " Completed",
+                            String.valueOf(typeTotal),
+                            String.format("%.1f", avgPerPeriod),
+                            String.format("%.1f%%", percentage)
+                    );
+                    tableData.addRow(typeRow);
                 }
 
-                double avgPerPeriod = (double) typeTotal / periodCount;
-                double percentage = typeTotal * 100.0 / (totalBugs + totalFeatures);
-
-                List<String> typeRow = Arrays.asList(
-                        featureType + " Completed",
-                        String.valueOf(typeTotal),
-                        String.format("%.1f", avgPerPeriod),
-                        String.format("%.1f%%", percentage)
+                // Total items
+                int totalItems = totalBugs + totalFeatures;
+                double avgItemsPerPeriod = (double) totalItems / periodCount;
+                List<String> totalItemsRow = Arrays.asList(
+                        "Total Items Completed",
+                        String.valueOf(totalItems),
+                        String.format("%.1f", avgItemsPerPeriod),
+                        "100.0%"
                 );
-                tableData.addRow(typeRow);
+                tableData.addRow(totalItemsRow);
+
+                // Story points metrics
+                double avgPointsPerPeriod = totalStoryPoints / periodCount;
+                List<String> pointsRow = Arrays.asList(
+                        "Total Story Points",
+                        String.format("%.1f", totalStoryPoints),
+                        String.format("%.1f", avgPointsPerPeriod),
+                        "100.0%"
+                );
+                tableData.addRow(pointsRow);
+
+                // Bug points vs Feature points
+                double bugPointsPercentage = totalBugPoints * 100.0 / totalStoryPoints;
+                List<String> bugPointsRow = Arrays.asList(
+                        "Bug Story Points",
+                        String.format("%.1f", totalBugPoints),
+                        String.format("%.1f", totalBugPoints / periodCount),
+                        String.format("%.1f%%", bugPointsPercentage)
+                );
+                tableData.addRow(bugPointsRow);
+
+                double featurePointsPercentage = totalFeaturePoints * 100.0 / totalStoryPoints;
+                List<String> featurePointsRow = Arrays.asList(
+                        "Feature Story Points",
+                        String.format("%.1f", totalFeaturePoints),
+                        String.format("%.1f", totalFeaturePoints / periodCount),
+                        String.format("%.1f%%", featurePointsPercentage)
+                );
+                tableData.addRow(featurePointsRow);
+
+                summary.append(baseTableGenerator.generateTable(tableData));
+
+                // Add key insights
+                summary.append("### Key Insights\n\n");
+
+                // Bug to feature work ratio
+                double bugToFeatureRatio = totalBugs > 0 && totalFeatures > 0 ?
+                        (double) totalBugs / totalFeatures : 0;
+                summary.append("- **Bug to Feature Work Ratio**: ")
+                        .append(String.format("%.2f", bugToFeatureRatio))
+                        .append(" bugs per feature work item\n");
+
+                // Average velocity
+                summary.append("- **Average Velocity**: ")
+                        .append(String.format("%.1f", avgPointsPerPeriod))
+                        .append(" story points per ")
+                        .append(period.getDescription().toLowerCase())
+                        .append("\n");
+
+                // Bug work percentage
+                summary.append("- **Bug Work**: ")
+                        .append(String.format("%.1f%%", bugPercentage))
+                        .append(" of total items, ")
+                        .append(String.format("%.1f%%", bugPointsPercentage))
+                        .append(" of total story points\n");
+
+                // Feature work percentage
+                summary.append("- **Feature Work**: ")
+                        .append(String.format("%.1f%%", featureWorkPercentage))
+                        .append(" of total items, ")
+                        .append(String.format("%.1f%%", featurePointsPercentage))
+                        .append(" of total story points\n");
+
+                // Average story points per item type
+                double avgPointsPerBug = totalBugs > 0 ? totalBugPoints / totalBugs : 0;
+                double avgPointsPerFeature = totalFeatures > 0 ? totalFeaturePoints / totalFeatures : 0;
+                summary.append("- **Average Points**: ")
+                        .append(String.format("%.2f", avgPointsPerBug))
+                        .append(" per bug, ")
+                        .append(String.format("%.2f", avgPointsPerFeature))
+                        .append(" per feature work item\n");
             }
-
-            // Total items
-            int totalItems = totalBugs + totalFeatures;
-            double avgItemsPerPeriod = (double) totalItems / periodCount;
-            List<String> totalItemsRow = Arrays.asList(
-                    "Total Items Completed",
-                    String.valueOf(totalItems),
-                    String.format("%.1f", avgItemsPerPeriod),
-                    "100.0%"
-            );
-            tableData.addRow(totalItemsRow);
-
-            // Story points metrics
-            double avgPointsPerPeriod = totalStoryPoints / periodCount;
-            List<String> pointsRow = Arrays.asList(
-                    "Total Story Points",
-                    String.format("%.1f", totalStoryPoints),
-                    String.format("%.1f", avgPointsPerPeriod),
-                    "100.0%"
-            );
-            tableData.addRow(pointsRow);
-
-            // Bug points vs Feature points
-            double bugPointsPercentage = totalBugPoints * 100.0 / totalStoryPoints;
-            List<String> bugPointsRow = Arrays.asList(
-                    "Bug Story Points",
-                    String.format("%.1f", totalBugPoints),
-                    String.format("%.1f", totalBugPoints / periodCount),
-                    String.format("%.1f%%", bugPointsPercentage)
-            );
-            tableData.addRow(bugPointsRow);
-
-            double featurePointsPercentage = totalFeaturePoints * 100.0 / totalStoryPoints;
-            List<String> featurePointsRow = Arrays.asList(
-                    "Feature Story Points",
-                    String.format("%.1f", totalFeaturePoints),
-                    String.format("%.1f", totalFeaturePoints / periodCount),
-                    String.format("%.1f%%", featurePointsPercentage)
-            );
-            tableData.addRow(featurePointsRow);
-
-            summary.append(baseTableGenerator.generateTable(tableData));
-
-            // Add key insights
-            summary.append("### Key Insights\n\n");
-
-            // Bug to feature work ratio
-            double bugToFeatureRatio = totalBugs > 0 && totalFeatures > 0 ?
-                    (double) totalBugs / totalFeatures : 0;
-            summary.append("- **Bug to Feature Work Ratio**: ")
-                    .append(String.format("%.2f", bugToFeatureRatio))
-                    .append(" bugs per feature work item\n");
-
-            // Average velocity
-            summary.append("- **Average Velocity**: ")
-                    .append(String.format("%.1f", avgPointsPerPeriod))
-                    .append(" story points per ")
-                    .append(period.getDescription().toLowerCase())
-                    .append("\n");
-
-            // Bug work percentage
-            summary.append("- **Bug Work**: ")
-                    .append(String.format("%.1f%%", bugPercentage))
-                    .append(" of total items, ")
-                    .append(String.format("%.1f%%", bugPointsPercentage))
-                    .append(" of total story points\n");
-
-            // Feature work percentage
-            summary.append("- **Feature Work**: ")
-                    .append(String.format("%.1f%%", featureWorkPercentage))
-                    .append(" of total items, ")
-                    .append(String.format("%.1f%%", featurePointsPercentage))
-                    .append(" of total story points\n");
-
-            // Average story points per item type
-            double avgPointsPerBug = totalBugs > 0 ? totalBugPoints / totalBugs : 0;
-            double avgPointsPerFeature = totalFeatures > 0 ? totalFeaturePoints / totalFeatures : 0;
-            summary.append("- **Average Points**: ")
-                    .append(String.format("%.2f", avgPointsPerBug))
-                    .append(" per bug, ")
-                    .append(String.format("%.2f", avgPointsPerFeature))
-                    .append(" per feature work item\n");
         }
 
         return summary.toString();
@@ -407,9 +528,11 @@ public class TimelineTableGenerator implements TableGenerator {
      * Generates a dual-column chart showing bug count and story points over time
      */
     private String generateDualColumnChart(Map<String, Map<String, List<ITicket>>> ticketsByPeriodAndType,
-                                           List<String> sortedPeriods, List<String> bugTypes, TimelinePeriod period) {
+                                           List<String> sortedPeriods, List<String> bugTypes, TimelinePeriod period,
+                                           boolean onlyBugs) {
         StringBuilder chart = new StringBuilder();
-        chart.append("## Bug Count vs Story Points (" + period.getDescription() + ")\n\n");
+        String pointsLabel = onlyBugs ? "Bug Story Points" : "Total Story Points";
+        chart.append("## Bug Count vs ").append(pointsLabel).append(" (").append(period.getDescription()).append(")\n\n");
         chart.append("```\n");
 
         // Calculate bug counts and story points for each period
@@ -428,8 +551,13 @@ public class TimelineTableGenerator implements TableGenerator {
                 bugCount += typeMap.getOrDefault(bugType, Collections.emptyList()).size();
             }
 
-            // Calculate total story points for this period
-            double storyPoints = calculateTotalStoryPoints(typeMap);
+            // Calculate story points for this period (total or bugs only)
+            double storyPoints;
+            if (onlyBugs) {
+                storyPoints = calculateStoryPointsForSpecificTypes(typeMap, bugTypes);
+            } else {
+                storyPoints = calculateTotalStoryPoints(typeMap);
+            }
 
             bugCounts.add(bugCount);
             storyPointsValues.add(storyPoints);
@@ -527,8 +655,8 @@ public class TimelineTableGenerator implements TableGenerator {
             chart.append("Note: No bugs were found in this time period.\n");
         }
 
-        chart.append("Legend: █ = Bug Count   ▓ = Story Points\n");
-        chart.append("Left axis: Bug Count   Right axis: Story Points\n");
+        chart.append("Legend: █ = Bug Count   ▓ = ").append(pointsLabel).append("\n");
+        chart.append("Left axis: Bug Count   Right axis: ").append(pointsLabel).append("\n");
         chart.append("```\n\n");
 
         return chart.toString();
@@ -554,6 +682,17 @@ public class TimelineTableGenerator implements TableGenerator {
             points += ticket.getWeight();
         }
         return points;
+    }
+
+    /**
+     * Calculates total story points for specific issue types within a type map
+     */
+    private double calculateStoryPointsForSpecificTypes(Map<String, List<ITicket>> typeMap, List<String> targetTypes) {
+        double totalPoints = 0;
+        for (String type : targetTypes) {
+            totalPoints += calculateStoryPointsForType(typeMap.getOrDefault(type, Collections.emptyList()));
+        }
+        return totalPoints;
     }
 
     /**
@@ -590,6 +729,36 @@ public class TimelineTableGenerator implements TableGenerator {
         }
 
         return result;
+    }
+
+    /**
+     * Groups bug tickets based on their creation date and priority.
+     */
+    private Map<String, Map<String, List<ITicket>>> groupBugsByCreationPeriodAndPriority(List<ITicket> bugs, TimelinePeriod period) {
+        Map<String, Map<String, List<ITicket>>> groupedBugs = new LinkedHashMap<>(); // Use LinkedHashMap to maintain insertion order for periods
+
+        for (ITicket bug : bugs) {
+            Date creationDate = bug.getCreated(); // Use creation date
+            if (creationDate == null) {
+                System.err.println("Warning: Bug " + bug.getKey() + " has no creation date, skipping for timeline.");
+                continue; // Skip tickets without a creation date
+            }
+
+            String periodKey = formatDateToPeriod(creationDate, period);
+            String priority = null;
+            try {
+                priority = bug.getPriority(); // Use priority
+            } catch (IOException e) {
+                System.err.println("Warning: Could not get priority for bug " + bug.getKey() + ": " + e.getMessage());
+                // Assign a default or handle as needed, here we use null
+            }
+
+            groupedBugs
+                .computeIfAbsent(periodKey, k -> new HashMap<>())
+                .computeIfAbsent(priority, k -> new ArrayList<>())
+                .add(bug);
+        }
+        return groupedBugs;
     }
 
     /**
@@ -659,5 +828,135 @@ public class TimelineTableGenerator implements TableGenerator {
                 int day = cal.get(Calendar.DAY_OF_MONTH);
                 return String.format("%d-%02d-%02d", year, monthDefault, day);
         }
+    }
+
+    /**
+     * Generates a timeline table showing items created over time, grouped by a specific category field.
+     *
+     * @param items           The list of tickets (items) to analyze.
+     * @param period          The time period to group by (WEEK, TWO_WEEKS, MONTH, QUARTER).
+     * @param categoryFieldName The name of the field to use for categorization (e.g., "priority", "status").
+     * @param categoryDisplayName The display name for the category (e.g., "Priority", "Status").
+     * @return A formatted table showing created items over time by the specified category.
+     */
+    public String generateTimelineByCreationAndCategory(List<ITicket> items, TimelinePeriod period, String categoryFieldName, String categoryDisplayName) {
+        // Group items by time period (creation date) and category field
+        Map<String, Map<String, List<ITicket>>> itemsByPeriodAndCategory = groupItemsByCreationPeriodAndCategory(items, period, categoryFieldName);
+
+        // Get sorted list of periods
+        List<String> sortedPeriods = new ArrayList<>(itemsByPeriodAndCategory.keySet());
+        Collections.sort(sortedPeriods);
+
+        // Get all unique categories across all periods
+        Set<String> allCategories = new HashSet<>();
+        for (Map<String, List<ITicket>> categoryMap : itemsByPeriodAndCategory.values()) {
+            allCategories.addAll(categoryMap.keySet());
+        }
+
+        // Sort categories using TicketSorter if applicable, otherwise alphabetically
+        List<String> sortedCategories;
+        if ("priority".equalsIgnoreCase(categoryFieldName) && ticketSorter != null) {
+            sortedCategories = ticketSorter.sortPriorities(allCategories);
+        } else if ("issueType".equalsIgnoreCase(categoryFieldName) && ticketSorter != null) {
+            sortedCategories = ticketSorter.sortIssueTypes(allCategories);
+        } else {
+            // Default sort (handle nulls)
+            sortedCategories = new ArrayList<>(allCategories);
+            sortedCategories.sort(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+        }
+
+        // Create table headers
+        List<String> headers = new ArrayList<>();
+        headers.add("Creation Period");
+        headers.addAll(sortedCategories.stream().map(c -> c != null ? c : "N/A").collect(Collectors.toList())); // Use "N/A" for null
+        headers.add("Total Created");
+
+        TableData tableData = new TableData(
+                "Created Items Timeline by " + categoryDisplayName + " (" + period.getDescription() + ")",
+                headers,
+                "Shows the number of items created over time periods, grouped by " + categoryDisplayName.toLowerCase() + "."
+        );
+
+        // Add data rows
+        Map<String, Integer> categoryTotals = new HashMap<>();
+        int grandTotal = 0;
+
+        for (String periodKey : sortedPeriods) {
+            Map<String, List<ITicket>> categoryMap = itemsByPeriodAndCategory.get(periodKey);
+            List<String> row = new ArrayList<>();
+            row.add(periodKey);
+
+            int periodTotal = 0;
+
+            // Add counts for each category
+            for (String category : sortedCategories) {
+                int count = categoryMap.getOrDefault(category, Collections.emptyList()).size();
+                row.add(String.valueOf(count));
+                periodTotal += count;
+
+                // Update category totals
+                categoryTotals.put(category, categoryTotals.getOrDefault(category, 0) + count);
+            }
+
+            row.add(String.valueOf(periodTotal));
+            tableData.addRow(row);
+
+            // Update grand total
+            grandTotal += periodTotal;
+        }
+
+        // Add totals row
+        List<String> totalsRow = new ArrayList<>();
+        totalsRow.add("**Total**");
+
+        for (String category : sortedCategories) {
+            totalsRow.add(String.valueOf(categoryTotals.getOrDefault(category, 0)));
+        }
+        totalsRow.add(String.valueOf(grandTotal));
+        tableData.addRow(totalsRow);
+
+        return baseTableGenerator.generateTable(tableData);
+    }
+
+    /**
+     * Groups items based on their creation date and a specified category field.
+     */
+    private Map<String, Map<String, List<ITicket>>> groupItemsByCreationPeriodAndCategory(
+            List<ITicket> items, TimelinePeriod period, String categoryFieldName) {
+        Map<String, Map<String, List<ITicket>>> groupedItems = new LinkedHashMap<>(); // Maintain insertion order
+
+        for (ITicket item : items) {
+            Date creationDate = item.getCreated();
+            if (creationDate == null) {
+                System.err.println("Warning: Item " + item.getKey() + " has no creation date, skipping for timeline.");
+                continue;
+            }
+
+            String periodKey = formatDateToPeriod(creationDate, period);
+            String categoryValue = null;
+            try {
+                // Dynamically get category value based on field name
+                if ("priority".equalsIgnoreCase(categoryFieldName)) {
+                    categoryValue = item.getPriority();
+                } else if ("status".equalsIgnoreCase(categoryFieldName)) {
+                    categoryValue = item.getStatus();
+                } else if ("issueType".equalsIgnoreCase(categoryFieldName)) {
+                    categoryValue = item.getIssueType();
+                } else {
+                    // Attempt to get from fields JSON as a fallback
+                    categoryValue = item.getFieldsAsJSON().optString(categoryFieldName, null);
+                }
+            } catch (IOException e) {
+                System.err.println("Warning: Could not get category '" + categoryFieldName + "' for item " + item.getKey() + ": " + e.getMessage());
+            } catch (Exception e) { // Catch potential JSON exceptions
+                System.err.println("Warning: Error accessing category field '" + categoryFieldName + "' for item " + item.getKey() + ": " + e.getMessage());
+            }
+
+            groupedItems
+                .computeIfAbsent(periodKey, k -> new HashMap<>()) // Group by period first
+                .computeIfAbsent(categoryValue, k -> new ArrayList<>()) // Then by category value
+                .add(item);
+        }
+        return groupedItems;
     }
 }
