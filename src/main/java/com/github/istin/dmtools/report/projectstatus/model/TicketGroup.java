@@ -1,4 +1,4 @@
-package com.github.istin.dmtools.report.model;
+package com.github.istin.dmtools.report.projectstatus.model;
 
 import com.github.istin.dmtools.common.model.ITicket;
 

@@ -1,16 +1,14 @@
-package com.github.istin.dmtools.report;
+package com.github.istin.dmtools.report.projectstatus;
 
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.report.config.ReportConfiguration;
-import com.github.istin.dmtools.report.data.TicketDataFetcher;
-import com.github.istin.dmtools.report.data.TicketSorter;
-import com.github.istin.dmtools.report.model.TableType;
-import com.github.istin.dmtools.report.model.TimelinePeriod;
-import com.github.istin.dmtools.report.presentation.TableFactory;
-import com.github.istin.dmtools.report.presentation.tables.*;
+import com.github.istin.dmtools.report.projectstatus.config.ReportConfiguration;
+import com.github.istin.dmtools.report.projectstatus.data.TicketDataFetcher;
+import com.github.istin.dmtools.report.projectstatus.data.TicketSorter;
+import com.github.istin.dmtools.report.projectstatus.model.TableType;
+import com.github.istin.dmtools.report.projectstatus.model.TimelinePeriod;
+import com.github.istin.dmtools.report.projectstatus.presentation.tables.*;
 
-import java.io.IOException;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +32,7 @@ public class ProjectReportFacade {
 
         // Add summary table
         SummaryTableGenerator summaryGenerator = tableFactory.createSummaryTableGenerator();
-        report.append(summaryGenerator.generateSummaryTable(tickets));
+        //report.append(summaryGenerator.generateSummaryTable(tickets));
 
         // Add story points distribution
         StoryPointsTableGenerator storyPointsGenerator = tableFactory.createStoryPointsTableGenerator();

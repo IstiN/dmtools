@@ -1,4 +1,4 @@
-package com.github.istin.dmtools.report.data;
+package com.github.istin.dmtools.report.projectstatus.data;
 
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.utils.ChangelogAssessment;
@@ -6,7 +6,7 @@ import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.report.model.KeyTime;
-import com.github.istin.dmtools.report.config.ReportConfiguration;
+import com.github.istin.dmtools.report.projectstatus.config.ReportConfiguration;
 import org.json.JSONObject;
 
 import java.io.IOException;
