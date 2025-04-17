@@ -1,13 +1,20 @@
 package com.github.istin.dmtools.report.projectstatus.model;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
 public class TableData {
     private final String title;
     private final List<String> headers;
     private final List<List<String>> rows;
     private final String description;
+
+    @Setter
+    private String footnote;  // New field for footnote
 
     public TableData(String title, List<String> headers) {
         this(title, headers, null);
@@ -18,6 +25,7 @@ public class TableData {
         this.headers = headers;
         this.description = description;
         this.rows = new ArrayList<>();
+        this.footnote = null;  // Initialize footnote as null
     }
 
     public void addRow(List<String> row) {
@@ -27,19 +35,11 @@ public class TableData {
         rows.add(row);
     }
 
-    public String getTitle() {
-        return title;
-    }
-
-    public List<String> getHeaders() {
-        return headers;
-    }
-
-    public List<List<String>> getRows() {
-        return rows;
-    }
-
-    public String getDescription() {
-        return description;
+    /**
+     * Checks if the table has a footnote
+     * @return true if a footnote is set, false otherwise
+     */
+    public boolean hasFootnote() {
+        return footnote != null && !footnote.isEmpty();
     }
 }
