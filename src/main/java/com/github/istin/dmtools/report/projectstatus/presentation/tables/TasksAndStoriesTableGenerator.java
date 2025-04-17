@@ -1,9 +1,9 @@
-package com.github.istin.dmtools.report.presentation.tables;
+package com.github.istin.dmtools.report.projectstatus.presentation.tables;
 
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.utils.StringUtils;
-import com.github.istin.dmtools.report.model.TableData;
-import com.github.istin.dmtools.report.presentation.TableGenerator;
+import com.github.istin.dmtools.report.projectstatus.model.TableData;
+import com.github.istin.dmtools.report.projectstatus.presentation.TableGenerator;
 
 import java.io.IOException;
 import java.util.Arrays;

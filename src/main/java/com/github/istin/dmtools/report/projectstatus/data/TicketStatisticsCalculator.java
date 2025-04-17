@@ -1,7 +1,7 @@
-package com.github.istin.dmtools.report.data;
+package com.github.istin.dmtools.report.projectstatus.data;
 
 import com.github.istin.dmtools.common.model.ITicket;
-import com.github.istin.dmtools.report.config.ReportConfiguration;
+import com.github.istin.dmtools.report.projectstatus.config.ReportConfiguration;
 
 import java.io.IOException;
 import java.util.*;

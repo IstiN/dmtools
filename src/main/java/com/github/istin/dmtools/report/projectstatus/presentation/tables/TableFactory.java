@@ -1,10 +1,11 @@
-package com.github.istin.dmtools.report.presentation;
+package com.github.istin.dmtools.report.projectstatus.presentation.tables;
 
-import com.github.istin.dmtools.report.config.ReportConfiguration;
-import com.github.istin.dmtools.report.data.TicketSorter;
-import com.github.istin.dmtools.report.data.TicketStatisticsCalculator;
-import com.github.istin.dmtools.report.model.TableType;
-import com.github.istin.dmtools.report.presentation.tables.*;
+import com.github.istin.dmtools.report.projectstatus.config.ReportConfiguration;
+import com.github.istin.dmtools.report.projectstatus.data.TicketSorter;
+import com.github.istin.dmtools.report.projectstatus.data.TicketStatisticsCalculator;
+import com.github.istin.dmtools.report.projectstatus.model.TableType;
+import com.github.istin.dmtools.report.projectstatus.presentation.MarkdownTableGenerator;
+import com.github.istin.dmtools.report.projectstatus.presentation.TableGenerator;
 
 public class TableFactory {
     private final TableGenerator baseTableGenerator;

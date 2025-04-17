@@ -1,11 +1,11 @@
-package com.github.istin.dmtools.report.presentation.tables;
+package com.github.istin.dmtools.report.projectstatus.presentation.tables;
 
 import com.github.istin.dmtools.common.model.ITicket;
-import com.github.istin.dmtools.report.config.ReportConfiguration;
-import com.github.istin.dmtools.report.data.TicketSorter;
-import com.github.istin.dmtools.report.data.TicketStatisticsCalculator;
-import com.github.istin.dmtools.report.model.TableData;
-import com.github.istin.dmtools.report.presentation.TableGenerator;
+import com.github.istin.dmtools.report.projectstatus.config.ReportConfiguration;
+import com.github.istin.dmtools.report.projectstatus.data.TicketSorter;
+import com.github.istin.dmtools.report.projectstatus.data.TicketStatisticsCalculator;
+import com.github.istin.dmtools.report.projectstatus.model.TableData;
+import com.github.istin.dmtools.report.projectstatus.presentation.TableGenerator;
 
 import java.io.IOException;
 import java.util.*;

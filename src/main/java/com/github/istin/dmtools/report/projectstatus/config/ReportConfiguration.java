@@ -1,4 +1,4 @@
-package com.github.istin.dmtools.report.config;
+package com.github.istin.dmtools.report.projectstatus.config;
 
 import lombok.Builder;
 import lombok.Getter;
