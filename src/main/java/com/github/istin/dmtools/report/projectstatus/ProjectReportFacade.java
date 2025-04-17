@@ -32,7 +32,7 @@ public class ProjectReportFacade {
 
         // Add summary table
         SummaryTableGenerator summaryGenerator = tableFactory.createSummaryTableGenerator();
-        //report.append(summaryGenerator.generateSummaryTable(tickets));
+        report.append(summaryGenerator.generateSummaryTable(tickets));
 
         // Add story points distribution
         StoryPointsTableGenerator storyPointsGenerator = tableFactory.createStoryPointsTableGenerator();
@@ -163,5 +163,22 @@ public class ProjectReportFacade {
         report.append(timelineGenerator.generateTimelineTable(tickets, period));
 
         return report.toString();
+    }
+
+    /**
+     * Generates a label analysis report
+     *
+     * @param jql JQL query to fetch tickets
+     * @param startDate Start date for the report
+     * @param period Time period for timeline analysis
+     * @param focusLabels Optional list of specific labels to focus on (null for all labels)
+     * @return A formatted report with label analysis
+     */
+    public String generateLabelAnalysisReport(String jql, Calendar startDate, TimelinePeriod period, List<String> focusLabels) throws Exception {
+        List<ITicket> tickets = dataFetcher.fetchCompletedTickets(jql, startDate);
+        ticketSorter.sortTickets(tickets);
+
+        LabelAnalysisGenerator labelAnalysisGenerator = tableFactory.createLabelAnalysisGenerator();
+        return labelAnalysisGenerator.generateLabelAnalysis(tickets, period, focusLabels);
     }
 }

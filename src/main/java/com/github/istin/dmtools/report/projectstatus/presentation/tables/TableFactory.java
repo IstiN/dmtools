@@ -64,4 +64,8 @@ public class TableFactory {
     public TasksAndStoriesTableGenerator createTasksAndStoriesTableGenerator() {
         return new TasksAndStoriesTableGenerator(baseTableGenerator);
     }
+
+    public LabelAnalysisGenerator createLabelAnalysisGenerator() {
+        return new LabelAnalysisGenerator(baseTableGenerator, createTimelineTableGenerator());
+    }
 }

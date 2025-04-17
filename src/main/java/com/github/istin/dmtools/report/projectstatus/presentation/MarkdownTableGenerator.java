@@ -13,42 +13,47 @@ public class MarkdownTableGenerator implements TableGenerator {
 
     @Override
     public String generateTable(TableData tableData) {
-        StringBuilder builder = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
 
-        // Add title
+        // Add title if present
         if (tableData.getTitle() != null && !tableData.getTitle().isEmpty()) {
-            builder.append("## ").append(tableData.getTitle()).append("\n\n");
+            sb.append("### ").append(tableData.getTitle()).append("\n\n");
         }
 
         // Add description if present
         if (tableData.getDescription() != null && !tableData.getDescription().isEmpty()) {
-            builder.append(tableData.getDescription()).append("\n\n");
+            sb.append(tableData.getDescription()).append("\n\n");
         }
 
-        // Add table headers
-        builder.append("| ");
+        // Generate header row
+        sb.append("| ");
         for (String header : tableData.getHeaders()) {
-            builder.append(header).append(" | ");
+            sb.append(header).append(" | ");
         }
-        builder.append("\n|");
+        sb.append("\n");
 
-        // Add header separator
+        // Generate separator row
+        sb.append("| ");
         for (int i = 0; i < tableData.getHeaders().size(); i++) {
-            builder.append(" --- |");
+            sb.append("--- | ");
         }
-        builder.append("\n");
+        sb.append("\n");
 
-        // Add rows
+        // Generate data rows
         for (List<String> row : tableData.getRows()) {
-            builder.append("| ");
+            sb.append("| ");
             for (String cell : row) {
-                builder.append(StringUtils.cleanTextForMarkdown(cell)).append(" | ");
+                sb.append(cell).append(" | ");
             }
-            builder.append("\n");
+            sb.append("\n");
         }
 
-        builder.append("\n");
-        return builder.toString();
+        // Add footnote if present
+        if (tableData.hasFootnote()) {
+            sb.append("\n*").append(tableData.getFootnote()).append("*\n");
+        }
+
+        return sb.toString();
     }
 
     @Override
