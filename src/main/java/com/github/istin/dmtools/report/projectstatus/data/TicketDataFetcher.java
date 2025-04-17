@@ -22,23 +22,29 @@ public class TicketDataFetcher {
         this.completedStatuses = config.getCompletedStatuses();
     }
 
-    public List<ITicket> fetchCompletedTickets(String jql, Calendar startDate) throws Exception {
+    public List<ITicket> fetchCompletedTickets(String jql, Calendar startDate, boolean useCreationDate) throws Exception {
         List<ITicket> collectedWorkForPeriod = new ArrayList<>();
 
         // Search for tickets and collect those completed in the specified period
         trackerClient.searchAndPerform(ticket -> {
-            List<KeyTime> datesWhenTicketWasInStatus = ChangelogAssessment.findDatesWhenTicketWasInStatus(
-                    trackerClient, ticket.getKey(), ticket, completedStatuses);
-
-            if (!datesWhenTicketWasInStatus.isEmpty()) {
-                KeyTime first = datesWhenTicketWasInStatus.getFirst();
-                Calendar when = first.getWhen();
-
-                // Check if it's after start date
-                if (when.after(startDate)) {
-                    JSONObject fieldsAsJSON = ticket.getFieldsAsJSON();
-                    fieldsAsJSON.put("dateClosed", DateUtils.formatToJiraDate(when));
+            if (useCreationDate) {
+                if (DateUtils.calendar(ticket.getCreated()).after(startDate)) {
                     collectedWorkForPeriod.add(ticket);
+                }
+            } else {
+                List<KeyTime> datesWhenTicketWasInStatus = ChangelogAssessment.findDatesWhenTicketWasInStatus(
+                        trackerClient, ticket.getKey(), ticket, completedStatuses);
+
+                if (!datesWhenTicketWasInStatus.isEmpty()) {
+                    KeyTime first = datesWhenTicketWasInStatus.getFirst();
+                    Calendar when = first.getWhen();
+
+                    // Check if it's after start date
+                    if (when.after(startDate)) {
+                        JSONObject fieldsAsJSON = ticket.getFieldsAsJSON();
+                        fieldsAsJSON.put("dateClosed", DateUtils.formatToJiraDate(when));
+                        collectedWorkForPeriod.add(ticket);
+                    }
                 }
             }
             return false;

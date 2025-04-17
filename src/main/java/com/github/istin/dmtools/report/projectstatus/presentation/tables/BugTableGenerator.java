@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.report.projectstatus.presentation.tables;
 
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.report.projectstatus.data.TicketSorter;
 import com.github.istin.dmtools.report.projectstatus.data.TicketStatisticsCalculator;
 import com.github.istin.dmtools.report.projectstatus.model.TableData;
@@ -76,7 +77,7 @@ public class BugTableGenerator implements TableGenerator {
     public String generateBugsTable(List<ITicket> bugs) {
         // Create table headers
         List<String> headers = Arrays.asList("Key", "Priority", "Closed Date", "Summary", "Description");
-        TableData tableData = new TableData("Bug Fixes", headers);
+        TableData tableData = new TableData("Bugs", headers);
 
         // Add bug rows
         for (ITicket ticket : bugs) {
@@ -84,9 +85,9 @@ public class BugTableGenerator implements TableGenerator {
                 List<String> row = Arrays.asList(
                         ticket.getKey(),
                         TicketStatisticsCalculator.nullToEmpty(ticket.getPriority(), "Trivial"),
-                        ticket.getFieldsAsJSON().getString("dateClosed"),
+                        ticket.getFieldsAsJSON().optString("dateClosed"),
                         ticket.getTicketTitle(),
-                        ticket.getTicketDescription()
+                        StringUtils.cleanTextForMarkdown(ticket.getTicketDescription())
                 );
                 tableData.addRow(row);
             } catch (IOException e) {
