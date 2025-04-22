@@ -48,7 +48,7 @@ public class TasksAndStoriesTableGenerator implements TableGenerator {
                         String.valueOf(ticket.getWeight()),
                         ticket.getFieldsAsJSON().getString("dateClosed"),
                         ticket.getTicketTitle(),
-                        StringUtils.removeUrls(ticket.getTicketDescription())
+                        StringUtils.removeUrls(StringUtils.cleanTextForMarkdown(ticket.getTicketDescription()))
                 );
                 tableData.addRow(row);
             } catch (IOException e) {

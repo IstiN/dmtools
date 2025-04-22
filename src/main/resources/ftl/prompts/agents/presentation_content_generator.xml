@@ -31,19 +31,20 @@
         - slideType: Suggested slide type (content, table, bar-chart, pie-chart, image)
         - data: Any structured data for charts or tables (if applicable)
         - notes: Additional context or presenter notes
+        - call to actions: try to define call to actions based on the data, no water or generic actions but proved by data.
+        - each slide must bring value to reader, no generic slides.
     </instructions>
     <formatting>
         <rules>
-            <rule>Return ONLY a valid JSON array with no additional text.</rule>
-            <rule>Make sure the content is detailed enough to create meaningful slides.</rule>
-            <rule>For data visualizations, use ONLY data explicitly provided in the inputs.</rule>
-            <rule>Do NOT invent statistics or facts not present in the provided information.</rule>
-            <rule>Ensure variety in slide types for an engaging presentation.</rule>
-            <rule>NEVER duplicate keys in the same JSON object - each key should appear only once per slide.</rule>
-            <rule>Properly escape all special characters in JSON strings: use \" for quotes, \\ for backslashes, \n for newlines, \t for tabs, etc.</rule>
-            <rule>For content slides with markdown, place the markdown content in the 'content' field only, not in separate fields.</rule>
-            <rule>Ensure all JSON is properly formatted and valid - test your JSON structure before finalizing.</rule>
-            <rule>If a slide needs both descriptive text and formatted content, combine them in a single 'content' field using markdown.</rule>
+            Return ONLY a valid JSON array with no additional text.
+            Make sure the content is detailed enough to create meaningful slides.
+            For data visualizations, use ONLY data explicitly provided in the inputs.
+            Do NOT invent statistics or facts not present in the provided information.
+            Ensure variety in slide types for an engaging presentation.
+            Properly escape all special characters in JSON strings: use \" for quotes, \\ for backslashes, \n for newlines, \t for tabs, etc.
+            For content slides with markdown, place the markdown content in the 'content' field only, not in separate fields.
+            Ensure all JSON is properly formatted and valid - test your JSON structure before finalizing.
+            If a slide needs both descriptive text and formatted content, combine them in a single 'content' field using markdown.
         </rules>
     </formatting>
     <examples>
