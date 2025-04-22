@@ -49,7 +49,7 @@ public class ProjectReportFacade {
 
         // Add bug overview if there are bugs
         if (!bugs.isEmpty()) {
-            BugTableGenerator bugGenerator = tableFactory.createBugTableGenerator();
+            BugTableGenerator bugGenerator = tableFactory.createBugTableGenerator(false);
             report.append(bugGenerator.generateBugOverviewTable(bugs));
             report.append(bugGenerator.generateBugsTable(bugs));
         }
@@ -95,7 +95,7 @@ public class ProjectReportFacade {
                     Map<Boolean, List<ITicket>> splitTickets = dataFetcher.splitTicketsByType(tickets);
                     List<ITicket> bugs = splitTickets.get(true);
                     if (!bugs.isEmpty()) {
-                        BugTableGenerator bugGenerator = tableFactory.createBugTableGenerator();
+                        BugTableGenerator bugGenerator = tableFactory.createBugTableGenerator(false);
                         if (type == TableType.BUG_OVERVIEW) {
                             report.append(bugGenerator.generateBugOverviewTable(bugs));
                         } else {
@@ -113,7 +113,7 @@ public class ProjectReportFacade {
                     break;
                 case TIMELINE:
                     TimelineTableGenerator timelineGenerator = tableFactory.createTimelineTableGenerator();
-                    report.append(timelineGenerator.generateTimelineTable(tickets, TimelinePeriod.MONTH));
+                    report.append(timelineGenerator.generateTimelineTable(tickets, TimelinePeriod.MONTH, false));
                     break;
             }
         }
@@ -133,7 +133,7 @@ public class ProjectReportFacade {
         ticketSorter.sortTickets(bugs);
 
         StringBuilder report = new StringBuilder();
-        BugTableGenerator bugGenerator = tableFactory.createBugTableGenerator();
+        BugTableGenerator bugGenerator = tableFactory.createBugTableGenerator(false);
         report.append(bugGenerator.generateBugOverviewTable(bugs));
         report.append(bugGenerator.generateBugsTable(bugs));
 
@@ -160,7 +160,7 @@ public class ProjectReportFacade {
         report.append("# Deliverables Timeline Report\n\n");
 
         TimelineTableGenerator timelineGenerator = tableFactory.createTimelineTableGenerator();
-        report.append(timelineGenerator.generateTimelineTable(tickets, period));
+        report.append(timelineGenerator.generateTimelineTable(tickets, period, true));
 
         return report.toString();
     }

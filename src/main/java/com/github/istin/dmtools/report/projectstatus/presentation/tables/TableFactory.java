@@ -26,7 +26,7 @@ public class TableFactory {
                 return new SummaryTableGenerator(baseTableGenerator, statisticsCalculator, ticketSorter);
             case BUG_OVERVIEW:
             case BUGS_TABLE:
-                return new BugTableGenerator(baseTableGenerator, statisticsCalculator, ticketSorter);
+                return new BugTableGenerator(baseTableGenerator, statisticsCalculator, ticketSorter, false);
             case STORY_POINTS_DISTRIBUTION:
                 return new StoryPointsTableGenerator(baseTableGenerator, statisticsCalculator, ticketSorter);
             case ROLE_DISTRIBUTION:
@@ -49,8 +49,8 @@ public class TableFactory {
         return new SummaryTableGenerator(baseTableGenerator, statisticsCalculator, ticketSorter);
     }
 
-    public BugTableGenerator createBugTableGenerator() {
-        return new BugTableGenerator(baseTableGenerator, statisticsCalculator, ticketSorter);
+    public BugTableGenerator createBugTableGenerator(boolean countStoryPoints) {
+        return new BugTableGenerator(baseTableGenerator, statisticsCalculator, ticketSorter, countStoryPoints);
     }
 
     public StoryPointsTableGenerator createStoryPointsTableGenerator() {
