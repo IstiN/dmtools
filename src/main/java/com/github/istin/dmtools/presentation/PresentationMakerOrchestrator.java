@@ -68,9 +68,32 @@ public class PresentationMakerOrchestrator {
                             requestData.getAdditionalData()
                     )
             );
-            formattedSlides.putAll(slideFormatterAgent.run(
-                    new PresentationSlideFormatterAgent.Params(slidesContent)
-            ));
+            try {
+                formattedSlides.putAll(slideFormatterAgent.run(
+                        new PresentationSlideFormatterAgent.Params(slidesContent)
+                ));
+            } catch (Exception e) {
+                // Split slidesContent into two parts as it's too big for a single processing
+                JSONArray firstHalf = new JSONArray();
+                JSONArray secondHalf = new JSONArray();
+                int halfSize = slidesContent.length() / 2;
+
+                for (int i = 0; i < slidesContent.length(); i++) {
+                    if (i < halfSize) {
+                        firstHalf.put(slidesContent.get(i));
+                    } else {
+                        secondHalf.put(slidesContent.get(i));
+                    }
+                }
+
+                // Process each half separately
+                formattedSlides.putAll(slideFormatterAgent.run(
+                        new PresentationSlideFormatterAgent.Params(firstHalf)
+                ));
+                formattedSlides.putAll(slideFormatterAgent.run(
+                        new PresentationSlideFormatterAgent.Params(secondHalf)
+                ));
+            }
         }
 
         String summarySlideRequest = params.getSummarySlideRequest();
