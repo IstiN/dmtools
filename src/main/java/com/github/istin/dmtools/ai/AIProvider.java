@@ -11,4 +11,8 @@ public class AIProvider {
     public static void reset() {
         customAI = null;
     }
+
+    public static void setCustomAI(AI ai) {
+        customAI = ai;
+    }
 }

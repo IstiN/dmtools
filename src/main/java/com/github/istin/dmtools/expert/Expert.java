@@ -94,6 +94,8 @@ public class Expert extends AbstractJob<ExpertParams> {
         String inputJQL = expertParams.getInputJql();
         String fieldName = expertParams.getFieldName();
 
+        List<? extends UriToObject> uriProcessingSources = new UriToObjectFactory().createUriProcessingSources(expertParams.getSourceCodeConfig());
+
         boolean transformConfluencePagesToMarkdown = expertParams.isTransformConfluencePagesToMarkdown();
         if (systemRequest != null && systemRequest.startsWith("https://")) {
             String value = confluence.contentByUrl(systemRequest).getStorage().getValue();
@@ -107,6 +109,8 @@ public class Expert extends AbstractJob<ExpertParams> {
             }
         }
 
+        contextOrchestrator.processUrisInContent(systemRequest, uriProcessingSources, 1);
+
         if (projectContext != null && projectContext.startsWith("https://")) {
             projectContext = HtmlCleaner.cleanOnlyStylesAndSizes(confluence.contentByUrl(projectContext).getStorage().getValue());
             if (transformConfluencePagesToMarkdown) {
@@ -117,8 +121,6 @@ public class Expert extends AbstractJob<ExpertParams> {
         if (confluencePages != null) {
             new ConfluencePagesContext(contextOrchestrator, confluencePages, confluence, transformConfluencePagesToMarkdown);
         }
-
-        List<? extends UriToObject> uriProcessingSources = new UriToObjectFactory().createUriProcessingSources();
 
         String finalProjectContext = projectContext;
         String finalSystemRequest = systemRequest;

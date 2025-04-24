@@ -20,6 +20,8 @@ import org.json.JSONObject;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public abstract class GitHub extends AbstractRestClient implements SourceCode, UriToObject {
@@ -653,11 +655,47 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
 
     @Override
     public Set<String> parseUris(String object) throws Exception {
-        return Set.of();
+        if (object == null || object.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        Set<String> result = new HashSet<>();
+
+        // Pattern to match GitHub URLs in the format:
+        // https://github.com/{owner}/{repo}/blob/{branch}/{path}
+        String pattern = "https://github\\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+?)(?=[\\s\"'<>]|$)";
+
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(object);
+
+        while (m.find()) {
+            String url = m.group(0);
+            // Make sure we don't include trailing characters that might have been matched
+            url = url.trim();
+            result.add(url);
+        }
+
+        return result;
     }
 
     @Override
     public Object uriToObject(String uri) throws Exception {
+        if (uri == null || uri.isEmpty()) {
+            return null;
+        }
+
+        // Check if the URI is a GitHub file URL
+        if (uri.startsWith("https://github.com/") && uri.contains("/blob/")) {
+            try {
+                // Use the existing method to get file content
+                return getFileContent(uri);
+            } catch (IOException e) {
+                logger.error("Failed to fetch content from GitHub URL: " + uri, e);
+                throw e;
+            }
+        }
+
+        // Return null if the URI is not recognized
         return null;
     }
 }
