@@ -6,6 +6,8 @@ import com.github.istin.dmtools.common.utils.PropertyReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChunkPreparation {
     // Configuration fields
@@ -244,8 +246,20 @@ interface TokenCounter {
 class Claude35TokenCounter implements TokenCounter {
     @Override
     public int countTokens(String text) {
-        // Implement actual token counting logic for Claude 3.5
-        // This is just a simple example
-        return text.split("\\s+").length; // Simple word count as placeholder
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+
+        // Use a regex pattern that defines a word as a sequence of alphanumeric characters
+        // This handles punctuation and special characters better than simple space splitting
+        Pattern pattern = Pattern.compile("\\b[\\w'-]+\\b");
+        Matcher matcher = pattern.matcher(text);
+
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+
+        return count;
     }
 }
