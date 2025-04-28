@@ -92,6 +92,7 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
             return transformAIResponse(params, aiResponse);
         } catch (Exception e) {
             System.out.println("Wrong Response Format: \n" + aiResponse);
+            //TODO send as separate messages
             aiResponse = executePrompt(files, prompt + "\n Your previous response was: " + aiResponse +  "\nDuring processing of response was error: "+e.getMessage()+"\nReturn fixed response. If it was cut because of limitation, you must cut last part (last item in JSONArray) and return valid object.");
             return transformAIResponse(params, aiResponse);
         }

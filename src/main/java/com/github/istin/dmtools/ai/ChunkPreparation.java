@@ -203,27 +203,94 @@ public class ChunkPreparation {
 
     /**
      * Splits a large text that exceeds token limit into smaller chunks
+     * with improved splitting at natural boundaries like commas and closing brackets
      */
     private List<Chunk> splitLargeObject(String largeString, int tokenLimit) {
         List<Chunk> chunks = new ArrayList<>();
         StringBuilder chunk = new StringBuilder();
         int currentTokens = 0;
 
-        String[] words = largeString.split("\\s+");
+        // Define a pattern for natural break points (whitespace, commas, closing brackets)
+        Pattern breakPattern = Pattern.compile("([\\s,}\\]])");
+        Matcher matcher = breakPattern.matcher(largeString);
 
-        for (String word : words) {
-            int wordTokens = tokenCounter.countTokens(word + " ");
+        int lastEnd = 0;
+        boolean preferBreak = false;
 
-            if (currentTokens + wordTokens > tokenLimit) {
-                chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
-                chunk = new StringBuilder();
-                currentTokens = 0;
+        while (lastEnd < largeString.length()) {
+            // Find the next potential break point
+            boolean foundBreak = matcher.find(lastEnd);
+            int breakPoint = foundBreak ? matcher.end() : largeString.length();
+            String segment = largeString.substring(lastEnd, breakPoint);
+
+            int segmentTokens = tokenCounter.countTokens(segment);
+
+            // If adding this segment would exceed the token limit
+            if (currentTokens + segmentTokens > tokenLimit) {
+                // If we're at a preferred break point or the segment is too large on its own
+                if (preferBreak || segmentTokens > tokenLimit / 2) {
+                    // Finalize current chunk
+                    if (!chunk.isEmpty()) {
+                        chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
+                        chunk = new StringBuilder();
+                        currentTokens = 0;
+                    }
+
+                    // If the segment itself is too large, we need to split it further
+                    if (segmentTokens > tokenLimit) {
+                        // Split by characters as a last resort
+                        int charsToAdd = Math.max(1, (tokenLimit - currentTokens) / 2);
+                        chunk.append(segment.substring(0, charsToAdd));
+                        chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
+
+                        // Process the rest of the segment in the next iteration
+                        lastEnd += charsToAdd;
+                        chunk = new StringBuilder();
+                        currentTokens = 0;
+                        preferBreak = false;
+                        continue;
+                    }
+                } else {
+                    // Try to find a better break point
+                    int lookAhead = lastEnd;
+                    int bestBreak = lastEnd;
+
+                    // Look ahead for a comma or closing bracket within a reasonable distance
+                    while (lookAhead < lastEnd + 100 && lookAhead < largeString.length()) {
+                        char c = largeString.charAt(lookAhead);
+                        if (c == ',' || c == '}' || c == ']') {
+                            bestBreak = lookAhead + 1; // Include the break character
+                            break;
+                        }
+                        lookAhead++;
+                    }
+
+                    // If we found a better break point, use it
+                    if (bestBreak > lastEnd) {
+                        segment = largeString.substring(lastEnd, bestBreak);
+                        segmentTokens = tokenCounter.countTokens(segment);
+                        breakPoint = bestBreak;
+                    }
+
+                    // If the segment is still too large, finalize current chunk
+                    if (currentTokens + segmentTokens > tokenLimit) {
+                        chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
+                        chunk = new StringBuilder();
+                        currentTokens = 0;
+                    }
+                }
             }
 
-            chunk.append(word).append(" ");
-            currentTokens += wordTokens;
+            // Add the segment to the current chunk
+            chunk.append(segment);
+            currentTokens += segmentTokens;
+            lastEnd = breakPoint;
+
+            // Check if we're at a preferred break point (comma or closing bracket)
+            preferBreak = foundBreak && (segment.endsWith(",") || segment.endsWith("}") || segment.endsWith("]"));
         }
 
+        // Add the final chunk if not empty
         if (!chunk.isEmpty()) {
             chunks.add(new Chunk(chunk.toString().trim(), new ArrayList<>(), 0));
         }
@@ -250,16 +317,58 @@ class Claude35TokenCounter implements TokenCounter {
             return 0;
         }
 
-        // Use a regex pattern that defines a word as a sequence of alphanumeric characters
-        // This handles punctuation and special characters better than simple space splitting
-        Pattern pattern = Pattern.compile("\\b[\\w'-]+\\b");
-        Matcher matcher = pattern.matcher(text);
+        // Minimum token count for any non-empty string
+        int baseTokenCount = 8;
 
-        int count = 0;
-        while (matcher.find()) {
-            count++;
+        if (text.length() == 1) {
+            return baseTokenCount;
         }
 
-        return count;
+        // First, handle JSON structure if present
+        int jsonSyntaxTokens = 0;
+        jsonSyntaxTokens += countOccurrences(text, "{");
+        jsonSyntaxTokens += countOccurrences(text, "}");
+        jsonSyntaxTokens += countOccurrences(text, ":");
+        jsonSyntaxTokens += countOccurrences(text, "\"");
+        jsonSyntaxTokens += countOccurrences(text, "\\");
+
+        int totalTokens = baseTokenCount + jsonSyntaxTokens;
+
+        // Process the text character by character
+        StringBuilder currentWord = new StringBuilder();
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            // Special characters count as 1 token each
+            if (c == '/' || c == '-' || c == '_' || c == '.' || c == ' ') {
+                // If we have a word before this special character, count it
+                if (currentWord.length() > 0) {
+                    totalTokens += 1;  // Each word is 1 token
+                    currentWord = new StringBuilder();
+                }
+                totalTokens += 1;  // Special character is 1 token
+            }
+            // Each uppercase letter adds an extra token
+            else if (Character.isUpperCase(c)) {
+                currentWord.append(c);
+                totalTokens += 1;  // Extra token for uppercase letter
+            }
+            // Regular character, add to current word
+            else {
+                currentWord.append(c);
+            }
+        }
+
+        // Don't forget the last word if there is one
+        if (currentWord.length() > 0) {
+            totalTokens += 1;
+        }
+
+        return totalTokens;
+    }
+
+    private int countOccurrences(String text, String substring) {
+        return (text.length() - text.replace(substring, "").length()) / substring.length();
     }
 }
