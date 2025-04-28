@@ -203,19 +203,20 @@ public class ChunkPreparation {
 
     /**
      * Splits a large text that exceeds token limit into smaller chunks
-     * with improved splitting at natural boundaries like commas and closing brackets
+     * with improved splitting at natural boundaries like commas, closing brackets, and newlines
      */
     private List<Chunk> splitLargeObject(String largeString, int tokenLimit) {
         List<Chunk> chunks = new ArrayList<>();
         StringBuilder chunk = new StringBuilder();
         int currentTokens = 0;
 
-        // Define a pattern for natural break points (whitespace, commas, closing brackets)
-        Pattern breakPattern = Pattern.compile("([\\s,}\\]])");
+        // Define a pattern for natural break points
+        // Priority: commas/brackets > newlines > spaces
+        Pattern breakPattern = Pattern.compile("([,}\\]]|\\n|\\s)");
         Matcher matcher = breakPattern.matcher(largeString);
 
         int lastEnd = 0;
-        boolean preferBreak = false;
+        int breakPriority = 0; // 0=none, 1=space, 2=newline, 3=comma/bracket
 
         while (lastEnd < largeString.length()) {
             // Find the next potential break point
@@ -225,10 +226,22 @@ public class ChunkPreparation {
 
             int segmentTokens = tokenCounter.countTokens(segment);
 
+            // Determine break priority
+            if (foundBreak) {
+                char breakChar = largeString.charAt(matcher.start());
+                if (breakChar == ',' || breakChar == '}' || breakChar == ']') {
+                    breakPriority = 3; // Highest priority
+                } else if (breakChar == '\n') {
+                    breakPriority = 2; // Second priority
+                } else {
+                    breakPriority = 1; // Lowest priority (space)
+                }
+            }
+
             // If adding this segment would exceed the token limit
             if (currentTokens + segmentTokens > tokenLimit) {
-                // If we're at a preferred break point or the segment is too large on its own
-                if (preferBreak || segmentTokens > tokenLimit / 2) {
+                // If we're at a good break point or the segment is too large
+                if (breakPriority >= 2 || segmentTokens > tokenLimit / 2) {
                     // Finalize current chunk
                     if (!chunk.isEmpty()) {
                         chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
@@ -238,30 +251,60 @@ public class ChunkPreparation {
 
                     // If the segment itself is too large, we need to split it further
                     if (segmentTokens > tokenLimit) {
-                        // Split by characters as a last resort
-                        int charsToAdd = Math.max(1, (tokenLimit - currentTokens) / 2);
-                        chunk.append(segment.substring(0, charsToAdd));
-                        chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
+                        // Look for better break points within this segment
+                        int bestBreakPos = findBestBreakPosition(segment, tokenLimit - currentTokens);
 
-                        // Process the rest of the segment in the next iteration
-                        lastEnd += charsToAdd;
-                        chunk = new StringBuilder();
-                        currentTokens = 0;
-                        preferBreak = false;
-                        continue;
+                        if (bestBreakPos > 0) {
+                            // Add partial segment up to the best break point
+                            chunk.append(segment.substring(0, bestBreakPos));
+                            chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
+
+                            // Process the rest of the segment in the next iteration
+                            lastEnd += bestBreakPos;
+                            chunk = new StringBuilder();
+                            currentTokens = 0;
+                            breakPriority = 0;
+                            continue;
+                        } else {
+                            // Split by characters as a last resort
+                            int charsToAdd = Math.max(1, (tokenLimit - currentTokens) / 2);
+                            chunk.append(segment.substring(0, charsToAdd));
+                            chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
+
+                            lastEnd += charsToAdd;
+                            chunk = new StringBuilder();
+                            currentTokens = 0;
+                            breakPriority = 0;
+                            continue;
+                        }
                     }
                 } else {
                     // Try to find a better break point
                     int lookAhead = lastEnd;
                     int bestBreak = lastEnd;
+                    int bestPriority = 0;
 
-                    // Look ahead for a comma or closing bracket within a reasonable distance
-                    while (lookAhead < lastEnd + 100 && lookAhead < largeString.length()) {
+                    // Look ahead for a better break point within a reasonable distance
+                    while (lookAhead < lastEnd + 200 && lookAhead < largeString.length()) {
                         char c = largeString.charAt(lookAhead);
+                        int priority = 0;
+
                         if (c == ',' || c == '}' || c == ']') {
-                            bestBreak = lookAhead + 1; // Include the break character
-                            break;
+                            priority = 3;
+                        } else if (c == '\n') {
+                            priority = 2;
+                        } else if (Character.isWhitespace(c)) {
+                            priority = 1;
                         }
+
+                        if (priority > bestPriority) {
+                            bestBreak = lookAhead + 1; // Include the break character
+                            bestPriority = priority;
+
+                            // If we found a high-priority break, we can stop looking
+                            if (priority >= 2) break;
+                        }
+
                         lookAhead++;
                     }
 
@@ -270,6 +313,7 @@ public class ChunkPreparation {
                         segment = largeString.substring(lastEnd, bestBreak);
                         segmentTokens = tokenCounter.countTokens(segment);
                         breakPoint = bestBreak;
+                        breakPriority = bestPriority;
                     }
 
                     // If the segment is still too large, finalize current chunk
@@ -285,17 +329,50 @@ public class ChunkPreparation {
             chunk.append(segment);
             currentTokens += segmentTokens;
             lastEnd = breakPoint;
-
-            // Check if we're at a preferred break point (comma or closing bracket)
-            preferBreak = foundBreak && (segment.endsWith(",") || segment.endsWith("}") || segment.endsWith("]"));
         }
 
         // Add the final chunk if not empty
         if (!chunk.isEmpty()) {
-            chunks.add(new Chunk(chunk.toString().trim(), new ArrayList<>(), 0));
+            chunks.add(new Chunk(chunk.toString(), new ArrayList<>(), 0));
         }
 
         return chunks;
+    }
+
+    /**
+     * Helper method to find the best position to break a segment
+     * Prioritizes commas/brackets > newlines > spaces
+     */
+    private int findBestBreakPosition(String segment, int tokenBudget) {
+        int bestPos = 0;
+        int bestPriority = 0;
+        int currentTokens = 0;
+
+        for (int i = 0; i < segment.length(); i++) {
+            char c = segment.charAt(i);
+            String charStr = String.valueOf(c);
+            currentTokens += tokenCounter.countTokens(charStr);
+
+            if (currentTokens > tokenBudget) {
+                break;
+            }
+
+            int priority = 0;
+            if (c == ',' || c == '}' || c == ']') {
+                priority = 3;
+            } else if (c == '\n') {
+                priority = 2;
+            } else if (Character.isWhitespace(c)) {
+                priority = 1;
+            }
+
+            if (priority > 0) {
+                bestPos = i + 1; // Include the break character
+                bestPriority = priority;
+            }
+        }
+
+        return bestPos;
     }
 }
 
