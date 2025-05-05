@@ -155,8 +155,7 @@
     </instructions>
     <formatting>
         <rules>
-            Always return a JSON array containing one formatted slide object for each slide in the input array, even if
-            there is only one slide.
+            Always return a JSON array containing one formatted slide object for each slide in the input array, even if there is only one slide.
             Follow the slide structure templates provided in the instructions.
             Ensure all required fields for the selected slide type are included.
             Format content using markdown where appropriate.
@@ -167,6 +166,9 @@
             Properly escape all special characters in JSON strings: use \" for quotes, \\ for backslashes, \n for
             newlines, \t for tabs, etc.
             Ensure all JSON is properly formatted and valid - test your JSON structure before finalizing.
+            All content in slide must bring value to reader. Don't duplicate content in different sections.
+            Subtitles, Descriptions can be skipped if it duplicates Content.
+            Validate slide data to be sure that there is enough height to display required content. Usually it's 15-17 rows for all slide content. You can use table structure with 2 columns if you want to display more data.
             Only JSON is required, explanations are not needed.
         </rules>
     </formatting>

@@ -72,7 +72,7 @@ public class LabelAnalysisGenerator {
         report.append("\n\n");
 
         // Generate timeline dynamics with all categories
-        report.append(generateLabelTimelineDynamics(tickets, labelsToAnalyze, period, unlabeledTickets, otherLabeledTickets));
+        //report.append(generateLabelTimelineDynamics(tickets, labelsToAnalyze, period, unlabeledTickets, otherLabeledTickets));
 
         return report.toString();
     }

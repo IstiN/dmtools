@@ -45,6 +45,8 @@
             For content slides with markdown, place the markdown content in the 'content' field only, not in separate fields.
             Ensure all JSON is properly formatted and valid - test your JSON structure before finalizing.
             If a slide needs both descriptive text and formatted content, combine them in a single 'content' field using markdown.
+            All content in slide must bring value to reader. Don't duplicate content in different sections.
+            Subtitles, Descriptions can be skipped if it duplicates Content.
         </rules>
     </formatting>
     <examples>

@@ -35,7 +35,7 @@ public class TasksAndStoriesTableGenerator implements TableGenerator {
     public String generateTasksAndStoriesTable(List<ITicket> tasksAndStories) {
         // Create table headers
         List<String> headers = Arrays.asList(
-                "Key", "Type", "Priority", "Story Points", "Closed Date", "Summary", "Description"
+                "Key", "Type", "Priority", "Story Points", "Closed Date", "Labels", "Summary", "Description"
         );
         TableData tableData = new TableData("Tasks And Stories Work Items", headers);
 
@@ -47,6 +47,7 @@ public class TasksAndStoriesTableGenerator implements TableGenerator {
                         ticket.getPriority(),
                         String.valueOf(ticket.getWeight()),
                         ticket.getFieldsAsJSON().getString("dateClosed"),
+                        StringUtils.cleanTextForMarkdown(ticket.getTicketLabels().toString()),
                         ticket.getTicketTitle(),
                         StringUtils.removeUrls(StringUtils.cleanTextForMarkdown(ticket.getTicketDescription()))
                 );
