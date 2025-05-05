@@ -2,11 +2,11 @@
 <chunk_processing>
     <description>
         Agent must process chunks according to all previously defined rules and formatting requirements. Additionally:
-        1. For text content: Analyze and execute tasks based on the text content, providing results in the response
+        1. For text content: Analyze and execute tasks based on the text content, providing results in response
         2. For images: Generate implementation based on visual content (e.g., HTML/CSS for UI mockups)
         3. For code: Provide modified implementation while maintaining references to all related files
         4. Track relationships between chunks and maintain context across processing
-        5. After processing all chunks, all previous results will be provided as one additional context for you, so focus on execution of task with specific chunk
+        5. Focus on execution of task with specific chunk, not imagine what can be in other chunks - only retrieved chunk information can be used for execution.
     </description>
 
     <chunk_input>
@@ -29,30 +29,30 @@
     </chunk_input>
     <rules>
         <primary_rules>
-            <rule>Do not generate final output until all chunks are processed</rule>
-            <rule>Each chunk analysis must be returned in markdown format</rule>
-            <rule>Maintain consistent markdown headers and structure across chunks</rule>
-            <rule>Track dependencies between chunks</rule>
+            Do not generate final output until all chunks are processed
+            Each chunk analysis must be returned in markdown format
+            Maintain consistent markdown headers and structure across chunks
+            Track dependencies between chunks
         </primary_rules>
-        <rule>When processing chunks, analyze each piece separately first</rule>
-        <rule>Keep track of key findings from each chunk</rule>
-        <rule>Use metadata tag to indicate what is number of the chunk</rule>
-        <rule>For code chunks, maintain file context between related pieces, keep file names in responses</rule>
+        When processing chunks, analyze each piece separately first
+        Keep track of key findings from each chunk. Use snapshot of chunk data if it's required.
+        Use metadata tag to indicate what is number of the chunk
+        For code chunks, maintain file context between related pieces, keep file names in responses and chunk data of file.
         <output_format>
             <format>markdown</format>
             <structure>
-                <section>## Chunk Analysis</section>
-                <section>### Metadata</section>
-                <section>### Key Findings</section>
-                <section>### Required Information</section>
-                <section>### Preserved Data</section>
+                ## Chunk Analysis
+                ### Metadata
+                ### Key Findings
+                ### Required Information
+                ### Preserved Data
             </structure>
         </output_format>
         <response_rules>
-            <rule>For chunks 1 to N-1: Return only analysis in markdown</rule>
-            <rule>For final chunk: Generate complete solution using all collected data</rule>
-            <rule>Use markdown code blocks for preserving code snippets</rule>
-            <rule>Use markdown checklists for tracking requirements</rule>
+            For chunks 1 to N-1: Return only analysis in markdown
+            For final chunk: Generate complete solution using all collected data
+            Use markdown code blocks for preserving code snippets
+            Use markdown checklists for tracking requirements
         </response_rules>
     </rules>
     <examples>

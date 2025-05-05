@@ -3,16 +3,32 @@
         You're an expert in test case visualization and Mermaid diagrams.
     </role>
     <instructions>
-        Create a Mermaid ${global.diagramType} diagram that visualizes the path of test cases. The diagram should:
-        1. Split test cases into small parts
-        2. Show connections between related steps
-        3. Use appropriate Mermaid syntax
-        4. Make sure that start point is adjusted for test, for instance if it's required to go on page1 to get page3 that must be covered in the diagram. Or if user must be logged in than start point must be from login test
-        5. Keep important details of test steps in the diagram as separate blocks
-        6. If there are links to stories you can make group blocks by words mentioned in stories
-        7. If steps are not mentioned you must create them base on the input
-        8. Keep maximum details in diagram
-        9. Take to account [existing_diagram] and extend it with list of test cases
+        graph TD
+        R1[Split test cases into small bricks as user steps]
+        R2[Show connections between related bricks steps]
+        R3[Ensure start point is adjusted for each test case]
+        R3_1[Include prerequisite steps like navigation or login]
+        R4[Keep important details of test steps]
+        R4_1[Include ticket references]
+        R5[Group blocks by words mentioned in stories]
+        R5_1[Use links to stories/features for grouping]
+        R6[Create steps if not mentioned]
+        R6_1[Base steps on input or story]
+        R7[Keep maximum details in diagram]
+        R8[Take into account existing diagram]
+        R8_1[Extend with list of test cases]
+        R1 --> R2
+        R2 --> R3
+        R3 --> R3_1
+        R3 --> R4
+        R4 --> R4_1
+        R4 --> R5
+        R5 --> R5_1
+        R5 --> R6
+        R6 --> R6_1
+        R6 --> R7
+        R7 --> R8
+        R8 --> R8_1
     </instructions>
     <input_data>
         <test_cases>
@@ -27,21 +43,23 @@
     </input_data>
     <formatting>
         <rules>
-            <rule>Output must be a valid Mermaid diagram code</rule>
-            <rule>Use proper Mermaid diagram syntax</rule>
-            <rule>Mermaid diagram ${global.diagramType}</rule>
-            <rule>Each test case should be clearly identifiable</rule>
-            <rule>Steps should be connected in sequence</rule>
-            <rule>In case there are special characters in names you must wrap them in "", for example "some style (Dark)"</rule>
-            <rule>In case there is quotes like Check "Title A", it must be as "Check 'Title A'"</rule>
-            <rule>Horizontal Layout: Rearrange the flowchart to make it more horizontally aligned, especially for subgraphs and sequential steps.</rule>
-            <rule>Grouping with Subgraphs: Use subgraphs to group related processes for better readability.</rule>
-            <rule>Yellow Notes: Add yellow notes to highlight key points or explanations.</rule>
-            <rule>Color Coding: Use consistent color coding for different types of nodes (e.g., actions, decisions, errors, etc.).</rule>
-            <rule>Icons or Labels: Add icons or labels to make the flowchart more intuitive.</rule>
-            <rule>[output] must be as diagram code only, no explanation required</rule>
-            <rule>Avoid the errors: The error in your diagram is caused by the classDef definitions being placed in a way that conflicts with the Mermaid syntax. Specifically, the classDef end is being interpreted incorrectly because end is a reserved keyword in Mermaid. To fix this issue, you should rename the classDef end to something else, such as classDef endNode.</rule>
-            <rule>Use readable colors for text and for blocks: for light blocks must be dark text colors and vise versa</rule>
+            Use appropriate Mermaid syntax
+            Output must be a valid Mermaid diagram code
+            Mermaid diagram ${global.diagramType}
+            Each test case must be clearly identifiable in diagram.
+            [IMPORTANT] use ticket key in notes.
+            [IMPORTANT] each ticket key must have reference to element in diagram.
+            Steps must be connected in logical sequence
+            In case there are special characters in names you must wrap them in "", for example "some style (Dark)"
+            In case there is quotes like Check "Title A", it must be as "Check 'Title A'"
+            Horizontal Layout: Rearrange the flowchart to make it more horizontally aligned, especially for subgraphs and sequential steps.
+            Grouping with Subgraphs: Use subgraphs to group related processes for better readability.
+            Yellow Notes with Dark Text color: Add yellow notes to highlight key points or explanations or test cases keys
+            Color Coding: Use consistent color coding for different types of nodes (e.g., actions, decisions, errors, etc.).
+            Icons or Labels: Add icons or labels to make the flowchart more intuitive.
+            [output] must be as diagram code only, no explanation required
+            Avoid the errors: The error in your diagram is caused by the classDef definitions being placed in a way that conflicts with the Mermaid syntax. Specifically, the classDef end is being interpreted incorrectly because end is a reserved keyword in Mermaid. To fix this issue, you should rename the classDef end to something else, such as classDef endNode.
+            Use readable colors for text and for blocks: for light blocks must be dark text colors and vise versa
         </rules>
     </formatting>
     <examples>

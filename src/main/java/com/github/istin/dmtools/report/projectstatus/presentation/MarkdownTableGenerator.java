@@ -92,7 +92,7 @@ public class MarkdownTableGenerator implements TableGenerator {
                             break;
                         case "description":
                             if (includeDescription) {
-                                row.add(StringUtils.removeUrls(ticket.getTicketDescription()));
+                                row.add(StringUtils.removeUrls(StringUtils.cleanTextForMarkdown(ticket.getTicketDescription())));
                             } else {
                                 row.add("");
                             }

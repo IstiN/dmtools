@@ -30,6 +30,7 @@ public class RetryUtil {
             try {
                 return operation.get();
             } catch (Exception e) {
+                e.printStackTrace();
                 lastException = e;
                 attemptCount++;
 

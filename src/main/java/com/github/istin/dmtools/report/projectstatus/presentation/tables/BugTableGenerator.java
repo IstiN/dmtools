@@ -79,7 +79,7 @@ public class BugTableGenerator implements TableGenerator {
 
     public String generateBugsTable(List<ITicket> bugs) {
         // Create table headers
-        List<String> headers = Arrays.asList("Key", "Priority", "Closed Date", "Summary");
+        List<String> headers = Arrays.asList("Key", "Priority", "Closed Date", "Labels", "Summary");
         if (this.countStoryPoints) {
             headers = new ArrayList<>(headers); // Create mutable list
             headers.add(2, "Story Points"); // Insert SP after Priority
@@ -93,6 +93,7 @@ public class BugTableGenerator implements TableGenerator {
                     ticket.getKey(),
                     TicketStatisticsCalculator.nullToEmpty(ticket.getPriority(), "Trivial"),
                     ticket.getFieldsAsJSON().optString("dateClosed"),
+                    StringUtils.cleanTextForMarkdown(ticket.getTicketLabels().toString()),
                     ticket.getTicketTitle()
                 ));
                 
