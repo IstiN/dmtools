@@ -79,6 +79,55 @@ public interface SourceCode {
 
     SourceCodeConfig getDefaultConfig();
 
+    /**
+     * Adds a review comment to a pull request in the specified repository and workspace.
+     *
+     * This method is used to leave a comment on a specific line of a file within a pull request.
+     * Comments can be added to either the line specified or a range of lines (if `startLine` is provided).
+     *
+     * @param workspace     The workspace or repository owner where the pull request resides.
+     *                      For example, "myworkspace" or "myorganization".
+     * @param repository    The name of the repository containing the pull request.
+     *                      For example, "my-repo".
+     * @param pullRequestId The ID of the pull request to which the comment should be added.
+     * @param commitId      The ID of the commit associated with the pull request where the comment is being added.
+     * @param filePath      The relative path to the file being commented on, within the repository.
+     *                      For example, "src/main/java/MyFile.java".
+     * @param line          The line number in the file where the comment should be added.
+     *                      This is the target line for the comment on the "RIGHT" side of the diff.
+     * @param startLine     (Optional) The starting line number for a range being commented on.
+     *                      If specified and differs from the `line`, it represents a multi-line comment range.
+     *                      Pass `null` to specify only a single-line comment.
+     * @param comment       The text of the comment to be added to the pull request.
+     *                      This is the content or body of your review comment.
+     * @return              A string response from the server, representing the result of the comment creation.
+     * @throws IOException  If there is a failure in network communication or an error occurs during the request.
+     */
+    default String addPullRequestReviewComment(String workspace, String repository, String pullRequestId, String commitId, String filePath, int line, Integer startLine, String comment) throws IOException {
+        throw new UnsupportedOperationException("Not implemented yet!");
+    }
+
+    /**
+     * Retrieves a list of commits associated with a pull request from the specified repository.
+     *
+     * <p>This method constructs the API endpoint path based on the provided workspace, repository,
+     * and pull request ID, then sends a GET request to fetch the list of commits. If the response
+     * is null, an empty list is returned. Otherwise, the response is parsed into a list of commit
+     * objects of type {@code ICommit}.
+     *
+     * @param workspace The workspace (or organization) identifier. Must not be null or empty.
+     * @param repository The name of the repository where the pull request exists. Must not be null or empty.
+     * @param pullRequestId The ID of the pull request whose commits need to be retrieved. Must not be null or empty.
+     * @return A list of {@code ICommit} objects representing the commits in the specified pull request.
+     *         If no commits are found or if the response is null, an empty list is returned.
+     * @throws IOException If an I/O error occurs while making the API request, or if the response
+     *         cannot be parsed correctly.
+     * @see JSONModel#convertToModels(Class, org.json.JSONArray) For conversion of JSON data to model objects.
+     */
+    default List<ICommit> getCommitsFromPullRequest(String workspace, String repository, String pullRequestId) throws IOException {
+        throw new UnsupportedOperationException("Not implemented yet!");
+    }
+
     class Impl {
 
         public static List<SourceCode> getConfiguredSourceCodes(JSONArray sources) throws IOException {
