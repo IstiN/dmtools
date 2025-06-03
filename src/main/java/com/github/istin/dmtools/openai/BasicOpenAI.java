@@ -1,3 +1,4 @@
+
 package com.github.istin.dmtools.openai;
 
 import com.github.istin.dmtools.ai.ConversationObserver;
