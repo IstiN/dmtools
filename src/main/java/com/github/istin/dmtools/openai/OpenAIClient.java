@@ -85,12 +85,8 @@ public class OpenAIClient extends AbstractRestClient implements AI {
         if (conversationObserver != null) {
             conversationObserver.addMessage(new ConversationObserver.Message("DMTools", message));
         }
-        String path = path("openai/deployments/" + model + "/chat/completions");
-        logger.info(path);
-        GenericRequest postRequest = new GenericRequest(this, path);
-//        postRequest.setIgnoreCache(true);
 
-        JSONArray messages = new JSONArray();;
+        JSONArray messagesArray = new JSONArray();
         if (imageFile != null) {
             String extension = ImageUtils.getExtension(imageFile);
             String imageBase64 = ImageUtils.convertToBase64(imageFile, "png");
@@ -104,23 +100,31 @@ public class OpenAIClient extends AbstractRestClient implements AI {
                             .put("image_url", new JSONObject()
                                     .put("url", "data:image/" + extension + ";base64," + imageBase64))
                     );
-            messages.put(new JSONObject()
+            messagesArray.put(new JSONObject()
                     .put("role", "user")
                     .put("content", content));
         } else {
-            messages.put(new JSONObject()
+            messagesArray.put(new JSONObject()
                     .put("role", "user")
                     .put("content", message));
         }
+
+        return performChatCompletion(model, messagesArray);
+    }
+
+    private String performChatCompletion(String model, JSONArray messagesArray) throws Exception {
+        String path = path("openai/deployments/" + model + "/chat/completions");
+        logger.info(path);
+        GenericRequest postRequest = new GenericRequest(this, path);
+
         JSONObject jsonObject = new JSONObject()
                 .put("temperature", 0.1)
-                .put("messages", messages);
+                .put("messages", messagesArray);
         if (metadata != null) {
             jsonObject.put("metadata", new JSONObject(new Gson().toJson(metadata)));
         }
         postRequest.setBody(jsonObject.toString());
-        String finalModel = model;
-        return RetryUtil.executeWithRetry(() -> processResponse(finalModel, postRequest));
+        return RetryUtil.executeWithRetry(() -> processResponse(model, postRequest));
     }
 
     private String processResponse(String model, GenericRequest postRequest) throws IOException {
@@ -149,12 +153,53 @@ public class OpenAIClient extends AbstractRestClient implements AI {
 
     @Override
     public String chat(String model, Message... messages) throws Exception {
-        throw new UnsupportedOperationException("Implement Me.");
+        if (model == null) {
+            model = this.model;
+        }
+
+        logger.info("-------- start chat ai with messages --------");
+        JSONArray messagesArray = new JSONArray();
+        for (Message message : messages) {
+            if (conversationObserver != null) {
+                // Assuming ConversationObserver.Message can be created from com.github.istin.dmtools.ai.Message
+                // If not, this part might need adjustment or a new constructor/method in ConversationObserver.Message
+                conversationObserver.addMessage(new ConversationObserver.Message(message.getRole(), message.getText()));
+            }
+            logger.info("Processing message from role: {} with text: {}", message.getRole(), message.getText());
+
+            JSONObject messageJson = new JSONObject();
+            messageJson.put("role", message.getRole());
+
+            if (message.getFiles() != null && !message.getFiles().isEmpty()) {
+                // Assuming we process only the first file as an image, similar to the existing chat method
+                File imageFile = message.getFiles().getFirst();
+                String extension = ImageUtils.getExtension(imageFile);
+                String imageBase64 = ImageUtils.convertToBase64(imageFile, "png"); // Assuming png, or derive from extension
+
+                JSONArray contentArray = new JSONArray();
+                // Add text part if text is not null or empty
+                if (message.getText() != null && !message.getText().isEmpty()) {
+                    contentArray.put(new JSONObject().put("type", "text").put("text", message.getText()));
+                }
+                // Add image part
+                contentArray.put(new JSONObject()
+                        .put("type", "image_url")
+                        .put("image_url", new JSONObject()
+                                .put("url", "data:image/" + extension + ";base64," + imageBase64)));
+                messageJson.put("content", contentArray);
+            } else {
+                messageJson.put("content", message.getText());
+            }
+            messagesArray.put(messageJson);
+        }
+        logger.info("-------- end chat ai with messages processing --------");
+
+        return performChatCompletion(model, messagesArray);
     }
 
     @Override
     public String chat(Message... messages) throws Exception {
-        throw new UnsupportedOperationException("Implement Me.");
+        return chat(this.model, messages);
     }
 
     @Override

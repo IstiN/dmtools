@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 The application is gradle based. You can't create any POM files and dependencies there. 
 It's java server / jar app, you can't run any python nodjs logic here.
