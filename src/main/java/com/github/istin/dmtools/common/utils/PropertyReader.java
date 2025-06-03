@@ -3,7 +3,11 @@ package com.github.istin.dmtools.common.utils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Component;
 
+@Component
 public class PropertyReader {
 
 	private static String PATH_TO_CONFIG_FILE = "/config.properties";
@@ -411,6 +415,34 @@ public class PropertyReader {
 		} catch (NumberFormatException e) {
 			return DEFAULT_PROMPT_CHUNK_MAX_FILES;
 		}
+	}
+
+	public Map<String, String> getAllProperties() {
+		Properties props = loadProperties();
+		return props.stringPropertyNames().stream()
+				.collect(Collectors.toMap(name -> name, props::getProperty));
+	}
+
+	private Properties loadProperties() {
+		Properties props = new Properties();
+		InputStream input = null;
+		try {
+			input = getClass().getResourceAsStream(PATH_TO_CONFIG_FILE);
+			if (input != null) {
+				props.load(input);
+			}
+		} catch (IOException e) {
+			throw new IllegalStateException("Property file not found");
+		} finally {
+			try {
+				if (input != null) {
+					input.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return props;
 	}
 
 }

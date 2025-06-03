@@ -113,4 +113,8 @@ public class AIAgentsModule {
         return new PresentationMakerOrchestrator();
     }
 
+    @Provides
+    BusinessAreaAssessmentAgent provideBusinessAreaAssessmentAgent() {
+        return new BusinessAreaAssessmentAgent();
+    }
 }

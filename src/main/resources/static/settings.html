@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMTools - Settings</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="main-container settings-page">
+    <!-- Unified Sidebar/Header -->
+    <nav id="sidebar" class="settings-sidebar">
+        <div class="sidebar-header">
+            <a href="index.html" class="site-title">
+                <img src="img/logo.svg" alt="DMTools Logo">
+            </a>
+            <button id="theme-toggle" class="theme-switch">
+                <i class="fas fa-moon"></i>
+                <span class="theme-text">Dark mode</span>
+            </button>
+        </div>
+        
+        <div class="sidebar-navigation-title">
+            Settings
+        </div>
+
+        <a href="index.html" class="back-to-dashboard-link">
+            <i class="fas fa-arrow-left"></i>
+            <span>Back to Dashboard</span>
+        </a>
+
+        <ul>
+            <li><a href="#section-confluence" class="active"><i class="fas fa-file-alt"></i> Confluence</a></li>
+            <li><a href="#section-openai"><i class="fas fa-brain"></i> OpenAI</a></li>
+            <li><a href="#section-bitbucket"><i class="fab fa-bitbucket"></i> Bitbucket</a></li>
+            <li><a href="#section-jira"><i class="fab fa-jira"></i> Jira</a></li>
+            <li><a href="#section-chunking"><i class="fas fa-puzzle-piece"></i> Chunking</a></li>
+            <li><a href="#section-curl-ai"><i class="fas fa-terminal"></i> cURL AI</a></li>
+            <li><a href="#section-github"><i class="fab fa-github"></i> GitHub</a></li>
+            <li><a href="#section-gitlab"><i class="fab fa-gitlab"></i> GitLab</a></li>
+            <li><a href="#section-firebase"><i class="fas fa-fire"></i> Firebase</a></li>
+            <li><a href="#section-figma"><i class="fab fa-figma"></i> Figma</a></li>
+            <li><a href="#section-retry"><i class="fas fa-redo"></i> Retry Logic</a></li>
+            <li><a href="#section-metrics"><i class="fas fa-chart-line"></i> Metrics</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main content -->
+    <main id="content">
+        <h2>Configuration</h2>
+        <form id="config-form">
+
+            <details id="section-confluence" open>
+                <summary><i class="fas fa-file-alt"></i> Confluence</summary>
+                <div>
+                    <label for="CONFLUENCE_BASE_PATH">Base Path</label>
+                    <input type="text" id="CONFLUENCE_BASE_PATH" name="CONFLUENCE_BASE_PATH">
+                    <div class="hint">Base URL for Confluence API (e.g., https://your-domain.atlassian.net/wiki/rest/api)</div>
+
+                    <label for="CONFLUENCE_LOGIN_PASS_TOKEN">Login/Password or Token</label>
+                    <input type="password" id="CONFLUENCE_LOGIN_PASS_TOKEN" name="CONFLUENCE_LOGIN_PASS_TOKEN">
+                    <div class="hint">Confluence username:password or API token for authentication.</div>
+
+                    <label for="CONFLUENCE_DEFAULT_SPACE">Default Space</label>
+                    <input type="text" id="CONFLUENCE_DEFAULT_SPACE" name="CONFLUENCE_DEFAULT_SPACE">
+                    <div class="hint">Default Confluence space key.</div>
+
+                    <label for="CONFLUENCE_GRAPHQL_PATH">GraphQL Path</label>
+                    <input type="text" id="CONFLUENCE_GRAPHQL_PATH" name="CONFLUENCE_GRAPHQL_PATH">
+                    <div class="hint">Path for Confluence GraphQL API (usually /graphql).</div>
+                </div>
+            </details>
+
+            <details id="section-openai">
+                <summary><i class="fas fa-brain"></i> OpenAI</summary>
+                <div>
+                    <label for="OPEN_AI_BATH_PATH">Base Path</label>
+                    <input type="text" id="OPEN_AI_BATH_PATH" name="OPEN_AI_BATH_PATH">
+                    <div class="hint">Base URL for OpenAI API (e.g., https://api.openai.com/v1)</div>
+
+                    <label for="OPEN_AI_API_KEY">API Key</label>
+                    <input type="password" id="OPEN_AI_API_KEY" name="OPEN_AI_API_KEY">
+                    <div class="hint">Your OpenAI API key.</div>
+
+                    <label for="OPEN_AI_MODEL">Default Model</label>
+                    <input type="text" id="OPEN_AI_MODEL" name="OPEN_AI_MODEL" placeholder="gpt-4-turbo">
+                    <div class="hint">Default OpenAI model to use (e.g., gpt-4-turbo, gpt-3.5-turbo).</div>
+
+                    <label for="CODE_AI_MODEL">Code AI Model</label>
+                    <input type="text" id="CODE_AI_MODEL" name="CODE_AI_MODEL" placeholder="gpt-4-turbo">
+                    <div class="hint">OpenAI model specifically for code generation tasks.</div>
+
+                    <label for="TEST_AI_MODEL">Test AI Model</label>
+                    <input type="text" id="TEST_AI_MODEL" name="TEST_AI_MODEL" placeholder="gpt-4-turbo">
+                    <div class="hint">OpenAI model specifically for test generation tasks.</div>
+                </div>
+            </details>
+
+            <details id="section-bitbucket">
+                <summary><i class="fab fa-bitbucket"></i> Bitbucket</summary>
+                <div>
+                    <label for="BITBUCKET_API_VERSION">API Version</label>
+                    <input type="text" id="BITBUCKET_API_VERSION" name="BITBUCKET_API_VERSION" placeholder="2.0">
+                    <div class="hint">Bitbucket API version (e.g., 2.0).</div>
+
+                    <label for="BITBUCKET_BRANCH">Default Branch</label>
+                    <input type="text" id="BITBUCKET_BRANCH" name="BITBUCKET_BRANCH">
+                    <div class="hint">Default branch name for Bitbucket repositories.</div>
+
+                    <label for="BITBUCKET_REPOSITORY">Default Repository</label>
+                    <input type="text" id="BITBUCKET_REPOSITORY" name="BITBUCKET_REPOSITORY">
+                    <div class="hint">Default Bitbucket repository name.</div>
+
+                    <label for="BITBUCKET_WORKSPACE">Workspace</label>
+                    <input type="text" id="BITBUCKET_WORKSPACE" name="BITBUCKET_WORKSPACE">
+                    <div class="hint">Bitbucket workspace ID or name.</div>
+
+                    <label for="BITBUCKET_TOKEN">Token</label>
+                    <input type="password" id="BITBUCKET_TOKEN" name="BITBUCKET_TOKEN">
+                    <div class="hint">Bitbucket App Password or Personal Access Token.</div>
+
+                    <label for="BITBUCKET_BASE_PATH">Base Path</label>
+                    <input type="text" id="BITBUCKET_BASE_PATH" name="BITBUCKET_BASE_PATH" placeholder="https://api.bitbucket.org">
+                    <div class="hint">Base URL for Bitbucket API (e.g., https://api.bitbucket.org).</div>
+                </div>
+            </details>
+
+            <details id="section-jira">
+                <summary><i class="fab fa-jira"></i> Jira</summary>
+                <div>
+                    <label for="JIRA_BASE_PATH">Base Path</label>
+                    <input type="text" id="JIRA_BASE_PATH" name="JIRA_BASE_PATH">
+                    <div class="hint">Base URL for Jira API (e.g., https://your-domain.atlassian.net/rest/api/2)</div>
+
+                    <label for="JIRA_LOGIN_PASS_TOKEN">Login/Password or Token</label>
+                    <input type="password" id="JIRA_LOGIN_PASS_TOKEN" name="JIRA_LOGIN_PASS_TOKEN">
+                    <div class="hint">Jira username:password or API token for authentication.</div>
+
+                    <label for="JIRA_AUTH_TYPE">Auth Type</label>
+                    <input type="text" id="JIRA_AUTH_TYPE" name="JIRA_AUTH_TYPE" placeholder="Basic or Bearer">
+                    <div class="hint">Authentication type for Jira (Basic or Bearer).</div>
+
+                    <label for="SLEEP_TIME_REQUEST">Sleep Time Between Requests (ms)</label>
+                    <input type="number" id="SLEEP_TIME_REQUEST" name="SLEEP_TIME_REQUEST" placeholder="100">
+                    <div class="hint">Milliseconds to wait between consecutive Jira API requests to avoid rate limiting.</div>
+
+                    <label for="JIRA_EXTRA_FIELDS">Extra Fields (Comma-separated)</label>
+                    <input type="text" id="JIRA_EXTRA_FIELDS" name="JIRA_EXTRA_FIELDS">
+                    <div class="hint">Comma-separated list of custom Jira field IDs to fetch (e.g., customfield_10001,customfield_10002).</div>
+
+                    <label for="JIRA_EXTRA_FIELDS_PROJECT">Project Key for Extra Fields</label>
+                    <input type="text" id="JIRA_EXTRA_FIELDS_PROJECT" name="JIRA_EXTRA_FIELDS_PROJECT">
+                    <div class="hint">Specific Jira project key for which the extra fields apply.</div>
+                </div>
+            </details>
+
+            <details id="section-chunking">
+                <summary><i class="fas fa-puzzle-piece"></i> Chunk Preparation (AI Prompts)</summary>
+                <div>
+                    <label for="PROMPT_CHUNK_TOKEN_LIMIT">Token Limit per Chunk</label>
+                    <input type="number" id="PROMPT_CHUNK_TOKEN_LIMIT" name="PROMPT_CHUNK_TOKEN_LIMIT" placeholder="4000">
+                    <div class="hint">Maximum number of tokens allowed per AI prompt chunk.</div>
+
+                    <label for="PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE_MB">Max Single File Size (MB)</label>
+                    <input type="number" id="PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE_MB" name="PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE_MB" placeholder="4">
+                    <div class="hint">Maximum size in MB for a single file to be included in a chunk.</div>
+
+                    <label for="PROMPT_CHUNK_MAX_TOTAL_FILES_SIZE_MB">Max Total Files Size (MB)</label>
+                    <input type="number" id="PROMPT_CHUNK_MAX_TOTAL_FILES_SIZE_MB" name="PROMPT_CHUNK_MAX_TOTAL_FILES_SIZE_MB" placeholder="4">
+                    <div class="hint">Maximum total size in MB for all files included in a single chunk.</div>
+
+                    <label for="PROMPT_CHUNK_MAX_FILES">Max Files per Chunk</label>
+                    <input type="number" id="PROMPT_CHUNK_MAX_FILES" name="PROMPT_CHUNK_MAX_FILES" placeholder="10">
+                    <div class="hint">Maximum number of files allowed per AI prompt chunk.</div>
+                </div>
+            </details>
+
+            <details id="section-curl-ai">
+                <summary><i class="fas fa-terminal"></i> cURL AI Client</summary>
+                <div>
+                    <label for="CURL_AI_MODEL">Model Name</label>
+                    <input type="text" id="CURL_AI_MODEL" name="CURL_AI_MODEL">
+                    <div class="hint">Identifier for the model used by the cURL AI client.</div>
+
+                    <label for="CURL_AI_BATH_PATH">Base Path</label>
+                    <input type="text" id="CURL_AI_BATH_PATH" name="CURL_AI_BATH_PATH">
+                    <div class="hint">Base URL for the custom AI service accessed via cURL.</div>
+
+                    <label for="CURL_AI_AUTH">Auth Header</label>
+                    <input type="text" id="CURL_AI_AUTH" name="CURL_AI_AUTH">
+                    <div class="hint">Authorization header value for the cURL AI service (e.g., Bearer YOUR_TOKEN).</div>
+
+                    <label for="CURL_AI_URL_TEMPLATE">URL Template</label>
+                    <input type="text" id="CURL_AI_URL_TEMPLATE" name="CURL_AI_URL_TEMPLATE">
+                    <div class="hint">URL template for the cURL AI request (may contain placeholders).</div>
+
+                    <label for="CURL_AI_BODY_TEMPLATE">Body Template (JSON)</label>
+                    <input type="text" id="CURL_AI_BODY_TEMPLATE" name="CURL_AI_BODY_TEMPLATE">
+                    <div class="hint">JSON template for the request body sent to the cURL AI service.</div>
+
+                    <label for="CURL_AI_BODY_TEMPLATE_WITH_IMAGE">Body Template with Image (JSON)</label>
+                    <input type="text" id="CURL_AI_BODY_TEMPLATE_WITH_IMAGE" name="CURL_AI_BODY_TEMPLATE_WITH_IMAGE">
+                    <div class="hint">JSON template for the request body when sending images to the cURL AI service.</div>
+
+                    <label for="CURL_AI_RESPONSE_JSON_PATH">Response JSON Path</label>
+                    <input type="text" id="CURL_AI_RESPONSE_JSON_PATH" name="CURL_AI_RESPONSE_JSON_PATH">
+                    <div class="hint">JSONPath expression to extract the relevant content from the cURL AI service response.</div>
+                </div>
+            </details>
+
+            <details id="section-github">
+                <summary><i class="fab fa-github"></i> GitHub</summary>
+                <div>
+                    <label for="SOURCE_GITHUB_BRANCH">Default Branch</label>
+                    <input type="text" id="SOURCE_GITHUB_BRANCH" name="SOURCE_GITHUB_BRANCH">
+                    <div class="hint">Default branch name for GitHub repositories.</div>
+
+                    <label for="SOURCE_GITHUB_REPOSITORY">Default Repository</label>
+                    <input type="text" id="SOURCE_GITHUB_REPOSITORY" name="SOURCE_GITHUB_REPOSITORY">
+                    <div class="hint">Default GitHub repository name (owner/repo).</div>
+
+                    <label for="SOURCE_GITHUB_WORKSPACE">Workspace/Owner</label>
+                    <input type="text" id="SOURCE_GITHUB_WORKSPACE" name="SOURCE_GITHUB_WORKSPACE">
+                    <div class="hint">GitHub username or organization name.</div>
+
+                    <label for="SOURCE_GITHUB_TOKEN">Token</label>
+                    <input type="password" id="SOURCE_GITHUB_TOKEN" name="SOURCE_GITHUB_TOKEN">
+                    <div class="hint">GitHub Personal Access Token (PAT).</div>
+
+                    <label for="SOURCE_GITHUB_BASE_PATH">Base Path</label>
+                    <input type="text" id="SOURCE_GITHUB_BASE_PATH" name="SOURCE_GITHUB_BASE_PATH" placeholder="https://api.github.com">
+                    <div class="hint">Base URL for GitHub API (e.g., https://api.github.com).</div>
+                </div>
+            </details>
+
+            <details id="section-gitlab">
+                <summary><i class="fab fa-gitlab"></i> GitLab</summary>
+                <div>
+                    <label for="GITLAB_BRANCH">Default Branch</label>
+                    <input type="text" id="GITLAB_BRANCH" name="GITLAB_BRANCH">
+                    <div class="hint">Default branch name for GitLab repositories.</div>
+
+                    <label for="GITLAB_REPOSITORY">Default Repository (Project ID or Path)</label>
+                    <input type="text" id="GITLAB_REPOSITORY" name="GITLAB_REPOSITORY">
+                    <div class="hint">GitLab project ID or path with namespace (e.g., group/project).</div>
+
+                    <label for="GITLAB_WORKSPACE">Workspace/Group</label>
+                    <input type="text" id="GITLAB_WORKSPACE" name="GITLAB_WORKSPACE">
+                    <div class="hint">GitLab group or namespace.</div>
+
+                    <label for="GITLAB_TOKEN">Token</label>
+                    <input type="password" id="GITLAB_TOKEN" name="GITLAB_TOKEN">
+                    <div class="hint">GitLab Personal Access Token.</div>
+
+                    <label for="GITLAB_BASE_PATH">Base Path</label>
+                    <input type="text" id="GITLAB_BASE_PATH" name="GITLAB_BASE_PATH" placeholder="https://gitlab.com/api/v4">
+                    <div class="hint">Base URL for GitLab API (e.g., https://gitlab.com/api/v4).</div>
+                </div>
+            </details>
+
+            <details id="section-firebase">
+                <summary><i class="fas fa-fire"></i> Firebase Crashlytics</summary>
+                <div>
+                    <label for="FIREBASE_PROJECT_ID">Project ID</label>
+                    <input type="text" id="FIREBASE_PROJECT_ID" name="FIREBASE_PROJECT_ID">
+                    <div class="hint">Your Firebase project ID.</div>
+
+                    <label for="FIREBASE_SERVICE_ACCOUNT_JSON_AUTH">Service Account JSON</label>
+                    <input type="text" id="FIREBASE_SERVICE_ACCOUNT_JSON_AUTH" name="FIREBASE_SERVICE_ACCOUNT_JSON_AUTH">
+                    <div class="hint">Path to the Firebase service account JSON key file OR the JSON content itself.</div>
+                </div>
+            </details>
+
+            <details id="section-figma">
+                <summary><i class="fab fa-figma"></i> Figma</summary>
+                <div>
+                    <label for="FIGMA_BASE_PATH">Base Path</label>
+                    <input type="text" id="FIGMA_BASE_PATH" name="FIGMA_BASE_PATH" placeholder="https://api.figma.com/v1">
+                    <div class="hint">Base URL for Figma API (e.g., https://api.figma.com/v1).</div>
+
+                    <label for="FIGMA_TOKEN">API Key</label>
+                    <input type="password" id="FIGMA_TOKEN" name="FIGMA_TOKEN">
+                    <div class="hint">Your Figma Personal Access Token.</div>
+                </div>
+            </details>
+
+            <details id="section-retry">
+                <summary><i class="fas fa-redo"></i> Retry Logic</summary>
+                <div>
+                    <label for="AI_RETRY_AMOUNT">AI Retry Amount</label>
+                    <input type="number" id="AI_RETRY_AMOUNT" name="AI_RETRY_AMOUNT" placeholder="3">
+                    <div class="hint">Number of times to retry a failed AI request.</div>
+
+                    <label for="AI_RETRY_DELAY_STEP">AI Retry Delay Step (ms)</label>
+                    <input type="number" id="AI_RETRY_DELAY_STEP" name="AI_RETRY_DELAY_STEP" placeholder="20000">
+                    <div class="hint">Initial delay in milliseconds before the first retry, increases incrementally.</div>
+                </div>
+            </details>
+
+            <details id="section-metrics">
+                <summary><i class="fas fa-chart-line"></i> Metrics</summary>
+                <div>
+                    <label>Ticket Fields Changed Dividers (Dynamic)</label>
+                    <div class="hint">Dividers for specific fields in metrics calculations. Loaded dynamically below if present in config. Use format 'TICKET_FIELDS_CHANGED_DIVIDER_FIELDNAME=Value'.</div>
+                    <div id="dynamic-metrics-fields">
+                        <!-- Dynamic fields will be added here by JavaScript -->
+                    </div>
+                </div>
+            </details>
+
+            <button type="submit">
+                <i class="fas fa-save"></i>
+                Save Configuration
+            </button>
+        </form>
+    </main>
+</div>
+
+<script src="css/theme.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle section navigation
+        const menuLinks = document.querySelectorAll('#sidebar a');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Remove active class from all links
+                menuLinks.forEach(l => l.classList.remove('active'));
+                
+                // Add active class to clicked link
+                this.classList.add('active');
+                
+                // Get the section id from href
+                const sectionId = this.getAttribute('href');
+                
+                // Close all details
+                document.querySelectorAll('details').forEach(detail => {
+                    detail.removeAttribute('open');
+                });
+                
+                // Open the target details
+                const targetDetail = document.querySelector(sectionId);
+                if (targetDetail) {
+                    targetDetail.setAttribute('open', true);
+                    
+                    // Scroll to the section
+                    targetDetail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Theme switching logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        let currentTheme = localStorage.getItem('theme');
+
+        // Function to apply theme
+        function applyTheme(theme) {
+            const moonIcon = '<i class="fas fa-moon"></i>';
+            const sunIcon = '<i class="fas fa-sun"></i>';
+            
+            if (theme === 'dark') {
+                document.body.classList.add('dark-theme');
+                themeToggle.innerHTML = `${sunIcon} <span>Theme</span>`;
+            } else {
+                document.body.classList.remove('dark-theme');
+                themeToggle.innerHTML = `${moonIcon} <span>Theme</span>`;
+            }
+        }
+
+        // Set initial theme
+        if (currentTheme) {
+            applyTheme(currentTheme);
+        } else {
+            if (prefersDarkScheme.matches) {
+                applyTheme('dark');
+            } else {
+                applyTheme('light');
+            }
+        }
+
+        // Handle theme toggle click
+        themeToggle.addEventListener('click', function() {
+            let theme;
+            if (document.body.classList.toggle('dark-theme')) {
+                theme = 'dark';
+            } else {
+                theme = 'light';
+            }
+            localStorage.setItem('theme', theme);
+            applyTheme(theme);
+        });
+
+        // Fetch configuration data
+        fetch('/api/config')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(configData => {
+                console.log('Configuration received:', configData);
+                populateForm(configData);
+            })
+            .catch(error => {
+                console.error('Error fetching configuration:', error);
+                // Пока не показываем ошибку пользователю, т.к. это может быть локальная разработка
+                // alert('Could not load configuration from server.');
+            });
+
+        function populateForm(config) {
+            const dynamicMetricsContainer = document.getElementById('dynamic-metrics-fields');
+            if (dynamicMetricsContainer) {
+                dynamicMetricsContainer.innerHTML = ''; // Clear previous dynamic fields
+            }
+
+            for (const key in config) {
+                if (config.hasOwnProperty(key)) {
+                    const inputElement = document.getElementById(key);
+                    if (inputElement) {
+                        // Directly set value for standard inputs
+                        inputElement.value = config[key];
+                    } else if (key.startsWith('TICKET_FIELDS_CHANGED_DIVIDER_') && dynamicMetricsContainer) {
+                        // Dynamically create inputs for metric dividers
+                        const fieldName = key.substring('TICKET_FIELDS_CHANGED_DIVIDER_'.length);
+                        const label = document.createElement('label');
+                        label.htmlFor = key;
+                        // Convert FOO_BAR to Foo Bar for display
+                        label.textContent = `Divider: ${fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+
+                        const input = document.createElement('input');
+                        input.type = 'number'; // Assuming dividers are numbers
+                        input.step = 'any'; // Allow decimals
+                        input.id = key;
+                        input.name = key;
+                        input.value = config[key];
+                        input.style.marginBottom = '10px'; // Add some spacing
+
+                        dynamicMetricsContainer.appendChild(label);
+                        dynamicMetricsContainer.appendChild(input);
+                    }
+                }
+            }
+        }
+
+        document.getElementById('config-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Collect form data
+            const formData = new FormData(this);
+            const formObject = {};
+            
+            formData.forEach((value, key) => {
+                formObject[key] = value;
+            });
+            
+            // Add dynamic metrics fields
+            if (document.querySelectorAll('#dynamic-metrics-fields input')) {
+                document.querySelectorAll('#dynamic-metrics-fields input').forEach(input => {
+                    formObject[input.name] = input.value;
+                });
+            }
+            
+            // Would typically send to server
+            console.log('Saving configuration:', formObject);
+            
+            alert('Configuration saved successfully!');
+        });
+    });
+</script>
+</body>
+</html> 
