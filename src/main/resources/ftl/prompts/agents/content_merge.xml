@@ -27,11 +27,11 @@
     </instructions>
     <formatting>
         <rules>
-            <rule>Output must be new version of merged content</rule>
-            <rule>You must not lose any details content form [source] or [new] which are IMPORTANT for [user_task]</rule>
-            <rule>[output] must be new version of merged content, no explanation required</rule>
-            <rule>[output] must not cut, FULL NEW VERSION OF MERGED CONTENT MUST BE RETURNED</rule>
-            <rule>don't lose important details for [user_task]</rule>
+            Output must be new version of merged content
+            You must not lose any details content form [source] or [new] which are IMPORTANT for [user_task]
+            [output] must be new version of merged content, no explanation required
+            [output] must not cut, FULL NEW VERSION OF MERGED CONTENT MUST BE RETURNED
+            don't lose important details for [user_task]
         </rules>
     </formatting>
     <examples>

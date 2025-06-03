@@ -3,6 +3,7 @@ package com.github.istin.dmtools.ai.curl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
@@ -121,6 +122,16 @@ public class CUrlAIClient extends AbstractRestClient implements AI {
             System.out.println("Response From AI: " + aiResponse);
             return parseResponseByPath(aiResponse, responseJsonPath);
         });
+    }
+
+    @Override
+    public String chat(String model, Message... messages) throws Exception {
+        throw new UnsupportedOperationException("Implement Me.");
+    }
+
+    @Override
+    public String chat(Message... messages) throws Exception {
+        throw new UnsupportedOperationException("Implement Me.");
     }
 
     private String replacePlaceholders(String template, Map<String, String> values) {

@@ -2,6 +2,7 @@ package com.github.istin.dmtools.openai;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
+import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.utils.ImageUtils;
@@ -147,10 +148,19 @@ public class OpenAIClient extends AbstractRestClient implements AI {
     }
 
     @Override
+    public String chat(String model, Message... messages) throws Exception {
+        throw new UnsupportedOperationException("Implement Me.");
+    }
+
+    @Override
+    public String chat(Message... messages) throws Exception {
+        throw new UnsupportedOperationException("Implement Me.");
+    }
+
+    @Override
     public String chat(String model, String message, List<File> files) throws Exception {
         return chat(model, message, files != null && !files.isEmpty() ? files.getFirst() : null);
     }
-
 
     public String chat(String model, String message) throws Exception {
         return chat(model, message, (File) null);

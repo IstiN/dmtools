@@ -20,6 +20,10 @@ public interface AI {
 
     String chat(String model, String message, List<File> files) throws Exception;
 
+    String chat(String model, Message... messages) throws Exception;
+
+    String chat(Message... messages) throws Exception;
+
     class Utils {
 
         public static Boolean chatAsBoolean(AI ai, String model, String message) throws Exception {
