@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMTools Chat Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .response {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>DMTools Chat Integration Test</h1>
+    <p>This page tests the enhanced MCP tools integration for automatic JIRA ticket detection.</p>
+
+    <div class="test-section">
+        <h3>Test 1: JIRA Ticket Key Detection</h3>
+        <button onclick="testJiraTicketKey()">Test "Get information about JIRA ticket ACUF-968"</button>
+        <div id="result1" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: JIRA Search Request</h3>
+        <button onclick="testJiraSearch()">Test "Show me recent JIRA tickets"</button>
+        <div id="result2" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Regular Chat (No Tools)</h3>
+        <button onclick="testRegularChat()">Test "What is Spring Boot?"</button>
+        <div id="result3" class="response"></div>
+    </div>
+
+    <script>
+        async function testJiraTicketKey() {
+            const resultDiv = document.getElementById('result1');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: 'user',
+                                content: 'Get information about JIRA ticket ACUF-968'
+                            }
+                        ],
+                        agentTools: {
+                            enabled: true
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `<div class="success">SUCCESS</div>Response:\n${result.content}`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">FAILED</div>Error: ${result.error}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">ERROR</div>${error.message}`;
+            }
+        }
+
+        async function testJiraSearch() {
+            const resultDiv = document.getElementById('result2');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: 'user',
+                                content: 'Show me recent JIRA tickets'
+                            }
+                        ],
+                        agentTools: {
+                            enabled: true
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `<div class="success">SUCCESS</div>Response:\n${result.content}`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">FAILED</div>Error: ${result.error}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">ERROR</div>${error.message}`;
+            }
+        }
+
+        async function testRegularChat() {
+            const resultDiv = document.getElementById('result3');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: 'user',
+                                content: 'What is Spring Boot?'
+                            }
+                        ],
+                        agentTools: {
+                            enabled: false
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `<div class="success">SUCCESS</div>Response:\n${result.content}`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">FAILED</div>Error: ${result.error}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">ERROR</div>${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html> 

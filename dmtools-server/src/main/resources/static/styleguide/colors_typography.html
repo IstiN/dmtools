@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colors & Typography - DMTools Style Guide</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="styleguide.css">
+    <link rel="icon" href="../img/dmtools-icon.svg" type="image/svg+xml">
+</head>
+<body class="sg-body">
+    <div class="sg-container">
+        <header class="sg-header">
+            <a href="styleguide.html"><img src="../img/dmtools-logo-intelligent-network-fusion-white.svg" alt="DMTools Logo" style="height: 50px; margin-bottom: 10px;"></a>
+            <p>This style guide provides a live inventory of UI components, design patterns, and brand guidelines for the DMTools application.</p>
+            <button id="theme-toggle" class="theme-switch global-theme-switcher" aria-label="Toggle theme">
+                <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+        </header>
+
+        <nav class="sg-navigation">
+            <h2>Navigation</h2>
+            <ul>
+                <li><a href="colors_typography.html">Colors & Typography</a></li>
+                <li><a href="atoms.html">Atoms</a></li>
+                <li><a href="molecules.html">Molecules</a></li>
+                <li><a href="organisms.html">Organisms</a></li>
+                <li><a href="icons_logos.html">Icons & Logos</a></li>
+            </ul>
+        </nav>
+
+        <main class="sg-main-content">
+            <section id="colors" class="sg-section">
+                <h2>Colors & Typography</h2>
+                 <article class="sg-component-display">
+                    <h3>Color Palette (from CSS Variables)</h3>
+                    <p>These colors are defined as CSS custom properties and support theming.</p>
+                    <h4>Base Colors (Light Theme Default)</h4>
+                    <div class="sg-color-swatch-container">
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--bg-color);"></span><code>--bg-color</code> (#f8f9fa)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--card-bg);"></span><code>--card-bg</code> (#ffffff)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--text-color); color: var(--bg-color);"></span><code>--text-color</code> (#212529)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--text-secondary); color: var(--bg-color);"></span><code>--text-secondary</code> (#495057)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--text-muted); color: var(--bg-color);"></span><code>--text-muted</code> (#6c757d)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--border-color);"></span><code>--border-color</code> (#eaedf1)</div>
+                    </div>
+                    <h4>Accent Colors</h4>
+                    <div class="sg-color-swatch-container">
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--accent-color);"></span><code>--accent-color</code> (#466af1)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--accent-light);"></span><code>--accent-light</code> (#6988f5)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--accent-hover);"></span><code>--accent-hover</code> (#3155db)</div>
+                    </div>
+                    <h4>Button & Interaction Colors</h4>
+                    <div class="sg-color-swatch-container">
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--button-bg);"></span><code>--button-bg</code> (#466af1)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--button-hover);"></span><code>--button-hover</code> (#3155db)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--hover-bg);"></span><code>--hover-bg</code> (rgba(70,106,241,0.08))</div>
+                    </div>
+                    <h4>Feedback Colors</h4>
+                    <div class="sg-color-swatch-container">
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--success-color);"></span><code>--success-color</code> (#10b981)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--warning-color);"></span><code>--warning-color</code> (#f59e0b)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--danger-color);"></span><code>--danger-color</code> (#ef4444)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--info-color);"></span><code>--info-color</code> (#3b82f6)</div>
+                    </div>
+                     <h4>Input Colors</h4>
+                    <div class="sg-color-swatch-container">
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--input-bg);"></span><code>--input-bg</code> (#ffffff)</div>
+                        <div class="sg-color-item"><span class="sg-color-swatch" style="background-color: var(--input-focus-border);"></span><code>--input-focus-border</code> (#466af1)</div>
+                    </div>
+                    <p><em>Note: Dark theme variants for these colors also exist (e.g., <code>--bg-color</code> becomes #121212 in <code>.dark-theme</code>). The theme switcher script in <code>theme.js</code> handles this.</em></p>
+                </article>
+                 <article class="sg-component-display">
+                    <h3>Typography</h3>
+                    <p>Base font family: <code id="sg-font-family">var(--font-family)</code></p>
+                    <h1>Heading 1</h1>
+                    <h2>Heading 2</h2>
+                    <h3>Heading 3</h3>
+                    <h4>Heading 4</h4>
+                    <h5>Heading 5</h5>
+                    <h6>Heading 6</h6>
+                    <hr>
+                    <p>This is a standard paragraph. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. It uses <code>var(--text-color)</code>.</p>
+                    <p><small>This is small text, often used for less important details or <code>var(--text-muted)</code>.</small></p>
+                    <p><a>This is a hyperlink, typically using <code>var(--accent-color)</code>.</a></p>
+                    <p><strong>This is bold text.</strong> <em>This is italic text.</em></p>
+                    <p><code>This is inline code.</code></p>
+                    <blockquote>This is a blockquote. It can be used to highlight a section of text. Often styled with a border or a different background.</blockquote>
+                </article>
+                <article class="sg-component-display">
+                    <h3>Available CSS Custom Properties (:root)</h3>
+                    <ul id="css-vars-list"></ul>
+                </article>
+            </section>
+        </main>
+
+        <footer class="sg-footer">
+            <p>&copy; 2025 DMTools. All rights reserved.</p>
+        </footer>
+    </div>
+    <script src="../css/theme.js"></script>
+    <script>
+        // Display actual font family
+        const rootStyle = getComputedStyle(document.documentElement);
+        const fontFamily = rootStyle.getPropertyValue('--font-family').trim();
+        const sgFontFamilyElement = document.getElementById('sg-font-family');
+        if (sgFontFamilyElement) {
+            sgFontFamilyElement.textContent = fontFamily || 'Not defined';
+        }
+
+        // Script to toggle dark theme for style guide preview (if theme.js doesn't cover this page specifically)
+        // This is a simplified version. Ideally, theme.js should be usable here.
+        // Example: find a theme toggle button if one exists on this specific page
+        // const themeToggleButton = document.getElementById('some-theme-toggle-on-this-page');
+        // if (themeToggleButton) {
+        //     themeToggleButton.addEventListener('click', () => {
+        //         document.body.classList.toggle('dark-theme');
+        //     });
+        // }
+
+        // Display all CSS variables (for advanced users)
+        function getAllCSSVariableNames(styleSheets = document.styleSheets) {
+            const cssVars = [];
+            for (var i = 0; i < styleSheets.length; i++) {
+                try {
+                    const rules = styleSheets[i].cssRules || styleSheets[i].rules;
+                    if (rules) {
+                        for (var j = 0; j < rules.length; j++) {
+                            try {
+                                if (rules[j].style && rules[j].selectorText === ':root') {
+                                    const style = rules[j].style;
+                                    for (let k = 0; k < style.length; k++) {
+                                        if (style[k].startsWith('--')) {
+                                            cssVars.push(style[k]);
+                                        }
+                                    }
+                                }
+                            } catch (e) { /* Rule access error */ }
+                        }
+                    }
+                } catch (e) { /* Stylesheet access error */ }
+            }
+            return cssVars;
+        }
+
+        const cssVariablesListElement = document.getElementById('css-vars-list');
+        if (cssVariablesListElement) {
+            const allVars = getAllCSSVariableNames();
+            allVars.sort().forEach(variable => {
+                const li = document.createElement('li');
+                const value = rootStyle.getPropertyValue(variable).trim();
+                li.innerHTML = `<code>${variable}:</code> ${value}`;
+                cssVariablesListElement.appendChild(li);
+            });
+        } else {
+            // Fallback or alternative display if the list element isn't in this specific partial
+            const colorsSection = document.getElementById('colors');
+            if (colorsSection) { // Check if the main section for colors exists
+                 const cssVariablesSection = document.createElement('article');
+                 cssVariablesSection.className = 'sg-component-display';
+                 cssVariablesSection.innerHTML = '<h3>Available CSS Custom Properties (:root)</h3><ul id="css-vars-list-fallback"></ul>';
+                 colorsSection.appendChild(cssVariablesSection);
+                 const varsListFallback = document.getElementById('css-vars-list-fallback');
+                 if(varsListFallback) {
+                    const allVars = getAllCSSVariableNames();
+                    allVars.sort().forEach(variable => {
+                        const li = document.createElement('li');
+                        const value = rootStyle.getPropertyValue(variable).trim();
+                        li.innerHTML = `<code>${variable}:</code> ${value}`;
+                        varsListFallback.appendChild(li);
+                    });
+                 }
+            }
+        }
+    </script>
+    <script>
+    (function() {
+        const switcher = document.getElementById('theme-toggle');
+        if (!switcher) return;
+
+        const sunIcon = switcher.querySelector('.sun-icon');
+        const moonIcon = switcher.querySelector('.moon-icon');
+
+        if (!sunIcon || !moonIcon) return;
+
+        function syncIcons() {
+            if (document.body.classList.contains('dark-theme')) {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        }
+        syncIcons();
+        switcher.addEventListener('click', function() {
+            setTimeout(syncIcons, 0); 
+        });
+        
+        const observer = new MutationObserver(syncIcons);
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'dmtools-theme') {
+                // Assuming theme.js updates body.classList on storage event.
+            }
+        });
+    })();
+</script>
+</body>
+</html> 

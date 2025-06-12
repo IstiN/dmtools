@@ -1,0 +1,93 @@
+openapi: 3.0.1
+info:
+  title: Presentation App API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/presentation/script:
+    post:
+      summary: Generate a presentation script
+      operationId: generateScript
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScriptGenerationRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - userRequest
+              properties:
+                userRequest:
+                  type: string
+                  description: "User's natural language request to generate a script."
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: "Optional files to provide context for the script generation."
+      responses:
+        '200':
+          description: OK. The generated JavaScript is returned.
+          content:
+            application/javascript:
+              schema:
+                type: string
+                example: "function generatePresentationJs(paramsForJs, javaClient) { ... }"
+
+  /api/presentation/generate:
+    post:
+      summary: Generate an HTML presentation from a script
+      operationId: generatePresentation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePresentationRequest'
+      responses:
+        '200':
+          description: OK. The generated HTML presentation is returned.
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<html><body><h1>My Presentation</h1></body></html>"
+
+  /health:
+    get:
+      summary: Check health status
+      operationId: health
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "healthy"
+
+components:
+  schemas:
+    ScriptGenerationRequest:
+      type: object
+      required:
+        - userRequest
+      properties:
+        userRequest:
+          type: string
+          description: "User's natural language request to generate a script."
+    GeneratePresentationRequest:
+      type: object
+      required:
+        - jsScript
+      properties:
+        jsScript:
+          type: string
+          description: "The JavaScript to execute for generating the presentation."
+        paramsForJs:
+          type: object
+          additionalProperties: true
+          description: "JSON parameters to pass to the script." 

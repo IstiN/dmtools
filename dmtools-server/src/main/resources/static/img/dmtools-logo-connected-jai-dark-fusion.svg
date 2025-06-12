@@ -1,0 +1,122 @@
+<svg width="320" height="100" viewBox="0 0 320 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dotGradientFusion" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--accent-color, #6988f5)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--info-color, #3b82f6)" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="textGradientFusion" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="var(--text-color, #ffffff)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--accent-light, #8aa3ff)" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="jaiGradientFusion" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--text-color, #ffffff)" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="var(--accent-light, #8aa3ff)" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="var(--accent-color, #6988f5)" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="circuitGradientFusion" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="var(--accent-color, #6988f5)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--info-color, #3b82f6)" stop-opacity="0.7"/>
+    </linearGradient>
+    <filter id="fusionGlow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <style>
+    .dmConnectedTextFusion {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-size: 30px;
+      font-weight: 700;
+      fill: url(#textGradientFusion);
+      filter: drop-shadow(0 0 8px rgba(255,255,255,0.3));
+    }
+    .jaiIntegratedText {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-weight: 600;
+      font-size: 22px;
+      fill: url(#jaiGradientFusion);
+      letter-spacing: 1px;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.2));
+    }
+    .dotFusionEnhanced {
+      fill: url(#dotGradientFusion);
+      stroke: var(--accent-light, #8aa3ff);
+      stroke-width: 2;
+      filter: drop-shadow(0 0 4px rgba(105, 136, 245, 0.6));
+    }
+    .connectorLineFusion {
+      stroke: var(--accent-color, #6988f5);
+      stroke-width: 2;
+      opacity: 0.8;
+      filter: drop-shadow(0 0 2px rgba(105, 136, 245, 0.4));
+    }
+    .circuitLineFusion {
+      stroke: url(#circuitGradientFusion);
+      stroke-width: 1.5;
+      filter: drop-shadow(0 0 3px rgba(105, 136, 245, 0.5));
+    }
+    .circuitNodeFusion {
+      fill: var(--accent-light, #8aa3ff);
+      filter: drop-shadow(0 0 4px rgba(138, 163, 255, 0.7));
+    }
+    .taglineFusion {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      fill: var(--text-secondary, #b8c5d1);
+      font-weight: 500;
+    }
+    .subtleBranding {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      fill: var(--text-secondary, #b8c5d1);
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
+
+  <!-- Enhanced Connected Dots Network -->
+  <circle class="dotFusionEnhanced" cx="30" cy="25" r="6"/>
+  <circle class="dotFusionEnhanced" cx="60" cy="15" r="5"/>
+  <circle class="dotFusionEnhanced" cx="45" cy="45" r="7"/>
+  <circle class="dotFusionEnhanced" cx="75" cy="40" r="4"/>
+  <circle class="dotFusionEnhanced" cx="95" cy="25" r="5"/>
+  <circle class="dotFusionEnhanced" cx="65" cy="60" r="4"/>
+
+  <!-- Enhanced network connecting lines -->
+  <line class="connectorLineFusion" x1="30" y1="25" x2="60" y2="15"/>
+  <line class="connectorLineFusion" x1="30" y1="25" x2="45" y2="45"/>
+  <line class="connectorLineFusion" x1="60" y1="15" x2="45" y2="45"/>
+  <line class="connectorLineFusion" x1="60" y1="15" x2="75" y2="40"/>
+  <line class="connectorLineFusion" x1="45" y1="45" x2="75" y2="40"/>
+  <line class="connectorLineFusion" x1="60" y1="15" x2="95" y2="25"/>
+  <line class="connectorLineFusion" x1="75" y1="40" x2="95" y2="25"/>
+  <line class="connectorLineFusion" x1="45" y1="45" x2="65" y2="60"/>
+  <line class="connectorLineFusion" x1="75" y1="40" x2="65" y2="60"/>
+
+  <!-- Integrated JAI circuitry elements -->
+  <line class="circuitLineFusion" x1="25" y1="10" x2="40" y2="20"/>
+  <circle class="circuitNodeFusion" cx="25" cy="10" r="2.5"/>
+  <circle class="circuitNodeFusion" cx="40" cy="20" r="2"/>
+  
+  <line class="circuitLineFusion" x1="85" y1="10" x2="100" y2="20"/>
+  <circle class="circuitNodeFusion" cx="100" cy="20" r="2.5"/>
+  <circle class="circuitNodeFusion" cx="85" cy="10" r="2"/>
+  
+  <line class="circuitLineFusion" x1="70" y1="70" x2="85" y2="70"/>
+  <line class="circuitLineFusion" x1="85" y1="70" x2="90" y2="75"/>
+  <circle class="circuitNodeFusion" cx="90" cy="75" r="2"/>
+
+  <!-- Integrated JAI text positioned elegantly -->
+  <text x="25" y="85" class="jaiIntegratedText">J A I</text>
+
+  <!-- Main DMTools text enhanced -->
+  <text x="140" y="40" class="dmConnectedTextFusion">DMTools</text>
+  
+  <!-- Enhanced taglines with hierarchy -->
+  <text x="140" y="58" class="taglineFusion">Intelligent Network Solutions</text>
+  <text x="140" y="73" class="subtleBranding">Connected • Adaptive • Integrated</text>
+</svg> 

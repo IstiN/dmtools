@@ -1,0 +1,35 @@
+runtime: java21
+instance_class: F2
+
+entrypoint: 'java -Dpolyglot.engine.WarnInterpreterOnly=false -Xmx512m -Xms256m -server -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -jar dmtools-appengine.jar'
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 5
+  target_cpu_utilization: 0.8
+  target_throughput_utilization: 0.8
+  min_pending_latency: 30ms
+  max_pending_latency: automatic
+
+health_check:
+  enable_health_check: True
+  check_interval_sec: 60
+  timeout_sec: 30
+  unhealthy_threshold: 3
+  healthy_threshold: 2
+
+env_variables:
+  SPRING_PROFILES_ACTIVE: "prod"
+  GEMINI_API_KEY: "YOUR_GEMINI_API_KEY_HERE"
+  # Add other production environment variables as needed:
+  # OPEN_AI_API_KEY: "your-openai-key-here"
+  # JIRA_BASE_PATH: "https://your-jira.atlassian.net"
+  # JIRA_LOGIN_PASS_TOKEN: "your-jira-token-here"
+  # MS_APPLICATION_ID: "your-ms-app-id"
+  # MS_SECRET_VALUE: "your-ms-secret"
+  # MS_SECRET_KEY: "your-ms-secret-key"
+  # MS_TENANT_ID: "your-ms-tenant-id"
+
+handlers:
+  - url: /.*
+    script: this field is required but not used by Java runtimes when using an entrypoint 

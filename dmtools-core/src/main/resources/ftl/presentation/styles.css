@@ -1,0 +1,1303 @@
+<#noparse>
+:root {
+    /* Light theme */
+    --bg-color: #f8f9fa;
+    --slide-bg: #ffffff;
+    --text-color: #212529;
+    --text-secondary: #495057;
+    --text-muted: #6c757d;
+    --border-color: #dee2e6;
+    --accent-color: #4361ee;
+    --accent-light: #4895ef;
+    --accent-dark: #3f37c9;
+    --success-color: #4cc9f0;
+    --warning-color: #f72585;
+    --header-color: #212529;
+    --subheader-color: #495057;
+    --button-bg: #4361ee;
+    --button-hover: #3f37c9;
+    --table-header-bg: #e9ecef;
+    --card-bg: #ffffff;
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --bullet-color: #4361ee;
+    --description-bg: rgba(236, 240, 253, 0.7);
+    --description-border: #d0d9f0;
+    --chart-grid: #e9ecef;
+    --code-bg: #f5f7ff;
+    --code-color: #3a0ca3;
+    --blockquote-bg: #f8f9fa;
+    --blockquote-border: #4361ee;
+    --editor-bg: #ffffff;
+    --editor-text: #212529;
+    --editor-border: #dee2e6;
+    --editor-nav-bg: #f8f9fa;
+    --editor-menu-bg: #4361ee;
+    --editor-menu-text: #ffffff;
+    --editor-highlight: rgba(67, 97, 238, 0.1);
+    --editor-active-field: #f5f7ff;
+    --editor-error: #f72585;
+    --editor-section-bg: rgba(0, 0, 0, 0.02);
+    --editor-input-bg: #ffffff;
+    --editor-input-border: #dee2e6;
+    --editor-input-focus: #4361ee;
+    --editor-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    --editor-overlay-bg: rgba(0, 0, 0, 0.6);
+}
+
+.dark-theme {
+    /* Dark theme */
+    --bg-color: #121212;
+    --slide-bg: #1e1e1e;
+    --text-color: #e9ecef;
+    --text-secondary: #ced4da;
+    --text-muted: #adb5bd;
+    --border-color: #495057;
+    --accent-color: #4cc9f0;
+    --accent-light: #4895ef;
+    --accent-dark: #3a0ca3;
+    --success-color: #4361ee;
+    --warning-color: #f72585;
+    --header-color: #f8f9fa;
+    --subheader-color: #e9ecef;
+    --button-bg: #4cc9f0;
+    --button-hover: #4895ef;
+    --table-header-bg: #343a40;
+    --card-bg: #2d2d2d;
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --bullet-color: #4cc9f0;
+    --description-bg: rgba(76, 201, 240, 0.1);
+    --description-border: #3a506b;
+    --chart-grid: #343a40;
+    --code-bg: #2d3748;
+    --code-color: #90cdf4;
+    --blockquote-bg: #2d3748;
+    --blockquote-border: #4cc9f0;
+    --editor-bg: #1e1e1e;
+    --editor-text: #e9ecef;
+    --editor-border: #495057;
+    --editor-nav-bg: #2d2d2d;
+    --editor-menu-bg: #4cc9f0;
+    --editor-menu-text: #ffffff;
+    --editor-highlight: rgba(76, 201, 240, 0.1);
+    --editor-active-field: #2d3748;
+    --editor-error: #f72585;
+    --editor-section-bg: rgba(255, 255, 255, 0.02);
+    --editor-input-bg: #2d2d2d;
+    --editor-input-border: #495057;
+    --editor-input-focus: #4cc9f0;
+    --editor-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    --editor-overlay-bg: rgba(0, 0, 0, 0.75);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Open Sans', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: var(--slide-bg);
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', sans-serif;
+    color: var(--header-color);
+    transition: color 0.3s ease;
+    font-weight: 600;
+}
+
+h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+}
+
+.slide {
+    margin-bottom: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--slide-bg);
+    /* PowerPoint standard aspect ratio is 16:9 */
+    width: 100%;
+    height: 0;
+    padding-bottom: 56.25%; /* 9/16 = 0.5625 */
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: var(--card-shadow);
+}
+
+.slide-content-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 30px;
+    overflow: hidden; /* Disable scrolling */
+    display: flex;
+    flex-direction: column;
+}
+
+.slide-header {
+    margin-bottom: 15px;
+}
+
+.slide-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.8rem;
+    color: var(--header-color);
+    margin-bottom: 6px;
+    transition: color 0.3s ease;
+    font-weight: 600;
+}
+
+.slide-subtitle {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.1rem;
+    color: var(--subheader-color);
+    margin-bottom: 12px;
+    transition: color 0.3s ease;
+    font-weight: 500;
+}
+
+.slide-description {
+    background-color: var(--description-bg);
+    border-left: 4px solid var(--accent-color);
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 0 6px 6px 0;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.description-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--header-color);
+}
+
+.description-text {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+.description-bullets {
+    list-style: none;
+    padding-left: 5px;
+}
+
+.description-bullets li {
+    position: relative;
+    padding-left: 18px;
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.description-bullets li:before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 6px;
+    height: 6px;
+    background-color: var(--bullet-color);
+    border-radius: 50%;
+}
+
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.title-slide .slide-content-wrapper {
+    justify-content: center;
+    text-align: center;
+}
+
+.title-slide .slide-title {
+    font-size: 2.8rem;
+    margin-bottom: 15px;
+    font-weight: 700;
+    font-family: 'Playfair Display', serif;
+}
+
+.title-slide .slide-subtitle {
+    font-size: 1.4rem;
+    margin-bottom: 30px;
+    font-weight: 400;
+}
+
+.title-slide .presenter-info {
+    margin-top: 40px;
+    color: var(--text-secondary);
+}
+
+.content-slide ul {
+    list-style: none;
+    padding-left: 5px;
+}
+
+.content-slide li {
+    position: relative;
+    padding-left: 22px;
+    margin-bottom: 12px;
+    font-size: 1rem;
+}
+
+.content-slide li:before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 8px;
+    height: 8px;
+    background-color: var(--bullet-color);
+    border-radius: 50%;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    font-size: 0.9rem;
+}
+
+table, th, td {
+    border: 1px solid var(--border-color);
+}
+
+th, td {
+    padding: 8px 10px;
+    text-align: left;
+}
+
+th {
+    background-color: var(--table-header-bg);
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+}
+
+tr:nth-child(even) {
+    background-color: rgba(0,0,0,0.02);
+}
+
+.chart-container {
+    width: 100%;
+    flex: 1;
+    margin: 10px 0;
+    position: relative;
+    min-height: 200px;
+    max-height: 250px;
+}
+
+/* Two-column layout for pie chart slide */
+.pie-chart-slide .slide-content {
+    flex-direction: row;
+    gap: 20px;
+}
+
+.pie-chart-slide .slide-text {
+    flex: 1;
+    padding-right: 10px;
+}
+
+.pie-chart-slide .pie-chart-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pie-chart-wrapper {
+    width: 100%;
+    height: 100%;
+    max-height: 220px;
+}
+
+.buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+button {
+    padding: 12px 20px;
+    background-color: var(--button-bg);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+}
+
+button:hover {
+    background-color: var(--button-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.theme-switch {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+}
+
+.theme-switch button {
+    padding: 10px 15px;
+    font-size: 14px;
+    border-radius: 30px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.print-button {
+    position: fixed;
+    top: 20px;
+    right: 200px;
+    z-index: 100;
+}
+
+.print-button button {
+    padding: 10px 15px;
+    font-size: 14px;
+    border-radius: 30px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    background-color: var(--success-color);
+}
+
+.image-placeholder {
+    background-color: var(--description-bg);
+    height: 60%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px dashed var(--border-color);
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.image-caption {
+    margin-top: 10px;
+    text-align: center;
+    font-style: italic;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Key metrics for pie chart slide */
+.key-metrics {
+    margin-top: 10px;
+}
+
+.metric {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.metric-value {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    margin-right: 8px;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* Markdown styling */
+.markdown-content h1 {
+    font-size: 1.6rem;
+    margin-bottom: 0.8rem;
+    text-align: left;
+}
+
+.markdown-content h2 {
+    font-size: 1.4rem;
+    margin-bottom: 0.7rem;
+    text-align: left;
+}
+
+.markdown-content h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.6rem;
+}
+
+.markdown-content h4 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content p {
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+}
+
+.markdown-content ul, .markdown-content ol {
+    padding-left: 20px;
+    margin-bottom: 0.8rem;
+}
+
+.markdown-content li {
+    margin-bottom: 0.4rem;
+    font-size: 0.9rem;
+}
+
+.markdown-content code {
+    background-color: var(--code-bg);
+    color: var(--code-color);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+.markdown-content pre {
+    background-color: var(--code-bg);
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin-bottom: 1em;
+}
+
+.markdown-content pre code {
+    background-color: transparent;
+    padding: 0;
+    font-size: 0.85rem;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid var(--blockquote-border);
+    padding-left: 1em;
+    margin-left: 0;
+    margin-right: 0;
+    background-color: var(--blockquote-bg);
+    padding: 0.5em 1em;
+    border-radius: 0 5px 5px 0;
+    font-style: italic;
+    margin-bottom: 1em;
+}
+
+.markdown-content a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.markdown-content a:hover {
+    text-decoration: underline;
+}
+
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+    margin: 1em 0;
+}
+
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+    border: 1px solid var(--border-color);
+    padding: 0.5em;
+}
+
+.markdown-content table th {
+    background-color: var(--table-header-bg);
+}
+
+.markdown-content hr {
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    margin: 1.5em 0;
+}
+
+/* Slides container */
+#slides-container {
+    margin-top: 30px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+        margin: 10px;
+    }
+
+    .slide-content-wrapper {
+        padding: 20px;
+    }
+
+    .title-slide .slide-title {
+        font-size: 2rem;
+    }
+
+    .title-slide .slide-subtitle {
+        font-size: 1.2rem;
+    }
+
+    .slide-title {
+        font-size: 1.5rem;
+    }
+
+    .slide-subtitle {
+        font-size: 1rem;
+    }
+
+    .pie-chart-slide .slide-content {
+        flex-direction: column;
+    }
+
+    .print-button {
+        right: 20px;
+        top: 70px;
+    }
+}
+
+/* Print-specific styles */
+@media print {
+    body {
+        background-color: white;
+        color: black;
+    }
+
+    .container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        background-color: white;
+    }
+
+    .theme-switch, .print-button {
+        display: none;
+    }
+
+    h1 {
+        margin-bottom: 20px;
+    }
+
+    .slide {
+        page-break-after: always;
+        border: none;
+        box-shadow: none;
+        margin-bottom: 0;
+        height: 100vh;
+        padding-bottom: 0;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .slide-content-wrapper {
+        position: relative;
+        height: 100%;
+        width: 100%;
+    }
+
+    /* Ensure charts are visible in print */
+    .chart-container {
+        min-height: 300px;
+        max-height: 400px;
+    }
+
+    .pie-chart-wrapper {
+        max-height: 350px;
+    }
+}
+
+/* JSON Editor styles - FIXED */
+.editor-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--editor-overlay-bg);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(3px);
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.editor-container {
+    width: 85%;
+    max-width: 1000px;
+    height: 85%;
+    background-color: var(--slide-bg);
+    border-radius: 12px;
+    box-shadow: var(--editor-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeIn 0.3s ease;
+    border: 1px solid var(--editor-border);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--editor-border);
+    background-color: var(--slide-bg);
+    border-radius: 12px 12px 0 0;
+}
+
+.dark-theme .editor-header {
+    background-color: var(--slide-bg);
+}
+
+.editor-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    color: var(--header-color);
+}
+
+.editor-header button {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: var(--text-color);
+    padding: 0 5px;
+    transition: all 0.2s ease;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.editor-header button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    transform: scale(1.1);
+}
+
+.dark-theme .editor-header button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#jsoneditor {
+    flex: 1;
+    min-height: 0; /* Important for flex child to respect container size */
+    overflow: hidden;
+}
+
+/* Fix for JSONEditor styling in both themes */
+.jsoneditor {
+    border: 1px solid var(--editor-border) !important;
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-menu {
+    background-color: var(--editor-menu-bg) !important;
+    border-bottom: 1px solid var(--editor-border) !important;
+}
+
+.jsoneditor-menu a {
+    color: var(--editor-menu-text) !important;
+}
+
+.jsoneditor-navigation-bar {
+    background-color: var(--editor-nav-bg) !important;
+    border-bottom: 1px solid var(--editor-border) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-tree {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-field, .jsoneditor-value {
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-readonly {
+    color: var(--text-muted) !important;
+}
+
+.jsoneditor-selected {
+    background-color: var(--editor-highlight) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-highlight {
+    background-color: var(--editor-highlight) !important;
+}
+
+.jsoneditor-separator {
+    color: var(--text-muted) !important;
+}
+
+.jsoneditor-field.jsoneditor-highlight,
+.jsoneditor-value.jsoneditor-highlight {
+    background-color: var(--editor-highlight) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-search input {
+    background-color: var(--editor-input-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-input-border) !important;
+}
+
+.jsoneditor-search input:focus {
+    border-color: var(--editor-input-focus) !important;
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2) !important;
+}
+
+.jsoneditor-frame {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-border) !important;
+}
+
+.jsoneditor-statusbar {
+    background-color: var(--editor-nav-bg) !important;
+    border-top: 1px solid var(--editor-border) !important;
+    color: var(--text-secondary) !important;
+}
+
+.jsoneditor-text {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-text textarea {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-contextmenu {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-border) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.jsoneditor-contextmenu ul li button {
+    background-color: transparent !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-contextmenu ul li button:hover,
+.jsoneditor-contextmenu ul li button:focus {
+    background-color: var(--editor-highlight) !important;
+    color: var(--editor-text) !important;
+}
+
+.jsoneditor-modal {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-border) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.jsoneditor-modal input,
+.jsoneditor-modal select,
+.jsoneditor-modal textarea {
+    background-color: var(--editor-input-bg) !important;
+    color: var(--editor-text) !important;
+    border-color: var(--editor-input-border) !important;
+}
+
+.jsoneditor-modal input:focus,
+.jsoneditor-modal select:focus,
+.jsoneditor-modal textarea:focus {
+    border-color: var(--editor-input-focus) !important;
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2) !important;
+}
+
+.jsoneditor-modal .pico-close {
+    color: var(--editor-text) !important;
+}
+
+/* Fix for code mode */
+.ace-jsoneditor {
+    background-color: var(--editor-bg) !important;
+    color: var(--editor-text) !important;
+}
+
+.ace-jsoneditor .ace_gutter {
+    background-color: var(--editor-nav-bg) !important;
+    color: var(--text-secondary) !important;
+}
+
+.ace-jsoneditor .ace_marker-layer .ace_active-line {
+    background-color: var(--editor-highlight) !important;
+}
+
+.ace-jsoneditor .ace_cursor {
+    color: var(--editor-text) !important;
+}
+
+.ace-jsoneditor .ace_string {
+    color: var(--success-color) !important;
+}
+
+.ace-jsoneditor .ace_constant.ace_numeric {
+    color: var(--accent-color) !important;
+}
+
+.ace-jsoneditor .ace_constant.ace_boolean {
+    color: var(--warning-color) !important;
+}
+
+.ace-jsoneditor .ace_variable {
+    color: var(--editor-text) !important;
+}
+
+/* Editor footer and AI section */
+.editor-footer {
+    padding: 15px 24px;
+    border-top: 1px solid var(--editor-border);
+    text-align: right;
+    background-color: var(--editor-section-bg);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.editor-footer button {
+    padding: 12px 24px;
+    font-weight: 600;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.editor-footer button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.editor-footer button + button {
+    margin-left: 10px;
+}
+
+#delete-slide {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+/* AI section styling */
+.editor-ai-section {
+    padding: 15px 25px;
+    background-color: var(--editor-section-bg);
+}
+
+.ai-input-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#ai-prompt {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid var(--editor-input-border);
+    border-radius: 6px;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 14px;
+    background-color: var(--editor-input-bg);
+    color: var(--editor-text);
+    transition: all 0.2s ease;
+    height: 44px;
+}
+
+#ai-prompt:focus {
+    outline: none;
+    border-color: var(--editor-input-focus);
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2);
+}
+
+#ask-ai-button {
+    padding: 10px 20px;
+    background-color: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+}
+
+#ask-ai-button::before {
+    content: "✨";
+    font-size: 16px;
+}
+
+#ask-ai-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Edit button styling */
+.edit-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    padding: 0;
+}
+
+.slide:hover .edit-button {
+    opacity: 0.85;
+}
+
+.edit-button:hover {
+    opacity: 1 !important;
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.edit-button svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+/* Add a subtle animation for the edit button */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.edit-button:focus {
+    outline: none;
+    animation: pulse 1s infinite;
+}
+
+/* Notification styling */
+.notification {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background-color: var(--accent-color);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 1100;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    min-width: 300px;
+    justify-content: center;
+}
+
+.notification.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.notification::before {
+    content: "✓";
+    margin-right: 10px;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+/* Hide edit buttons when printing */
+@media print {
+    .edit-button, .editor-overlay {
+        display: none !important;
+    }
+}
+
+/* Fix for Save Changes button */
+#save-slide {
+    background-color: var(--accent-color);
+    color: white;
+    font-weight: 600;
+}
+
+#save-slide:hover {
+    background-color: var(--accent-dark);
+}
+
+#close-editor {
+    color: var(--text-color);
+    background: none;
+    box-shadow: none;
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+#close-editor:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    transform: scale(1.1);
+}
+
+.dark-theme #close-editor:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Improved selection highlighting for JSON editor in dark theme */
+.dark-theme .jsoneditor-selected,
+.dark-theme .jsoneditor-highlight,
+.dark-theme .jsoneditor-field.jsoneditor-highlight,
+.dark-theme .jsoneditor-value.jsoneditor-highlight {
+    background-color: rgba(76, 201, 240, 0.3) !important; /* Brighter blue with higher opacity */
+    color: #ffffff !important; /* White text for better contrast */
+    border-radius: 3px;
+}
+
+/* Improve text input highlighting in dark theme */
+.dark-theme .jsoneditor input {
+    background-color: rgba(76, 201, 240, 0.2) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(76, 201, 240, 0.5) !important;
+}
+
+.dark-theme .jsoneditor input:focus {
+    background-color: rgba(76, 201, 240, 0.3) !important;
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.3) !important;
+}
+
+/* Improve active field highlighting */
+.dark-theme .jsoneditor-field.jsoneditor-highlight-active,
+.dark-theme .jsoneditor-field[contenteditable=true]:focus,
+.dark-theme .jsoneditor-field[contenteditable=true]:hover,
+.dark-theme .jsoneditor-value.jsoneditor-highlight-active,
+.dark-theme .jsoneditor-value[contenteditable=true]:focus,
+.dark-theme .jsoneditor-value[contenteditable=true]:hover {
+    background-color: rgba(76, 201, 240, 0.4) !important;
+    border-radius: 3px;
+    color: #ffffff !important;
+}
+
+/* Improve the text input field in dark mode */
+.dark-theme .jsoneditor-field,
+.dark-theme .jsoneditor-value {
+    border: 1px solid transparent;
+}
+
+.dark-theme .jsoneditor-field:hover,
+.dark-theme .jsoneditor-value:hover {
+    border-color: rgba(76, 201, 240, 0.3) !important;
+    background-color: rgba(76, 201, 240, 0.1) !important;
+}
+
+/* Make the currently edited value more visible */
+.dark-theme .jsoneditor-value.jsoneditor-string {
+    color: #4cc9f0 !important; /* Light blue for string values */
+}
+
+.dark-theme .jsoneditor-value.jsoneditor-number {
+    color: #f72585 !important; /* Pink for number values */
+}
+
+.dark-theme .jsoneditor-value.jsoneditor-boolean {
+    color: #4361ee !important; /* Blue for boolean values */
+}
+
+.dark-theme .jsoneditor-value.jsoneditor-null {
+    color: #adb5bd !important; /* Gray for null values */
+}
+
+/* Improve the search highlight */
+.dark-theme mark.jsoneditor-highlight {
+    background-color: rgba(247, 37, 133, 0.4) !important; /* Warning color for search highlights */
+    color: #ffffff !important;
+    border-radius: 2px;
+}
+
+/* Mermaid diagram styling */
+.mermaid-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    padding: 10px;
+    background-color: var(--slide-bg);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+}
+
+.mermaid svg {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Ensure mermaid diagrams are visible in print */
+@media print {
+    .mermaid-container {
+        min-height: 300px;
+        max-height: 400px;
+    }
+
+    .mermaid svg {
+        max-height: 350px;
+    }
+}
+
+/* Fix for mermaid dark theme */
+.dark-theme .mermaid-container {
+    background-color: var(--slide-bg);
+}
+
+/* PDF generation styles */
+.generating-pdf .slide {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 0;
+    height: auto !important;
+    padding-bottom: 0 !important;
+}
+
+.generating-pdf .edit-button {
+    display: none !important;
+}
+
+/* Improve button styling */
+#print-slides {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#print-slides::before {
+    content: "📄";
+    font-size: 16px;
+}
+
+#print-slides:disabled {
+    background-color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* PDF loading overlay */
+.pdf-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    display: none;
+}
+
+.pdf-loading-overlay.active {
+    display: flex;
+}
+
+.pdf-loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--accent-color);
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 20px;
+}
+
+.pdf-loading-text {
+    color: white;
+    font-size: 18px;
+    font-family: 'Montserrat', sans-serif;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</#noparse>

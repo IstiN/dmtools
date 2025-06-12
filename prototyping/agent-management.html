@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMTools - AI Presentation Agent</title>
+    <!-- Link to Styleguide CSS -->
+    <link rel="stylesheet" href="../src/main/resources/static/styleguide/styleguide.css">
+    <!-- FontAwesome for icons, consistent with styleguide -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout--presentation-agent">
+        <header class="app-layout--presentation-agent__header">
+            <h1><i class="fas fa-palette"></i> AI Presentation Agent</h1>
+        </header>
+        
+        <div class="page-layout--presentation-agent">
+            <!-- Chat Module -->
+            <div class="panel-base chat-module">
+                <header class="panel-base__header">
+                    <h3><i class="fas fa-comments"></i> Chat with Agent</h3>
+                </header>
+                <div class="panel-base__content" style="display:flex; flex-direction:column;">
+                    <div class="chat-messages-container" id="chat-messages">
+                        <!-- Messages will be appended here by JS -->
+                    </div>
+                    <div class="chat-input-group">
+                        <textarea id="chat-input" placeholder="e.g., 'Create a Q1 sales report. Focus on key achievements and future goals.'"></textarea>
+                        <button id="attach-files-btn" class="btn btn-icon" onclick="attachFiles()" aria-label="Attach files">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <button id="send-chat-btn" class="btn btn-primary" onclick="sendChatMessage()">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="main-content-area">
+                <div class="script-config-row">
+                    <!-- Parameters Module -->
+                    <div class="panel-base parameters-module">
+                        <header class="panel-base__header">
+                            <h3><i class="fas fa-sliders-h"></i> Presentation Parameters</h3>
+                        </header>
+                        <div class="panel-base__content form-container" id="generated-form-container">
+                            <p><em>Parameters will appear here after the agent processes your request.</em></p>
+                        </div>
+                    </div>
+                    <!-- Script Module -->
+                    <div class="panel-base script-module">
+                        <header class="panel-base__header">
+                            <h3><i class="fas fa-code"></i> JS Script Editor</h3>
+                        </header>
+                        <div class="panel-base__content">
+                            <textarea id="js-script-editor" placeholder="The AI agent will generate JavaScript code here..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="actions-bar">
+                    <div class="action-button-group">
+                        <button id="generate-presentation-btn" class="btn btn-secondary" onclick="generatePresentation()">
+                            <i class="fas fa-rocket"></i> Generate Presentation
+                        </button>
+                        <button id="save-template-btn" class="btn btn-primary" onclick="saveTemplate()">
+                            <i class="fas fa-save"></i> Save as Template
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Output Module -->
+                <div class="panel-base output-module">
+                    <header class="panel-base__header">
+                        <h3><i class="fas fa-eye"></i> Presentation Preview</h3>
+                    </header>
+                    <div class="panel-base__content" style="display:flex; flex-direction:column;">
+                        <div class="output-frame-container">
+                           <iframe id="presentation-output-frame" class="output-frame" title="Presentation Preview"></iframe>
+                        </div>
+                        <div class="output-actions">
+                            <button id="open-output-new-tab-btn" class="btn btn-tertiary btn-small" onclick="openOutputInNewTab()" style="display:none;">
+                                <i class="fas fa-external-link-alt"></i> Open in New Tab
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const chatMessagesContainer = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const generatedFormContainer = document.getElementById('generated-form-container');
+        const jsScriptEditor = document.getElementById('js-script-editor');
+        const presentationOutputFrame = document.getElementById('presentation-output-frame');
+        const openOutputNewTabBtn = document.getElementById('open-output-new-tab-btn');
+
+        let lastGeneratedScript = '';
+        let lastGeneratedHtmlUrl = null;
+
+        function appendMessage(text, sender, type = '') {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('chat-message');
+
+            switch (sender) {
+                case 'user':
+                    messageDiv.classList.add('chat-message--user');
+                    messageDiv.textContent = text;
+                    break;
+                case 'agent':
+                    messageDiv.classList.add('chat-message--agent');
+                    if (type === 'thinking') {
+                        // Attempting a more robust way to set HTML for the spinner to avoid linter issues
+                        const iconElement = document.createElement('i');
+                        iconElement.className = 'fas fa-spinner fa-spin';
+                        messageDiv.appendChild(iconElement);
+                        messageDiv.appendChild(document.createTextNode(' ' + text)); // Add text after spinner
+                    } else {
+                        messageDiv.textContent = text;
+                    }
+                    break;
+                case 'system':
+                    messageDiv.classList.add('chat-message--system');
+                    messageDiv.textContent = text;
+                    break;
+                default: // Should not happen, but good to have a fallback
+                    messageDiv.classList.add('chat-message--agent'); 
+                    messageDiv.textContent = text;
+            }
+            
+            chatMessagesContainer.appendChild(messageDiv);
+            chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+        }
+
+        function sendChatMessage() {
+            const userText = chatInput.value.trim();
+            if (!userText) return;
+
+            appendMessage(userText, 'user');
+            chatInput.value = '';
+
+            appendMessage('Processing your request...', 'agent', 'thinking');
+            setTimeout(() => {
+                const thinkingMessage = chatMessagesContainer.querySelector('.chat-message--agent .fa-spinner');
+                if (thinkingMessage && thinkingMessage.parentElement && thinkingMessage.parentElement.parentElement === chatMessagesContainer) {
+                    chatMessagesContainer.removeChild(thinkingMessage.parentElement);
+                }
+                processUserRequest(userText);
+            }, 1500);
+        }
+        
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+
+        function attachFiles() {
+            showNotification('File attachment is a mock feature. Please describe content.', 'info', 'fas fa-paperclip');
+        }
+
+        function processUserRequest(userText) {
+            appendMessage(`Okay, I'll help you with a presentation based on: "${userText.substring(0, 50)}...". I'm generating the script and parameters form now.`, 'agent');
+            
+            const exampleScript = generateExampleScript(userText);
+            jsScriptEditor.value = exampleScript;
+            lastGeneratedScript = exampleScript;
+
+            const exampleSchema = extractSchemaFromScript(exampleScript);
+            renderForm(exampleSchema);
+            
+            showNotification('Script and parameter form generated!', 'success', 'fas fa-check-circle');
+        }
+
+        function generateExampleScript(userText) {
+            let title = "Dynamic Presentation";
+            if (userText.toLowerCase().includes("sales report")) {
+                title = "Quarterly Sales Report";
+            } else if (userText.toLowerCase().includes("project update")) {
+                title = "Project Phoenix Update";
+            }
+
+            // IMPORTANT: Script content is a single JS string using backticks for template literal.
+            // All internal backticks or ${} are for JS, not Python string formatting.
+            const scriptContent = \`
+// Presentation Generation Script
+// Generated based on: "\${userText.substring(0, 30).replace(/"/g, '\\\\"')}"
+
+// PARAMETER SCHEMA (used to build the form)
+const presentationParamsSchema = {
+    mainTitle: { label: "Presentation Title", type: "text", defaultValue: "\${title}" },
+    presenterName: { label: "Presenter Name", type: "text", defaultValue: "AI Agent" },
+    presentationDate: { label: "Date", type: "date", defaultValue: new Date().toISOString().split('T')[0] },
+    introduction: { label: "Introduction Text", type: "textarea", defaultValue: "Welcome to this presentation. We will cover key updates and insights." },
+    numSections: { label: "Number of Sections", type: "number", defaultValue: 3, min:1, max: 5 },
+    themeColor: { label: "Theme Color", type: "select", options: [
+        {label: "Default Accent", value: "var(--accent-color)"}, 
+        {label: "Blue", value: "#3498db"}, 
+        {label: "Green", value: "#2ecc71"}, 
+        {label: "Red", value: "#e74c3c"}, 
+        {label: "Orange", value: "#f39c12"}
+    ], defaultValue: "var(--accent-color)" }
+};
+
+// MAIN FUNCTION TO CREATE PRESENTATION HTML
+function createPresentationHTML(params) {
+    const generatedHTMLStyle = \`
+        body { 
+            font-family: var(--font-family, Arial, sans-serif); 
+            margin: 0; 
+            padding: 20px; 
+            background-color: var(--bg-color, #f0f0f0); 
+            color: var(--text-color, #333);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .slide { 
+            width: 90%; 
+            max-width: 800px;
+            min-height: 500px;
+            background-color: var(--card-bg, white); 
+            color: var(--text-color, #333);
+            margin-bottom: 20px; padding: 30px; border-radius: 10px; 
+            box-shadow: var(--card-shadow, 0 5px 15px rgba(0,0,0,0.1));
+            border-top: 10px solid \${params.themeColor || 'var(--accent-color)'};
+        }
+        h1 { 
+            color: \${params.themeColor || 'var(--accent-color)'}; 
+            border-bottom: 2px solid var(--border-color, #eee); 
+            padding-bottom: 10px; margin-top: 0;
+        }
+        h2 { color: var(--text-secondary, #555); margin-top: 30px; }
+        p { line-height: 1.6; }
+        .footer { font-size: 0.8em; color: var(--text-muted, #777); text-align: center; margin-top: 20px; }
+        img { max-width: 100%; border-radius: 5px; margin-top: 15px; }
+    \`;
+
+    let html = \`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>\${params.mainTitle || 'Presentation'}</title>
+            <style>
+                /* Include design tokens from parent for consistency */
+                :root {
+                    --font-family: \${getComputedStyle(document.documentElement).getPropertyValue('--font-family') || 'Arial, sans-serif'};
+                    --bg-color: \${getComputedStyle(document.documentElement).getPropertyValue('--bg-color') || '#f0f0f0'};
+                    --card-bg: \${getComputedStyle(document.documentElement).getPropertyValue('--card-bg') || '#ffffff'};
+                    --text-color: \${getComputedStyle(document.documentElement).getPropertyValue('--text-color') || '#212529'};
+                    --text-secondary: \${getComputedStyle(document.documentElement).getPropertyValue('--text-secondary') || '#495057'};
+                    --text-muted: \${getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#6c757d'};
+                    --border-color: \${getComputedStyle(document.documentElement).getPropertyValue('--border-color') || '#eaedf1'};
+                    --accent-color: \${getComputedStyle(document.documentElement).getPropertyValue('--accent-color') || '#466af1'};
+                    --card-shadow: \${getComputedStyle(document.documentElement).getPropertyValue('--card-shadow') || '0 2px 8px rgba(0,0,0,0.07)'};
+                }
+                \${generatedHTMLStyle}
+            </style>
+        </head>
+        <body>
+            <div class="slide">
+                <h1>\${params.mainTitle}</h1>
+                <p>Presented by: \${params.presenterName}</p>
+                <p>Date: \${params.presentationDate}</p>
+                <h2>Introduction</h2>
+                <p>\${(params.introduction || '').replace(/\\n/g, '<br>')}</p>
+            </div>
+    \`;
+
+    for (let i = 1; i <= (parseInt(params.numSections) || 3); i++) {
+        html += \`
+            <div class="slide">
+                <h2>Section \${i}: Placeholder Title</h2>
+                <p>This is placeholder content for section \${i}. Actual content can be more dynamic.</p>
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+                \${ i % 2 === 0 ? '<img src="https://via.placeholder.com/600x300.png?text=Sample+Chart+Section+' + i + '" alt="Sample Chart">' : ''}
+            </div>
+        \`;
+    }
+
+    html += \`
+            <div class="slide">
+                <h2>Conclusion</h2>
+                <p>Thank you for your attention. Q&A session will follow.</p>
+                <div class="footer">Generated by AI Presentation Agent & DMTools Styleguide</div>
+            </div>
+        </body>
+        </html>
+    \`;
+    return html;
+}
+\`;
+            return scriptContent;
+        }
+
+        function extractSchemaFromScript(scriptContent) {
+            try {
+                const schemaMatch = scriptContent.match(/const\\s+presentationParamsSchema\\s*=\\s*({[\\s\\S]*?});/m);
+                if (schemaMatch && schemaMatch[1]) {
+                    const schemaString = schemaMatch[1].replace(/\\/\\/[^\\n]*\\n/g, '');
+                    return new Function(\`return \${schemaString}\`)();
+                }
+            } catch (e) {
+                console.error("Error extracting schema:", e);
+                showNotification("Could not parse schema from script.", "error", "fas fa-exclamation-triangle");
+            }
+            return {
+                mainTitle: { label: "Presentation Title", type: "text", defaultValue: "Default Title (Schema Error)" },
+            };
+        }
+        
+        function renderForm(schema) {
+            generatedFormContainer.innerHTML = ''; 
+            if (!schema || Object.keys(schema).length === 0) {
+                 generatedFormContainer.innerHTML = '<p><em>No parameters defined or schema is invalid.</em></p>';
+                 return;
+            }
+
+            for (const key in schema) {
+                if (Object.prototype.hasOwnProperty.call(schema, key)) {
+                    const field = schema[key];
+                    const formGroup = document.createElement('div');
+                    formGroup.className = 'form-group'; 
+
+                    const label = document.createElement('label');
+                    label.htmlFor = \`param-\${key}\`;
+                    label.textContent = field.label || key;
+                    formGroup.appendChild(label);
+
+                    let inputElement;
+                    switch (field.type) {
+                        case 'textarea':
+                            inputElement = document.createElement('textarea');
+                            inputElement.value = field.defaultValue || '';
+                            break;
+                        case 'select':
+                            inputElement = document.createElement('select');
+                            (field.options || []).forEach(opt => {
+                                const option = document.createElement('option');
+                                option.value = typeof opt === 'object' ? opt.value : opt;
+                                option.textContent = typeof opt === 'object' ? opt.label : opt;
+                                inputElement.appendChild(option);
+                            });
+                            inputElement.value = field.defaultValue || (field.options && field.options.length > 0 ? (typeof field.options[0] === 'object' ? field.options[0].value : field.options[0]) : '');
+                            break;
+                        case 'number':
+                            inputElement = document.createElement('input');
+                            inputElement.type = 'number';
+                            inputElement.value = field.defaultValue || 0;
+                            if (field.min !== undefined) inputElement.min = field.min;
+                            if (field.max !== undefined) inputElement.max = field.max;
+                            break;
+                        case 'date':
+                             inputElement = document.createElement('input');
+                             inputElement.type = 'date';
+                             inputElement.value = field.defaultValue || new Date().toISOString().split('T')[0];
+                             break;
+                        default: // text
+                            inputElement = document.createElement('input');
+                            inputElement.type = 'text';
+                            inputElement.value = field.defaultValue || '';
+                            break;
+                    }
+                    inputElement.id = \`param-\${key}\`;
+                    inputElement.name = key;
+                    formGroup.appendChild(inputElement);
+                    generatedFormContainer.appendChild(formGroup);
+                }
+            }
+        }
+
+        function generatePresentation() {
+            const scriptContent = jsScriptEditor.value;
+            if (!scriptContent) {
+                showNotification("JS script is empty. Agent needs to generate it first.", "error", "fas fa-exclamation-circle");
+                return;
+            }
+
+            const params = {};
+            const formElements = generatedFormContainer.querySelectorAll('input, select, textarea');
+            formElements.forEach(el => {
+                params[el.name] = el.type === 'number' ? parseFloat(el.value) : el.value;
+            });
+
+            try {
+                const createFunctionMatch = scriptContent.match(/function\\s+createPresentationHTML\\s*\\(([^)]*)\\)\\s*{([\\s\\S]*?)}\\s*(?:\\/\\/\\s*END\\s*OF\\s*FUNCTION)?\\s*$/m);
+                
+                if (!createFunctionMatch || createFunctionMatch.length < 3) {
+                    throw new Error("Could not find or parse createPresentationHTML function in the script. Ensure it's defined like 'function createPresentationHTML(params) { /* ... */ }' and is the last major block or clearly defined.");
+                }
+                
+                const functionArgs = createFunctionMatch[1].trim(); 
+                const functionBody = createFunctionMatch[2];
+
+                const createPresentationFunction = new Function(functionArgs, functionBody);
+                const htmlContent = createPresentationFunction(params);
+
+                if (lastGeneratedHtmlUrl) {
+                    URL.revokeObjectURL(lastGeneratedHtmlUrl);
+                }
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                lastGeneratedHtmlUrl = URL.createObjectURL(blob);
+
+                presentationOutputFrame.src = lastGeneratedHtmlUrl;
+                openOutputNewTabBtn.style.display = 'inline-block';
+                showNotification("Presentation generated successfully!", "success", "fas fa-check-circle");
+
+            } catch (error) {
+                console.error("Error generating presentation:", error);
+                showNotification(\`Error: \${error.message}\`, "error", "fas fa-exclamation-triangle");
+                presentationOutputFrame.srcdoc = \`<div style="padding: 20px; color: var(--danger-color, red); font-family: var(--font-family, sans-serif);"><h3>Generation Error</h3><p>\${error.message}</p><pre style="white-space: pre-wrap; word-break: break-all;">\${error.stack}</pre></div>\`;
+                openOutputNewTabBtn.style.display = 'none';
+            }
+        }
+        
+        function openOutputInNewTab() {
+            if (lastGeneratedHtmlUrl) {
+                window.open(lastGeneratedHtmlUrl, '_blank');
+            } else {
+                showNotification("No presentation generated yet or URL is invalid.", "info", "fas fa-info-circle");
+            }
+        }
+
+        function saveTemplate() {
+            const scriptContent = jsScriptEditor.value;
+            if (!scriptContent) {
+                showNotification("No script to save.", "info", "fas fa-info-circle");
+                return;
+            }
+
+            const templateName = prompt("Enter a name for this presentation template (e.g., 'Q_Sales_Report_v1'):");
+
+            if (!templateName || templateName.trim() === "") {
+                showNotification("Template name cannot be empty. Save cancelled.", "warning", "fas fa-exclamation-triangle");
+                return;
+            }
+
+            showNotification(\`Template "\${templateName}" saved (mock functionality)!\`, "success", "fas fa-save");
+            console.log(\`Template Name: \${templateName}\`);
+            console.log("Template to save (script):", scriptContent);
+            const schema = extractSchemaFromScript(scriptContent);
+            console.log("Associated schema:", schema);
+        }
+
+        function showNotification(message, type = 'info', iconClass = '') {
+            const notificationId = \`notification-\${Date.now()}\`;
+            const notification = document.createElement('div');
+            notification.id = notificationId;
+            notification.className = \`notification-message notification-message--\${type}\`;
+            
+            let iconHtml = '';
+            if (iconClass) {
+                iconHtml = \`<i class="\${iconClass}"></i>\`;
+            }
+            notification.innerHTML = \`\${iconHtml}<span>\${message}</span>\`;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                const el = document.getElementById(notificationId);
+                if (el) el.remove();
+            }, 4000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+             appendMessage("Hello! How can I help you design your presentation today? Describe what you need, or ask me to load a template.", "agent");
+             appendMessage("For example: 'Create a project kick-off presentation for \\'Project Titan\\', include sections for goals, timeline, and team roles.'", "agent");
+        });
+
+    </script>
+</body>
+</html> 

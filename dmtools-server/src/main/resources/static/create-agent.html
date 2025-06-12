@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Agent - DMTools</title>
+    <link rel="icon" href="img/dmtools-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styleguide/styleguide.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .create-agent-form {
+            background-color: var(--card-bg, #f9f9f9);
+            border: 1px solid var(--border-color, #eee);
+            border-radius: 5px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .form-section {
+            border-bottom: 1px solid var(--border-color, #ddd);
+            margin-bottom: 0;
+        }
+        .form-section:last-child {
+            border-bottom: none;
+        }
+        .section-title {
+            background-color: var(--accent-color, #007bff);
+            color: white;
+            padding: 15px 20px;
+            margin: 0;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-content {
+            padding: 20px;
+            background-color: var(--card-bg, #fff);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--text-color, #333);
+        }
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 4px;
+            background-color: var(--card-bg, #fff);
+            color: var(--text-color, #333);
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-color, #007bff);
+            box-shadow: 0 0 0 2px rgba(70, 106, 241, 0.2);
+        }
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        .checkbox-item label {
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        .limits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .limit-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--text-color, #333);
+        }
+        .limit-item input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 4px;
+            background-color: var(--card-bg, #fff);
+            color: var(--text-color, #333);
+            box-sizing: border-box;
+        }
+        .dynamic-entries {
+            margin-bottom: 20px;
+        }
+        .dynamic-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 120px 40px;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: end;
+        }
+        .confluence-row {
+            display: grid;
+            grid-template-columns: 1fr 40px;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: end;
+        }
+        .dynamic-row input,
+        .dynamic-row select,
+        .confluence-row input {
+            padding: 8px;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 4px;
+            background-color: var(--card-bg, #fff);
+            color: var(--text-color, #333);
+            font-size: 14px;
+        }
+        .remove-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+        }
+        .remove-button:hover {
+            background-color: #c82333;
+        }
+        .add-button {
+            background-color: var(--accent-color, #007bff);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            transition: background-color 0.2s ease;
+        }
+        .add-button:hover {
+            background-color: var(--accent-hover, #0056b3);
+        }
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            padding: 20px;
+            background-color: var(--hover-bg, #f8f9fa);
+            border-top: 1px solid var(--border-color, #ddd);
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            transition: background-color 0.2s ease;
+        }
+        .btn-primary {
+            background-color: var(--accent-color, #007bff);
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: var(--accent-hover, #0056b3);
+        }
+        .btn-secondary {
+            background-color: var(--text-secondary, #6c757d);
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .back-to-dashboard-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--text-secondary, #666);
+            margin-bottom: 20px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        .back-to-dashboard-link:hover {
+            background-color: var(--hover-bg, #f0f0f0);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body class="sg-body">
+    <div class="sg-container">
+        <header class="sg-header">
+            <a href="/"><img src="img/dmtools-logo-intelligent-network-fusion-white.svg" alt="DMTools Logo" style="height: 50px; margin-bottom: 10px;"></a>
+            <p>Create and configure new AI agents for your projects with custom data sources and processing parameters.</p>
+            <button id="theme-toggle" class="theme-switch global-theme-switcher" aria-label="Toggle theme">
+                <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+        </header>
+
+        <nav class="sg-navigation">
+            <a href="index.html" class="back-to-dashboard-link">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to Dashboard</span>
+            </a>
+            <h2>Create New Agent</h2>
+            <p>Configure your AI agent by filling out the sections below. All fields are optional unless specified.</p>
+        </nav>
+
+        <main class="sg-main-content">
+            <section class="sg-section">
+                <form id="create-agent-form" class="create-agent-form">
+                    <div class="form-section">
+                        <h2 class="section-title">
+                            <i class="fas fa-robot"></i>
+                            Agent Configuration
+                        </h2>
+                        
+                        <div class="section-content">
+                            <div class="form-group">
+                                <label for="agent-label">Agent Label</label>
+                                <input type="text" id="agent-label" name="label" placeholder="Enter agent name">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="project-context">Project Context</label>
+                                <textarea id="project-context" name="projectContext" placeholder="Enter project context and description"></textarea>
+                            </div>
+
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="is-code-source" name="isCodeAsSource">
+                                    <label for="is-code-source">Use Code as Source</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="is-confluence-source" name="isConfluenceAsSource">
+                                    <label for="is-confluence-source">Use Confluence as Source</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="is-tracker-source" name="isTrackerAsSource">
+                                    <label for="is-tracker-source">Use Tracker as Source</label>
+                                </div>
+                            </div>
+
+                            <div class="limits-grid">
+                                <div class="limit-item">
+                                    <label for="files-limit">Files Limit</label>
+                                    <input type="number" id="files-limit" name="filesLimit" value="5" min="1">
+                                </div>
+                                <div class="limit-item">
+                                    <label for="files-iterations">Files Iterations</label>
+                                    <input type="number" id="files-iterations" name="filesIterations" value="1" min="1">
+                                </div>
+                                <div class="limit-item">
+                                    <label for="confluence-limit">Confluence Limit</label>
+                                    <input type="number" id="confluence-limit" name="confluenceLimit" value="5" min="1">
+                                </div>
+                                <div class="limit-item">
+                                    <label for="confluence-iterations">Confluence Iterations</label>
+                                    <input type="number" id="confluence-iterations" name="confluenceIterations" value="1" min="1">
+                                </div>
+                                <div class="limit-item">
+                                    <label for="tracker-limit">Tracker Limit</label>
+                                    <input type="number" id="tracker-limit" name="trackerLimit" value="5" min="1">
+                                </div>
+                                <div class="limit-item">
+                                    <label for="tracker-iterations">Tracker Iterations</label>
+                                    <input type="number" id="tracker-iterations" name="trackerIterations" value="1" min="1">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="search-orchestrator">Search Orchestrator Type</label>
+                                <select id="search-orchestrator" name="searchOrchestratorType">
+                                    <option value="BULK">BULK</option>
+                                    <option value="ONE_BY_ONE">ONE_BY_ONE</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h2 class="section-title">
+                            <i class="fas fa-code"></i>
+                            Source Code Configuration
+                        </h2>
+                        
+                        <div class="section-content">
+                            <div class="dynamic-entries" id="source-code-entries">
+                                <div class="dynamic-row">
+                                    <input type="text" placeholder="Branch Name" name="branchName">
+                                    <input type="text" placeholder="Repository Name" name="repoName">
+                                    <input type="text" placeholder="Workspace Name" name="workspaceName">
+                                    <select name="repoType">
+                                        <option value="GITHUB">GitHub</option>
+                                        <option value="BITBUCKET">Bitbucket</option>
+                                        <option value="GITLAB">GitLab</option>
+                                    </select>
+                                    <button type="button" class="remove-button" onclick="removeSourceCodeRow(this)">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="add-button" onclick="addSourceCodeRow()">
+                                <i class="fas fa-plus"></i>
+                                Add Source Configuration
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h2 class="section-title">
+                            <i class="fas fa-file-alt"></i>
+                            Confluence Pages
+                        </h2>
+                        
+                        <div class="section-content">
+                            <div class="dynamic-entries" id="confluence-pages">
+                                <div class="confluence-row">
+                                    <input type="text" placeholder="Enter Confluence page URL" name="confluencePages[]">
+                                    <button type="button" class="remove-button" onclick="removeConfluencePage(this)">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="add-button" onclick="addConfluencePage()">
+                                <i class="fas fa-plus"></i>
+                                Add Confluence Page
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-secondary" onclick="window.location.href='/'">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            Create Agent
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </main>
+
+        <footer class="sg-footer">
+            <p>&copy; 2025 DMTools. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="css/theme.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme switcher functionality
+            const switcher = document.getElementById('theme-toggle');
+            if (switcher) {
+                const sunIcon = switcher.querySelector('.sun-icon');
+                const moonIcon = switcher.querySelector('.moon-icon');
+
+                if (sunIcon && moonIcon) {
+                    function syncIcons() {
+                        if (document.body.classList.contains('dark-theme')) {
+                            sunIcon.style.display = 'none';
+                            moonIcon.style.display = 'block';
+                        } else {
+                            sunIcon.style.display = 'block';
+                            moonIcon.style.display = 'none';
+                        }
+                    }
+                    syncIcons();
+                    switcher.addEventListener('click', function() {
+                        setTimeout(syncIcons, 0); 
+                    });
+                    
+                    const observer = new MutationObserver(syncIcons);
+                    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+                }
+            }
+
+            // Dynamic field management
+            window.addSourceCodeRow = function() {
+                const container = document.getElementById('source-code-entries');
+                const newRow = document.createElement('div');
+                newRow.className = 'dynamic-row';
+                newRow.innerHTML = `
+                    <input type="text" placeholder="Branch Name" name="branchName">
+                    <input type="text" placeholder="Repository Name" name="repoName">
+                    <input type="text" placeholder="Workspace Name" name="workspaceName">
+                    <select name="repoType">
+                        <option value="GITHUB">GitHub</option>
+                        <option value="BITBUCKET">Bitbucket</option>
+                        <option value="GITLAB">GitLab</option>
+                    </select>
+                    <button type="button" class="remove-button" onclick="removeSourceCodeRow(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                container.appendChild(newRow);
+            };
+
+            window.removeSourceCodeRow = function(button) {
+                const row = button.closest('.dynamic-row');
+                const container = row.parentNode;
+                if (container.children.length > 1) {
+                    container.removeChild(row);
+                }
+            };
+
+            window.addConfluencePage = function() {
+                const container = document.getElementById('confluence-pages');
+                const newRow = document.createElement('div');
+                newRow.className = 'confluence-row';
+                newRow.innerHTML = `
+                    <input type="text" placeholder="Enter Confluence page URL" name="confluencePages[]">
+                    <button type="button" class="remove-button" onclick="removeConfluencePage(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                container.appendChild(newRow);
+            };
+
+            window.removeConfluencePage = function(button) {
+                const row = button.closest('.confluence-row');
+                const container = row.parentNode;
+                if (container.children.length > 1) {
+                    container.removeChild(row);
+                }
+            };
+
+            // Form submission
+            document.getElementById('create-agent-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const agentConfig = {
+                    label: formData.get('label'),
+                    projectContext: formData.get('projectContext'),
+                    isCodeAsSource: formData.get('isCodeAsSource') === 'on',
+                    isConfluenceAsSource: formData.get('isConfluenceAsSource') === 'on',
+                    isTrackerAsSource: formData.get('isTrackerAsSource') === 'on',
+                    filesLimit: parseInt(formData.get('filesLimit')),
+                    filesIterations: parseInt(formData.get('filesIterations')),
+                    confluenceLimit: parseInt(formData.get('confluenceLimit')),
+                    confluenceIterations: parseInt(formData.get('confluenceIterations')),
+                    trackerLimit: parseInt(formData.get('trackerLimit')),
+                    trackerIterations: parseInt(formData.get('trackerIterations')),
+                    searchOrchestratorType: formData.get('searchOrchestratorType'),
+                    source_code_config: [],
+                    confluencePages: []
+                };
+
+                // Collect source code configurations
+                const sourceCodeRows = document.querySelectorAll('#source-code-entries .dynamic-row');
+                sourceCodeRows.forEach(row => {
+                    const branchName = row.querySelector('[name="branchName"]').value;
+                    const repoName = row.querySelector('[name="repoName"]').value;
+                    const workspaceName = row.querySelector('[name="workspaceName"]').value;
+                    const repoType = row.querySelector('[name="repoType"]').value;
+                    
+                    if (branchName || repoName || workspaceName) {
+                        agentConfig.source_code_config.push({
+                            branchName,
+                            repoName,
+                            workspaceName,
+                            repoType
+                        });
+                    }
+                });
+
+                // Collect Confluence pages
+                const confluenceInputs = document.querySelectorAll('[name="confluencePages[]"]');
+                confluenceInputs.forEach(input => {
+                    if (input.value.trim()) {
+                        agentConfig.confluencePages.push(input.value.trim());
+                    }
+                });
+
+                // Here you would typically send the configuration to your backend
+                console.log('Agent configuration:', agentConfig);
+                
+                // For now, just show a success message and redirect
+                alert('Agent created successfully!');
+                window.location.href = '/';
+            });
+        });
+    </script>
+</body>
+</html> 
