@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMTools - Delivery Manager Tools</title>
+    <link rel="icon" href="img/dmtools-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styleguide/styleguide.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="components/chat-component.css">
+</head>
+<body>
+<!-- Site header -->
+<header class="site-header">
+    <a href="/" class="site-title">
+        <img src="img/dmtools-logo-network-nodes.svg" alt="DMTools Logo" class="logo-light" style="height: 48px;" />
+        <img src="img/dmtools-logo-network-nodes-dark.svg" alt="DMTools Logo" class="logo-dark" style="height: 48px; display: none;" />
+    </a>
+    
+    <!-- Search form using styleguide component -->
+    <form class="search-form">
+        <input type="search" placeholder="Search agents and apps..." aria-label="Search">
+        <button type="submit" class="btn">Search</button>
+    </form>
+    
+    <div class="nav-actions">
+        <button id="chat-toggle-btn" class="btn-icon" title="Open AI Assistant">
+            <i class="fas fa-comments"></i>
+        </button>
+        <button class="btn-login" onclick="openLoginModal()">
+            <i class="fas fa-sign-in-alt"></i>
+            Login
+        </button>
+    </div>
+</header>
+
+<div class="container">
+    <!-- Welcome banner -->
+    <div class="welcome-banner">
+        <div class="welcome-logo">
+            <img src="img/dmtools-logo-intelligent-network-fusion-white.svg" alt="DMTools Intelligent Network" style="height: 60px; margin-bottom: 20px;">
+        </div>
+        <div class="welcome-text">
+            <h1>Welcome to DMTools</h1>
+            <p>Your all-in-one solution for delivery management and automation</p>
+            <div class="banner-buttons">
+                <a href="/create-agent" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Create New Agent
+                </a>
+                <button id="get-help-btn" class="btn btn-outline" onclick="openChatHelp()">
+                    <i class="fas fa-question-circle"></i>
+                    Get Help
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two Column Layout for Agents and Chat -->
+    <div class="main-layout">
+        <div class="main-content">
+            <!-- Agents section -->
+            <div class="section-header">
+                <h2 class="section-title">My Agents</h2>
+                <a href="#" class="view-all">
+                    Manage Agents <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+
+            <div class="agents-grid">
+                <!-- Agent 1 -->
+                <div class="agent-card">
+                    <div class="agent-card-header">
+                        <div class="agent-card-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div>
+                            <h3 class="agent-card-title">JIRA Assistant</h3>
+                            <div class="agent-card-status">
+                                <span class="status-dot"></span>
+                                Active
+                            </div>
+                        </div>
+                    </div>
+                    <p class="agent-card-description">
+                        Automatically analyzes and creates test cases based on JIRA tasks, integrating information from code repositories.
+                    </p>
+                    <div class="tag-container">
+                        <span class="tag">Integration</span>
+                    </div>
+                    <div class="agent-card-footer">
+                        <div class="agent-stats">
+                            <span><i class="fas fa-calendar-check"></i> 12 runs</span>
+                            <span><i class="fas fa-clock"></i> Today</span>
+                        </div>
+                        <button class="run-button">
+                            <i class="fas fa-play"></i> Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Agent 2 -->
+                <div class="agent-card">
+                    <div class="agent-card-header">
+                        <div class="agent-card-icon">
+                            <i class="fas fa-code-branch"></i>
+                        </div>
+                        <div>
+                            <h3 class="agent-card-title">GitLab Analyzer</h3>
+                            <div class="agent-card-status">
+                                <span class="status-dot"></span>
+                                Active
+                            </div>
+                        </div>
+                    </div>
+                    <p class="agent-card-description">
+                        Scans code repositories, identifies critical changes, and generates progress reports.
+                    </p>
+                    <div class="tag-container">
+                        <span class="tag">Analytics</span>
+                    </div>
+                    <div class="agent-card-footer">
+                        <div class="agent-stats">
+                            <span><i class="fas fa-calendar-check"></i> 8 runs</span>
+                            <span><i class="fas fa-clock"></i> Yesterday</span>
+                        </div>
+                        <button class="run-button">
+                            <i class="fas fa-play"></i> Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Agent 3 -->
+                <div class="agent-card">
+                    <div class="agent-card-header">
+                        <div class="agent-card-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div>
+                            <h3 class="agent-card-title">Story Generator</h3>
+                            <div class="agent-card-status">
+                                <span class="status-dot"></span>
+                                Active
+                            </div>
+                        </div>
+                    </div>
+                    <p class="agent-card-description">
+                        Creates user stories and requirements based on project documentation and existing tickets.
+                    </p>
+                    <div class="tag-container">
+                        <span class="tag">Automation</span>
+                    </div>
+                    <div class="agent-card-footer">
+                        <div class="agent-stats">
+                            <span><i class="fas fa-calendar-check"></i> 5 runs</span>
+                            <span><i class="fas fa-clock"></i> This week</span>
+                        </div>
+                        <button class="run-button">
+                            <i class="fas fa-play"></i> Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Add new agent -->
+                <a href="/create-agent" class="empty-state">
+                    <i class="fas fa-plus-circle"></i>
+                    <h3>Create New Agent</h3>
+                    <p>Configure automation for your tasks</p>
+                </a>
+            </div>
+
+            <!-- Applications section -->
+            <div class="section-header">
+                <h2 class="section-title">Applications</h2>
+                <a href="#" class="view-all">
+                    All Applications <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+
+            <div class="app-list">
+                <!-- App 1 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-chart-pie"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Presentation Creator</h3>
+                        <div class="app-version">v2.1.0</div>
+                        <p class="app-description">
+                            Automatically generates presentations based on project data, including progress, charts, and metrics.
+                        </p>
+                        <span class="app-tag">Reporting</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.9</span>
+                            <span><i class="fas fa-download"></i> 1.2k</span>
+                        </div>
+                    </div>
+                    <a href="presentation-creator.html" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+
+                <!-- App 2 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-envelope"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Report Generator</h3>
+                        <div class="app-version">v1.5.3</div>
+                        <p class="app-description">
+                            Creates professional reports and newsletters based on data from JIRA, Confluence, and code repositories.
+                        </p>
+                        <span class="app-tag">Communication</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.7</span>
+                            <span><i class="fas fa-download"></i> 950</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+
+                <!-- App 3 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-bug"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Bug Analyzer</h3>
+                        <div class="app-version">v1.2.0</div>
+                        <p class="app-description">
+                            Analyzes error reports, classifies issues, and suggests solutions based on historical data.
+                        </p>
+                        <span class="app-tag">QA</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.5</span>
+                            <span><i class="fas fa-download"></i> 720</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+
+                <!-- App 4 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-tasks"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Sprint Planner</h3>
+                        <div class="app-version">v2.3.1</div>
+                        <p class="app-description">
+                            Optimizes sprint planning considering team capacity, priorities, and task dependencies.
+                        </p>
+                        <span class="app-tag">Planning</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.8</span>
+                            <span><i class="fas fa-download"></i> 1.5k</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Sidebar (optional, can be toggled) -->
+        <div class="chat-sidebar" id="chat-sidebar" style="display: none;">
+            <div class="chat-sidebar-header">
+                <h3><i class="fas fa-comments"></i> AI Assistant</h3>
+                <button class="btn-icon" onclick="toggleChatSidebar()" title="Close chat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="sidebar-chat-container" class="chat-container-embedded"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Chat Container (for floating mode) -->
+<div id="dm-chat-floating" style="display: none;"></div>
+
+<!-- Login Modal -->
+<div class="login-modal" id="loginModal">
+    <div class="login-modal-content">
+        <button class="login-modal-close" onclick="closeLoginModal()" aria-label="Close login modal">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <div class="login-provider-selector">
+            <div class="login-header">
+                <h2>Welcome Back</h2>
+                <p>Choose your preferred login method</p>
+            </div>
+            
+            <div class="login-providers">
+                <a href="/oauth2/authorization/google" class="login-provider-btn login-provider-btn--google">
+                    <i class="fab fa-google login-provider-icon"></i>
+                    Continue with Google
+                </a>
+                
+                <a href="/oauth2/authorization/microsoft" class="login-provider-btn login-provider-btn--microsoft">
+                    <i class="fab fa-microsoft login-provider-icon"></i>
+                    Continue with Microsoft
+                </a>
+                
+                <a href="/oauth2/authorization/github" class="login-provider-btn login-provider-btn--github">
+                    <i class="fab fa-github login-provider-icon"></i>
+                    Continue with GitHub
+                </a>
+            </div>
+            
+            <div class="login-footer">
+                <p>By continuing, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="css/theme.js"></script>
+<script src="components/chat-component.js"></script>
+<script>
+    // Global chat instances
+    let floatingChat = null;
+    let sidebarChat = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM fully loaded and parsed. Checking for auth status and errors.");
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const loginStatus = urlParams.get('login');
+        const error = urlParams.get('error');
+        
+        if (error === 'true') {
+            console.error("Login error detected in URL parameters.");
+            showNotification('Authentication failed. Please try again.', 'error');
+            // Clean up the URL
+            window.history.replaceState({}, document.title, "/");
+        } else if (token) {
+            // Store token and update UI
+            localStorage.setItem('authToken', token);
+            updateUIForLoggedInUser();
+            
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            if (loginStatus === 'success') {
+                console.log("Login successful! Welcome to DMTools.");
+                showNotification('Login successful! Welcome to DMTools.', 'success');
+            }
+        } else if (loginStatus === 'success') {
+            // OAuth login success (Spring Security automatically handles user session)
+            console.log("Login successful! Welcome to DMTools.");
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            // Update UI to reflect logged-in state
+            updateUIForLoggedInUser();
+        } else if (loginStatus === 'error') {
+            // OAuth login failed
+            console.error("Login failed. Please try again.");
+            showNotification('Login failed. Please try again.', 'error');
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+            // Check if user is already logged in via Spring Security session
+            updateUIForLoggedInUser();
+        }
+
+        // Animation for cards on page load
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100 * index);
+        });
+
+        // Initialize floating chat (hidden by default)
+        initializeFloatingChat();
+
+        // Chat toggle button in header
+        document.getElementById('chat-toggle-btn').addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                // On mobile, use floating chat
+                toggleFloatingChat();
+            } else {
+                // On desktop, use sidebar
+                toggleChatSidebar();
+            }
+        });
+
+        // Responsive handling
+        window.addEventListener('resize', function() {
+            if (window.innerWidth <= 768) {
+                // Hide sidebar on mobile
+                if (document.getElementById('chat-sidebar').style.display !== 'none') {
+                    toggleChatSidebar();
+                }
+            } else {
+                // Hide floating chat on desktop
+                if (floatingChat && document.getElementById('dm-chat-floating').style.display !== 'none') {
+                    toggleFloatingChat();
+                }
+            }
+        });
+    });
+
+    function initializeFloatingChat() {
+        floatingChat = DMChatComponent.createFloating({
+            title: 'DMTools AI',
+            context: 'general',
+            welcomeMessage: 'Hi! I can help you with agents, applications, and general questions about DMTools. I have access to JIRA, GitHub, Confluence, and AI agents!',
+            placeholder: 'Ask me about DMTools...',
+            enableFileAttachments: true,
+            agentTools: {'enabled': true},
+            examples: [
+                'Show me available agents and tools',
+                'How do I integrate with JIRA?',
+                'Help me automate my workflow',
+                'What can DMTools do for my team?',
+                'Guide me through the features',
+                'Search JIRA tickets for my project',
+                'Get GitHub repository information',
+                'Create a Confluence page',
+                'Generate test cases for my application'
+            ],
+            emptyStateConfig: {
+                title: 'DMTools AI Assistant',
+                message: 'I\'m here to help you navigate DMTools and make the most of its powerful features.',
+                subtitle: 'Ask me about agents, integrations, workflows, or any questions about the platform. I can access real-time data from JIRA, GitHub, and Confluence!'
+            },
+            callbacks: {
+                onHealthCheck: (isHealthy) => {
+                    if (!isHealthy) {
+                        console.warn('Chat service is not available');
+                    }
+                }
+            },
+            // Enable MCP tools integration
+            enableMcpTools: true
+        });
+        
+        // Initially hidden
+        document.getElementById('dm-chat-floating').style.display = 'none';
+    }
+
+    function toggleFloatingChat() {
+        const chatContainer = document.getElementById('dm-chat-floating');
+        if (chatContainer.style.display === 'none') {
+            chatContainer.style.display = 'block';
+            floatingChat.show();
+        } else {
+            chatContainer.style.display = 'none';
+            floatingChat.close();
+        }
+    }
+
+    function toggleChatSidebar() {
+        const sidebar = document.getElementById('chat-sidebar');
+        const container = document.querySelector('.container');
+        
+        if (sidebar.style.display === 'none') {
+            // Show sidebar
+            sidebar.style.display = 'block';
+            container.classList.add('with-chat-sidebar');
+            
+            // Initialize sidebar chat if not exists
+            if (!sidebarChat) {
+                sidebarChat = DMChatComponent.createEmbedded('sidebar-chat-container', {
+                    title: 'DMTools AI',
+                    context: 'general',
+                    welcomeMessage: 'Hi! I can help you with agents, applications, and general questions about DMTools. I have access to JIRA, GitHub, Confluence, and AI agents!',
+                    placeholder: 'Ask me about DMTools...',
+                    height: '500px',
+                    enableFileAttachments: true,
+                    agentTools: {'enabled': true},
+                    theme: 'compact',
+                    examples: [
+                        'Show me available agents and tools',
+                        'How do I integrate with JIRA?',
+                        'Help me automate my workflow',
+                        'What can DMTools do for my team?',
+                        'Guide me through the features',
+                        'Search JIRA tickets for my project',
+                        'Get GitHub repository information',
+                        'Create a Confluence page',
+                        'Generate test cases for my application'
+                    ],
+                    emptyStateConfig: {
+                        title: 'DMTools AI Assistant',
+                        message: 'I\'m here to help you navigate DMTools and make the most of its powerful features.',
+                        subtitle: 'Ask me about agents, integrations, workflows, or any questions about the platform. I can access real-time data from JIRA, GitHub, and Confluence!'
+                    },
+                    // Enable MCP tools integration
+                    enableMcpTools: true
+                });
+            }
+        } else {
+            // Hide sidebar
+            sidebar.style.display = 'none';
+            container.classList.remove('with-chat-sidebar');
+        }
+    }
+
+    function openChatHelp() {
+        if (window.innerWidth <= 768) {
+            toggleFloatingChat();
+            // Add a helpful message
+            setTimeout(() => {
+                if (floatingChat) {
+                    floatingChat.useExample('Help me get started with DMTools');
+                }
+            }, 500);
+        } else {
+            toggleChatSidebar();
+            // Add a helpful message
+            setTimeout(() => {
+                if (sidebarChat) {
+                    sidebarChat.useExample('Help me get started with DMTools');
+                }
+            }, 500);
+        }
+    }
+
+    // Login modal functionality
+    function openLoginModal() {
+        const modal = document.getElementById('loginModal');
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+
+    function closeLoginModal() {
+        const modal = document.getElementById('loginModal');
+        modal.classList.remove('show');
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+
+    async function handleModalLogin(provider) {
+        event.preventDefault();
+        
+        // Add loading state
+        const button = event.currentTarget;
+        button.classList.add('login-provider-btn--loading');
+        
+        try {
+            // Use Spring Security OAuth2 login endpoints
+            const oauthUrl = `/oauth2/authorization/${provider.toLowerCase()}`;
+            
+            // Close the modal first
+            closeLoginModal();
+            
+            // Redirect to Spring Security OAuth2 login
+            window.location.href = oauthUrl;
+            
+        } catch (error) {
+            console.error('Login error:', error);
+            button.classList.remove('login-provider-btn--loading');
+            showNotification(`Login failed: ${error.message}`, 'error');
+        }
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('loginModal');
+        if (event.target === modal) {
+            closeLoginModal();
+        }
+    });
+
+    // Close modal with Escape key
+    window.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeLoginModal();
+        }
+    });
+
+    // Update UI for logged-in user
+    async function updateUIForLoggedInUser() {
+        console.log("updateUIForLoggedInUser: Checking authentication status...");
+        try {
+            // Check authentication status via Spring Security session
+            const response = await fetch('/api/auth/user', {
+                credentials: 'include', // Include session cookies
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest' // Mark as AJAX request
+                }
+            });
+
+            console.log(`updateUIForLoggedInUser: Received response with status ${response.status}`);
+
+            if (response.ok) {
+                const user = await response.json();
+                console.log('updateUIForLoggedInUser: User data received:', user);
+                if (user.authenticated) {
+                    console.log("updateUIForLoggedInUser: User is authenticated. Updating UI.");
+                    updateLoginButton(user);
+                } else {
+                    console.log("updateUIForLoggedInUser: User is not authenticated. Showing login button.");
+                    showLoginButton();
+                }
+            } else if (response.status === 401) {
+                // Not authenticated - this is expected for non-logged in users
+                console.log('updateUIForLoggedInUser: User not authenticated (401). Showing login button.');
+                showLoginButton();
+            } else {
+                // Other error
+                console.error('updateUIForLoggedInUser: Error checking auth status:', response.status, await response.text());
+                showLoginButton();
+            }
+        } catch (error) {
+            console.error('updateUIForLoggedInUser: Error fetching user info:', error);
+            showLoginButton();
+        }
+    }
+
+    function showLoginButton() {
+        console.log("showLoginButton: Displaying the main login button.");
+        const loginButton = document.querySelector('.btn-login');
+        if (loginButton) {
+            loginButton.innerHTML = `
+                <i class="fas fa-sign-in-alt"></i>
+                Login
+            `;
+            loginButton.onclick = openLoginModal;
+        }
+    }
+
+    function getInitials(name) {
+        if (!name) return 'U';
+        const words = name.split(' ');
+        if (words.length >= 2) {
+            return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    }
+
+    function updateLoginButton(user) {
+        console.log("updateLoginButton: Updating UI for logged-in user:", user.name);
+        const loginButton = document.querySelector('.btn-login');
+        if (loginButton) {
+            // Get display name - prefer givenName, fallback to name, then email
+            let displayName = user.name || user.email || 'User';
+            if (user.givenName && user.familyName) {
+                displayName = `${user.givenName} ${user.familyName}`;
+            } else if (user.givenName) {
+                displayName = user.givenName;
+            }
+            
+            // Get profile image or use fallback icon
+            let profileImage;
+            if (user.pictureUrl && user.pictureUrl.trim() !== '') {
+                profileImage = `<img src="${user.pictureUrl}" alt="Profile" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                               <div class="user-avatar user-avatar--fallback" style="display: none;" data-initials="${getInitials(displayName)}">
+                                   <i class="fas fa-user"></i>
+                               </div>`;
+            } else {
+                profileImage = `<div class="user-avatar user-avatar--fallback" data-initials="${getInitials(displayName)}">
+                                   <i class="fas fa-user"></i>
+                               </div>`;
+            }
+            
+            loginButton.innerHTML = `
+                <div class="user-profile-button">
+                    ${profileImage}
+                    <span class="user-name">${displayName}</span>
+                    <i class="fas fa-chevron-down user-chevron"></i>
+                </div>
+            `;
+            loginButton.onclick = showUserMenu;
+        }
+    }
+
+    function showUserMenu() {
+        console.log("showUserMenu: Toggling user menu.");
+        // Create and show user menu dropdown
+        const existingMenu = document.querySelector('.user-menu');
+        if (existingMenu) {
+            console.log("showUserMenu: User menu already exists. Removing existing menu.");
+            existingMenu.remove();
+            return;
+        }
+
+        console.log("showUserMenu: Creating new user menu.");
+        const menu = document.createElement('div');
+        menu.className = 'user-menu';
+        menu.innerHTML = `
+            <div class="user-menu-item" onclick="openUserSettings()">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </div>
+            <div class="user-menu-item" id="user-menu-theme-switcher">
+                <i class="fas fa-moon"></i>
+                <span>Dark mode</span>
+            </div>
+            <div class="user-menu-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </div>
+        `;
+
+        const loginButton = document.querySelector('.btn-login');
+        loginButton.parentNode.appendChild(menu);
+
+        // Add event listener for theme switcher
+        menu.querySelector('#user-menu-theme-switcher').addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('dark-theme');
+            localStorage.setItem('dmtools-theme', isDark ? 'dark' : 'light');
+            updateThemeUI(isDark);
+        });
+
+        // Position the menu
+        const rect = loginButton.getBoundingClientRect();
+        menu.style.top = `${rect.bottom + 5}px`;
+        menu.style.right = `${window.innerWidth - rect.right}px`;
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function closeMenu(event) {
+            if (!loginButton.contains(event.target) && !menu.contains(event.target)) {
+                console.log("showUserMenu: Closing user menu due to outside click.");
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        }, { once: true });
+    }
+
+    function openUserSettings() {
+        window.location.href = '/settings.html';
+    }
+
+    async function logout() {
+        console.log("logout: Initiating logout sequence.");
+        try {
+            // Use Spring Security logout
+            const response = await fetch('/logout', {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            console.log(`logout: Received response with status ${response.status}`);
+            
+            if (response.ok) {
+                 // The server should redirect, but we can also force it
+                console.log("logout: Logout successful, redirecting to home.");
+                window.location.href = '/';
+            } else {
+                console.error('Logout failed:', response.status);
+                showNotification('Logout failed. Please try again.', 'error');
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+            showNotification('An error occurred during logout.', 'error');
+        }
+    }
+
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+            ${message}
+        `;
+
+        document.body.appendChild(notification);
+
+        // Show notification
+        setTimeout(() => notification.classList.add('show'), 100);
+
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Close user menu when clicking outside
+    document.addEventListener('click', function(event) {
+        const userMenu = document.querySelector('.user-menu');
+        const loginButton = document.querySelector('.btn-login');
+        
+        if (userMenu && !userMenu.contains(event.target) && !loginButton.contains(event.target)) {
+            userMenu.remove();
+        }
+    });
+</script>
+
+<style>
+/* Additional styles for chat integration */
+.main-layout {
+    display: flex;
+    gap: 2rem;
+    transition: all 0.3s ease;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0; /* Prevent overflow */
+}
+
+.chat-sidebar {
+    width: 400px;
+    flex-shrink: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    height: fit-content;
+    max-height: 80vh;
+    position: sticky;
+    top: 2rem;
+    box-shadow: var(--card-shadow);
+}
+
+.chat-sidebar-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--hover-bg);
+    border-radius: 12px 12px 0 0;
+}
+
+.chat-sidebar-header h3 {
+    margin: 0;
+    color: var(--header-color);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chat-container-embedded {
+    height: 500px;
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .chat-sidebar {
+        width: 350px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-layout {
+        flex-direction: column;
+    }
+    
+    .chat-sidebar {
+        display: none !important; /* Force hide on mobile */
+    }
+
+    .nav-actions {
+        gap: 0.5rem;
+    }
+    
+    .nav-actions .theme-text {
+        display: none; /* Hide theme text on mobile to save space */
+    }
+
+    .btn-login {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .btn-login i {
+        font-size: 0.8rem;
+    }
+}
+
+/* Layout adjustment when sidebar is open */
+.container.with-chat-sidebar .main-layout {
+    max-width: none;
+    margin: 0 auto;
+}
+
+/* Animate the banner buttons */
+.banner-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .banner-buttons {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .banner-buttons .btn {
+        width: 200px;
+        justify-content: center;
+    }
+}
+
+/* User menu styles */
+.user-menu {
+    position: absolute;
+    z-index: 1000;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    padding: 0.5rem;
+    min-width: 200px;
+    animation: fadeIn 0.1s ease-out;
+}
+
+.user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    color: var(--text-color);
+}
+
+.user-menu-item:hover {
+    background-color: var(--hover-bg);
+}
+
+.user-menu-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.user-menu-item span {
+    flex-grow: 1;
+}
+
+/* Notification styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(400px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 9999;
+    max-width: 350px;
+}
+
+.notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.notification-success {
+    border-left: 4px solid #22c55e;
+}
+
+.notification-success i {
+    color: #22c55e;
+}
+
+.notification-error {
+    border-left: 4px solid #ef4444;
+}
+
+.notification-error i {
+    color: #ef4444;
+}
+
+/* User profile button styles */
+.btn-login {
+    display: flex;
+    align-items: center;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.user-profile-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.user-avatar--fallback {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 400;
+    position: relative;
+}
+
+.user-avatar--fallback i {
+    line-height: 1;
+    margin: 0;
+    padding: 0;
+}
+
+/* Show initials if icon is not available */
+.user-avatar--fallback:not(:has(i.fas)):before,
+.user-avatar--fallback i.fas:not(.fa-user):after {
+    content: attr(data-initials);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 0.7rem;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Hide initials when icon is properly loaded */
+.user-avatar--fallback:has(i.fas.fa-user) {
+    font-size: 0.75rem;
+}
+
+/* Fallback for browsers that don't support :has() */
+@supports not (selector(:has(*))) {
+    .user-avatar--fallback::after {
+        content: attr(data-initials);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        font-weight: 500;
+        font-size: 0.7rem;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    .user-avatar--fallback i {
+        display: none;
+    }
+}
+
+.user-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.user-chevron {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    margin-left: 0.25rem;
+    flex-shrink: 0;
+}
+
+/* Hover effects for user profile */
+.btn-login:hover {
+    background-color: var(--hover-bg);
+}
+
+.btn-login:hover .user-chevron {
+    opacity: 1;
+    transform: translateY(1px);
+}
+
+.login-provider-btn--microsoft {
+    background-color: #0078D4;
+    color: white;
+}
+
+.login-provider-btn--github {
+    background-color: #333;
+    color: white;
+}
+
+.login-provider-btn:hover {
+    opacity: 0.9;
+}
+
+.logo-dark { display: none; }
+body.dark-theme .logo-light { display: none !important; }
+body.dark-theme .logo-dark { display: inline !important; }
+</style>
+</body>
+</html> 

@@ -1,0 +1,69 @@
+<svg width="240" height="85" viewBox="0 0 240 85" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="jaiGradientDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--text-color, #ffffff)" stop-opacity="1"/>
+      <stop offset="50%" stop-color="var(--accent-light, #8aa3ff)" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="var(--accent-color, #6988f5)" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="circuitGradientDark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="var(--accent-color, #6988f5)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--info-color, #3b82f6)" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .jaiDarkEnhanced {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-weight: 800;
+      font-size: 52px;
+      fill: url(#jaiGradientDark);
+      letter-spacing: 2px;
+      filter: drop-shadow(0 0 8px rgba(255,255,255,0.4));
+    }
+    .dmtoolsTagDark {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-size: 11px;
+      fill: var(--text-secondary, #b8c5d1);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    .circuitLineDark {
+      stroke: url(#circuitGradientDark);
+      stroke-width: 2;
+      filter: drop-shadow(0 0 3px rgba(105, 136, 245, 0.5));
+    }
+    .circuitNodeDark {
+      fill: var(--accent-light, #8aa3ff);
+      filter: drop-shadow(0 0 4px rgba(138, 163, 255, 0.7));
+    }
+    .circuitPulseDark {
+      fill: var(--accent-color, #6988f5);
+      opacity: 0.8;
+      filter: drop-shadow(0 0 6px rgba(105, 136, 245, 0.9));
+    }
+  </style>
+  
+  <!-- JAI Text with enhanced styling -->
+  <text x="20" y="60" class="jaiDarkEnhanced">J</text>
+  <text x="60" y="60" class="jaiDarkEnhanced">A</text>
+  <text x="100" y="60" class="jaiDarkEnhanced">I</text>
+
+  <!-- Enhanced Circuitry Elements -->
+  <line class="circuitLineDark" x1="15" y1="25" x2="35" y2="35"/>
+  <circle class="circuitNodeDark" cx="15" cy="25" r="3"/>
+  <circle class="circuitPulseDark" cx="35" cy="35" r="2"/>
+  
+  <line class="circuitLineDark" x1="45" y1="20" x2="60" y2="20"/>
+  <line class="circuitLineDark" x1="60" y1="20" x2="70" y2="30"/>
+  <circle class="circuitNodeDark" cx="45" cy="20" r="2.5"/>
+  <circle class="circuitPulseDark" cx="70" cy="30" r="2"/>
+  
+  <line class="circuitLineDark" x1="110" y1="25" x2="125" y2="25"/>
+  <circle class="circuitNodeDark" cx="125" cy="25" r="3"/>
+  <line class="circuitLineDark" x1="125" y1="25" x2="130" y2="35"/>
+  <circle class="circuitPulseDark" cx="130" cy="35" r="2"/>
+
+  <!-- Enhanced DMTools tag -->
+  <text x="150" y="50" class="dmtoolsTagDark">DMTools</text>
+  <text x="150" y="65" class="dmtoolsTagDark" style="font-size: 9px; opacity: 0.7;">AI System</text>
+</svg> 

@@ -11,6 +11,11 @@ apply plugin: 'maven-publish'
 group = 'com.github.istin'
 version = "${version}"
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
 repositories {
     mavenCentral()
     maven { url = uri("https://maven.pkg.github.com/IstiN/dmtools") }
@@ -34,10 +39,8 @@ configurations {
 dependencies {
     // Testing
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:5.14.2'
-    testImplementation 'org.mockito:mockito-inline:5.2.0'
-    testImplementation 'org.powermock:powermock-module-junit4:2.0.9'
-    testImplementation 'org.powermock:powermock-api-mockito2:2.0.9'
+    testImplementation 'org.mockito:mockito-core:5.18.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.18.0'
     testRuntimeOnly 'org.junit.vintage:junit-vintage-engine:5.8.2'
 
     // Core dependencies
@@ -65,7 +68,7 @@ dependencies {
     api 'org.jxls:jxls-poi:2.14.0'
     api 'org.jxls:jxls-reader:2.1.0'
     api 'org.apache.poi:poi:4.1.1'
-    api 'org.apache.poi:poi-ooxml:3.17'
+    api 'org.apache.poi:poi-ooxml:4.1.1'
     api 'org.apache.pdfbox:pdfbox:3.0.2'
     api 'io.github.furstenheim:copy_down:1.1'
 
@@ -115,6 +118,8 @@ dependencies {
 
     // Spring dependencies
     api 'org.springframework.boot:spring-boot-starter-web'
+    api 'org.springframework.boot:spring-boot-starter-actuator'
+    api 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
     api 'com.google.code.gson:gson:2.10.1'
     api 'org.apache.logging.log4j:log4j-api:2.17.1'
     api 'org.apache.logging.log4j:log4j-core:2.17.1'
@@ -138,6 +143,10 @@ configurations.all {
         force "org.apache.logging.log4j:log4j-api:${versions.log4j}"
         force "org.apache.logging.log4j:log4j-core:${versions.log4j}"
         force "org.apache.logging.log4j:log4j-slf4j-impl:${versions.log4j}"
+        // Force consistent POI versions to avoid IncompatibleClassChangeError
+        force 'org.apache.poi:poi:4.1.1'
+        force 'org.apache.poi:poi-ooxml:4.1.1'
+        force 'org.apache.poi:poi-ooxml-schemas:4.1.1'
 
         // Handle transitive dependencies
         eachDependency { DependencyResolveDetails details ->
@@ -165,6 +174,9 @@ configurations.all {
 
 test {
     useJUnitPlatform()
+    jvmArgs '-Dnet.bytebuddy.experimental=true'
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
+    jvmArgs '-javaagent:' + configurations.testRuntimeClasspath.find { it.name.contains('mockito-core') }
     testLogging {
         events "passed", "skipped", "failed", "standardOut", "standardError"
         exceptionFormat "full"
@@ -196,6 +208,9 @@ processIntegrationTestResources {
 task integrationTest(type: Test) {
     description = 'Runs integration tests.'
     group = 'verification'
+    useJUnitPlatform()
+    jvmArgs '-Dnet.bytebuddy.experimental=true'
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
     shouldRunAfter test
@@ -257,7 +272,72 @@ shadowJar {
     archiveVersion.set('v' + version)
     archiveClassifier.set('all')
     archiveExtension.set('jar')
+    zip64 true
     manifest {
         attributes 'Main-Class': 'com.github.istin.dmtools.job.JobRunner'
     }
+}
+
+// Task to process resources for production build
+task processProductionResources(type: Copy) {
+    from 'src/main/resources'
+    into "${buildDir}/resources/main"
+    exclude 'config.properties'
+    
+    // Copy production config as config.properties
+    from('src/main/resources/config.prod.properties') {
+        rename 'config.prod.properties', 'config.properties'
+    }
+}
+
+// Task to process resources for development build  
+task processDevelopmentResources(type: Copy) {
+    from 'src/main/resources'
+    into "${buildDir}/resources/main"
+    // Use existing config.properties as-is for development
+}
+
+// Fix the dependency issue by making jar depend on processDevelopmentResources
+jar.dependsOn processDevelopmentResources
+compileIntegrationTestJava.dependsOn processDevelopmentResources
+compileTestJava.dependsOn processDevelopmentResources
+
+bootJar {
+    mainClass = 'com.github.istin.dmtools.server.DmToolsServerApplication'
+    archiveFileName = 'dmtools-appengine.jar'
+    destinationDirectory = file("${project.rootDir}")
+    
+    // Determine which config to use based on environment
+    def buildProfile = project.findProperty('buildProfile') ?: 'development'
+    
+    if (buildProfile == 'production') {
+        dependsOn processProductionResources
+        println "Building for PRODUCTION - using config.prod.properties"
+    } else {
+        dependsOn processDevelopmentResources  
+        println "Building for DEVELOPMENT - using config.properties"
+    }
+}
+
+// Create convenience tasks for different build profiles
+task bootJarProduction {
+    group = 'build'
+    description = 'Builds production JAR with production configuration'
+    doLast {
+        project.ext.buildProfile = 'production'
+        tasks.bootJar.execute()
+    }
+}
+
+task bootJarDevelopment {
+    group = 'build'
+    description = 'Builds development JAR with development configuration'
+    doLast {
+        project.ext.buildProfile = 'development'
+        tasks.bootJar.execute()
+    }
+}
+
+bootRun {
+    mainClass = 'com.github.istin.dmtools.server.DmToolsServerApplication'
 }

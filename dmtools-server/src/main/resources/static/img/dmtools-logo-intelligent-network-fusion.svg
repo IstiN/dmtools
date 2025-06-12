@@ -1,0 +1,88 @@
+<svg width="320" height="90" viewBox="0 0 320 90" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="intelligentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#466af1" stop-opacity="1"/>
+      <stop offset="50%" stop-color="#6988f5" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="jaiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2c3e50" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#466af1" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="dmtoolsGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2c3e50" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#495057" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .jai-text {
+      font-family: 'Montserrat', 'Helvetica Neue', sans-serif;
+      font-weight: 700;
+      font-size: 42px;
+      fill: url(#jaiGradient);
+      letter-spacing: 1px;
+    }
+    .dmtools-text {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      fill: url(#dmtoolsGradient);
+    }
+    .network-text {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      fill: #495057;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .dot {
+      fill: url(#intelligentGradient);
+      stroke: #3155db;
+      stroke-width: 1;
+    }
+    .line {
+      stroke: #6988f5;
+      stroke-width: 1.5;
+      opacity: 0.7;
+    }
+    .circuit {
+      stroke: #eaedf1;
+      stroke-width: 1;
+      fill: none;
+      opacity: 0.8;
+    }
+  </style>
+
+  <!-- Unified Topology dots abstraction -->
+  <circle class="dot" cx="25" cy="20" r="3"/>
+  <circle class="dot" cx="45" cy="30" r="4"/>
+  <circle class="dot" cx="65" cy="15" r="3"/>
+  <circle class="dot" cx="85" cy="25" r="3"/>
+  <circle class="dot" cx="105" cy="20" r="4"/>
+  <circle class="dot" cx="75" cy="40" r="3"/>
+  
+  <!-- Network topology connections -->
+  <line class="line" x1="25" y1="20" x2="45" y2="30"/>
+  <line class="line" x1="45" y1="30" x2="65" y2="15"/>
+  <line class="line" x1="65" y1="15" x2="85" y2="25"/>
+  <line class="line" x1="85" y1="25" x2="105" y2="20"/>
+  <line class="line" x1="25" y1="20" x2="65" y2="15"/>
+  <line class="line" x1="45" y1="30" x2="85" y2="25"/>
+  <line class="line" x1="45" y1="30" x2="75" y2="40"/>
+  <line class="line" x1="85" y1="25" x2="75" y2="40"/>
+  
+  <!-- Circuit elements weaved through -->
+  <path class="circuit" d="M30 10 L40 10 L45 15"/>
+  <path class="circuit" d="M70 10 L80 10 L85 15"/>
+  <path class="circuit" d="M90 10 L100 10 L105 15"/>
+  
+  <!-- JAI text positioned on the left -->
+  <text x="20" y="70" class="jai-text">J A I</text>
+
+  <!-- DMTools positioned on the right, with proper spacing from INTELLIGENT NETWORK -->
+  <text x="220" y="68" class="dmtools-text">DMTools</text>
+  
+  <!-- INTELLIGENT NETWORK text centered -->
+  <text x="130" y="48" class="network-text">Intelligent Network</text>
+</svg> 

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - DMTools</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styleguide/styleguide.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="img/dmtools-icon.svg" type="image/svg+xml">
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            padding: 1rem;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+        }
+        
+        .login-brand {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .login-brand img {
+            height: 60px;
+            margin-bottom: 1rem;
+        }
+        
+        .login-brand h1 {
+            color: white;
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-brand p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1rem;
+        }
+        
+        .demo-mode-banner {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: white;
+        }
+        
+        .demo-mode-banner i {
+            margin-right: 0.5rem;
+            color: #fbbf24;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-container">
+            <div class="login-brand">
+                <img src="img/dmtools-logo-intelligent-network-fusion-white.svg" alt="DMTools Logo">
+                <h1>DMTools</h1>
+                <p>Intelligent Network Fusion Platform</p>
+            </div>
+            
+            <div class="demo-mode-banner">
+                <i class="fas fa-info-circle"></i>
+                Demo Mode - Click any provider to see the component in action
+            </div>
+            
+            <div class="login-provider-selector">
+                <div class="login-header">
+                    <h2>Welcome Back</h2>
+                    <p>Choose your preferred login method</p>
+                </div>
+                
+                <div class="login-providers">
+                    <a href="#" class="login-provider-btn login-provider-btn--google" onclick="handleLogin('Google')">
+                        <i class="fab fa-google login-provider-icon"></i>
+                        Continue with Google
+                    </a>
+                    
+                    <a href="#" class="login-provider-btn login-provider-btn--microsoft" onclick="handleLogin('Microsoft')">
+                        <i class="fab fa-microsoft login-provider-icon"></i>
+                        Continue with Microsoft
+                    </a>
+                    
+                    <a href="#" class="login-provider-btn login-provider-btn--github" onclick="handleLogin('GitHub')">
+                        <i class="fab fa-github login-provider-icon"></i>
+                        Continue with GitHub
+                    </a>
+                    
+                    <div class="login-divider">
+                        <span>or</span>
+                    </div>
+                    
+                    <a href="#" class="login-provider-btn login-provider-btn--oauth" onclick="handleLogin('Custom OAuth')">
+                        <i class="fas fa-key login-provider-icon"></i>
+                        Custom OAuth Provider
+                    </a>
+                </div>
+                
+                <div class="login-footer">
+                    <p>By continuing, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="theme-toggle" class="theme-switch" aria-label="Toggle theme" style="position: fixed; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+        <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+    </button>
+
+    <script>
+        // Theme switching functionality
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = themeToggle.querySelector('.sun-icon');
+        const moonIcon = themeToggle.querySelector('.moon-icon');
+
+        // Check for saved theme preference or default to light mode
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        
+        if (currentTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+            sunIcon.style.display = 'none';
+            moonIcon.style.display = 'block';
+        } else {
+            sunIcon.style.display = 'block';
+            moonIcon.style.display = 'none';
+        }
+
+        themeToggle.addEventListener('click', function() {
+            document.body.classList.toggle('dark-theme');
+            
+            if (document.body.classList.contains('dark-theme')) {
+                localStorage.setItem('theme', 'dark');
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                localStorage.setItem('theme', 'light');
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        });
+
+        // Demo login functionality
+        function handleLogin(provider) {
+            event.preventDefault();
+            
+            // Add loading state
+            const button = event.currentTarget;
+            button.classList.add('login-provider-btn--loading');
+            
+            // Simulate loading time
+            setTimeout(() => {
+                button.classList.remove('login-provider-btn--loading');
+                alert(`🎉 Demo: Login with ${provider} would redirect to OAuth flow!\n\nIn a real implementation, this would:\n1. Redirect to ${provider} OAuth endpoint\n2. Handle the callback\n3. Set authentication tokens\n4. Redirect to dashboard`);
+            }, 1500);
+        }
+
+        // Add some interactive demo features
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add subtle entrance animation
+            const selector = document.querySelector('.login-provider-selector');
+            selector.style.transform = 'translateY(20px)';
+            selector.style.opacity = '0';
+            
+            setTimeout(() => {
+                selector.style.transition = 'all 0.6s ease';
+                selector.style.transform = 'translateY(0)';
+                selector.style.opacity = '1';
+            }, 200);
+        });
+    </script>
+</body>
+</html> 

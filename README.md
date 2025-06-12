@@ -163,18 +163,6 @@ OPEN_AI_MODEL=gpt-4
 
 ---
 
-### CurlAI Configuration
-```properties
-CURL_AI_BATH_PATH=https://your-ai-service.com
-CURL_AI_AUTH=Bearer your_token
-CURL_AI_MODEL=your-model
-CURL_AI_RESPONSE_JSON_PATH=response.text
-CURL_AI_URL_TEMPLATE=/v1/chat/completions
-CURL_AI_BODY_TEMPLATE={"model":"%s","messages":[{"role":"user","content":"%s"}]}
-```
-
----
-
 ### AI Models Configuration
 ```properties
 CODE_AI_MODEL=gpt-4

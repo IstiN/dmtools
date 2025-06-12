@@ -1,0 +1,59 @@
+<svg width="220" height="90" viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dotGradientDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--accent-color, #6988f5)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--info-color, #3b82f6)" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="textGradientDark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="var(--text-color, #ffffff)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--accent-light, #8aa3ff)" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .dmConnectedTextDark {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      fill: url(#textGradientDark);
+      text-shadow: 0 0 10px rgba(255,255,255,0.3);
+    }
+    .dotDarkEnhanced {
+      fill: url(#dotGradientDark);
+      stroke: var(--accent-light, #8aa3ff);
+      stroke-width: 2;
+      filter: drop-shadow(0 0 4px rgba(105, 136, 245, 0.6));
+    }
+    .connectorLineDark {
+      stroke: var(--accent-color, #6988f5);
+      stroke-width: 2;
+      opacity: 0.8;
+      filter: drop-shadow(0 0 2px rgba(105, 136, 245, 0.4));
+    }
+    .taglineDark {
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      fill: var(--text-secondary, #b8c5d1);
+      font-weight: 500;
+    }
+  </style>
+
+  <!-- Enhanced Connected Dots Graphic -->
+  <circle class="dotDarkEnhanced" cx="25" cy="35" r="6"/>
+  <circle class="dotDarkEnhanced" cx="55" cy="25" r="5"/>
+  <circle class="dotDarkEnhanced" cx="40" cy="55" r="7"/>
+  <circle class="dotDarkEnhanced" cx="65" cy="50" r="4"/>
+  <circle class="dotDarkEnhanced" cx="85" cy="35" r="5"/>
+
+  <!-- Enhanced connecting lines -->
+  <line class="connectorLineDark" x1="25" y1="35" x2="55" y2="25"/>
+  <line class="connectorLineDark" x1="25" y1="35" x2="40" y2="55"/>
+  <line class="connectorLineDark" x1="55" y1="25" x2="40" y2="55"/>
+  <line class="connectorLineDark" x1="55" y1="25" x2="65" y2="50"/>
+  <line class="connectorLineDark" x1="40" y1="55" x2="65" y2="50"/>
+  <line class="connectorLineDark" x1="55" y1="25" x2="85" y2="35"/>
+  <line class="connectorLineDark" x1="65" y1="50" x2="85" y2="35"/>
+
+  <!-- Enhanced text -->
+  <text x="100" y="45" class="dmConnectedTextDark">DMTools</text>
+  <text x="100" y="65" class="taglineDark">Networked Solutions</text>
+</svg> 

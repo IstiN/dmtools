@@ -1,0 +1,77 @@
+<svg width="240" height="95" viewBox="0 0 240 95" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hybridGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--accent-color, #466af1)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--info-color, #3b82f6)" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="textHybridGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="var(--text-color, #2c3e50)" stop-opacity="1"/>
+      <stop offset="100%" stop-color="var(--accent-color, #466af1)" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .hybridMainText {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      fill: url(#textHybridGradient);
+    }
+    .hybridJaiText {
+      font-family: 'Montserrat', 'Helvetica Neue', sans-serif;
+      font-size: 18px;
+      font-weight: 300;
+      fill: var(--text-secondary, #7f8c8d);
+      letter-spacing: 2px;
+    }
+    .hybridDot {
+      fill: url(#hybridGradient);
+      stroke: var(--accent-hover, #3155db);
+      stroke-width: 1.5;
+    }
+    .hybridLine {
+      stroke: var(--border-color, #bdc3c7);
+      stroke-width: 1.5;
+    }
+    .hybridCircuit {
+      stroke: var(--accent-light, #6988f5);
+      stroke-width: 1;
+      fill: none;
+    }
+    .hybridNode {
+      fill: var(--accent-light, #6988f5);
+    }
+    .taglineHybrid {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      fill: var(--text-secondary, #7f8c8d);
+      text-transform: uppercase;
+    }
+  </style>
+
+  <!-- Left side: Connected network -->
+  <circle class="hybridDot" cx="20" cy="30" r="4"/>
+  <circle class="hybridDot" cx="40" cy="20" r="3"/>
+  <circle class="hybridDot" cx="30" cy="50" r="5"/>
+  <circle class="hybridDot" cx="50" cy="45" r="3"/>
+  
+  <!-- Network connections -->
+  <line class="hybridLine" x1="20" y1="30" x2="40" y2="20"/>
+  <line class="hybridLine" x1="20" y1="30" x2="30" y2="50"/>
+  <line class="hybridLine" x1="40" y1="20" x2="50" y2="45"/>
+  <line class="hybridLine" x1="30" y1="50" x2="50" y2="45"/>
+  
+  <!-- Circuit elements integrated -->
+  <path class="hybridCircuit" d="M55 25 L65 25 L70 30"/>
+  <circle class="hybridNode" cx="70" cy="30" r="2"/>
+  
+  <path class="hybridCircuit" d="M55 40 L65 40 L70 45"/>
+  <circle class="hybridNode" cx="70" cy="45" r="2"/>
+  
+  <!-- JAI monogram small -->
+  <text x="25" y="75" class="hybridJaiText">J A I</text>
+  
+  <!-- Main DMTools text -->
+  <text x="85" y="40" class="hybridMainText">DMTools</text>
+  <text x="85" y="60" class="taglineHybrid">Circuit Network Solutions</text>
+  <text x="85" y="75" class="taglineHybrid" style="font-size: 8px;">Connected • Intelligent • Integrated</text>
+</svg> 
