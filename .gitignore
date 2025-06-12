@@ -23,6 +23,15 @@
 hs_err_pid*
 replay_pid*
 
+# Properties files
+*.properties
+!gradle.properties
+!gradle-wrapper.properties
+application*.properties
+config.properties
+**/config.properties
+**/application*.properties
+
 .gradle/
 build/
 local.properties
