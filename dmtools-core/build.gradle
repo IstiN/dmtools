@@ -208,13 +208,13 @@ publishing {
     publications {
         maven(MavenPublication) {
             groupId = 'com.github.istin'
-            artifactId = 'dmtools'
+            artifactId = 'dmtools-core'
             version = "v${version}"
             from components.java
 
             pom {
-                name = 'DM Tools'
-                description = 'DM Tools Library'
+                name = 'DM Tools Core'
+                description = 'DM Tools Core Library'
                 url = 'https://github.com/IstiN/dmtools'
                 licenses {
                     license {
