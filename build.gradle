@@ -291,9 +291,6 @@ jar.dependsOn processDevelopmentResources
 compileIntegrationTestJava.dependsOn processDevelopmentResources
 compileTestJava.dependsOn processDevelopmentResources
 
-// Fix shadowJar dependency issue
-shadowJar.dependsOn processDevelopmentResources
-
 bootJar {
     mainClass = 'com.github.istin.dmtools.server.DmToolsServerApplication'
     archiveFileName = 'dmtools-appengine.jar'
