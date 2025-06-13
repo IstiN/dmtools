@@ -259,7 +259,22 @@ shadowJar {
     archiveClassifier.set('all')
     archiveExtension.set('jar')
     zip64 true
+    
+    // Include all dependencies
+    configurations = [project.configurations.runtimeClasspath]
+    
     manifest {
         attributes 'Main-Class': 'com.github.istin.dmtools.job.JobRunner'
+        attributes 'Implementation-Version': version
+        attributes 'Implementation-Title': 'DMTools'
     }
+    
+    // Exclude duplicate files and problematic files
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+    
+    // Move the JAR to the root build directory
+    destinationDirectory = file("${project.rootDir}/build/libs")
 }
