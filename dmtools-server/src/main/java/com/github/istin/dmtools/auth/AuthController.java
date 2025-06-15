@@ -12,6 +12,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 import java.util.Optional;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -20,6 +27,21 @@ public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final UserService userService;
     private final JwtUtils jwtUtils;
+
+    @Value("${auth.local.enabled:true}")
+    private boolean localAuthEnabled;
+
+    @Value("${auth.local.username:testuser}")
+    private String localUsername;
+
+    @Value("${auth.local.password:secret123}")
+    private String localPassword;
+
+    @Value("${auth.local.jwtSecret:supersecretjwtkeythatislongenoughforhmacsha256algorithm}")
+    private String jwtSecret;
+
+    @Value("${auth.local.jwtExpirationMs:86400000}")
+    private int jwtExpirationMs;
 
     public AuthController(UserService userService, JwtUtils jwtUtils) {
         this.userService = userService;
@@ -51,94 +73,96 @@ public class AuthController {
     }
 
     @GetMapping("/user")
-    public ResponseEntity<?> getCurrentUser(java.security.Principal principal) {
-        logger.info("🔍 AUTH DEBUG - getCurrentUser called");
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+        logger.info("🔍 AUTH DEBUG - getCurrentUser called, authentication: {}", 
+                   authentication != null ? authentication.getClass().getSimpleName() : "null");
         
-        // Log complete request details for better debugging
-        jakarta.servlet.http.HttpServletRequest request = 
-            ((org.springframework.web.context.request.ServletRequestAttributes) 
-                org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()).getRequest();
-        
-        logger.info("🔍 AUTH DEBUG - Request details:");
-        logger.info("🔍 AUTH DEBUG - URL: {}", request.getRequestURL());
-        logger.info("🔍 AUTH DEBUG - Method: {}", request.getMethod());
-        logger.info("🔍 AUTH DEBUG - Session ID: {}", request.getSession(false) != null ? request.getSession(false).getId() : "No session");
-        
-        if (principal == null) {
-            logger.warn("❌ AUTH DEBUG - GET /api/auth/user called with null principal. User is not authenticated.");
-            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        if (authentication == null || !authentication.isAuthenticated()) {
+            logger.info("🔍 AUTH DEBUG - No authentication or not authenticated");
+            return ResponseEntity.ok(Map.of("authenticated", false));
         }
 
-        logger.info("✅ AUTH DEBUG - Principal found, type: {}", principal.getClass().getName());
-        logger.info("✅ AUTH DEBUG - Principal name: {}", principal.getName());
+        Object principal = authentication.getPrincipal();
+        logger.info("🔍 AUTH DEBUG - Principal type: {}", principal.getClass().getSimpleName());
+        
+        User user = null;
+        String email = null;
 
-        if (principal instanceof OAuth2AuthenticationToken) {
-            OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) principal;
-            OAuth2User oauth2User = oauthToken.getPrincipal();
-            String provider = oauthToken.getAuthorizedClientRegistrationId();
-
-            logger.info("✅ AUTH DEBUG - User is authenticated via OAuth2 from provider: {}", provider);
-            logger.info("✅ AUTH DEBUG - OAuth2User class: {}", oauth2User.getClass().getName());
-            logger.info("✅ AUTH DEBUG - OAuth2User attributes: {}", oauth2User.getAttributes());
-
-            String id, email, name, givenName, familyName, pictureUrl;
-
-            if ("microsoft".equalsIgnoreCase(provider)) {
-                // Use the keys you see in the log!
-                id = oauth2User.getAttribute("sub"); // fallback to "oid" if you want
-                email = oauth2User.getAttribute("email");
-                if (email == null) email = oauth2User.getAttribute("mail");
-                if (email == null) email = oauth2User.getAttribute("preferred_username");
-                if (email == null) email = oauth2User.getAttribute("userPrincipalName");
-                name = oauth2User.getAttribute("name");
-                givenName = oauth2User.getAttribute("given_name");
-                familyName = oauth2User.getAttribute("family_name");
-                pictureUrl = oauth2User.getAttribute("picture"); // might be null for MS
-                logger.info("✅ AUTH DEBUG - Extracted Microsoft user attributes: id={}, email={}, name={}", id, email, name);
-            } else { // Assuming Google or default
-                id = oauth2User.getAttribute("sub");
-                email = oauth2User.getAttribute("email");
-                name = oauth2User.getAttribute("name");
-                givenName = oauth2User.getAttribute("given_name");
-                familyName = oauth2User.getAttribute("family_name");
-                pictureUrl = oauth2User.getAttribute("picture");
-                logger.info("✅ AUTH DEBUG - Extracted Google/default user attributes: id={}, email={}, name={}", id, email, name);
-            }
-
-            if (name == null || name.trim().isEmpty()) {
-                if (givenName != null && familyName != null) {
-                    name = givenName + " " + familyName;
-                } else if (givenName != null) {
-                    name = givenName;
-                } else if (email != null) {
-                    name = email.split("@")[0]; // Fallback to email username
-                }
-                logger.info("✅ AUTH DEBUG - Constructed name: {}", name);
-            }
-
-            Map<String, Object> responseMap = Map.of(
-                "id", id != null ? id : "",
-                "email", email != null ? email : "",
-                "name", name != null ? name : "User",
-                "givenName", givenName != null ? givenName : "",
-                "familyName", familyName != null ? familyName : "",
-                "pictureUrl", pictureUrl != null ? pictureUrl : "",
-                "provider", provider.toUpperCase(),
-                "authenticated", true
-            );
+        if (principal instanceof UserDetails) {
+            email = ((UserDetails) principal).getUsername();
+            logger.info("🔍 AUTH DEBUG - UserDetails email: {}", email);
+            user = userService.findByEmail(email).orElse(null);
+        } else if (principal instanceof OAuth2User) {
+            OAuth2User oauth2User = (OAuth2User) principal;
+            logger.debug("🔍 AUTH DEBUG - OAuth2User attributes: {}", oauth2User.getAttributes());
             
-            logger.info("✅ AUTH DEBUG - Returning OAuth2 user response: {}", responseMap);
-            return ResponseEntity.ok(responseMap);
+            // Try different email attributes based on provider
+            email = oauth2User.getAttribute("email");
+            if (email == null) {
+                email = oauth2User.getAttribute("mail"); // Microsoft
+            }
+            
+            logger.info("🔍 AUTH DEBUG - OAuth2User email: {}", email);
+            
+            // Try to find user by email first
+            if (email != null) {
+                user = userService.findByEmail(email).orElse(null);
+            }
+            
+            // If not found by email or email is null, try to find by providerId
+            if (user == null) {
+                String providerId = null;
+                
+                // Extract providerId based on OAuth2 provider
+                if (authentication instanceof org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken) {
+                    org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken oauth2Token = 
+                        (org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken) authentication;
+                    String registrationId = oauth2Token.getAuthorizedClientRegistrationId();
+                    
+                    switch (registrationId.toLowerCase()) {
+                        case "google":
+                            providerId = oauth2User.getAttribute("sub");
+                            break;
+                        case "github":
+                            Object id = oauth2User.getAttribute("id");
+                            providerId = id != null ? id.toString() : null;
+                            break;
+                        case "microsoft":
+                            providerId = oauth2User.getAttribute("id");
+                            break;
+                    }
+                }
+                
+                logger.info("🔍 AUTH DEBUG - Trying to find user by providerId: {}", providerId);
+                
+                if (providerId != null) {
+                    user = userService.findById(providerId).orElse(null);
+                }
+            }
+        } else if (principal instanceof User) {
+            user = (User) principal;
+            logger.info("🔍 AUTH DEBUG - Direct User principal: {}", user.getEmail());
         }
 
-        // Fallback for other authentication types
-        logger.info("⚠️ AUTH DEBUG - Principal is not an OAuth2 token. Returning basic principal name.");
-        Map<String, Object> responseMap = Map.of(
-            "name", principal.getName(),
-            "authenticated", true
-        );
-        logger.info("✅ AUTH DEBUG - Returning basic user response: {}", responseMap);
-        return ResponseEntity.ok(responseMap);
+        if (user != null) {
+            logger.info("✅ AUTH DEBUG - User found: {}, picture: {}", user.getEmail(), user.getPictureUrl());
+            
+            Map<String, Object> userMap = Map.of(
+                    "authenticated", true,
+                    "id", user.getId(),
+                    "email", user.getEmail() != null ? user.getEmail() : "",
+                    "name", user.getName() != null ? user.getName() : (user.getEmail() != null ? user.getEmail() : user.getId()),
+                    "givenName", user.getGivenName() != null ? user.getGivenName() : "",
+                    "familyName", user.getFamilyName() != null ? user.getFamilyName() : "",
+                    "pictureUrl", user.getPictureUrl() != null ? user.getPictureUrl() : "",
+                    "picture", user.getPictureUrl() != null ? user.getPictureUrl() : "", // For backward compatibility
+                    "provider", user.getProvider() != null ? user.getProvider().toString() : "UNKNOWN"
+            );
+            return ResponseEntity.ok(userMap);
+        }
+
+        logger.warn("❌ AUTH DEBUG - No user found for email: {}", email);
+        return ResponseEntity.ok(Map.of("authenticated", false));
     }
 
     @PostMapping("/logout")
@@ -153,5 +177,166 @@ public class AuthController {
         }
         
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+    }
+
+    @PostMapping("/local-login")
+    public ResponseEntity<?> localLogin(@RequestBody Map<String, String> body, HttpServletResponse response) {
+        logger.info("🔍 LOCAL AUTH - Login attempt for user: {}", body.get("username"));
+        logger.info("🔍 LOCAL AUTH - Local auth enabled: {}", localAuthEnabled);
+
+        if (!localAuthEnabled) {
+            logger.warn("❌ LOCAL AUTH - Local auth is disabled");
+            return ResponseEntity.status(403).body(Map.of("error", "Local auth disabled"));
+        }
+        
+        if (!localUsername.equals(body.get("username")) || !localPassword.equals(body.get("password"))) {
+            logger.warn("❌ LOCAL AUTH - Invalid credentials for user: {}", body.get("username"));
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+        }
+        
+        try {
+            logger.info("✅ LOCAL AUTH - Valid credentials, creating/updating user");
+            
+            // Create user if not exists - use proper email format
+            String email = localUsername.contains("@") ? localUsername : localUsername + "@local.test";
+            com.github.istin.dmtools.auth.model.User user = userService.createOrUpdateUser(
+                email, 
+                localUsername, 
+                localUsername, 
+                "", 
+                "", 
+                "en", 
+                com.github.istin.dmtools.auth.model.AuthProvider.LOCAL, 
+                localUsername
+            );
+            
+            logger.info("✅ LOCAL AUTH - User created/updated: {}", user.getId());
+            
+            // Generate JWT
+            String jwt = jwtUtils.generateJwtTokenCustom(email, user.getId(), jwtSecret, jwtExpirationMs);
+            
+            // Set JWT as cookie
+            Cookie jwtCookie = new Cookie("jwt", jwt);
+            jwtCookie.setHttpOnly(true);
+            jwtCookie.setPath("/");
+            jwtCookie.setMaxAge(jwtExpirationMs / 1000);
+            response.addCookie(jwtCookie);
+            
+            logger.info("✅ LOCAL AUTH - Login successful for user: {}", localUsername);
+            
+            return ResponseEntity.ok(Map.of(
+                "token", jwt,
+                "user", Map.of(
+                    "id", user.getId(), 
+                    "email", email, 
+                    "name", localUsername, 
+                    "provider", "LOCAL",
+                    "authenticated", true
+                )
+            ));
+        } catch (Exception e) {
+            logger.error("❌ LOCAL AUTH - Error during login: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of("error", "Login failed: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/test-jwt")
+    public ResponseEntity<?> testJwt(org.springframework.security.core.Authentication authentication) {
+        logger.info("🔍 TEST JWT - testJwt called");
+        
+        if (authentication == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "No authentication"));
+        }
+        
+        if (!authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+        
+        Object principal = authentication.getPrincipal();
+        logger.info("✅ TEST JWT - Principal type: {}", principal.getClass().getName());
+        
+        if (principal instanceof User) {
+            User user = (User) principal;
+            return ResponseEntity.ok(Map.of(
+                "message", "JWT authentication working",
+                "userId", user.getId(),
+                "email", user.getEmail(),
+                "principalType", principal.getClass().getSimpleName()
+            ));
+        }
+        
+        return ResponseEntity.ok(Map.of(
+            "message", "Authentication working but not JWT",
+            "principalType", principal.getClass().getSimpleName(),
+            "authType", authentication.getClass().getSimpleName()
+        ));
+    }
+
+    @GetMapping("/simple-test")
+    public ResponseEntity<String> simpleTest(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("No authentication");
+        }
+        
+        if (!authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Not authenticated");
+        }
+        
+        Object principal = authentication.getPrincipal();
+        return ResponseEntity.ok("Authentication working! Principal type: " + principal.getClass().getSimpleName());
+    }
+
+    @GetMapping("/basic-test")
+    public ResponseEntity<String> basicTest() {
+        logger.info("🔍 BASIC TEST - endpoint called");
+        
+        // Get authentication from SecurityContextHolder directly
+        org.springframework.security.core.Authentication auth = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        
+        if (auth == null) {
+            logger.warn("❌ BASIC TEST - No authentication in SecurityContext");
+            return ResponseEntity.status(401).body("No authentication");
+        }
+        
+        logger.info("✅ BASIC TEST - Authentication found: {}", auth.getClass().getSimpleName());
+        logger.info("✅ BASIC TEST - Is authenticated: {}", auth.isAuthenticated());
+        logger.info("✅ BASIC TEST - Principal type: {}", auth.getPrincipal().getClass().getSimpleName());
+        
+        return ResponseEntity.ok("Authentication working! Principal: " + auth.getName());
+    }
+
+    @GetMapping("/public-test")
+    public ResponseEntity<Map<String, String>> publicTest() {
+        logger.info("🔍 PUBLIC TEST - endpoint called");
+        return ResponseEntity.ok(Map.of(
+            "status", "ok",
+            "message", "Server is running",
+            "timestamp", String.valueOf(System.currentTimeMillis())
+        ));
+    }
+
+    @GetMapping("/is-local")
+    public ResponseEntity<?> isLocal(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
+        }
+
+        Object principal = authentication.getPrincipal();
+        logger.info("🔍 AUTH - /is-local endpoint. Principal type: {}", principal.getClass().getName());
+
+        if (principal instanceof User) {
+            logger.info("✅ AUTH - User principal is of type User");
+            return ResponseEntity.ok(Map.of("isLocal", true));
+        } else if (principal instanceof UserDetails) {
+            logger.info("✅ AUTH - Principal is UserDetails");
+            return ResponseEntity.ok(Map.of("isLocal", false));
+        } else if (principal instanceof OAuth2User) {
+            logger.info("✅ AUTH - Principal is OAuth2User");
+            return ResponseEntity.ok(Map.of("isLocal", false));
+        } else {
+            logger.error("❌ AUTH - Unknown principal type: {}. Cannot determine if user is local.", principal.getClass().getName());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Cannot determine if user is local"));
+        }
     }
 } 

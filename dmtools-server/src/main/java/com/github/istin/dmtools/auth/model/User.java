@@ -4,10 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
 
 @Data
 @NoArgsConstructor
@@ -19,7 +22,7 @@ public class User {
     @Id
     private String id;
     
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = true)
     private String email;
     
     private boolean emailVerified;

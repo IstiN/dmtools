@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth2 Logout Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .authenticated { background-color: #d4edda; color: #155724; }
+        .not-authenticated { background-color: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .user-info { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>OAuth2 Logout Test</h1>
+    
+    <div id="status" class="status">Checking authentication status...</div>
+    <div id="user-info" class="user-info" style="display: none;"></div>
+    
+    <div>
+        <button onclick="checkAuth()">Check Auth Status</button>
+        <button onclick="logout()">Logout</button>
+        <button onclick="clearAllData()">Clear All Data</button>
+    </div>
+    
+    <div>
+        <h3>OAuth2 Login Links:</h3>
+        <a href="/oauth2/authorization/google" target="_blank">Login with Google</a><br>
+        <a href="/oauth2/authorization/microsoft" target="_blank">Login with Microsoft</a><br>
+        <a href="/oauth2/authorization/github" target="_blank">Login with GitHub</a><br>
+    </div>
+    
+    <div>
+        <h3>Test Results:</h3>
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function addTestResult(message, success = true) {
+            const timestamp = new Date().toLocaleTimeString();
+            testResults.push(`[${timestamp}] ${success ? '✅' : '❌'} ${message}`);
+            document.getElementById('test-results').innerHTML = testResults.join('<br>');
+        }
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/user', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const user = await response.json();
+                    const statusDiv = document.getElementById('status');
+                    const userInfoDiv = document.getElementById('user-info');
+                    
+                    if (user.authenticated) {
+                        statusDiv.className = 'status authenticated';
+                        statusDiv.textContent = 'User is authenticated';
+                        userInfoDiv.style.display = 'block';
+                        userInfoDiv.innerHTML = `
+                            <strong>User Info:</strong><br>
+                            Name: ${user.name || 'N/A'}<br>
+                            Email: ${user.email || 'N/A'}<br>
+                            Provider: ${user.provider || 'N/A'}<br>
+                            Picture: ${user.pictureUrl || 'N/A'}
+                        `;
+                        addTestResult(`User authenticated: ${user.name} (${user.provider})`);
+                    } else {
+                        statusDiv.className = 'status not-authenticated';
+                        statusDiv.textContent = 'User is not authenticated';
+                        userInfoDiv.style.display = 'none';
+                        addTestResult('User not authenticated');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                const statusDiv = document.getElementById('status');
+                statusDiv.className = 'status not-authenticated';
+                statusDiv.textContent = `Error checking auth: ${error.message}`;
+                addTestResult(`Error checking auth: ${error.message}`, false);
+            }
+        }
+
+        async function logout() {
+            try {
+                addTestResult('Starting logout...');
+                
+                // Clear localStorage
+                localStorage.removeItem('authToken');
+                addTestResult('Cleared localStorage');
+                
+                // Clear cookies
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                addTestResult('Cleared cookies');
+                
+                // Call logout endpoint
+                const response = await fetch('/logout', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+                
+                addTestResult(`Logout response: ${response.status}`);
+                
+                // Check auth status after logout
+                setTimeout(async () => {
+                    await checkAuth();
+                    addTestResult('Auth status checked after logout');
+                }, 500);
+                
+            } catch (error) {
+                addTestResult(`Logout error: ${error.message}`, false);
+            }
+        }
+
+        function clearAllData() {
+            // Clear localStorage
+            localStorage.clear();
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            // Clear all cookies
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+            
+            addTestResult('Cleared all local data');
+            
+            // Check auth status
+            setTimeout(checkAuth, 100);
+        }
+
+        // Check auth status on page load
+        window.addEventListener('load', checkAuth);
+    </script>
+</body>
+</html> 

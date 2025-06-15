@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Module - DMTools Style Guide</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/styles.css">
+    <link rel="stylesheet" href="../styleguide.css">
+    <link rel="icon" href="../../img/dmtools-icon.svg" type="image/svg+xml">
+</head>
+<body class="sg-body">
+    <div class="sg-container">
+        <header class="sg-header">
+            <a href="../organisms.html"><i class="fas fa-arrow-left"></i> Back to Organisms</a>
+            <h1>Chat Module Component</h1>
+            <p>Interactive chat component with message display and input area.</p>
+        </header>
+
+        <main class="sg-main-content">
+            <!-- Chat Module Organism -->
+            <div class="sg-component-display">
+                <h3>Chat Module (<code>.chat-module</code>)</h3>
+                <p>An organism for chat interactions, including a title, message display area, and input group. Uses <code>.panel-base</code>.</p>
+                <div class="sg-component-item">
+                    <div class="panel-base chat-module" style="height: 450px; max-width: 400px;">
+                        <header class="panel-base__header">
+                            <h3>Chat With Agent</h3>
+                        </header>
+                        <div class="panel-base__content" style="display:flex; flex-direction:column;">
+                            <div class="chat-messages-container" style="flex-grow:1;">
+                                <div class="chat-message chat-message--agent">Hello! Ask me something.</div>
+                                <div class="chat-message chat-message--user">I need a new presentation.</div>
+                                <div class="chat-message chat-message--agent">Sure, what topic?</div>
+                            </div>
+                            <div class="chat-input-group">
+                                <textarea placeholder="Type your message..."></textarea>
+                                <button class="btn btn-icon" aria-label="Attach"><i class="fas fa-paperclip"></i></button>
+                                <button class="btn btn-primary">Send</button>
+                            </div>
+                        </div>
+                    </div>
+                    <pre><code>&lt;div class="panel-base chat-module"&gt;
+    &lt;header class="panel-base__header"&gt;
+        &lt;h3&gt;Chat Title&lt;/h3&gt;
+    &lt;/header&gt;
+    &lt;div class="panel-base__content" style="display:flex; flex-direction:column;"&gt;
+        &lt;div class="chat-messages-container" style="flex-grow:1;"&gt;
+            &lt;!-- .chat-message elements --&gt;
+        &lt;/div&gt;
+        &lt;div class="chat-input-group"&gt;
+            &lt;!-- textarea and buttons --&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../../css/theme.js"></script>
+</body>
+</html> 

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace Management - DMTools Style Guide</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../styleguide.css">
+    <link rel="stylesheet" href="../../css/styles.css">
+    <link rel="icon" href="../../img/dmtools-icon.svg" type="image/svg+xml">
+</head>
+<body class="sg-body">
+    <div class="sg-container">
+        <header class="sg-header">
+            <a href="../organisms.html"><i class="fas fa-arrow-left"></i> Back to Organisms</a>
+            <h1>Workspace Management Components</h1>
+            <p>Complete workspace management system with cards, forms, and user management.</p>
+        </header>
+
+        <main class="sg-main-content">
+            <!-- Workspace Management Organisms -->
+            <div class="sg-component-display">
+                <h3>Workspace Creation Form</h3>
+                <div class="sg-component-item">
+                    <div class="workspace-form card">
+                        <div class="workspace-form__header">
+                            <h3>Create New Workspace</h3>
+                            <p>Set up a new workspace for your team</p>
+                        </div>
+                        <form>
+                            <div class="form-group">
+                                <label for="workspace-name">Workspace Name</label>
+                                <input type="text" id="workspace-name" class="form-control" placeholder="Enter workspace name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="workspace-description">Description (optional)</label>
+                                <textarea id="workspace-description" class="form-control" placeholder="Describe your workspace..." rows="3"></textarea>
+                            </div>
+                            <div class="workspace-form__actions">
+                                <button type="button" class="btn btn-tertiary">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Create Workspace</button>
+                            </div>
+                        </form>
+                    </div>
+                    <pre><code>&lt;div class="workspace-form card"&gt;
+    &lt;div class="workspace-form__header"&gt;
+        &lt;h3&gt;Create New Workspace&lt;/h3&gt;
+        &lt;p&gt;Set up a new workspace for your team&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;form&gt;
+        &lt;div class="form-group"&gt;
+            &lt;label for="workspace-name"&gt;Workspace Name&lt;/label&gt;
+            &lt;input type="text" id="workspace-name" class="form-control" placeholder="Enter workspace name" required&gt;
+        &lt;/div&gt;
+        &lt;div class="form-group"&gt;
+            &lt;label for="workspace-description"&gt;Description (optional)&lt;/label&gt;
+            &lt;textarea id="workspace-description" class="form-control" placeholder="Describe your workspace..." rows="3"&gt;&lt;/textarea&gt;
+        &lt;/div&gt;
+        &lt;div class="workspace-form__actions"&gt;
+            &lt;button type="button" class="btn btn-tertiary"&gt;Cancel&lt;/button&gt;
+            &lt;button type="submit" class="btn btn-primary"&gt;Create Workspace&lt;/button&gt;
+        &lt;/div&gt;
+    &lt;/form&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+
+            <div class="sg-component-display">
+                <h3>Workspace Card</h3>
+                <div class="sg-component-item">
+                    <div class="workspace-card card">
+                        <div class="workspace-card__header">
+                            <div class="workspace-card__info">
+                                <h3 class="workspace-card__title">Development Team</h3>
+                                <p class="workspace-card__description">Main development workspace for our core products</p>
+                            </div>
+                            <div class="workspace-card__role">
+                                <span class="badge badge--admin">ADMIN</span>
+                            </div>
+                        </div>
+                        <div class="workspace-card__stats">
+                            <div class="workspace-stat">
+                                <i class="fas fa-users"></i>
+                                <span>8 members</span>
+                            </div>
+                            <div class="workspace-stat">
+                                <i class="fas fa-calendar"></i>
+                                <span>Created 2 months ago</span>
+                            </div>
+                        </div>
+                        <div class="workspace-card__actions">
+                            <button class="btn btn-primary btn-small">
+                                <i class="fas fa-cog"></i>
+                                Manage
+                            </button>
+                            <button class="btn btn-tertiary btn-small">
+                                <i class="fas fa-share"></i>
+                                Share
+                            </button>
+                        </div>
+                    </div>
+                    <pre><code>&lt;div class="workspace-card card"&gt;
+    &lt;div class="workspace-card__header"&gt;
+        &lt;div class="workspace-card__info"&gt;
+            &lt;h3 class="workspace-card__title"&gt;Development Team&lt;/h3&gt;
+            &lt;p class="workspace-card__description"&gt;Main development workspace for our core products&lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div class="workspace-card__role"&gt;
+            &lt;span class="badge badge--admin"&gt;ADMIN&lt;/span&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class="workspace-card__stats"&gt;
+        &lt;div class="workspace-stat"&gt;
+            &lt;i class="fas fa-users"&gt;&lt;/i&gt;
+            &lt;span&gt;8 members&lt;/span&gt;
+        &lt;/div&gt;
+        &lt;div class="workspace-stat"&gt;
+            &lt;i class="fas fa-calendar"&gt;&lt;/i&gt;
+            &lt;span&gt;Created 2 months ago&lt;/span&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class="workspace-card__actions"&gt;
+        &lt;button class="btn btn-primary btn-small"&gt;
+            &lt;i class="fas fa-cog"&gt;&lt;/i&gt;
+            Manage
+        &lt;/button&gt;
+        &lt;button class="btn btn-tertiary btn-small"&gt;
+            &lt;i class="fas fa-share"&gt;&lt;/i&gt;
+            Share
+        &lt;/button&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+
+            <div class="sg-component-display">
+                <h3>Workspace Users Management</h3>
+                <div class="sg-component-item">
+                    <div class="workspace-users card">
+                        <div class="workspace-users__header">
+                            <h3 class="workspace-users__title">Workspace Members</h3>
+                        </div>
+                        
+                        <!-- Share Workspace Form -->
+                        <div class="share-workspace-form">
+                            <h4>Add User by Email</h4>
+                            <form>
+                                <div class="form-group">
+                                    <label for="user-email">Email Address</label>
+                                    <input type="email" id="user-email" class="form-control" placeholder="user@example.com">
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-role">Role</label>
+                                    <select id="user-role" class="form-control">
+                                        <option value="USER">User</option>
+                                        <option value="ADMIN">Admin</option>
+                                    </select>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Add User</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Users List -->
+                        <div class="workspace-users__list">
+                            <div class="workspace-user">
+                                <div class="workspace-user__info">
+                                    <div class="user-avatar user-avatar--fallback" data-initials="JD">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div class="workspace-user__details">
+                                        <span class="workspace-user__name">John Doe</span>
+                                        <span class="workspace-user__email">john.doe@example.com</span>
+                                    </div>
+                                </div>
+                                <div class="workspace-user__role">
+                                    <span class="badge badge--admin">ADMIN</span>
+                                </div>
+                                <div class="workspace-user__actions">
+                                    <button class="btn btn-tertiary btn-small">Remove</button>
+                                </div>
+                            </div>
+                            <div class="workspace-user">
+                                <div class="workspace-user__info">
+                                    <div class="user-avatar user-avatar--fallback" data-initials="JS">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div class="workspace-user__details">
+                                        <span class="workspace-user__name">Jane Smith</span>
+                                        <span class="workspace-user__email">jane.smith@example.com</span>
+                                    </div>
+                                </div>
+                                <div class="workspace-user__role">
+                                    <span class="badge badge--user">USER</span>
+                                </div>
+                                <div class="workspace-user__actions">
+                                    <button class="btn btn-tertiary btn-small">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <pre><code>&lt;div class="workspace-users card"&gt;
+    &lt;div class="workspace-users__header"&gt;
+        &lt;h3 class="workspace-users__title"&gt;Workspace Members&lt;/h3&gt;
+    &lt;/div&gt;
+    
+    &lt;!-- Share Workspace Form --&gt;
+    &lt;div class="share-workspace-form"&gt;
+        &lt;h4&gt;Add User by Email&lt;/h4&gt;
+        &lt;form&gt;
+            &lt;div class="form-group"&gt;
+                &lt;label for="user-email"&gt;Email Address&lt;/label&gt;
+                &lt;input type="email" id="user-email" class="form-control" placeholder="user@example.com"&gt;
+            &lt;/div&gt;
+            &lt;div class="form-group"&gt;
+                &lt;label for="user-role"&gt;Role&lt;/label&gt;
+                &lt;select id="user-role" class="form-control"&gt;
+                    &lt;option value="USER"&gt;User&lt;/option&gt;
+                    &lt;option value="ADMIN"&gt;Admin&lt;/option&gt;
+                &lt;/select&gt;
+            &lt;/div&gt;
+            &lt;div class="form-actions"&gt;
+                &lt;button type="submit" class="btn btn-primary"&gt;Add User&lt;/button&gt;
+            &lt;/div&gt;
+        &lt;/form&gt;
+    &lt;/div&gt;
+
+    &lt;!-- Users List --&gt;
+    &lt;div class="workspace-users__list"&gt;
+        &lt;div class="workspace-user"&gt;
+            &lt;div class="workspace-user__info"&gt;
+                &lt;div class="user-avatar user-avatar--fallback" data-initials="JD"&gt;
+                    &lt;i class="fas fa-user"&gt;&lt;/i&gt;
+                &lt;/div&gt;
+                &lt;div class="workspace-user__details"&gt;
+                    &lt;span class="workspace-user__name"&gt;John Doe&lt;/span&gt;
+                    &lt;span class="workspace-user__email"&gt;john.doe@example.com&lt;/span&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div class="workspace-user__role"&gt;
+                &lt;span class="badge badge--admin"&gt;ADMIN&lt;/span&gt;
+            &lt;/div&gt;
+            &lt;div class="workspace-user__actions"&gt;
+                &lt;button class="btn btn-tertiary btn-small"&gt;Remove&lt;/button&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+
+            <div class="sg-component-display">
+                <h3>Empty State</h3>
+                <div class="sg-component-item">
+                    <div class="empty-state">
+                        <div class="empty-state__icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="empty-state__content">
+                            <h3>No workspaces yet</h3>
+                            <p>Create your first workspace to get started with team collaboration.</p>
+                            <button class="btn btn-primary">
+                                <i class="fas fa-plus"></i>
+                                Create Workspace
+                            </button>
+                        </div>
+                    </div>
+                    <pre><code>&lt;div class="empty-state"&gt;
+    &lt;div class="empty-state__icon"&gt;
+        &lt;i class="fas fa-users"&gt;&lt;/i&gt;
+    &lt;/div&gt;
+    &lt;div class="empty-state__content"&gt;
+        &lt;h3&gt;No workspaces yet&lt;/h3&gt;
+        &lt;p&gt;Create your first workspace to get started with team collaboration.&lt;/p&gt;
+        &lt;button class="btn btn-primary"&gt;
+            &lt;i class="fas fa-plus"&gt;&lt;/i&gt;
+            Create Workspace
+        &lt;/button&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../../css/theme.js"></script>
+</body>
+</html> 

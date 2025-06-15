@@ -84,6 +84,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-engine'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
+    testImplementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
     testRuntimeOnly 'net.bytebuddy:byte-buddy-agent:1.15.4'
 }
 
@@ -102,12 +103,14 @@ configurations.all {
 
 tasks.withType(Test) {
     useJUnitPlatform()
-    enabled = false  // Temporarily disabled due to logging library compatibility issues with Java 23
+    enabled = true  // Enable tests
+    jvmArgs += "-Dnet.bytebuddy.experimental=true"  // Add support for Java 23
 }
 
 test {
     useJUnitPlatform()
-    enabled = false  // Temporarily disabled due to logging library compatibility issues with Java 23
+    enabled = true  // Enable tests
+    jvmArgs += "-Dnet.bytebuddy.experimental=true"  // Add support for Java 23
     testLogging {
         events "passed", "skipped", "failed", "standardOut", "standardError"
         exceptionFormat "full"
