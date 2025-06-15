@@ -25,10 +25,13 @@
     </form>
     
     <div class="nav-actions">
-        <button id="chat-toggle-btn" class="btn-icon" title="Open AI Assistant">
+        <button class="btn btn-icon" id="theme-toggle" title="Toggle theme">
+            <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+        <button id="chat-toggle-btn" class="btn btn-icon" title="Open AI Assistant">
             <i class="fas fa-comments"></i>
         </button>
-        <button class="btn-login" onclick="openLoginModal()">
+        <button class="btn btn-login" onclick="openLoginModal()">
             <i class="fas fa-sign-in-alt"></i>
             Login
         </button>
@@ -60,6 +63,18 @@
     <!-- Two Column Layout for Agents and Chat -->
     <div class="main-layout">
         <div class="main-content">
+            <!-- Quick Actions -->
+            <div id="quick-actions" class="quick-actions" style="margin: 2rem 0; display: none; gap: 1rem; flex-wrap: wrap;">
+                <a href="/workspaces.html" class="btn btn-secondary">
+                    <i class="fas fa-briefcase"></i>
+                    My Workspaces
+                </a>
+                <a href="/settings.html" class="btn btn-secondary">
+                    <i class="fas fa-cog"></i>
+                    Settings
+                </a>
+            </div>
+
             <!-- Agents section -->
             <div class="section-header">
                 <h2 class="section-title">My Agents</h2>
@@ -305,6 +320,15 @@
                     <i class="fab fa-github login-provider-icon"></i>
                     Continue with GitHub
                 </a>
+                
+                <div class="login-divider">
+                    <span>or</span>
+                </div>
+                
+                <button onclick="loginWithTestUser()" class="login-provider-btn login-provider-btn--oauth">
+                    <i class="fas fa-user login-provider-icon"></i>
+                    Demo Login (testuser)
+                </button>
             </div>
             
             <div class="login-footer">
@@ -532,6 +556,45 @@
         document.body.style.overflow = ''; // Restore scrolling
     }
 
+    async function loginWithTestUser() {
+        console.log("loginWithTestUser: Attempting local login...");
+        try {
+            const response = await fetch('/api/auth/local-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: 'testuser',
+                    password: 'secret123'
+                }),
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log("loginWithTestUser: Login successful", result);
+                
+                // Store token if provided
+                if (result.token) {
+                    localStorage.setItem('authToken', result.token);
+                }
+                
+                // Close modal and update UI
+                closeLoginModal();
+                updateUIForLoggedInUser();
+                showNotification('Login successful! Welcome to DMTools.', 'success');
+            } else {
+                const error = await response.json();
+                console.error("loginWithTestUser: Login failed", error);
+                showNotification('Login failed: ' + (error.error || 'Unknown error'), 'error');
+            }
+        } catch (error) {
+            console.error("loginWithTestUser: Error during login", error);
+            showNotification('Login failed. Please try again.', 'error');
+        }
+    }
+
     async function handleModalLogin(provider) {
         event.preventDefault();
         
@@ -588,11 +651,13 @@
             if (response.ok) {
                 const user = await response.json();
                 console.log('updateUIForLoggedInUser: User data received:', user);
-                if (user.authenticated) {
+                
+                if (user.authenticated === true) {
                     console.log("updateUIForLoggedInUser: User is authenticated. Updating UI.");
                     updateLoginButton(user);
+                    showQuickActions();
                 } else {
-                    console.log("updateUIForLoggedInUser: User is not authenticated. Showing login button.");
+                    console.log('updateUIForLoggedInUser: User not authenticated. Showing login button.');
                     showLoginButton();
                 }
             } else if (response.status === 401) {
@@ -613,6 +678,7 @@
     function showLoginButton() {
         console.log("showLoginButton: Displaying the main login button.");
         const loginButton = document.querySelector('.btn-login');
+        const quickActions = document.getElementById('quick-actions');
         if (loginButton) {
             loginButton.innerHTML = `
                 <i class="fas fa-sign-in-alt"></i>
@@ -620,15 +686,17 @@
             `;
             loginButton.onclick = openLoginModal;
         }
+        if (quickActions) quickActions.style.display = 'none';
+    }
+
+    function showQuickActions() {
+        const quickActions = document.getElementById('quick-actions');
+        if (quickActions) quickActions.style.display = 'flex';
     }
 
     function getInitials(name) {
-        if (!name) return 'U';
-        const words = name.split(' ');
-        if (words.length >= 2) {
-            return (words[0][0] + words[words.length - 1][0]).toUpperCase();
-        }
-        return name.substring(0, 2).toUpperCase();
+        if (!name) return '';
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
 
     function updateLoginButton(user) {
@@ -646,10 +714,7 @@
             // Get profile image or use fallback icon
             let profileImage;
             if (user.pictureUrl && user.pictureUrl.trim() !== '') {
-                profileImage = `<img src="${user.pictureUrl}" alt="Profile" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                               <div class="user-avatar user-avatar--fallback" style="display: none;" data-initials="${getInitials(displayName)}">
-                                   <i class="fas fa-user"></i>
-                               </div>`;
+                profileImage = `<img src="${user.pictureUrl}" alt="Profile" class="user-avatar" onerror="this.outerHTML='<div class=\\'user-avatar user-avatar--fallback\\' data-initials=\\'${getInitials(displayName)}\\'><i class=\\'fas fa-user\\'></i></div>';">`;
             } else {
                 profileImage = `<div class="user-avatar user-avatar--fallback" data-initials="${getInitials(displayName)}">
                                    <i class="fas fa-user"></i>
@@ -727,24 +792,61 @@
     async function logout() {
         console.log("logout: Initiating logout sequence.");
         try {
-            // Use Spring Security logout
+            // Clear any stored tokens
+            localStorage.removeItem('authToken');
+            
+            // Clear all cookies by setting them to expire
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+            
+            // Use Spring Security logout with CSRF token
             const response = await fetch('/logout', {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
             });
 
             console.log(`logout: Received response with status ${response.status}`);
             
+            // Update UI immediately regardless of response
+            showLoginButton();
+            
+            // Close any open user menu
+            const userMenu = document.querySelector('.user-menu');
+            if (userMenu) {
+                userMenu.remove();
+            }
+            
+            // Force a page reload to ensure all session data is cleared
+            // Only reload if not in test environment
+            if (!window.location.href.includes('playwright')) {
+                setTimeout(() => {
+                    console.log("logout: Reloading page to ensure clean state.");
+                    window.location.reload();
+                }, 1000);
+            }
+            
             if (response.ok) {
-                 // The server should redirect, but we can also force it
-                console.log("logout: Logout successful, redirecting to home.");
-                window.location.href = '/';
+                console.log("logout: Logout successful.");
+                showNotification('Logged out successfully.', 'success');
             } else {
                 console.error('Logout failed:', response.status);
                 showNotification('Logout failed. Please try again.', 'error');
             }
         } catch (error) {
             console.error('Error during logout:', error);
+            // Still update UI even if logout request failed
+            showLoginButton();
+            // Force reload even on error to ensure clean state
+            // Only reload if not in test environment
+            if (!window.location.href.includes('playwright')) {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
             showNotification('An error occurred during logout.', 'error');
         }
     }
@@ -778,6 +880,17 @@
             userMenu.remove();
         }
     });
+
+
+
+    async function checkAuth() {
+        try {
+            await updateUIForLoggedInUser();
+        } catch (error) {
+            console.error('Error checking authentication:', error);
+            showLoginButton();
+        }
+    }
 </script>
 
 <style>

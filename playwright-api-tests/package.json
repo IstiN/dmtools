@@ -1,0 +1,17 @@
+{
+  "name": "dmtools-api-tests",
+  "version": "1.0.0",
+  "description": "API tests for dmtools using Playwright",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "keywords": ["api", "testing", "playwright", "dmtools"],
+  "author": "",
+  "license": "ISC"
+} 

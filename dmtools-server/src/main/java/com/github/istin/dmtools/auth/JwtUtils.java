@@ -40,15 +40,6 @@ public class JwtUtils {
                 .getSubject();
     }
 
-    public String getUserIdFromJwtToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .get("userId", String.class);
-    }
-
     public boolean validateJwtToken(String authToken) {
         try {
             Jwts.parserBuilder()
@@ -66,5 +57,36 @@ public class JwtUtils {
             System.err.println("JWT claims string is empty: " + e.getMessage());
         }
         return false;
+    }
+
+    public String generateJwtTokenCustom(String email, String userId, String secret, int expirationMs) {
+        Key key = Keys.hmacShaKeyFor(secret.getBytes());
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("userId", userId)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + expirationMs))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public boolean validateJwtTokenCustom(String token, String secret) {
+        try {
+            Key key = Keys.hmacShaKeyFor(secret.getBytes());
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String getEmailFromJwtTokenCustom(String token, String secret) {
+        Key key = Keys.hmacShaKeyFor(secret.getBytes());
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().getSubject();
+    }
+
+    public String getUserIdFromJwtTokenCustom(String token, String secret) {
+        Key key = Keys.hmacShaKeyFor(secret.getBytes());
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().get("userId", String.class);
     }
 } 

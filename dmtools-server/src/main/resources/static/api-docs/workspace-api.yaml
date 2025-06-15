@@ -1,0 +1,476 @@
+openapi: 3.0.3
+info:
+  title: DMTools Workspace Management API
+  description: API for managing workspaces and user collaboration in DMTools
+  version: 1.0.0
+  contact:
+    name: DMTools Team
+    url: https://github.com/istin/dmtools
+servers:
+  - url: http://localhost:8080/api
+    description: Local development server
+  - url: https://dmtools.app/api
+    description: Production server
+
+paths:
+  /workspaces:
+    get:
+      summary: Get all workspaces for current user
+      description: Retrieves all workspaces that the current user owns or has access to
+      tags:
+        - Workspaces
+      security:
+        - OAuth2: []
+      responses:
+        '200':
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkspaceDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create a new workspace
+      description: Creates a new workspace owned by the current user
+      tags:
+        - Workspaces
+      security:
+        - OAuth2: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkspaceRequest'
+      responses:
+        '200':
+          description: Workspace created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /workspaces/{workspaceId}:
+    get:
+      summary: Get workspace by ID
+      description: Retrieves a specific workspace if the user has access to it
+      tags:
+        - Workspaces
+      security:
+        - OAuth2: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the workspace
+      responses:
+        '200':
+          description: Workspace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update workspace
+      description: Updates workspace details (only workspace owner can update)
+      tags:
+        - Workspaces
+      security:
+        - OAuth2: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkspaceRequest'
+      responses:
+        '200':
+          description: Workspace updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete workspace
+      description: Deletes a workspace (only workspace owner can delete)
+      tags:
+        - Workspaces
+      security:
+        - OAuth2: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the workspace
+      responses:
+        '200':
+          description: Workspace deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /workspaces/{workspaceId}/share:
+    post:
+      summary: Share workspace with user
+      description: Adds a user to the workspace with specified role (only owner or admin can share)
+      tags:
+        - Workspace Sharing
+      security:
+        - OAuth2: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareWorkspaceRequest'
+      responses:
+        '200':
+          description: User added to workspace successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceUserDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /workspaces/{workspaceId}/users/{targetUserId}:
+    delete:
+      summary: Remove user from workspace
+      description: Removes a user from the workspace (only owner or admin can remove users)
+      tags:
+        - Workspace Sharing
+      security:
+        - OAuth2: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the workspace
+        - name: targetUserId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the user to remove
+      responses:
+        '200':
+          description: User removed from workspace successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /workspaces/default:
+    post:
+      summary: Create default workspace
+      description: Creates a default workspace for the current user
+      tags:
+        - Workspaces
+      security:
+        - OAuth2: []
+      responses:
+        '200':
+          description: Default workspace created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    WorkspaceDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the workspace
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: Name of the workspace
+          example: "My Development Workspace"
+        description:
+          type: string
+          nullable: true
+          description: Description of the workspace
+          example: "Workspace for managing development agents and tools"
+        ownerId:
+          type: string
+          description: ID of the workspace owner
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        ownerName:
+          type: string
+          description: Name of the workspace owner
+          example: "John Doe"
+        ownerEmail:
+          type: string
+          description: Email of the workspace owner
+          example: "john.doe@example.com"
+        currentUserRole:
+          $ref: '#/components/schemas/WorkspaceRole'
+        userCount:
+          type: integer
+          description: Total number of users in the workspace
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the workspace was created
+          example: "2024-01-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the workspace was last updated
+          example: "2024-01-15T10:30:00Z"
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceUserDto'
+          description: List of users in the workspace
+
+    WorkspaceUserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the workspace-user relationship
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        userId:
+          type: string
+          description: ID of the user
+          example: "550e8400-e29b-41d4-a716-446655440003"
+        userName:
+          type: string
+          description: Name of the user
+          example: "Alice Smith"
+        userEmail:
+          type: string
+          description: Email of the user
+          example: "alice.smith@example.com"
+        userPictureUrl:
+          type: string
+          nullable: true
+          description: Profile picture URL of the user
+          example: "https://example.com/profile.jpg"
+        role:
+          $ref: '#/components/schemas/WorkspaceRole'
+        joinedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the user joined the workspace
+          example: "2024-01-16T14:20:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the user's role was last updated
+          example: "2024-01-16T14:20:00Z"
+
+    CreateWorkspaceRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Name of the workspace
+          example: "My Development Workspace"
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Description of the workspace
+          example: "Workspace for managing development agents and tools"
+
+    ShareWorkspaceRequest:
+      type: object
+      required:
+        - userEmail
+        - role
+      properties:
+        userEmail:
+          type: string
+          format: email
+          description: Email address of the user to add to the workspace
+          example: "user@example.com"
+        role:
+          $ref: '#/components/schemas/WorkspaceRole'
+
+    WorkspaceRole:
+      type: string
+      enum:
+        - ADMIN
+        - USER
+      description: |
+        Role of a user within a workspace:
+        * `ADMIN` - Can manage workspace users and settings
+        * `USER` - Can view and use workspace but cannot manage users
+      example: "USER"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Workspace name is required"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the error occurred
+          example: "2024-01-15T10:30:00Z"
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "VALIDATION_ERROR"
+            message: "Workspace name is required"
+            timestamp: "2024-01-15T10:30:00Z"
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "UNAUTHORIZED"
+            message: "Authentication required"
+            timestamp: "2024-01-15T10:30:00Z"
+
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "FORBIDDEN"
+            message: "You don't have permission to access this workspace"
+            timestamp: "2024-01-15T10:30:00Z"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "NOT_FOUND"
+            message: "Workspace not found"
+            timestamp: "2024-01-15T10:30:00Z"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INTERNAL_ERROR"
+            message: "An unexpected error occurred"
+            timestamp: "2024-01-15T10:30:00Z"
+
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      description: OAuth2 authentication with Google, GitHub, or Microsoft
+      flows:
+        authorizationCode:
+          authorizationUrl: /login/oauth2/authorization/{provider}
+          tokenUrl: /login/oauth2/code/{provider}
+          scopes:
+            openid: OpenID Connect scope
+            profile: Access to user profile information
+            email: Access to user email address
+
+tags:
+  - name: Workspaces
+    description: Operations related to workspace management
+  - name: Workspace Sharing
+    description: Operations related to sharing workspaces with other users 

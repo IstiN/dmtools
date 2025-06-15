@@ -61,3 +61,24 @@ data/*.db
 data/*.db
 data/*.lock.db
 data/*.mv.db
+
+# Security files
+cookies.txt
+jwt_token.txt
+
+# Ensure all data directories are ignored
+/dmtools-server/data/
+**/data/*.db
+**/data/*.lock.db
+**/data/*.mv.db
+
+# Playwright
+/playwright-api-tests/node_modules/
+/playwright-api-tests/test-results/
+/playwright-api-tests/playwright-report/
+/playwright-api-tests/.auth/
+/playwright-api-tests/.cache/
+/playwright-api-tests/blob-report/
+/playwright-api-tests/playwright/.cache/
+/playwright-api-tests/allure-results/
+/playwright-api-tests/allure-report/

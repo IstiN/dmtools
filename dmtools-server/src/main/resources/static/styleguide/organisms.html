@@ -34,313 +34,91 @@
         <main class="sg-main-content">
             <section id="organisms" class="sg-section">
                 <h2>Organisms</h2>
-                <p>More complex UI components composed of groups of molecules and/or atoms.</p>
+                <p>More complex UI components composed of groups of molecules and/or atoms. Click on any component below to view its detailed documentation and examples.</p>
                 
-                <article class="sg-component-display">
-                    <h3>Page Header (<code>.site-header</code>)</h3>
-                    <div class="sg-component-item">
-                       <header class="site-header" style="position: static; /* Override sticky for styleguide */ margin-bottom: 1rem; /* Add some bottom margin for styleguide display */">
-                           <a href="#" class="site-title">
-                               <img src="../img/dmtools-logo-intelligent-network-fusion.svg" alt="DMTools Actual Logo" style="height: 32px; width: auto;">
-                           </a>
-                           <div class="nav-actions">
-                                <button class="theme-switch" aria-label="Toggle theme" id="sg-theme-toggle-organism-example">
-                                    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="display: block;">
-                                        <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
-                                    </svg>
-                                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="display: none;">
-                                        <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
-                                        <path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.734 1.734 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.734 1.734 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.734 1.734 0 0 0 1.097-1.097l.387-1.162zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774.258c.346-.115.617-.386.732-.732L13.863.1z"/>
-                                    </svg>
-                                    <span class="theme-text">Toggle Theme</span>
-                                </button>
-                               <a href="#" class="btn btn-secondary btn-small">Nav Link 1</a>
-                               <button class="btn-login" onclick="openLoginModal()">
-                                   <i class="fas fa-sign-in-alt"></i>
-                                   Login
-                               </button>
-                           </div>
-                       </header>
-                        <pre><code>&lt;header class="site-header"&gt;
-    &lt;a href="#" class="site-title"&gt;
-        &lt;img src="../img/dmtools-logo-intelligent-network-fusion.svg" alt="DMTools Actual Logo" style="height: 32px;"&gt;
-    &lt;/a&gt;
-    &lt;div class="nav-actions"&gt;
-        &lt;button class="theme-switch" aria-label="Toggle theme"&gt;
-            &lt;svg class="sun-icon"&gt;...&lt;/svg&gt;
-            &lt;svg class="moon-icon" style="display: none;"&gt;...&lt;/svg&gt;
-            &lt;span class="theme-text"&gt;Toggle Theme&lt;/span&gt;
-        &lt;/button&gt;
-        &lt;a href="#" class="btn btn-secondary btn-small"&gt;Nav Link 1&lt;/a&gt;
-        &lt;button class="btn-login" onclick="openLoginModal()"&gt;
-            &lt;i class="fas fa-sign-in-alt"&gt;&lt;/i&gt;
-            Login
-        &lt;/button&gt;
-    &lt;/div&gt;
-&lt;/header&gt;</code></pre>
-                    </div>
-                </article>
-
-                <article class="sg-component-display">
-                    <h3>Welcome Banner (<code>.welcome-banner</code>)</h3>
-                    <div class="sg-component-item">
-                        <p>A prominent banner component used for main page headers with logo, text, and call-to-action buttons.</p>
-                        <div class="welcome-banner" style="margin-bottom: 1rem;">
-                            <div class="welcome-logo">
-                                <img src="../img/dmtools-logo-intelligent-network-fusion-white.svg" alt="DMTools Intelligent Network" style="height: 60px; margin-bottom: 20px;">
-                            </div>
-                            <div class="welcome-text">
-                                <h1>Welcome to DMTools</h1>
-                                <p>Your all-in-one solution for delivery management and automation</p>
-                                <div class="banner-buttons">
-                                    <a href="#" class="btn btn-primary">
-                                        <i class="fas fa-plus"></i>
-                                        Create New Agent
-                                    </a>
-                                    <a href="#" class="btn btn-outline">
-                                        <i class="fas fa-book"></i>
-                                        View Documentation
-                                    </a>
-                                </div>
-                            </div>
+                <div class="organism-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+                    
+                    <div class="organism-card card">
+                        <div class="organism-card__header">
+                            <h3>Page Header</h3>
+                            <code>.site-header</code>
                         </div>
-                        <pre><code>&lt;div class="welcome-banner"&gt;
-    &lt;div class="welcome-logo"&gt;
-        &lt;img src="../img/dmtools-logo-intelligent-network-fusion-white.svg" alt="DMTools Logo" style="height: 60px; margin-bottom: 20px;"&gt;
-    &lt;/div&gt;
-    &lt;div class="welcome-text"&gt;
-        &lt;h1&gt;Welcome to DMTools&lt;/h1&gt;
-        &lt;p&gt;Your all-in-one solution for delivery management and automation&lt;/p&gt;
-        &lt;div class="banner-buttons"&gt;
-            &lt;a href="#" class="btn btn-primary"&gt;
-                &lt;i class="fas fa-plus"&gt;&lt;/i&gt;
-                Create New Agent
-            &lt;/a&gt;
-            &lt;a href="#" class="btn btn-outline"&gt;
-                &lt;i class="fas fa-book"&gt;&lt;/i&gt;
-                View Documentation
-            &lt;/a&gt;
-        &lt;/div&gt;
-    &lt;/div&gt;
-&lt;/div&gt;</code></pre>
-                    </div>
-                </article>
-
-                <article class="sg-component-display">
-                    <h3>Panel Base (<code>.panel-base</code>)</h3>
-                    <p>A foundational panel structure with a header and content area. Specific modules extend this.</p>
-                    <div class="sg-component-item">
-                        <h4>Basic Panel</h4>
-                        <div class="panel-base" style="min-height: 200px;">
-                            <header class="panel-base__header">
-                                <h3>Panel Title</h3>
-                            </header>
-                            <div class="panel-base__content">
-                                <p>This is the content area of the panel. It can contain any type of information and will scroll if content overflows.</p>
-                            </div>
+                        <div class="organism-card__description">
+                            <p>Main navigation header with logo, theme toggle, and action buttons.</p>
                         </div>
-                        <pre><code>&lt;div class="panel-base"&gt;
-    &lt;header class="panel-base__header"&gt;
-        &lt;h3&gt;Panel Title&lt;/h3&gt;
-    &lt;/header&gt;
-    &lt;div class="panel-base__content"&gt;
-        &lt;p&gt;Panel content goes here...&lt;/p&gt;
-    &lt;/div&gt;
-&lt;/div&gt;</code></pre>
-                    </div>
-                </article>
-
-                <article class="sg-component-display">
-                    <h3>Chat Module (<code>.chat-module</code>)</h3>
-                    <p>An organism for chat interactions, including a title, message display area, and input group. Uses <code>.panel-base</code>.</p>
-                    <div class="sg-component-item">
-                        <div class="panel-base chat-module" style="height: 450px; max-width: 400px;">
-                            <header class="panel-base__header">
-                                <h3>Chat With Agent</h3>
-                            </header>
-                            <div class="panel-base__content" style="display:flex; flex-direction:column;">
-                                <div class="chat-messages-container" style="flex-grow:1;">
-                                    <div class="chat-message chat-message--agent">Hello! Ask me something.</div>
-                                    <div class="chat-message chat-message--user">I need a new presentation.</div>
-                                    <div class="chat-message chat-message--agent">Sure, what topic?</div>
-                                </div>
-                                <div class="chat-input-group">
-                                    <textarea placeholder="Type your message..."></textarea>
-                                    <button class="btn btn-icon" aria-label="Attach"><i class="fas fa-paperclip"></i></button>
-                                    <button class="btn btn-primary">Send</button>
-                                </div>
-                            </div>
+                        <div class="organism-card__actions">
+                            <a href="organisms/page-header.html" class="btn btn-primary btn-small">
+                                <i class="fas fa-eye"></i>
+                                View Component
+                            </a>
                         </div>
-                        <pre><code>&lt;div class="panel-base chat-module"&gt;
-    &lt;header class="panel-base__header"&gt;
-        &lt;h3&gt;Chat Title&lt;/h3&gt;
-    &lt;/header&gt;
-    &lt;div class="panel-base__content" style="display:flex; flex-direction:column;"&gt;
-        &lt;div class="chat-messages-container" style="flex-grow:1;"&gt;
-            &lt;!-- .chat-message elements --&gt;
-        &lt;/div&gt;
-        &lt;div class="chat-input-group"&gt;
-            &lt;!-- textarea and buttons --&gt;
-        &lt;/div&gt;
-    &lt;/div&gt;
-&lt;/div&gt;</code></pre>
                     </div>
-                </article>
 
-                <article class="sg-component-display">
-                    <h3>Parameters Module (<code>.parameters-module</code>)</h3>
-                    <p>A panel for displaying and editing configuration parameters, typically using form elements. Uses <code>.panel-base</code>.</p>
-                    <div class="sg-component-item">
-                        <div class="panel-base parameters-module" style="max-width: 400px; min-height: 300px;">
-                            <header class="panel-base__header">
-                                <h3>Presentation Parameters</h3>
-                            </header>
-                            <div class="panel-base__content form-container">
-                                <div class="form-group">
-                                    <label for="sg-param-title">Title</label>
-                                    <input type="text" id="sg-param-title" value="Quarterly Report">
-                                </div>
-                                <div class="form-group">
-                                    <label for="sg-param-sections">Number of Sections</label>
-                                    <input type="number" id="sg-param-sections" value="3">
-                                </div>
-                                <p><em>More parameters would appear here...</em></p>
-                            </div>
+                    <div class="organism-card card">
+                        <div class="organism-card__header">
+                            <h3>Welcome Banner</h3>
+                            <code>.welcome-banner</code>
                         </div>
-                        <pre><code>&lt;div class="panel-base parameters-module"&gt;
-    &lt;header class="panel-base__header"&gt;
-        &lt;h3&gt;Parameters Title&lt;/h3&gt;
-    &lt;/header&gt;
-    &lt;div class="panel-base__content form-container"&gt;
-        &lt;!-- .form-group elements --&gt;
-    &lt;/div&gt;
-&lt;/div&gt;</code></pre>
+                        <div class="organism-card__description">
+                            <p>Prominent banner component for main page headers with logo, text, and call-to-action buttons.</p>
+                        </div>
+                        <div class="organism-card__actions">
+                            <a href="organisms/welcome-banner.html" class="btn btn-primary btn-small">
+                                <i class="fas fa-eye"></i>
+                                View Component
+                            </a>
+                        </div>
                     </div>
-                </article>
 
-                <article class="sg-component-display">
-                    <h3>Script Module (<code>.script-module</code>)</h3>
-                    <p>A panel for displaying and editing code, typically in a textarea. Uses <code>.panel-base</code>.</p>
-                    <div class="sg-component-item">
-                        <div class="panel-base script-module" style="max-width: 400px; min-height: 300px;">
-                            <header class="panel-base__header">
-                                <h3>JS Script Editor</h3>
-                            </header>
-                            <div class="panel-base__content">
-                                <textarea style="min-height: 200px;">// JavaScript code will appear here...</textarea>
-                            </div>
+                    <div class="organism-card card">
+                        <div class="organism-card__header">
+                            <h3>Panel Base</h3>
+                            <code>.panel-base</code>
                         </div>
-                        <pre><code>&lt;div class="panel-base script-module"&gt;
-    &lt;header class="panel-base__header"&gt;
-        &lt;h3&gt;Script Editor Title&lt;/h3&gt;
-    &lt;/header&gt;
-    &lt;div class="panel-base__content"&gt;
-        &lt;textarea&gt;// Code...&lt;/textarea&gt;
-    &lt;/div&gt;
-&lt;/div&gt;</code></pre>
+                        <div class="organism-card__description">
+                            <p>Foundational panel structure with header and content area. Base for other modules.</p>
+                        </div>
+                        <div class="organism-card__actions">
+                            <a href="organisms/panel-base.html" class="btn btn-primary btn-small">
+                                <i class="fas fa-eye"></i>
+                                View Component
+                            </a>
+                        </div>
                     </div>
-                </article>
 
-                <article class="sg-component-display">
-                    <h3>Output Module (<code>.output-module</code>)</h3>
-                    <p>A panel for displaying generated output, often an iframe, with actions. Uses <code>.panel-base</code>.</p>
-                    <div class="sg-component-item">
-                        <div class="panel-base output-module" style="max-width: 500px; min-height: 350px;">
-                            <header class="panel-base__header">
-                                <h3>Presentation Preview</h3>
-                            </header>
-                            <div class="panel-base__content" style="display:flex; flex-direction:column;">
-                                <div class="output-frame-container" style="flex-grow:1; background: #eee; display:flex; align-items:center; justify-content:center;">
-                                    &lt;!-- iframe would be here --&gt;
-                                    <span>Preview Area</span>
-                                </div>
-                                <div class="output-actions">
-                                    <button class="btn btn-secondary btn-small">Open in New Tab</button>
-                                </div>
-                            </div>
+                    <div class="organism-card card">
+                        <div class="organism-card__header">
+                            <h3>Chat Module</h3>
+                            <code>.chat-module</code>
                         </div>
-                        <pre><code>&lt;div class="panel-base output-module"&gt;
-    &lt;header class="panel-base__header"&gt;
-        &lt;h3&gt;Output Title&lt;/h3&gt;
-    &lt;/header&gt;
-    &lt;div class="panel-base__content" style="display:flex; flex-direction:column;"&gt;
-        &lt;div class="output-frame-container" style="flex-grow:1;"&gt;
-            &lt;iframe class="output-frame" title="Output Preview"&gt;&lt;/iframe&gt;
-        &lt;/div&gt;
-        &lt;div class="output-actions"&gt;
-            &lt;button class="btn btn-secondary btn-small"&gt;Action&lt;/button&gt;
-        &lt;/div&gt;
-    &lt;/div&gt;
-&lt;/div&gt;</code></pre>
+                        <div class="organism-card__description">
+                            <p>Interactive chat component with message display and input area.</p>
+                        </div>
+                        <div class="organism-card__actions">
+                            <a href="organisms/chat-module.html" class="btn btn-primary btn-small">
+                                <i class="fas fa-eye"></i>
+                                View Component
+                            </a>
+                        </div>
                     </div>
-                </article>
 
-                <article class="sg-component-display">
-                    <h3>App Layout - Presentation Agent (<code>.app-layout--presentation-agent</code>)</h3>
-                    <p>The main container for the presentation agent screen, including a header and the primary page layout.</p>
-                    <div class="sg-component-item" style="border: 1px dashed #ccc; padding: 1rem; background: #f9f9f9;">
-                        <div class="app-layout--presentation-agent" style="height: 600px; width: 100%; position:relative; /* For demo */">
-                            <header class="app-layout--presentation-agent__header">
-                                <h1>AI Presentation Agent</h1>
-                            </header>
-                            <div class="page-layout--presentation-agent" style="border: 1px solid var(--border-color); background: var(--bg-color); padding:1rem;">
-                                <p style="margin:0; color: var(--text-muted);"><em>Content of <code>.page-layout--presentation-agent</code> goes here...</em></p>
-                            </div>
+                    <div class="organism-card card">
+                        <div class="organism-card__header">
+                            <h3>Workspace Management</h3>
+                            <code>.workspace-*</code>
                         </div>
-                         <pre><code>&lt;div class="app-layout--presentation-agent"&gt;
-    &lt;header class="app-layout--presentation-agent__header"&gt;
-        &lt;h1&gt;Page Title&lt;/h1&gt;
-    &lt;/header&gt;
-    &lt;div class="page-layout--presentation-agent"&gt;
-        &lt;!-- Chat Module and Main Content Area --&gt;
-    &lt;/div&gt;
-&lt;/div&gt;</code></pre>
+                        <div class="organism-card__description">
+                            <p>Complete workspace management system with cards, forms, and user management.</p>
+                        </div>
+                        <div class="organism-card__actions">
+                            <a href="organisms/workspace-management.html" class="btn btn-primary btn-small">
+                                <i class="fas fa-eye"></i>
+                                View Component
+                            </a>
+                        </div>
                     </div>
-                </article>
 
-                <article class="sg-component-display">
-                    <h3>Page Layout - Presentation Agent (<code>.page-layout--presentation-agent</code>)</h3>
-                    <p>The specific two-column layout for the presentation agent: Chat on one side, main content on the other.</p>
-                    <div class="sg-component-item" style="border: 1px dashed #ccc; padding: 1rem; background: #f0f0f0;">
-                        <div class="page-layout--presentation-agent" style="height: 500px; width: 100%; position:relative; /* For demo */">
-                            <div class="panel-base chat-module" style="flex-basis: 300px;">
-                                <header class="panel-base__header"><h3>Chat</h3></header>
-                                <div class="panel-base__content"><p>Chat content...</p></div>
-                            </div>
-                            <div class="main-content-area" style="border: 1px solid #ddd; padding:0.5rem; background: #fff;">
-                                <p style="color: var(--text-muted);"><em>Main content area including script-config-row, actions-bar, and output-module...</em></p>
-                                <div class="script-config-row" style="border: 1px dashed #aaa; padding:0.5rem; min-height:150px;">
-                                    <div class="panel-base parameters-module" style="flex:1;"><header class="panel-base__header"><h3>Params</h3></header><div class="panel-base__content"><p>Params content...</p></div></div>
-                                    <div class="panel-base script-module" style="flex:1;"><header class="panel-base__header"><h3>Script</h3></header><div class="panel-base__content"><p>Script content...</p></div></div>
-                                </div>
-                                <div class="actions-bar" style="border: 1px dashed #aaa; padding:0.5rem; text-align:center;">
-                                   <p style="color: var(--text-muted);"><em>Action buttons group...</em></p>
-                                </div>
-                                <div class="panel-base output-module" style="border: 1px dashed #aaa; padding:0.5rem; min-height:100px; flex-grow:1;">
-                                   <header class="panel-base__header"><h3>Output</h3></header>
-                                   <div class="panel-base__content"><p>Output content...</p></div>
-                                </div>
-                            </div>
-                        </div>
-                        <pre><code>&lt;div class="page-layout--presentation-agent"&gt;
-    &lt;div class="panel-base chat-module"&gt;
-        &lt;!-- Chat module content --&gt;
-    &lt;/div&gt;
-    &lt;div class="main-content-area"&gt;
-        &lt;div class="script-config-row"&gt;
-            &lt;div class="panel-base parameters-module"&gt;&lt;!-- ... --&gt;&lt;/div&gt;
-            &lt;div class="panel-base script-module"&gt;&lt;!-- ... --&gt;&lt;/div&gt;
-        &lt;/div&gt;
-        &lt;div class="actions-bar"&gt;
-            &lt;!-- .action-button-group --&gt;
-        &lt;/div&gt;
-        &lt;div class="panel-base output-module"&gt;
-            &lt;!-- Output module content --&gt;
-        &lt;/div&gt;
-    &lt;/div&gt;
-&lt;/div&gt;</code></pre>
-                    </div>
-                </article>
+                </div>
 
             </section>
         </main>
@@ -350,165 +128,102 @@
         </footer>
     </div>
 
-    <!-- Login Modal -->
-    <div class="login-modal" id="loginModal">
-        <div class="login-modal-content">
-            <button class="login-modal-close" onclick="closeLoginModal()" aria-label="Close login modal">
-                <i class="fas fa-times"></i>
-            </button>
-            
-            <div class="login-provider-selector">
-                <div class="login-header">
-                    <h2>Welcome Back</h2>
-                    <p>Choose your preferred login method</p>
-                </div>
-                
-                <div class="login-providers">
-                    <a href="#" class="login-provider-btn login-provider-btn--google" onclick="handleModalLogin('Google')">
-                        <i class="fab fa-google login-provider-icon"></i>
-                        Continue with Google
-                    </a>
-                    
-                    <a href="#" class="login-provider-btn login-provider-btn--microsoft" onclick="handleModalLogin('Microsoft')">
-                        <i class="fab fa-microsoft login-provider-icon"></i>
-                        Continue with Microsoft
-                    </a>
-                    
-                    <a href="#" class="login-provider-btn login-provider-btn--github" onclick="handleModalLogin('GitHub')">
-                        <i class="fab fa-github login-provider-icon"></i>
-                        Continue with GitHub
-                    </a>
-                    
-                    <!--
-                    <div class="login-divider">
-                        <span>or</span>
-                    </div>
-                    
-                    <a href="#" class="login-provider-btn login-provider-btn--oauth" onclick="handleModalLogin('Custom OAuth')">
-                        <i class="fas fa-key login-provider-icon"></i>
-                        Custom OAuth Provider
-                    </a>
-                    -->
-                </div>
-                
-                <div class="login-footer">
-                    <p>By continuing, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></p>
-                </div>
-            </div>
-        </div>
-    </div>
     <script src="../css/theme.js"></script>
     <script>
-        // Display actual font family (element is on colors_typography.html)
-        const rootStyle = getComputedStyle(document.documentElement);
-        const fontFamily = rootStyle.getPropertyValue('--font-family').trim();
-        const sgFontFamilyElement = document.getElementById('sg-font-family');
-        if (sgFontFamilyElement) {
-            sgFontFamilyElement.textContent = fontFamily || 'Not defined';
-        }
-
-        // Example theme toggle for a button with id 'sg-theme-toggle-organism-example' if present on this page
-        const themeToggleButton = document.getElementById('sg-theme-toggle-organism-example');
-        if (themeToggleButton) {
-            const sunIcon = themeToggleButton.querySelector('.sun-icon');
-            const moonIcon = themeToggleButton.querySelector('.moon-icon');
-            
-            if (document.body.classList.contains('dark-theme')) {
-                if(sunIcon) sunIcon.style.display = 'none';
-                if(moonIcon) moonIcon.style.display = 'block';
-            } else {
-                if(sunIcon) sunIcon.style.display = 'block';
+        // Theme toggler script
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+    
+        // Function to set theme
+        const setTheme = (theme) => {
+            body.classList.remove('light-theme', 'dark-theme');
+            body.classList.add(theme + '-theme');
+            localStorage.setItem('theme', theme);
+            // For main styleguide page theme switcher
+            const moonIcon = themeToggle.querySelector('.moon-icon');
+            const sunIcon = themeToggle.querySelector('.sun-icon');
+            if (theme === 'dark') {
                 if(moonIcon) moonIcon.style.display = 'none';
-            }
-
-            themeToggleButton.addEventListener('click', () => {
-                document.body.classList.toggle('dark-theme');
-                if (document.body.classList.contains('dark-theme')) {
-                    if(sunIcon) sunIcon.style.display = 'none';
-                    if(moonIcon) moonIcon.style.display = 'block';
-                } else {
-                    if(sunIcon) sunIcon.style.display = 'block';
-                    if(moonIcon) moonIcon.style.display = 'none';
-                }
-            });
-        }
-    </script>
-    <script>
-    (function() {
-        const switcher = document.getElementById('theme-toggle');
-        if (!switcher) return;
-
-        const sunIcon = switcher.querySelector('.sun-icon');
-        const moonIcon = switcher.querySelector('.moon-icon');
-
-        if (!sunIcon || !moonIcon) return;
-
-        function syncIcons() {
-            if (document.body.classList.contains('dark-theme')) {
-                sunIcon.style.display = 'none';
-                moonIcon.style.display = 'block';
+                if(sunIcon) sunIcon.style.display = 'block';
             } else {
-                sunIcon.style.display = 'block';
-                moonIcon.style.display = 'none';
+                if(moonIcon) moonIcon.style.display = 'block';
+                if(sunIcon) sunIcon.style.display = 'none';
             }
-        }
-        syncIcons();
-        switcher.addEventListener('click', function() {
-            setTimeout(syncIcons, 0); 
+        };
+    
+        // Initial theme setup
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+    
+        // Event listener for theme toggle
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = localStorage.getItem('theme') === 'dark' ? 'light' : 'dark';
+            setTheme(currentTheme);
         });
-        
-        const observer = new MutationObserver(syncIcons);
-        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-        
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'dmtools-theme') {
-                // Assuming theme.js updates body.classList on storage event.
-            }
-        });
-    })();
-
-    // Login modal functionality
-    function openLoginModal() {
-        const modal = document.getElementById('loginModal');
-        modal.classList.add('show');
-        document.body.style.overflow = 'hidden'; // Prevent background scrolling
-    }
-
-    function closeLoginModal() {
-        const modal = document.getElementById('loginModal');
-        modal.classList.remove('show');
-        document.body.style.overflow = ''; // Restore scrolling
-    }
-
-    function handleModalLogin(provider) {
-        event.preventDefault();
-        
-        // Add loading state
-        const button = event.currentTarget;
-        button.classList.add('login-provider-btn--loading');
-        
-        // Simulate loading time
-        setTimeout(() => {
-            button.classList.remove('login-provider-btn--loading');
-            closeLoginModal();
-            alert(`🎉 Demo: Login with ${provider} successful!\n\nIn a real implementation, this would:\n1. Redirect to ${provider} OAuth endpoint\n2. Handle the callback\n3. Set authentication tokens\n4. Update user interface\n5. Redirect to dashboard`);
-        }, 1500);
-    }
-
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
-        const modal = document.getElementById('loginModal');
-        if (event.target === modal) {
-            closeLoginModal();
-        }
-    });
-
-    // Close modal with Escape key
-    window.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeLoginModal();
-        }
-    });
     </script>
+
+    <style>
+        .organism-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .organism-card {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .organism-card__header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .organism-card__header h3 {
+            margin: 0;
+            color: var(--text-color);
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .organism-card__header code {
+            background-color: var(--hover-bg);
+            color: var(--accent-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            align-self: flex-start;
+        }
+
+        .organism-card__description {
+            flex-grow: 1;
+        }
+
+        .organism-card__description p {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .organism-card__actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 768px) {
+            .organism-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .organism-card {
+                padding: 1rem;
+            }
+        }
+    </style>
 </body>
 </html> 

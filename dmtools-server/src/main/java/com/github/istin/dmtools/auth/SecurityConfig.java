@@ -1,8 +1,11 @@
 package com.github.istin.dmtools.auth;
 
 import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
+import com.github.istin.dmtools.auth.service.CustomOidcUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
@@ -31,11 +34,17 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final AuthDebugFilter authDebugFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
+    private final CustomOidcUserService customOidcUserService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final String activeProfile;
 
-    public SecurityConfig(OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler, AuthDebugFilter authDebugFilter, CustomOAuth2UserService customOAuth2UserService) {
+    public SecurityConfig(OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler, AuthDebugFilter authDebugFilter, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, JwtAuthenticationFilter jwtAuthenticationFilter, @Value("${spring.profiles.active:default}") String activeProfile) {
         this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.customOAuth2UserService = customOAuth2UserService;
+        this.customOidcUserService = customOidcUserService;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.activeProfile = activeProfile;
         logger.info("SecurityConfig initialized with custom OAuth2AuthenticationSuccessHandler and AuthDebugFilter.");
     }
 
@@ -91,71 +100,44 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, ClientRegistrationRepository clientRegistrationRepository) throws Exception {
-        logger.info("Configuring SecurityFilterChain...");
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        logger.info("🔧 Configuring SecurityFilterChain for active profile: {}", activeProfile);
+
+        // Use IF_REQUIRED session management to support both JWT and OAuth2 session-based auth
+        logger.info("🛡️ Applying HYBRID security settings (supports both JWT and OAuth2 session-based auth)");
+        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
+
         http
-                .addFilterBefore(authDebugFilter, UsernamePasswordAuthenticationFilter.class)
-                .cors(cors -> {
-                    logger.info("Configuring CORS...");
-                    cors.configurationSource(request -> {
-                        CorsConfiguration configuration = new CorsConfiguration();
-                        configuration.applyPermitDefaultValues();
-                        return configuration;
-                    });
-                })
-                .authorizeHttpRequests(authorizeRequests -> {
-                    logger.info("Configuring authorization requests...");
-                    authorizeRequests
-                            .requestMatchers("/", "/index.html", "/login", "/oauth2/authorization/**", "/login/oauth2/code/*", "/error", "/css/**", "/js/**", "/img/**", "/styleguide/**", "/components/**", "/api/config", "/is-local", "/api/v1/chat/health", "/actuator/health", "/swagger-ui/**", "/v3/api-docs/**", "/test-oauth2.html").permitAll()
-                            .anyRequest().authenticated();
-                })
-                .oauth2Login(oauth2Login -> {
-                    logger.info("Configuring OAuth2 login...");
-                    oauth2Login
-                            .authorizationEndpoint(authorizationEndpoint -> {
-                                logger.info("Configuring authorization endpoint base URI to /oauth2/authorization");
-                                authorizationEndpoint.baseUri("/oauth2/authorization");
-                            })
-                            .tokenEndpoint(token -> token.accessTokenResponseClient(accessTokenResponseClient()))
-                            .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                            .successHandler(oAuth2AuthenticationSuccessHandler)
-                            .failureUrl("/?error=true");
-                    logger.info("OAuth2 login configured with success handler and failure URL.");
-                })
-                .sessionManagement(session -> {
-                    logger.info("Configuring session management...");
-                    // Explicitly set the session creation policy
-                    session.sessionCreationPolicy(SessionCreationPolicy.ALWAYS);
-                    // Set session fixation protection
-                    session.sessionFixation().migrateSession();
-                    // Configure maximum sessions
-                    session.maximumSessions(1)
-                           .maxSessionsPreventsLogin(false);
-                    logger.info("Session management configured with ALWAYS creation policy and session fixation protection.");
-                })
-                .logout(logout -> {
-                    logger.info("Configuring logout...");
-                    logout
-                            .logoutSuccessUrl("/")
-                            .permitAll();
-                })
-                .exceptionHandling(e -> {
-                    logger.info("Configuring exception handling...");
-                    e.authenticationEntryPoint((request, response, authException) -> {
-                        logger.warn("Authentication failed for request to {}: {}. Entry point triggered.", request.getRequestURI(), authException.getMessage());
-                        // For AJAX requests, return 401
-                        if ("XMLHttpRequest".equals(request.getHeader("X-Requested-With"))) {
-                            logger.info("Request is AJAX. Sending 401 Unauthorized.");
-                            response.sendError(401, "Unauthorized");
-                        } else {
-                            // For regular requests, redirect to home page
-                            logger.info("Regular request. Redirecting to /");
-                            response.sendRedirect("/");
-                        }
-                    });
-                })
-                .csrf(AbstractHttpConfigurer::disable);
-        logger.info("SecurityFilterChain configuration complete.");
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/error").permitAll()
+                    .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
+                    .requestMatchers("/", "/index.html", "/login.html", "/workspaces.html", "/create-agent.html", "/settings.html", "/presentation-creator.html", "/test-chat-integration.html").permitAll()
+                    .requestMatchers("/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**", "/api-docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                    .requestMatchers("/actuator/**").permitAll()
+                    .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        // Always configure OAuth2 login (can coexist with local auth)
+        http.oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo
+                        .userService(customOAuth2UserService)
+                        .oidcUserService(customOidcUserService)
+                )
+                .successHandler(oAuth2AuthenticationSuccessHandler)
+        );
+
+        // Configure logout
+        http.logout(logout -> logout
+                .logoutUrl("/logout")
+                .logoutSuccessUrl("/")
+                .invalidateHttpSession(true)
+                .clearAuthentication(true)
+                .deleteCookies("JSESSIONID", "jwt")
+                .permitAll()
+        );
+
         return http.build();
     }
 }
