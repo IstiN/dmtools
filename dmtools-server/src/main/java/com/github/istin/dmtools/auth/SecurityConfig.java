@@ -115,6 +115,7 @@ public class SecurityConfig {
                     .requestMatchers("/", "/index.html", "/login.html", "/workspaces.html", "/create-agent.html", "/settings.html", "/presentation-creator.html", "/test-chat-integration.html").permitAll()
                     .requestMatchers("/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**", "/api-docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
+                    .requestMatchers("/api/v1/chat/**").permitAll()
                     .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
