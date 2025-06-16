@@ -25,6 +25,10 @@ public class WorkspaceService {
     private final UserRepository userRepository;
 
     public Workspace createWorkspace(String workspaceName, User owner) {
+        return createWorkspace(workspaceName, "", owner);
+    }
+
+    public Workspace createWorkspace(String workspaceName, String description, User owner) {
         // Check for duplicate workspace names for this owner
         if (workspaceRepository.findByNameAndOwner(workspaceName, owner).isPresent()) {
             throw new IllegalArgumentException("A workspace with this name already exists.");
@@ -34,7 +38,7 @@ public class WorkspaceService {
         Workspace workspace = new Workspace();
         workspace.setName(workspaceName);
         workspace.setOwner(owner);
-        workspace.setDescription(""); // Set a default description
+        workspace.setDescription(description != null ? description : ""); // Set description
         
         try {
             return workspaceRepository.save(workspace);

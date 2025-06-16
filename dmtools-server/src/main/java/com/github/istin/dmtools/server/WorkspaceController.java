@@ -42,7 +42,7 @@ public class WorkspaceController {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        Workspace createdWorkspace = workspaceService.createWorkspace(request.getName(), user);
+        Workspace createdWorkspace = workspaceService.createWorkspace(request.getName(), request.getDescription(), user);
         return new ResponseEntity<>(convertToDto(createdWorkspace), HttpStatus.CREATED);
     }
 
@@ -176,11 +176,17 @@ public class WorkspaceController {
                 .map(wu -> new WorkspaceUserDto(wu.getUser().getId(), wu.getUser().getEmail(), wu.getRole()))
                 .collect(Collectors.toSet());
 
-        return new WorkspaceDto(
+        WorkspaceDto dto = new WorkspaceDto(
                 workspace.getId(),
                 workspace.getName(),
                 workspace.getOwner().getId(),
                 userDtos
         );
+        dto.setDescription(workspace.getDescription());
+        dto.setOwnerName(workspace.getOwner().getName());
+        dto.setOwnerEmail(workspace.getOwner().getEmail());
+        dto.setCreatedAt(workspace.getCreatedAt());
+        dto.setUpdatedAt(workspace.getUpdatedAt());
+        return dto;
     }
 } 

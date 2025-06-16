@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agents - DMTools</title>
+    <link rel="icon" href="img/dmtools-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styleguide/styleguide.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<!-- Site header -->
+<header class="site-header">
+    <a href="/" class="site-title">
+        <img src="img/dmtools-logo-network-nodes.svg" alt="DMTools Logo" class="logo-light" style="height: 48px;" />
+        <img src="img/dmtools-logo-network-nodes-dark.svg" alt="DMTools Logo" class="logo-dark" style="height: 48px; display: none;" />
+    </a>
+    
+    <!-- Search form using styleguide component -->
+    <form class="search-form">
+        <input type="search" placeholder="Search agents and apps..." aria-label="Search">
+        <button type="submit" class="btn">Search</button>
+    </form>
+    
+    <div class="nav-actions">
+        <button class="btn btn-icon" id="theme-toggle" title="Toggle theme">
+            <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+        <button id="chat-toggle-btn" class="btn btn-icon" title="Open AI Assistant">
+            <i class="fas fa-comments"></i>
+        </button>
+        <button class="btn btn-login" onclick="handleLoginClick()">
+            <i class="fas fa-sign-in-alt"></i>
+            Login
+        </button>
+    </div>
+</header>
+
+<!-- App layout with sidebar -->
+<div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar-nav app-layout__sidebar">
+        <div class="sidebar-nav__content">
+            <!-- Main Navigation -->
+            <div class="sidebar-nav__section">
+                <ul class="sidebar-nav__list">
+                    <li class="sidebar-nav__item">
+                        <a href="/" class="sidebar-nav__link">
+                            <i class="sidebar-nav__icon fas fa-home"></i>
+                            <span class="sidebar-nav__text">For You</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav__item">
+                        <a href="/workspaces.html" class="sidebar-nav__link" id="workspaces-link">
+                            <i class="sidebar-nav__icon fas fa-briefcase"></i>
+                            <span class="sidebar-nav__text">Workspaces</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav__item">
+                        <a href="/agents.html" class="sidebar-nav__link active">
+                            <i class="sidebar-nav__icon fas fa-robot"></i>
+                            <span class="sidebar-nav__text">Agents</span>
+                            <span class="sidebar-nav__badge">3</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav__item">
+                        <a href="/applications.html" class="sidebar-nav__link">
+                            <i class="sidebar-nav__icon fas fa-th-large"></i>
+                            <span class="sidebar-nav__text">Applications</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="app-layout__main">
+        <div class="container">
+            <!-- Page Header -->
+            <div class="section-header" style="margin-bottom: 2rem;">
+                <h1 class="section-title">My Agents</h1>
+                <a href="/create-agent" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Create New Agent
+                </a>
+            </div>
+
+            <!-- Agents Grid -->
+            <div class="agents-grid">
+                <!-- Agent 1 -->
+                <div class="agent-card">
+                    <div class="agent-card-header">
+                        <div class="agent-card-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div>
+                            <h3 class="agent-card-title">JIRA Assistant</h3>
+                            <div class="agent-card-status">
+                                <span class="status-dot"></span>
+                                Active
+                            </div>
+                        </div>
+                    </div>
+                    <p class="agent-card-description">
+                        Automatically analyzes and creates test cases based on JIRA tasks, integrating information from code repositories.
+                    </p>
+                    <div class="tag-container">
+                        <span class="tag">Integration</span>
+                    </div>
+                    <div class="agent-card-footer">
+                        <div class="agent-stats">
+                            <span><i class="fas fa-calendar-check"></i> 12 runs</span>
+                            <span><i class="fas fa-clock"></i> Today</span>
+                        </div>
+                        <button class="run-button">
+                            <i class="fas fa-play"></i> Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Agent 2 -->
+                <div class="agent-card">
+                    <div class="agent-card-header">
+                        <div class="agent-card-icon">
+                            <i class="fas fa-code-branch"></i>
+                        </div>
+                        <div>
+                            <h3 class="agent-card-title">GitLab Analyzer</h3>
+                            <div class="agent-card-status">
+                                <span class="status-dot"></span>
+                                Active
+                            </div>
+                        </div>
+                    </div>
+                    <p class="agent-card-description">
+                        Scans code repositories, identifies critical changes, and generates progress reports.
+                    </p>
+                    <div class="tag-container">
+                        <span class="tag">Analytics</span>
+                    </div>
+                    <div class="agent-card-footer">
+                        <div class="agent-stats">
+                            <span><i class="fas fa-calendar-check"></i> 8 runs</span>
+                            <span><i class="fas fa-clock"></i> Yesterday</span>
+                        </div>
+                        <button class="run-button">
+                            <i class="fas fa-play"></i> Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Agent 3 -->
+                <div class="agent-card">
+                    <div class="agent-card-header">
+                        <div class="agent-card-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div>
+                            <h3 class="agent-card-title">Story Generator</h3>
+                            <div class="agent-card-status">
+                                <span class="status-dot"></span>
+                                Active
+                            </div>
+                        </div>
+                    </div>
+                    <p class="agent-card-description">
+                        Creates user stories and requirements based on project documentation and existing tickets.
+                    </p>
+                    <div class="tag-container">
+                        <span class="tag">Automation</span>
+                    </div>
+                    <div class="agent-card-footer">
+                        <div class="agent-stats">
+                            <span><i class="fas fa-calendar-check"></i> 5 runs</span>
+                            <span><i class="fas fa-clock"></i> This week</span>
+                        </div>
+                        <button class="run-button">
+                            <i class="fas fa-play"></i> Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Add new agent -->
+                <a href="/create-agent" class="empty-state">
+                    <i class="fas fa-plus-circle"></i>
+                    <h3>Create New Agent</h3>
+                    <p>Configure automation for your tasks</p>
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize sidebar navigation (active state handling)
+        const navLinks = document.querySelectorAll('.sidebar-nav__link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                navLinks.forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    });
+</script>
+</body>
+</html> 
