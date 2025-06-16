@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Applications - DMTools</title>
+    <link rel="icon" href="img/dmtools-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styleguide/styleguide.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<!-- Site header -->
+<header class="site-header">
+    <a href="/" class="site-title">
+        <img src="img/dmtools-logo-network-nodes.svg" alt="DMTools Logo" class="logo-light" style="height: 48px;" />
+        <img src="img/dmtools-logo-network-nodes-dark.svg" alt="DMTools Logo" class="logo-dark" style="height: 48px; display: none;" />
+    </a>
+    
+    <!-- Search form using styleguide component -->
+    <form class="search-form">
+        <input type="search" placeholder="Search agents and apps..." aria-label="Search">
+        <button type="submit" class="btn">Search</button>
+    </form>
+    
+    <div class="nav-actions">
+        <button class="btn btn-icon" id="theme-toggle" title="Toggle theme">
+            <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+        <button id="chat-toggle-btn" class="btn btn-icon" title="Open AI Assistant">
+            <i class="fas fa-comments"></i>
+        </button>
+        <button class="btn btn-login" onclick="handleLoginClick()">
+            <i class="fas fa-sign-in-alt"></i>
+            Login
+        </button>
+    </div>
+</header>
+
+<!-- App layout with sidebar -->
+<div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar-nav app-layout__sidebar">
+        <div class="sidebar-nav__content">
+            <!-- Main Navigation -->
+            <div class="sidebar-nav__section">
+                <ul class="sidebar-nav__list">
+                    <li class="sidebar-nav__item">
+                        <a href="/" class="sidebar-nav__link">
+                            <i class="sidebar-nav__icon fas fa-home"></i>
+                            <span class="sidebar-nav__text">For You</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav__item">
+                        <a href="/workspaces.html" class="sidebar-nav__link" id="workspaces-link">
+                            <i class="sidebar-nav__icon fas fa-briefcase"></i>
+                            <span class="sidebar-nav__text">Workspaces</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav__item">
+                        <a href="/agents.html" class="sidebar-nav__link">
+                            <i class="sidebar-nav__icon fas fa-robot"></i>
+                            <span class="sidebar-nav__text">Agents</span>
+                            <span class="sidebar-nav__badge">3</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav__item">
+                        <a href="/applications.html" class="sidebar-nav__link active">
+                            <i class="sidebar-nav__icon fas fa-th-large"></i>
+                            <span class="sidebar-nav__text">Applications</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="app-layout__main">
+        <div class="container">
+            <!-- Page Header -->
+            <div class="section-header" style="margin-bottom: 2rem;">
+                <h1 class="section-title">Applications</h1>
+                <div class="btn-group">
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-filter"></i>
+                        Filter
+                    </button>
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-sort"></i>
+                        Sort
+                    </button>
+                </div>
+            </div>
+
+            <!-- Applications List -->
+            <div class="app-list">
+                <!-- App 1 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-chart-pie"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Report Generator</h3>
+                        <div class="app-version">v3.1.2</div>
+                        <p class="app-description">
+                            Generate comprehensive reports from multiple data sources with customizable templates and automated distribution.
+                        </p>
+                        <span class="app-tag">Reporting</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.9</span>
+                            <span><i class="fas fa-download"></i> 2.1k</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+
+                <!-- App 2 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-database"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Data Sync</h3>
+                        <div class="app-version">v2.4.1</div>
+                        <p class="app-description">
+                            Synchronize data between different platforms and maintain consistency across all your systems.
+                        </p>
+                        <span class="app-tag">Integration</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.7</span>
+                            <span><i class="fas fa-download"></i> 1.8k</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+
+                <!-- App 3 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-bug"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Bug Analyzer</h3>
+                        <div class="app-version">v1.2.0</div>
+                        <p class="app-description">
+                            Analyzes error reports, classifies issues, and suggests solutions based on historical data.
+                        </p>
+                        <span class="app-tag">QA</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.5</span>
+                            <span><i class="fas fa-download"></i> 720</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+
+                <!-- App 4 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-tasks"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Sprint Planner</h3>
+                        <div class="app-version">v2.3.1</div>
+                        <p class="app-description">
+                            Optimizes sprint planning considering team capacity, priorities, and task dependencies.
+                        </p>
+                        <span class="app-tag">Planning</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.8</span>
+                            <span><i class="fas fa-download"></i> 1.5k</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+
+                <!-- App 5 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-calendar-alt"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Release Tracker</h3>
+                        <div class="app-version">v1.8.3</div>
+                        <p class="app-description">
+                            Track releases across multiple projects and environments with automated notifications.
+                        </p>
+                        <span class="app-tag">DevOps</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.6</span>
+                            <span><i class="fas fa-download"></i> 980</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+
+                <!-- App 6 -->
+                <div class="app-item">
+                    <div class="app-icon"><i class="fas fa-users"></i></div>
+                    <div class="app-details">
+                        <h3 class="app-title">Team Dashboard</h3>
+                        <div class="app-version">v2.1.0</div>
+                        <p class="app-description">
+                            Centralized dashboard for team performance metrics, workload distribution, and project status.
+                        </p>
+                        <span class="app-tag">Management</span>
+                        <div class="app-stats">
+                            <span><i class="fas fa-star"></i> 4.9</span>
+                            <span><i class="fas fa-download"></i> 1.2k</span>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary btn-small">
+                        Open
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Any page-specific initialization for applications page
+    });
+</script>
+</body>
+</html> 

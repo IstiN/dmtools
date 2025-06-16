@@ -7,23 +7,25 @@
 function toggleTheme() {
     const body = document.body;
     const isDarkTheme = body.classList.contains('dark-theme');
-    const themeIcon = document.querySelector('.theme-switch i');
+    const themeIcon = document.getElementById('theme-icon');
     const themeText = document.querySelector('.theme-text');
     
     // Toggle theme class
     body.classList.toggle('dark-theme');
     
     // Update icon and text
-    if (isDarkTheme) {
-        // Switching to light theme
-        themeIcon.className = 'fas fa-moon';
-        if (themeText) themeText.textContent = 'Dark mode';
-        localStorage.setItem('dmtools-theme', 'light');
-    } else {
-        // Switching to dark theme
-        themeIcon.className = 'fas fa-sun';
-        if (themeText) themeText.textContent = 'Light mode';
-        localStorage.setItem('dmtools-theme', 'dark');
+    if (themeIcon) {
+        if (isDarkTheme) {
+            // Switching to light theme
+            themeIcon.className = 'fas fa-moon';
+            if (themeText) themeText.textContent = 'Dark mode';
+            localStorage.setItem('dmtools-theme', 'light');
+        } else {
+            // Switching to dark theme
+            themeIcon.className = 'fas fa-sun';
+            if (themeText) themeText.textContent = 'Light mode';
+            localStorage.setItem('dmtools-theme', 'dark');
+        }
     }
 }
 
@@ -46,15 +48,17 @@ function setThemeBasedOnPreference() {
 
 // Update UI elements based on theme
 function updateThemeUI(isDarkTheme) {
-    const themeIcon = document.querySelector('.theme-switch i');
+    const themeIcon = document.getElementById('theme-icon');
     const themeText = document.querySelector('.theme-text');
     
-    if (isDarkTheme) {
-        if (themeIcon) themeIcon.className = 'fas fa-sun';
-        if (themeText) themeText.textContent = 'Light mode';
-    } else {
-        if (themeIcon) themeIcon.className = 'fas fa-moon';
-        if (themeText) themeText.textContent = 'Dark mode';
+    if (themeIcon) {
+        if (isDarkTheme) {
+            themeIcon.className = 'fas fa-sun';
+            if (themeText) themeText.textContent = 'Light mode';
+        } else {
+            themeIcon.className = 'fas fa-moon';
+            if (themeText) themeText.textContent = 'Dark mode';
+        }
     }
 }
 

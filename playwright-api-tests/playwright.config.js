@@ -33,7 +33,7 @@ module.exports = defineConfig({
     },
     {
       name: 'ui-tests',
-      testMatch: ['**/ui.spec.js', '**/auth-ui.spec.js'],
+      testMatch: ['**/ui.spec.js', '**/auth-ui.spec.js', '**/spa-workspaces.spec.js', '**/spa-navigation.spec.js', '**/workspace-debug.spec.js'],
       use: {
         ...devices['Desktop Chrome'],
       },

@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.github.istin.dmtools.auth.model.WorkspaceRole;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +21,11 @@ public class WorkspaceDto {
     private String ownerName;
     private String ownerEmail;
     private WorkspaceRole currentUserRole;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime updatedAt;
 
     public WorkspaceDto(String id, String name, String ownerId, Set<WorkspaceUserDto> users) {

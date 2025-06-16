@@ -2,6 +2,7 @@ package com.github.istin.dmtools.server.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.istin.dmtools.server.jackson.JSONArrayDeserializer;
 import com.github.istin.dmtools.server.jackson.JSONArraySerializer;
 import com.github.istin.dmtools.server.jackson.JSONObjectDeserializer;
@@ -19,6 +20,10 @@ public class JacksonConfig {
     @Primary
     public ObjectMapper objectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
+        
+        // Register JavaTimeModule for LocalDateTime support
+        objectMapper.registerModule(new JavaTimeModule());
+        
         SimpleModule module = new SimpleModule();
         module.addDeserializer(JSONObject.class, new JSONObjectDeserializer());
         module.addDeserializer(JSONArray.class, new JSONArrayDeserializer());
