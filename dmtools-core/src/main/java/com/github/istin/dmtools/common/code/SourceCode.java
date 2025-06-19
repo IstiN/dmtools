@@ -83,7 +83,7 @@ public interface SourceCode {
 
         public static List<SourceCode> getConfiguredSourceCodes(JSONArray sources) throws IOException {
             List<SourceCode> sourceCodes = new ArrayList<>();
-            if (sources == null || sources.isEmpty()) {
+            if (sources == null) {
                 addGitHubSource(sourceCodes);
                 addBitbucketSource(sourceCodes);
                 addGitlabSource(sourceCodes);
