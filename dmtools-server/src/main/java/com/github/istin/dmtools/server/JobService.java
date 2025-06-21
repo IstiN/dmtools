@@ -71,10 +71,10 @@ public class JobService {
             Metadata metadata = ((Params) paramsByClass).getMetadata();
             if (metadata != null) {
                 metadata.init(job);
-            }
-            AI ai = job.getAi();
-            if (ai != null) {
-                ai.setMetadata(metadata);
+                AI ai = job.getAi();
+                if (ai != null) {
+                    ai.setMetadata(metadata);
+                }
             }
         }
     }

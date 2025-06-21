@@ -37,6 +37,10 @@ public class ChatService {
 
     public ChatResponse chat(ChatRequest request) {
         try {
+            if (request.getMessages() == null || request.getMessages().isEmpty()) {
+                logger.warn("Chat request received with no messages.");
+                return ChatResponse.error("Failed to process chat request: Message list cannot be empty.");
+            }
             logger.info("Processing chat request with {} messages", request.getMessages().size());
             
             // Convert ChatMessage DTOs to AI Message objects

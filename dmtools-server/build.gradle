@@ -80,12 +80,14 @@ dependencies {
     
     // Test dependencies
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.junit.jupiter:junit-jupiter-api'
     testImplementation 'org.junit.jupiter:junit-jupiter-engine'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
     testImplementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
     testRuntimeOnly 'net.bytebuddy:byte-buddy-agent:1.15.4'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
 }
 
 // dependencyManagement {
@@ -95,6 +97,7 @@ dependencies {
 // }
 
 configurations.all {
+    exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
     resolutionStrategy {
         force 'org.jboss.logging:jboss-logging:3.5.3.Final'
         force 'io.swagger.core.v3:swagger-annotations:2.2.15'

@@ -146,18 +146,20 @@ public class AuthController {
 
         if (user != null) {
             logger.info("✅ AUTH DEBUG - User found: {}, picture: {}", user.getEmail(), user.getPictureUrl());
-            
-            Map<String, Object> userMap = Map.of(
-                    "authenticated", true,
-                    "id", user.getId(),
-                    "email", user.getEmail() != null ? user.getEmail() : "",
-                    "name", user.getName() != null ? user.getName() : (user.getEmail() != null ? user.getEmail() : user.getId()),
-                    "givenName", user.getGivenName() != null ? user.getGivenName() : "",
-                    "familyName", user.getFamilyName() != null ? user.getFamilyName() : "",
-                    "pictureUrl", user.getPictureUrl() != null ? user.getPictureUrl() : "",
-                    "picture", user.getPictureUrl() != null ? user.getPictureUrl() : "", // For backward compatibility
-                    "provider", user.getProvider() != null ? user.getProvider().toString() : "UNKNOWN"
-            );
+
+            Map<String, Object> userMap = new java.util.HashMap<>();
+            userMap.put("authenticated", true);
+            userMap.put("id", user.getId());
+            if (user.getEmail() != null) userMap.put("email", user.getEmail());
+            if (user.getName() != null) userMap.put("name", user.getName());
+            if (user.getGivenName() != null) userMap.put("givenName", user.getGivenName());
+            if (user.getFamilyName() != null) userMap.put("familyName", user.getFamilyName());
+            if (user.getPictureUrl() != null) {
+                userMap.put("pictureUrl", user.getPictureUrl());
+                userMap.put("picture", user.getPictureUrl()); // For backward compatibility
+            }
+            if (user.getProvider() != null) userMap.put("provider", user.getProvider());
+
             return ResponseEntity.ok(userMap);
         }
 
