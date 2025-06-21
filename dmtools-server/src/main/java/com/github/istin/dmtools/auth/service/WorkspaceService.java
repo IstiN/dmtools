@@ -142,7 +142,7 @@ public class WorkspaceService {
         request.setName("Default Workspace");
         request.setDescription("Your default workspace");
 
-        return createWorkspace(request.getName(), user);
+        return createWorkspace(request.getName(), request.getDescription(), user);
     }
 
 } 

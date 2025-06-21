@@ -91,7 +91,6 @@ public class JobServiceTest {
         when(mockJobParams.getName()).thenReturn("testJob");
         when(mockJobParams.getParamsByClass(any())).thenReturn(mockParams);
         when(mockParams.getMetadata()).thenReturn(null);
-        when(mockJob.getAi()).thenReturn(mockAI);
         
         // Act
         jobService.executeJob(mockJobParams);

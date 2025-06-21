@@ -251,6 +251,389 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /integrations:
+    get:
+      summary: Get all integrations
+      description: Retrieves all integrations accessible to the current user
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      responses:
+        '200':
+          description: List of integrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntegrationDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create integration
+      description: Creates a new integration
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIntegrationRequest'
+      responses:
+        '200':
+          description: Integration created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /integrations/{integrationId}:
+    get:
+      summary: Get integration by ID
+      description: Retrieves a specific integration by its ID
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+        - name: includeSensitive
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to include sensitive configuration values
+      responses:
+        '200':
+          description: Integration details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update integration
+      description: Updates an existing integration
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIntegrationRequest'
+      responses:
+        '200':
+          description: Integration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete integration
+      description: Deletes an existing integration
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+      responses:
+        '200':
+          description: Integration deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /integrations/{integrationId}/enable:
+    put:
+      summary: Enable integration
+      description: Enables an integration
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+      responses:
+        '200':
+          description: Integration enabled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /integrations/{integrationId}/disable:
+    put:
+      summary: Disable integration
+      description: Disables an integration
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+      responses:
+        '200':
+          description: Integration disabled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /integrations/{integrationId}/workspaces:
+    post:
+      summary: Share integration with workspace
+      description: Shares an integration with a workspace
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareIntegrationWithWorkspaceRequest'
+      responses:
+        '200':
+          description: Integration shared with workspace successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /integrations/{integrationId}/workspaces/{workspaceId}:
+    delete:
+      summary: Remove integration from workspace
+      description: Removes an integration from a workspace
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the workspace
+      responses:
+        '200':
+          description: Integration removed from workspace successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /integrations/{integrationId}/users:
+    post:
+      summary: Share integration with user
+      description: Shares an integration with another user
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareIntegrationRequest'
+      responses:
+        '200':
+          description: Integration shared successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationUserDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /integrations/{integrationId}/users/{userId}:
+    delete:
+      summary: Remove user access
+      description: Removes a user's access to an integration
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the integration
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the user
+      responses:
+        '200':
+          description: User access removed successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /integrations/types:
+    get:
+      summary: Get integration types
+      description: Retrieves all available integration types and their configuration schemas
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      responses:
+        '200':
+          description: List of integration types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntegrationTypeDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /integrations/test:
+    post:
+      summary: Test integration connection
+      description: Tests an integration connection with the provided configuration
+      tags:
+        - Integrations
+      security:
+        - OAuth2: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestIntegrationRequest'
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
 components:
   schemas:
     WorkspaceDto:
@@ -400,6 +783,254 @@ components:
           description: Timestamp when the error occurred
           example: "2024-01-15T10:30:00Z"
 
+    IntegrationPermissionLevel:
+      type: string
+      enum:
+        - READ
+        - WRITE
+        - ADMIN
+      description: |
+        Permission level of a user for an integration:
+        * `READ` - Read-only access
+        * `WRITE` - Can modify the integration
+        * `ADMIN` - Full control over the integration
+      example: "READ"
+
+    IntegrationDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the integration
+        name:
+          type: string
+          description: Name of the integration
+        description:
+          type: string
+          nullable: true
+          description: Description of the integration
+        type:
+          type: string
+          description: Type of the integration (e.g., "jira", "github")
+        enabled:
+          type: boolean
+          description: Whether the integration is enabled
+        createdById:
+          type: string
+          description: ID of the user who created the integration
+        createdByName:
+          type: string
+          description: Name of the user who created the integration
+        usageCount:
+          type: integer
+          description: Number of times the integration has been used
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the integration was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the integration was last updated
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the integration was last used
+        configParams:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntegrationConfigDto'
+          description: Configuration parameters for the integration
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntegrationUserDto'
+          description: Users with access to the integration
+        workspaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceDto'
+          description: Workspaces where the integration is shared
+
+    IntegrationConfigDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the configuration parameter
+        paramKey:
+          type: string
+          description: Key of the configuration parameter
+        paramValue:
+          type: string
+          nullable: true
+          description: Value of the configuration parameter (omitted if sensitive)
+        sensitive:
+          type: boolean
+          description: Whether the parameter is sensitive
+
+    IntegrationUserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the integration-user relationship
+        userId:
+          type: string
+          description: ID of the user
+        userName:
+          type: string
+          description: Name of the user
+        userEmail:
+          type: string
+          description: Email of the user
+        userPictureUrl:
+          type: string
+          nullable: true
+          description: Profile picture URL of the user
+        permissionLevel:
+          $ref: '#/components/schemas/IntegrationPermissionLevel'
+        addedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the user was granted access
+
+    CreateIntegrationRequest:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        type:
+          type: string
+        configParams:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              value:
+                type: string
+              sensitive:
+                type: boolean
+
+    UpdateIntegrationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        enabled:
+          type: boolean
+        configParams:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              value:
+                type: string
+              sensitive:
+                type: boolean
+
+    ShareIntegrationRequest:
+      type: object
+      required:
+        - userEmail
+        - permissionLevel
+      properties:
+        userEmail:
+          type: string
+          format: email
+        permissionLevel:
+          $ref: '#/components/schemas/IntegrationPermissionLevel'
+          
+    ShareIntegrationWithWorkspaceRequest:
+      type: object
+      required:
+        - workspaceId
+      properties:
+        workspaceId:
+          type: string
+
+    TestIntegrationRequest:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+        configParams:
+          type: object
+          additionalProperties:
+            type: string
+
+    IntegrationTypeDto:
+      type: object
+      properties:
+        type:
+          type: string
+          description: The type identifier
+        displayName:
+          type: string
+          description: Display name for the integration type
+        description:
+          type: string
+          description: Description of the integration type
+        iconUrl:
+          type: string
+          nullable: true
+          description: Icon URL for the integration type
+        configParams:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigParamDefinition'
+          description: List of configuration parameters for this integration type
+
+    ConfigParamDefinition:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Parameter key
+        displayName:
+          type: string
+          description: Display name for the parameter
+        description:
+          type: string
+          description: Description of the parameter
+        required:
+          type: boolean
+          description: Whether the parameter is required
+        sensitive:
+          type: boolean
+          description: Whether the parameter contains sensitive information
+        defaultValue:
+          type: string
+          nullable: true
+          description: Default value for the parameter
+        type:
+          type: string
+          description: Type of the parameter (e.g., "string", "password", "url", "select")
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Options for select-type parameters
+
   responses:
     BadRequest:
       description: Bad request
@@ -473,4 +1104,6 @@ tags:
   - name: Workspaces
     description: Operations related to workspace management
   - name: Workspace Sharing
-    description: Operations related to sharing workspaces with other users 
+    description: Operations related to workspace user management
+  - name: Integrations
+    description: API for managing integrations with external systems 

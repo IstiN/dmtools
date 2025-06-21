@@ -16,7 +16,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.mockito.MockitoAnnotations;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -52,12 +51,6 @@ public class WorkspaceServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Enable lenient mocking to avoid UnnecessaryStubbingException
-        MockitoAnnotations.openMocks(this);
-        lenient().when(workspaceRepository.findById(anyString())).thenReturn(Optional.empty());
-        lenient().when(workspaceRepository.findByIdAndOwnerOrUsers_User(anyString(), any(User.class), any(User.class)))
-                .thenReturn(Optional.empty());
-
         owner = new User();
         owner.setId("owner123");
         owner.setEmail("owner@example.com");
@@ -359,17 +352,13 @@ public class WorkspaceServiceTest {
 
     @Test
     void testUuidConversionError() {
-        when(workspaceRepository.findByNameAndOwner(anyString(), any(User.class)))
-                .thenReturn(Optional.empty());
-        
-        when(workspaceRepository.save(any(Workspace.class)))
-                .thenThrow(new DataIntegrityViolationException(
-                        "Could not extract column [1] from JDBC ResultSet [Data conversion error converting \"240e22ca-e410-4807-ae66-c48bb4ebeb34\" [22018-224]] [n/a]"));
+        when(workspaceRepository.findByNameAndOwner(anyString(), any(User.class))).thenReturn(Optional.empty());
+        when(workspaceRepository.save(any(Workspace.class))).thenThrow(new DataIntegrityViolationException("Data conversion error converting whatever"));
 
-        Exception exception = assertThrows(DataIntegrityViolationException.class, () -> {
-            workspaceService.createWorkspace("Test Workspace", owner);
+        Exception exception = assertThrows(IllegalStateException.class, () -> {
+            workspaceService.createWorkspace("test", "description", new User());
         });
 
-        assertTrue(exception.getMessage().contains("Data conversion error"));
+        assertTrue(exception.getMessage().contains("Database ID type mismatch"));
     }
 } 
