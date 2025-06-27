@@ -22,6 +22,9 @@ public class DmToolsServerApplication {
     static class ApplicationStartup implements ApplicationListener<ApplicationReadyEvent> {
 
         private final SystemCommandService systemCommandService;
+        
+        @org.springframework.beans.factory.annotation.Value("${app.base-url}")
+        private String baseUrl;
 
         public ApplicationStartup(SystemCommandService systemCommandService) {
             this.systemCommandService = systemCommandService;
@@ -29,7 +32,7 @@ public class DmToolsServerApplication {
 
         @Override
         public void onApplicationEvent(ApplicationReadyEvent event) {
-            systemCommandService.openBrowser("http://localhost:8080/settings.html");
+            systemCommandService.openBrowser(baseUrl + "/settings.html");
         }
     }
 } 

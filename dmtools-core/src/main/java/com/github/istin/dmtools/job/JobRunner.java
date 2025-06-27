@@ -101,7 +101,8 @@ public class JobRunner {
         System.out.println("  --list-jobs       List all available jobs");
         System.out.println();
         System.out.println("For job execution, provide Base64-encoded JSON parameters.");
-        System.out.println("Use the web interface at http://localhost:8080 for easier job configuration.");
+        String baseUrl = System.getProperty("app.base-url", "http://localhost:8080");
+        System.out.println("Use the web interface at " + baseUrl + " for easier job configuration.");
     }
 
     private static void listJobs() {
