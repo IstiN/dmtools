@@ -44,6 +44,7 @@ public class RequestDecompositionAgent extends AbstractSimpleAgent<RequestDecomp
             json.put("questions", new JSONArray(questions));
             json.put("tasks", new JSONArray(tasks));
             json.put("instructions", new JSONArray(instructions));
+            json.put("knownInfo", knownInfo);
             json.put("formattingRules", formattingRules);
             json.put("fewShots", fewShots);
             return json.toString(1);

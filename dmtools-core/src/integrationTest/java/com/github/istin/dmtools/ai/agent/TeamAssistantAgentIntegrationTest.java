@@ -21,7 +21,7 @@ public class TeamAssistantAgentIntegrationTest {
 
     private RequestDecompositionAgent.Result createRequest(String aiRole, String request, String[] questions,
                                                            String[] tasks, String[] instructions, String knownInfo) {
-        return new RequestDecompositionAgent.Result(aiRole, request, questions, tasks, instructions, knownInfo, "", "");
+        return new RequestDecompositionAgent.Result(aiRole, request, questions, tasks, instructions, knownInfo, "Please format the output in markdown.", "");
     }
 
     @Test
