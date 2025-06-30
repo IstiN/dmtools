@@ -8,8 +8,8 @@ group = 'com.github.istin.dmtools'
 version = '0.0.1-SNAPSHOT'
 
 java {
-    sourceCompatibility = '21'
-    targetCompatibility = '21'
+    sourceCompatibility = '23'
+    targetCompatibility = '23'
 }
 
 repositories {
@@ -118,4 +118,17 @@ test {
         events "passed", "skipped", "failed", "standardOut", "standardError"
         exceptionFormat "full"
     }
+}
+
+bootJar {
+    mainClass.set('com.github.istin.dmtools.server.DmToolsServerApplication')
+    archiveFileName.set('dmtools-appengine.jar')
+    destinationDirectory.set(file("${project.rootDir}"))
+    
+    // Always build for production when creating the jar for deployment
+    println "Building dmtools-server bootJar for deployment"
+}
+
+bootRun {
+    mainClass.set('com.github.istin.dmtools.server.DmToolsServerApplication')
 } 
