@@ -82,22 +82,22 @@ jobs:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
       - name: Configure Docker to use gcloud as credential helper
-        run: gcloud auth configure-docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
       - name: Build Docker image
         run: |
-          docker build -t gcr.io/${{ vars.GCP_PROJECT_ID }}/dmtools:${{ github.run_number }}-${{ github.sha }} \
+          docker build -t us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/dmtools/dmtools:${{ github.run_number }}-${{ github.sha }} \
             --build-arg GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             --build-arg GEMINI_DEFAULT_MODEL="${{ vars.GEMINI_DEFAULT_MODEL }}" \
             .
 
       - name: Push Docker image
-        run: docker push gcr.io/${{ vars.GCP_PROJECT_ID }}/dmtools:${{ github.run_number }}-${{ github.sha }}
+        run: docker push us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/dmtools/dmtools:${{ github.run_number }}-${{ github.sha }}
 
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy dmtools \
-            --image gcr.io/${{ vars.GCP_PROJECT_ID }}/dmtools:${{ github.run_number }}-${{ github.sha }} \
+            --image us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/dmtools/dmtools:${{ github.run_number }}-${{ github.sha }} \
             --platform managed \
             --region us-central1 \
             --allow-unauthenticated \
