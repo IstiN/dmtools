@@ -1,0 +1,112 @@
+name: Deploy to GCP App Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 23
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '23'
+
+      - name: Cache Gradle files
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build JAR for production
+        run: ./gradlew clean :dmtools-server:bootJar -PbuildProfile=production
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify JAR exists
+        run: |
+          if [ ! -f "dmtools-appengine.jar" ]; then
+            echo "ERROR: dmtools-appengine.jar not found"
+            ls -la
+            exit 1
+          fi
+          echo "JAR file found: $(ls -lh dmtools-appengine.jar)"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Create app.yaml with secrets
+        run: |
+          cat > app.yaml << EOF
+          runtime: java21
+          instance_class: F2
+
+          entrypoint: 'java -Dpolyglot.engine.WarnInterpreterOnly=false -Xmx512m -Xms256m -server -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -Dserver.port=8080 -jar dmtools-appengine.jar'
+
+          automatic_scaling:
+            min_instances: 0
+            max_instances: 5
+            target_cpu_utilization: 0.8
+            target_throughput_utilization: 0.8
+            min_pending_latency: 30ms
+            max_pending_latency: automatic
+
+          health_check:
+            enable_health_check: True
+            check_interval_sec: 60
+            timeout_sec: 30
+            unhealthy_threshold: 3
+            healthy_threshold: 2
+
+          env_variables:
+            SPRING_PROFILES_ACTIVE: "prod"
+            GEMINI_API_KEY: "${{ secrets.GEMINI_API_KEY }}"
+            GEMINI_DEFAULT_MODEL: "${{ vars.GEMINI_DEFAULT_MODEL }}"
+
+          handlers:
+            - url: /.*
+              script: this field is required but not used by Java runtimes when using an entrypoint
+          EOF
+
+      - name: Deploy to App Engine
+        run: |
+          gcloud app deploy app.yaml \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --version=${{ github.run_number }}-${{ github.sha }} \
+            --promote \
+            --stop-previous-version \
+            --quiet
+
+      - name: Get deployment URL
+        run: |
+          echo "Application deployed to: https://${{ vars.GCP_PROJECT_ID }}.appspot.com"
+          gcloud app browse --project=${{ vars.GCP_PROJECT_ID }} 
