@@ -84,7 +84,6 @@ jobs:
             --max-instances=5 \
             --timeout=900 \
             --revision-suffix=github-${{ github.run_number }} \
-            --traffic=100 \
             --project=${{ vars.GCP_PROJECT_ID }}
 
       - name: Clean up old revisions
