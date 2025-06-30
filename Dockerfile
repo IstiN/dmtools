@@ -1,9 +1,13 @@
 FROM openjdk:23-jdk-slim
 
+# Build arguments
+ARG GEMINI_API_KEY
+ARG GEMINI_DEFAULT_MODEL=gemini-2.5-flash-preview-05-20
+
 # Set environment variables
 ENV SPRING_PROFILES_ACTIVE=prod
-# ENV GEMINI_API_KEY - should be passed at runtime
-# ENV GEMINI_DEFAULT_MODEL - should be passed at runtime
+ENV GEMINI_API_KEY=${GEMINI_API_KEY}
+ENV GEMINI_DEFAULT_MODEL=${GEMINI_DEFAULT_MODEL}
 
 # Copy the JAR file
 COPY dmtools-appengine.jar app.jar

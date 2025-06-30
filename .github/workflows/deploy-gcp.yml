@@ -1,4 +1,4 @@
-name: Deploy to GCP App Engine
+name: Deploy to GCP Cloud Run
 
 on:
   workflow_dispatch:
@@ -81,49 +81,35 @@ jobs:
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
-      - name: Create app.yaml with secrets
+      - name: Configure Docker to use gcloud as credential helper
+        run: gcloud auth configure-docker
+
+      - name: Build Docker image
         run: |
-          cat > app.yaml << EOF
-          runtime: java21
-          instance_class: F2
+          docker build -t gcr.io/${{ vars.GCP_PROJECT_ID }}/dmtools:${{ github.run_number }}-${{ github.sha }} \
+            --build-arg GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+            --build-arg GEMINI_DEFAULT_MODEL="${{ vars.GEMINI_DEFAULT_MODEL }}" \
+            .
 
-          entrypoint: 'java -Dpolyglot.engine.WarnInterpreterOnly=false -Xmx512m -Xms256m -server -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -Dserver.port=8080 -jar dmtools-appengine.jar'
+      - name: Push Docker image
+        run: docker push gcr.io/${{ vars.GCP_PROJECT_ID }}/dmtools:${{ github.run_number }}-${{ github.sha }}
 
-          automatic_scaling:
-            min_instances: 0
-            max_instances: 5
-            target_cpu_utilization: 0.8
-            target_throughput_utilization: 0.8
-            min_pending_latency: 30ms
-            max_pending_latency: automatic
-
-          health_check:
-            enable_health_check: True
-            check_interval_sec: 60
-            timeout_sec: 30
-            unhealthy_threshold: 3
-            healthy_threshold: 2
-
-          env_variables:
-            SPRING_PROFILES_ACTIVE: "prod"
-            GEMINI_API_KEY: "${{ secrets.GEMINI_API_KEY }}"
-            GEMINI_DEFAULT_MODEL: "${{ vars.GEMINI_DEFAULT_MODEL }}"
-
-          handlers:
-            - url: /.*
-              script: this field is required but not used by Java runtimes when using an entrypoint
-          EOF
-
-      - name: Deploy to App Engine
+      - name: Deploy to Cloud Run
         run: |
-          gcloud app deploy app.yaml \
-            --project=${{ vars.GCP_PROJECT_ID }} \
-            --version=${{ github.run_number }}-${{ github.sha }} \
-            --promote \
-            --stop-previous-version \
-            --quiet
+          gcloud run deploy dmtools \
+            --image gcr.io/${{ vars.GCP_PROJECT_ID }}/dmtools:${{ github.run_number }}-${{ github.sha }} \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_DEFAULT_MODEL=${{ vars.GEMINI_DEFAULT_MODEL }}" \
+            --memory=1Gi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=5 \
+            --port=8080 \
+            --project=${{ vars.GCP_PROJECT_ID }}
 
       - name: Get deployment URL
         run: |
-          echo "Application deployed to: https://${{ vars.GCP_PROJECT_ID }}.appspot.com"
-          gcloud app browse --project=${{ vars.GCP_PROJECT_ID }} 
+          echo "Application deployed to: https://dmtools-431977789017.us-central1.run.app"
+          gcloud run services describe dmtools --region=us-central1 --project=${{ vars.GCP_PROJECT_ID }} --format="value(status.url)" 
