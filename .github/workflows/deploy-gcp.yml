@@ -40,19 +40,36 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Build JAR for production
-        run: ./gradlew clean :dmtools-server:bootJar -PbuildProfile=production
+        run: |
+          ./gradlew clean build :dmtools-server:bootJar -PbuildProfile=production
+          echo "Build completed, checking for JAR files..."
+          find . -name "*.jar" -type f | head -10
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify JAR exists
+      - name: Verify JAR exists and copy if needed
         run: |
-          if [ ! -f "dmtools-appengine.jar" ]; then
-            echo "ERROR: dmtools-appengine.jar not found"
-            ls -la
-            exit 1
+          # Check if JAR exists in root
+          if [ -f "dmtools-appengine.jar" ]; then
+            echo "JAR found in root directory: $(ls -lh dmtools-appengine.jar)"
+          else
+            echo "JAR not found in root, checking dmtools-server/build/libs/"
+            ls -la dmtools-server/build/libs/ || echo "dmtools-server/build/libs/ not found"
+            
+            # Try to find the JAR in build directories
+            JAR_FILE=$(find . -name "dmtools-appengine.jar" -type f | head -1)
+            if [ -n "$JAR_FILE" ]; then
+              echo "Found JAR at: $JAR_FILE"
+              cp "$JAR_FILE" ./dmtools-appengine.jar
+              echo "Copied JAR to root: $(ls -lh dmtools-appengine.jar)"
+            else
+              echo "ERROR: dmtools-appengine.jar not found anywhere"
+              echo "Available JAR files:"
+              find . -name "*.jar" -type f
+              exit 1
+            fi
           fi
-          echo "JAR file found: $(ls -lh dmtools-appengine.jar)"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
