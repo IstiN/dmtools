@@ -1,7 +1,7 @@
 runtime: java21
 instance_class: F2
 
-entrypoint: 'java -Dpolyglot.engine.WarnInterpreterOnly=false -Xmx512m -Xms256m -server -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -jar dmtools-appengine.jar'
+entrypoint: 'java -Dpolyglot.engine.WarnInterpreterOnly=false -Xmx512m -Xms256m -server -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -Dserver.port=8080 -jar dmtools-appengine.jar'
 
 automatic_scaling:
   min_instances: 0
@@ -20,7 +20,8 @@ health_check:
 
 env_variables:
   SPRING_PROFILES_ACTIVE: "prod"
-  GEMINI_API_KEY: "YOUR_GEMINI_API_KEY_HERE"
+  # GEMINI_API_KEY: "set-via-github-actions-or-gcloud-deploy"
+  # GEMINI_DEFAULT_MODEL: "gemini-2.5-flash-preview-05-20"
   # Add other production environment variables as needed:
   # OPEN_AI_API_KEY: "your-openai-key-here"
   # JIRA_BASE_PATH: "https://your-jira.atlassian.net"
