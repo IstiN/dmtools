@@ -41,7 +41,7 @@ jobs:
 
       - name: Build application JAR
         run: |
-          ./gradlew clean :dmtools-server:bootJar -PbuildProfile=production -x test -x integrationTest
+          ./gradlew clean :dmtools-server:bootJar -x test -x integrationTest
           ls -la dmtools-appengine.jar
         env:
           GITHUB_USERNAME: ${{ github.actor }}
@@ -77,7 +77,7 @@ jobs:
             --platform managed \
             --region us-central1 \
             --allow-unauthenticated \
-            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_DEFAULT_MODEL=${{ vars.GEMINI_DEFAULT_MODEL }}" \
+            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_DEFAULT_MODEL=${{ vars.GEMINI_DEFAULT_MODEL }},JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             --memory=1Gi \
             --cpu=1 \
             --min-instances=0 \
