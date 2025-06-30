@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Proxy Endpoints Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>OAuth Proxy Endpoints Test</h1>
+    
+    <div class="test">
+        <h3>Test 1: Get Providers</h3>
+        <button onclick="testProviders()">Test /api/oauth/providers</button>
+        <div id="providers-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 2: Initiate OAuth</h3>
+        <button onclick="testInitiate()">Test /api/oauth/initiate</button>
+        <div id="initiate-result"></div>
+    </div>
+    
+    <script>
+        async function testProviders() {
+            try {
+                const response = await fetch('/api/oauth/providers');
+                const data = await response.json();
+                document.getElementById('providers-result').innerHTML = 
+                    `<div class="success">✅ SUCCESS: ${JSON.stringify(data, null, 2)}</div>`;
+            } catch (error) {
+                document.getElementById('providers-result').innerHTML = 
+                    `<div class="error">❌ ERROR: ${error.message}</div>`;
+            }
+        }
+        
+        async function testInitiate() {
+            try {
+                const response = await fetch('/api/oauth/initiate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: 'google',
+                        client_redirect_uri: 'https://example.com/callback',
+                        client_type: 'web',
+                        environment: 'dev'
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('initiate-result').innerHTML = 
+                        `<div class="success">✅ SUCCESS: OAuth URL generated!<br>
+                        State: ${data.state}<br>
+                        Expires: ${data.expires_in}s<br>
+                        <a href="${data.auth_url}" target="_blank">🔗 Test OAuth Link</a></div>`;
+                } else {
+                    document.getElementById('initiate-result').innerHTML = 
+                        `<div class="error">❌ ERROR: ${JSON.stringify(data, null, 2)}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('initiate-result').innerHTML = 
+                    `<div class="error">❌ ERROR: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html> 
