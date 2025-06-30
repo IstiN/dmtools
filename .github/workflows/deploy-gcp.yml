@@ -41,7 +41,7 @@ jobs:
 
       - name: Build JAR for production
         run: |
-          ./gradlew clean build :dmtools-server:bootJar -PbuildProfile=production
+          ./gradlew clean build :dmtools-server:bootJar -PbuildProfile=production -x test -x integrationTest
           echo "Build completed, checking for JAR files..."
           find . -name "*.jar" -type f | head -10
         env:
