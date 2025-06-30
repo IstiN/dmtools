@@ -96,7 +96,7 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy dmtools-github \
+          gcloud run deploy dmtools \
             --image us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/dmtools/dmtools:${{ github.run_number }}-${{ github.sha }} \
             --platform managed \
             --region us-central1 \
@@ -107,9 +107,24 @@ jobs:
             --min-instances=0 \
             --max-instances=5 \
             --timeout=900 \
+            --revision-suffix=github-${{ github.run_number }} \
+            --traffic=100 \
             --project=${{ vars.GCP_PROJECT_ID }}
+
+      - name: Clean up old revisions
+        run: |
+          # Get all revisions except the latest one
+          OLD_REVISIONS=$(gcloud run revisions list --service=dmtools --region=us-central1 --project=${{ vars.GCP_PROJECT_ID }} --format="value(metadata.name)" --limit=10 | tail -n +2)
+          
+          # Delete old revisions
+          for revision in $OLD_REVISIONS; do
+            if [ ! -z "$revision" ]; then
+              echo "Deleting old revision: $revision"
+              gcloud run revisions delete $revision --region=us-central1 --project=${{ vars.GCP_PROJECT_ID }} --quiet || echo "Failed to delete $revision"
+            fi
+          done
 
       - name: Get deployment URL
         run: |
-          URL=$(gcloud run services describe dmtools-github --region=us-central1 --project=${{ vars.GCP_PROJECT_ID }} --format="value(status.url)")
-          echo "Application deployed to: $URL" 
+          echo "Application deployed to: https://dmtools-431977789017.us-central1.run.app"
+          gcloud run services describe dmtools --region=us-central1 --project=${{ vars.GCP_PROJECT_ID }} --format="value(status.url)" 
