@@ -32,7 +32,8 @@ public class DmToolsServerApplication {
 
         @Override
         public void onApplicationEvent(ApplicationReadyEvent event) {
-            systemCommandService.openBrowser(baseUrl + "/settings.html");
+            // Open Swagger UI since we deleted the settings page
+            systemCommandService.openBrowser(baseUrl + "/swagger-ui.html");
         }
     }
 } 

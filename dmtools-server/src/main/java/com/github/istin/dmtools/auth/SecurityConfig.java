@@ -157,7 +157,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/auth/local-login", "/api/auth/user", "/error").permitAll()
                     .requestMatchers("/api/oauth/**").permitAll()  // Allow OAuth proxy endpoints
                     .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
-                    .requestMatchers("/", "/index.html", "/login.html", "/workspaces.html", "/create-agent.html", "/settings.html", "/presentation-creator.html", "/test-chat-integration.html", "/test-oauth-proxy.html").permitAll()
+                    .requestMatchers("/", "/test-*.html").permitAll()
                     .requestMatchers("/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**", "/api-docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/v1/chat/**").permitAll()

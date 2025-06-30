@@ -16,13 +16,14 @@ public class WebController {
 
     @GetMapping("/")
     public String index() {
-        return "redirect:/index.html";
+        return "redirect:/swagger-ui.html";
     }
 
-    @GetMapping("/create-agent")
-    public String createAgent() {
-        return "redirect:/create-agent.html";
-    }
+    // Removed create-agent redirect since the HTML file was deleted
+    // @GetMapping("/create-agent")
+    // public String createAgent() {
+    //     return "redirect:/create-agent.html";
+    // }
 
     @PostMapping("/shutdown")
     @ResponseBody
