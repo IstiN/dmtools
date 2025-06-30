@@ -106,7 +106,7 @@ jobs:
             --cpu=1 \
             --min-instances=0 \
             --max-instances=5 \
-            --port=8080 \
+            --timeout=900 \
             --project=${{ vars.GCP_PROJECT_ID }}
 
       - name: Get deployment URL
