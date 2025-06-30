@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "vscjava.vscode-java-pack",
+        "vscjava.vscode-spring-initializr",
+        "vscjava.vscode-spring-boot-dashboard",
+        "vscjava.vscode-gradle",
+        "redhat.vscode-yaml",
+        "ms-playwright.playwright",
+        "humao.rest-client"
+    ]
+} 

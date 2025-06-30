@@ -1,0 +1,148 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "gradle: build",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": ["build"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$gradle"
+        },
+        {
+            "label": "gradle: compileJava (no tests)",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": ["compileJava"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$gradle"
+        },
+        {
+            "label": "gradle: build for run",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": ["classes", "processResources", "-x", "test"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$gradle"
+        },
+        {
+            "label": "gradle: clean build",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": ["clean", "build"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$gradle"
+        },
+        {
+            "label": "gradle: bootRun",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": [":dmtools-server:bootRun"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "gradle",
+                "pattern": {
+                    "regexp": "^.*$",
+                    "file": 1,
+                    "location": 2,
+                    "message": 3
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^.*Gradle build daemon.*",
+                    "endsPattern": "^.*Started DmToolsServerApplication.*"
+                }
+            }
+        },
+        {
+            "label": "run: dmtools server",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": [":dmtools-server:bootRun", "--console=plain"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "run: dmtools server (no tests)",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": ["compileJava", ":dmtools-server:bootRun", "--console=plain", "-x", "test"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "gradle: test",
+            "type": "shell",
+            "command": "./gradlew",
+            "args": ["test"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$gradle"
+        },
+        {
+            "label": "playwright: test",
+            "type": "shell",
+            "command": "cd playwright-api-tests && npx playwright test",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        }
+    ]
+} 

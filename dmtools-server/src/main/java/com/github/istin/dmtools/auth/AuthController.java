@@ -37,7 +37,7 @@ public class AuthController {
     @Value("${auth.local.password:secret123}")
     private String localPassword;
 
-    @Value("${auth.local.jwtSecret:supersecretjwtkeythatislongenoughforhmacsha256algorithm}")
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Value("${auth.local.jwtExpirationMs:86400000}")

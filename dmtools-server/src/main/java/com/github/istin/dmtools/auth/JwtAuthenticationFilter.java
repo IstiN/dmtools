@@ -32,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final String jwtSecret;
 
     public JwtAuthenticationFilter(JwtUtils jwtUtils, UserService userService, 
-                                 @Value("${auth.local.jwtSecret:supersecretjwtkeythatislongenoughforhmacsha256algorithm}") String jwtSecret) {
+                                 @Value("${jwt.secret}") String jwtSecret) {
         this.jwtUtils = jwtUtils;
         this.userService = userService;
         this.jwtSecret = jwtSecret;

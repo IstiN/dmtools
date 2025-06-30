@@ -23,29 +23,43 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
-    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler;
     private final AuthDebugFilter authDebugFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final CustomOidcUserService customOidcUserService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
+    private final CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
     private final String activeProfile;
 
-    public SecurityConfig(OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler, AuthDebugFilter authDebugFilter, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, JwtAuthenticationFilter jwtAuthenticationFilter, @Value("${spring.profiles.active:default}") String activeProfile) {
-        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
+    public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
+                         AuthDebugFilter authDebugFilter, 
+                         CustomOAuth2UserService customOAuth2UserService, 
+                         CustomOidcUserService customOidcUserService, 
+                         JwtAuthenticationFilter jwtAuthenticationFilter, 
+                         CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver,
+                         CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
+                         @Value("${spring.profiles.active:default}") String activeProfile) {
+        this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.customOAuth2UserService = customOAuth2UserService;
         this.customOidcUserService = customOidcUserService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.customOAuth2AuthorizationRequestResolver = customOAuth2AuthorizationRequestResolver;
+        this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
         this.activeProfile = activeProfile;
-        logger.info("SecurityConfig initialized with custom OAuth2AuthenticationSuccessHandler and AuthDebugFilter.");
+        logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
     }
 
     @Bean
@@ -100,6 +114,35 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        
+        // Allow all origins for API access
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        
+        // Allow all HTTP methods
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        
+        // Allow all headers
+        configuration.setAllowedHeaders(List.of("*"));
+        
+        // Allow credentials (cookies, authorization headers)
+        configuration.setAllowCredentials(true);
+        
+        // Cache preflight response for 1 hour
+        configuration.setMaxAge(3600L);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        
+        // Apply to all API endpoints
+        source.registerCorsConfiguration("/api/**", configuration);
+        
+        logger.info("🌐 CORS configured to allow all origins for /api/** endpoints");
+        
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         logger.info("🔧 Configuring SecurityFilterChain for active profile: {}", activeProfile);
 
@@ -109,10 +152,12 @@ public class SecurityConfig {
 
         http
             .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/local-login", "/api/auth/user", "/error").permitAll()
+                    .requestMatchers("/api/oauth/**").permitAll()  // Allow OAuth proxy endpoints
                     .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
-                    .requestMatchers("/", "/index.html", "/login.html", "/workspaces.html", "/create-agent.html", "/settings.html", "/presentation-creator.html", "/test-chat-integration.html").permitAll()
+                    .requestMatchers("/", "/index.html", "/login.html", "/workspaces.html", "/create-agent.html", "/settings.html", "/presentation-creator.html", "/test-chat-integration.html", "/test-oauth-proxy.html").permitAll()
                     .requestMatchers("/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**", "/api-docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/v1/chat/**").permitAll()
@@ -122,11 +167,15 @@ public class SecurityConfig {
 
         // Always configure OAuth2 login (can coexist with local auth)
         http.oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(authorization -> authorization
+                        .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
+                )
                 .userInfoEndpoint(userInfo -> userInfo
                         .userService(customOAuth2UserService)
                         .oidcUserService(customOidcUserService)
                 )
-                .successHandler(oAuth2AuthenticationSuccessHandler)
+                .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
+                .failureHandler(customOAuth2AuthenticationFailureHandler)
         );
 
         // Configure logout

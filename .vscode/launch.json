@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "▶️ DmTools Server (Script)",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "./run-server.sh",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "DmToolsServerApplication",
+            "request": "launch",
+            "mainClass": "com.github.istin.dmtools.server.DmToolsServerApplication",
+            "projectName": "dmtools-server",
+            "args": [],
+            "vmArgs": [
+                "-Dspring.profiles.active=local", 
+                "-Denv=local"
+            ],
+            "env": {
+                "SPRING_PROFILES_ACTIVE": "local"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "gradle: build for run",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+} 

@@ -1,3 +1,55 @@
 {
-    "java.debug.settings.onBuildFailureProceed": true
+    "java.debug.settings.onBuildFailureProceed": true,
+    "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m -Xlog:disable",
+    
+    // Gradle configuration
+    "java.import.gradle.enabled": true,
+    "java.import.gradle.wrapper.enabled": true,
+    "java.configuration.updateBuildConfiguration": "automatic",
+    
+    // Spring Boot configuration
+    "spring-boot.ls.checkJVM": false,
+    "java.compile.nullAnalysis.mode": "automatic",
+    
+    // File associations
+    "files.associations": {
+        "*.gradle": "gradle",
+        "*.yaml": "yaml",
+        "*.yml": "yaml"
+    },
+    
+    // Exclude build directories from file explorer
+    "files.exclude": {
+        "**/build": true,
+        "**/bin": true,
+        "**/.gradle": true,
+        "**/cache*": true
+    },
+    
+    // Java source paths for multi-module project
+    "java.project.sourcePaths": [
+        "dmtools-core/src/main/java",
+        "dmtools-server/src/main/java"
+    ],
+    
+    // Test configuration
+    "java.test.config": {
+        "name": "dmtools-tests",
+        "workingDirectory": "${workspaceFolder}",
+        "vmArgs": [
+            "-Dnet.bytebuddy.experimental=true",
+            "-XX:+EnableDynamicAgentLoading"
+        ]
+    },
+    
+    // Enable Java extension's run behavior but with proper configuration
+    "java.debug.settings.enableRunDebugCodeLens": true,
+    "java.debug.settings.showHex": false,
+    "java.debug.settings.showStaticVariables": false,
+    "java.debug.settings.showQualifiedNames": false,
+    
+    // Force Java extension to use Gradle
+    "java.clean.workspace": false,
+    "java.import.gradle.java.home": null,
+    "java.configuration.maven.userSettings": null
 }

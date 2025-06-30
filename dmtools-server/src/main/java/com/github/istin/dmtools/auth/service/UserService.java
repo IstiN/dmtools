@@ -117,4 +117,119 @@ public class UserService {
     public User save(User user) {
         return userRepository.save(user);
     }
+
+    /**
+     * Create or update user from OAuth2 authentication token
+     */
+    @Transactional
+    public User createOrUpdateOAuth2User(org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken oauth2Token) {
+        org.springframework.security.oauth2.core.user.OAuth2User oauth2User = oauth2Token.getPrincipal();
+        String registrationId = oauth2Token.getAuthorizedClientRegistrationId();
+        
+        // Extract user information based on provider
+        String email = extractEmailFromOAuth2User(oauth2User, registrationId);
+        String name = extractNameFromOAuth2User(oauth2User, registrationId);
+        String givenName = extractGivenNameFromOAuth2User(oauth2User, registrationId);
+        String familyName = extractFamilyNameFromOAuth2User(oauth2User, registrationId);
+        String pictureUrl = extractPictureUrlFromOAuth2User(oauth2User, registrationId);
+        String locale = extractLocaleFromOAuth2User(oauth2User, registrationId);
+        String providerId = extractProviderIdFromOAuth2User(oauth2User, registrationId);
+        
+        AuthProvider authProvider = AuthProvider.valueOf(registrationId.toUpperCase());
+        
+        return createOrUpdateUser(email, name, givenName, familyName, pictureUrl, locale, authProvider, providerId);
+    }
+    
+    private String extractEmailFromOAuth2User(org.springframework.security.oauth2.core.user.OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("email");
+            case "microsoft":
+                String email = user.getAttribute("mail");
+                return email != null ? email : user.getAttribute("userPrincipalName");
+            case "github":
+                return user.getAttribute("email");
+            default:
+                return user.getAttribute("email");
+        }
+    }
+    
+    private String extractNameFromOAuth2User(org.springframework.security.oauth2.core.user.OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("name");
+            case "microsoft":
+                return user.getAttribute("displayName");
+            case "github":
+                return user.getAttribute("name");
+            default:
+                return user.getAttribute("name");
+        }
+    }
+    
+    private String extractGivenNameFromOAuth2User(org.springframework.security.oauth2.core.user.OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("given_name");
+            case "microsoft":
+                return user.getAttribute("givenName");
+            case "github":
+                return null; // GitHub doesn't provide given_name
+            default:
+                return user.getAttribute("given_name");
+        }
+    }
+    
+    private String extractFamilyNameFromOAuth2User(org.springframework.security.oauth2.core.user.OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("family_name");
+            case "microsoft":
+                return user.getAttribute("surname");
+            case "github":
+                return null; // GitHub doesn't provide family_name
+            default:
+                return user.getAttribute("family_name");
+        }
+    }
+    
+    private String extractPictureUrlFromOAuth2User(org.springframework.security.oauth2.core.user.OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("picture");
+            case "microsoft":
+                return null; // Microsoft Graph API has different endpoint for photo
+            case "github":
+                return user.getAttribute("avatar_url");
+            default:
+                return user.getAttribute("picture");
+        }
+    }
+    
+    private String extractLocaleFromOAuth2User(org.springframework.security.oauth2.core.user.OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("locale");
+            case "microsoft":
+                return user.getAttribute("preferredLanguage");
+            case "github":
+                return null; // GitHub doesn't provide locale
+            default:
+                return user.getAttribute("locale");
+        }
+    }
+    
+    private String extractProviderIdFromOAuth2User(org.springframework.security.oauth2.core.user.OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("sub");
+            case "microsoft":
+                return user.getAttribute("id");
+            case "github":
+                Object id = user.getAttribute("id");
+                return id != null ? id.toString() : null;
+            default:
+                return user.getAttribute("id");
+        }
+    }
 } 
