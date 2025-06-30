@@ -77,7 +77,7 @@ jobs:
             --platform managed \
             --region us-central1 \
             --allow-unauthenticated \
-            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_DEFAULT_MODEL=${{ vars.GEMINI_DEFAULT_MODEL }},JWT_SECRET=${{ secrets.JWT_SECRET }},JWT_EXPIRATION=86400000,APP_BASE_URL=https://dmtools-431977789017.us-central1.run.app,GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}" \
+            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_DEFAULT_MODEL=${{ vars.GEMINI_DEFAULT_MODEL }},JWT_SECRET=${{ secrets.JWT_SECRET }},JWT_EXPIRATION=86400000,APP_BASE_URL=https://dmtools-431977789017.us-central1.run.app,GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }},GITHUB_CLIENT_ID=${{ vars.GITHUB_CLIENT_ID }},GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }}" \
             --memory=1Gi \
             --cpu=1 \
             --min-instances=0 \
