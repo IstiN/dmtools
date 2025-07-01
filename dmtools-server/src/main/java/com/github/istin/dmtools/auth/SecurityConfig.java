@@ -123,7 +123,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Allow all origins for API access
+        // Allow all origins for development/testing - adjust for production
         configuration.setAllowedOriginPatterns(List.of("*"));
         
         // Allow all HTTP methods
@@ -140,10 +140,10 @@ public class SecurityConfig {
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         
-        // Apply to all API endpoints
-        source.registerCorsConfiguration("/api/**", configuration);
+        // Apply CORS to all endpoints, not just /api/**
+        source.registerCorsConfiguration("/**", configuration);
         
-        logger.info("🌐 CORS configured to allow all origins for /api/** endpoints");
+        logger.info("🌐 CORS configured to allow all origins for ALL endpoints");
         
         return source;
     }
@@ -155,6 +155,14 @@ public class SecurityConfig {
         // Use IF_REQUIRED session management to support both JWT and OAuth2 session-based auth
         logger.info("🛡️ Applying HYBRID security settings (supports both JWT and OAuth2 session-based auth)");
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
+
+        // Configure security headers including HSTS for HTTPS
+        http.headers(headers -> headers
+            .httpStrictTransportSecurity(hstsConfig -> hstsConfig
+                .maxAgeInSeconds(31536000)
+                .includeSubDomains(true))
+            .frameOptions().deny()
+            .contentTypeOptions().and());
 
         http
             .csrf(AbstractHttpConfigurer::disable)
