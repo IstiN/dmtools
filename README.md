@@ -24,6 +24,25 @@ gradle shadowJar
 
 ---
 
+## 🔐 OAuth2 Authentication Setup
+
+DMTools includes a **web application with OAuth2 authentication** supporting Google, Microsoft, and GitHub login.
+
+### Quick Setup
+For complete OAuth2 setup instructions including:
+- ✅ **Google, Microsoft, GitHub** OAuth provider configuration  
+- ✅ **Production deployment** on Google Cloud Run
+- ✅ **GitHub Actions** with secrets management
+- ✅ **Security configuration** and troubleshooting
+
+📖 **See the comprehensive guide**: [OAUTH_SETUP.md](OAUTH_SETUP.md)
+
+### Live Application
+- **Production**: https://dmtools-431977789017.us-central1.run.app
+- **API Documentation**: https://dmtools-431977789017.us-central1.run.app/swagger-ui/index.html
+
+---
+
 ## Configuration
 
 ### Jira Configuration
