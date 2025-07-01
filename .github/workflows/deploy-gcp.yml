@@ -86,36 +86,36 @@ jobs:
 
       - name: Create environment variables file
         run: |
-          cat > env-vars.txt << EOF
-          SPRING_PROFILES_ACTIVE=prod
-          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-          GEMINI_DEFAULT_MODEL=${{ vars.GEMINI_DEFAULT_MODEL }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          JWT_EXPIRATION=86400000
-          APP_BASE_URL=https://dmtools-431977789017.us-central1.run.app
-          APP_HOST=dmtools-431977789017.us-central1.run.app
-          APP_PORT=443
-          GOOGLE_CLIENT_ID=431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          MICROSOFT_CLIENT_ID=db21d069-3fca-4d78-a09f-b690e6473a09
-          MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}
-          GITHUB_CLIENT_ID=Ov23liHniCXneJfSANF3
-          GITHUB_CLIENT_SECRET=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_SCOPE=openid,profile,email
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID=Ov23liHniCXneJfSANF3
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_SCOPE=user:email
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_CLIENT_ID=db21d069-3fca-4d78-a09f-b690e6473a09
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_SCOPE=openid,profile,email
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_AUTHORIZATION_GRANT_TYPE=authorization_code
-          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_REDIRECT_URI=https://dmtools-431977789017.us-central1.run.app/login/oauth2/code/microsoft
-          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_AUTHORIZATION_URI=https://login.microsoftonline.com/common/oauth2/v2.0/authorize
-          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_TOKEN_URI=https://login.microsoftonline.com/common/oauth2/v2.0/token
-          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_USER_INFO_URI=https://graph.microsoft.com/v1.0/me
-          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_USER_NAME_ATTRIBUTE=id
+          cat > env-vars.yaml << EOF
+          SPRING_PROFILES_ACTIVE: "prod"
+          GEMINI_API_KEY: "${{ secrets.GEMINI_API_KEY }}"
+          GEMINI_DEFAULT_MODEL: "${{ vars.GEMINI_DEFAULT_MODEL }}"
+          JWT_SECRET: "${{ secrets.JWT_SECRET }}"
+          JWT_EXPIRATION: "86400000"
+          APP_BASE_URL: "https://dmtools-431977789017.us-central1.run.app"
+          APP_HOST: "dmtools-431977789017.us-central1.run.app"
+          APP_PORT: "443"
+          GOOGLE_CLIENT_ID: "431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com"
+          GOOGLE_CLIENT_SECRET: "${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          MICROSOFT_CLIENT_ID: "db21d069-3fca-4d78-a09f-b690e6473a09"
+          MICROSOFT_CLIENT_SECRET: "${{ secrets.MICROSOFT_CLIENT_SECRET }}"
+          GITHUB_CLIENT_ID: "Ov23liHniCXneJfSANF3"
+          GITHUB_CLIENT_SECRET: "${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID: "431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET: "${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_SCOPE: "openid,profile,email"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID: "Ov23liHniCXneJfSANF3"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET: "${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_SCOPE: "user:email"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_CLIENT_ID: "db21d069-3fca-4d78-a09f-b690e6473a09"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_CLIENT_SECRET: "${{ secrets.MICROSOFT_CLIENT_SECRET }}"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_SCOPE: "openid,profile,email"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_AUTHORIZATION_GRANT_TYPE: "authorization_code"
+          SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_REDIRECT_URI: "https://dmtools-431977789017.us-central1.run.app/login/oauth2/code/microsoft"
+          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_AUTHORIZATION_URI: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_TOKEN_URI: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_USER_INFO_URI: "https://graph.microsoft.com/v1.0/me"
+          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_USER_NAME_ATTRIBUTE: "id"
           EOF
 
       - name: Deploy to Cloud Run
@@ -125,7 +125,7 @@ jobs:
             --platform managed \
             --region us-central1 \
             --allow-unauthenticated \
-            --env-vars-file env-vars.txt \
+            --env-vars-file env-vars.yaml \
             --memory=1Gi \
             --cpu=1 \
             --min-instances=0 \
