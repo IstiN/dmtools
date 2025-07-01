@@ -70,6 +70,20 @@ jobs:
       - name: Push Docker image
         run: docker push us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/dmtools/dmtools:${{ github.run_number }}-${{ github.sha }}
 
+      - name: Debug secrets (lengths only for security)
+        run: |
+          echo "GEMINI_API_KEY length: ${#GEMINI_API_KEY}"
+          echo "JWT_SECRET length: ${#JWT_SECRET}"
+          echo "GOOGLE_CLIENT_SECRET length: ${#GOOGLE_CLIENT_SECRET}"
+          echo "MICROSOFT_CLIENT_SECRET length: ${#MICROSOFT_CLIENT_SECRET}"
+          echo "OAUTH_GITHUB_CLIENT_SECRET length: ${#OAUTH_GITHUB_CLIENT_SECRET}"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy dmtools \
@@ -77,7 +91,20 @@ jobs:
             --platform managed \
             --region us-central1 \
             --allow-unauthenticated \
-            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GEMINI_DEFAULT_MODEL=${{ vars.GEMINI_DEFAULT_MODEL }},JWT_SECRET=${{ secrets.JWT_SECRET }},JWT_EXPIRATION=86400000,APP_BASE_URL=https://dmtools-431977789017.us-central1.run.app,APP_HOST=dmtools-431977789017.us-central1.run.app,APP_PORT=443,GOOGLE_CLIENT_ID=431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com,GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},MICROSOFT_CLIENT_ID=db21d069-3fca-4d78-a09f-b690e6473a09,MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }},GITHUB_CLIENT_ID=Ov23liHniCXneJfSANF3,GITHUB_CLIENT_SECRET=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" \
+            --update-env-vars SPRING_PROFILES_ACTIVE=prod \
+            --update-env-vars GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+            --update-env-vars GEMINI_DEFAULT_MODEL="${{ vars.GEMINI_DEFAULT_MODEL }}" \
+            --update-env-vars JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --update-env-vars JWT_EXPIRATION=86400000 \
+            --update-env-vars APP_BASE_URL=https://dmtools-431977789017.us-central1.run.app \
+            --update-env-vars APP_HOST=dmtools-431977789017.us-central1.run.app \
+            --update-env-vars APP_PORT=443 \
+            --update-env-vars GOOGLE_CLIENT_ID=431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com \
+            --update-env-vars GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            --update-env-vars MICROSOFT_CLIENT_ID=db21d069-3fca-4d78-a09f-b690e6473a09 \
+            --update-env-vars MICROSOFT_CLIENT_SECRET="${{ secrets.MICROSOFT_CLIENT_SECRET }}" \
+            --update-env-vars GITHUB_CLIENT_ID=Ov23liHniCXneJfSANF3 \
+            --update-env-vars GITHUB_CLIENT_SECRET="${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" \
             --memory=1Gi \
             --cpu=1 \
             --min-instances=0 \
