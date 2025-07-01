@@ -165,7 +165,8 @@ public class SecurityConfig {
                     .requestMatchers("/api/oauth/**").permitAll()  // Allow OAuth proxy endpoints
                     .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                     .requestMatchers("/", "/test-*.html").permitAll()
-                    .requestMatchers("/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**", "/api-docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                    .requestMatchers("/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()
+                    .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/v1/chat/**").permitAll()
                     .anyRequest().authenticated()
