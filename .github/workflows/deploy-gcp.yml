@@ -107,13 +107,13 @@ jobs:
             --update-env-vars GITHUB_CLIENT_SECRET="${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-            --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_SCOPE="openid profile email" \
+            --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_SCOPE="openid,profile,email" \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID=Ov23liHniCXneJfSANF3 \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET="${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_SCOPE="user:email" \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_CLIENT_ID=db21d069-3fca-4d78-a09f-b690e6473a09 \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_CLIENT_SECRET="${{ secrets.MICROSOFT_CLIENT_SECRET }}" \
-            --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_SCOPE="openid profile email" \
+            --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_SCOPE="openid,profile,email" \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_AUTHORIZATION_GRANT_TYPE=authorization_code \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_REDIRECT_URI=https://dmtools-431977789017.us-central1.run.app/login/oauth2/code/microsoft \
             --update-env-vars SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_AUTHORIZATION_URI=https://login.microsoftonline.com/common/oauth2/v2.0/authorize \
