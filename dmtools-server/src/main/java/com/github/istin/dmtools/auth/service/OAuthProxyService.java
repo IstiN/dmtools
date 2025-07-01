@@ -28,7 +28,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-@ConditionalOnBean(ClientRegistrationRepository.class)
 public class OAuthProxyService {
 
     private static final Logger logger = LoggerFactory.getLogger(OAuthProxyService.class);

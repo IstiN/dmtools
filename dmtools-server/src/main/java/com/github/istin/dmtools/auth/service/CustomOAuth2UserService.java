@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@ConditionalOnBean(ClientRegistrationRepository.class)
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(CustomOAuth2UserService.class);
