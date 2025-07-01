@@ -36,17 +36,13 @@ public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     
+    private final EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler;
     private final AuthDebugFilter authDebugFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
     private final String activeProfile;
 
     // Optional OAuth2 components - may not be available if OAuth2 is not configured
-    @Autowired(required = false)
-    private EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler;
-
-    @Autowired(required = false)
-    private CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
-
     @Autowired(required = false)
     private CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
 
@@ -59,17 +55,20 @@ public class SecurityConfig {
     @Autowired(required = false)
     private CustomOidcUserService customOidcUserService;
 
-    public SecurityConfig(AuthDebugFilter authDebugFilter, 
-                         JwtAuthenticationFilter jwtAuthenticationFilter,
+    public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
+                         AuthDebugFilter authDebugFilter, 
+                         JwtAuthenticationFilter jwtAuthenticationFilter, 
+                         CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
                          @Value("${spring.profiles.active:default}") String activeProfile) {
+        this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
         this.activeProfile = activeProfile;
-        logger.info("SecurityConfig initialized. OAuth2 components will be auto-wired if available.");
+        logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
     }
 
     @Bean
-    @ConditionalOnBean(ClientRegistrationRepository.class)
     public OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient() {
         DefaultAuthorizationCodeTokenResponseClient accessTokenResponseClient = new DefaultAuthorizationCodeTokenResponseClient();
         OAuth2AccessTokenResponseHttpMessageConverter tokenResponseHttpMessageConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
@@ -189,17 +188,9 @@ public class SecurityConfig {
                     if (customOidcUserService != null) {
                         userInfo.oidcUserService(customOidcUserService);
                     }
-                });
-                
-                // Only configure success handler if available
-                if (enhancedOAuth2AuthenticationSuccessHandler != null) {
-                    oauth2.successHandler(enhancedOAuth2AuthenticationSuccessHandler);
-                }
-                
-                // Only configure failure handler if available
-                if (customOAuth2AuthenticationFailureHandler != null) {
-                    oauth2.failureHandler(customOAuth2AuthenticationFailureHandler);
-                }
+                })
+                .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
+                .failureHandler(customOAuth2AuthenticationFailureHandler);
             });
         } else {
             logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");

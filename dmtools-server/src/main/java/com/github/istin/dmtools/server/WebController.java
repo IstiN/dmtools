@@ -1,7 +1,5 @@
 package com.github.istin.dmtools.server;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,18 +16,7 @@ public class WebController {
 
     @GetMapping("/")
     public String index() {
-        // Check if user is authenticated
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        if (authentication != null && 
-            authentication.isAuthenticated() && 
-            !authentication.getName().equals("anonymousUser")) {
-            // User is authenticated - redirect to Swagger UI
-            return "redirect:/swagger-ui.html";
-        } else {
-            // User is not authenticated - redirect to login page
-            return "redirect:/test-oauth-manual.html";
-        }
+        return "redirect:/swagger-ui.html";
     }
 
     // Removed create-agent redirect since the HTML file was deleted

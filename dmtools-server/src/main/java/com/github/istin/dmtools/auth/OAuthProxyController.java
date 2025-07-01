@@ -15,7 +15,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/oauth-proxy")
-@ConditionalOnBean(ClientRegistrationRepository.class)
 public class OAuthProxyController {
 
     private static final Logger logger = LoggerFactory.getLogger(OAuthProxyController.class);
