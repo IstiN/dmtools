@@ -28,7 +28,7 @@ public class OAuthProxyController {
 
     /**
      * Step 1: Client initiates OAuth with custom redirect URI
-     * POST /api/oauth/initiate
+     * POST /api/oauth-proxy/initiate
      * Body: {
      *   "provider": "google|microsoft|github",
      *   "client_redirect_uri": "https://myapp.com/auth/callback", // or "myapp://auth/callback"
@@ -91,7 +91,7 @@ public class OAuthProxyController {
 
     /**
      * Step 2: Exchange temporary code for your service token
-     * POST /api/oauth/exchange
+     * POST /api/oauth-proxy/exchange
      * Body: {
      *   "code": "temp_code_from_callback",
      *   "state": "original_state"

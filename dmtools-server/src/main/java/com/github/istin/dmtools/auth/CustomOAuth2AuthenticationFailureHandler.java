@@ -80,7 +80,7 @@ public class CustomOAuth2AuthenticationFailureHandler extends SimpleUrlAuthentic
         
         try {
             // For now, let's redirect to the client with the authorization code
-            // The client can then use the /api/oauth/exchange endpoint to get the JWT token
+            // The client can then use the /api/oauth-proxy/exchange endpoint to get the JWT token
             
             // Get the client redirect URI from the stored state
             String clientRedirectUri = oAuthProxyService.getClientRedirectUri(state);
