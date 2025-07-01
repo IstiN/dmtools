@@ -169,7 +169,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/local-login", "/api/auth/user", "/error").permitAll()
-                    .requestMatchers("/api/oauth/**").permitAll()  // Allow OAuth proxy endpoints
+                    .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
                     .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                     .requestMatchers("/", "/test-*.html").permitAll()
                     .requestMatchers("/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()
