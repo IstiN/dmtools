@@ -34,7 +34,7 @@ public class CustomOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
         
         // Check if this request contains a proxy state parameter
         String state = request.getParameter("state");
-        if (state != null && oAuthProxyService.isProxyState(state)) {
+        if (state != null && oAuthProxyService != null && oAuthProxyService.isProxyState(state)) {
             logger.info("🎯 OAUTH RESOLVER - Detected proxy state in request: {}", state);
             // For proxy states, we don't need to create a new authorization request
             // The proxy flow has already been initiated
@@ -55,7 +55,7 @@ public class CustomOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
         
         // Check if this request contains a proxy state parameter
         String state = request.getParameter("state");
-        if (state != null && oAuthProxyService.isProxyState(state)) {
+        if (state != null && oAuthProxyService != null && oAuthProxyService.isProxyState(state)) {
             logger.info("🎯 OAUTH RESOLVER - Detected proxy state for client {}: {}", clientRegistrationId, state);
             // For proxy states, we don't need to create a new authorization request
             return null;
