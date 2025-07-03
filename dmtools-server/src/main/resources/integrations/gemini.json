@@ -1,0 +1,46 @@
+{
+  "type": "gemini",
+  "displayNameKey": "integration.gemini.displayName",
+  "descriptionKey": "integration.gemini.description",
+  "iconUrl": "/img/integrations/gemini-icon.svg",
+  "categories": ["AI"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/gemini_setup_en.md",
+    "ru": "/docs/integrations/gemini_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "GEMINI_API_KEY",
+      "displayNameKey": "gemini.apiKey.displayName",
+      "descriptionKey": "gemini.apiKey.description",
+      "instructionsKey": "gemini.apiKey.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    },
+    {
+      "key": "GEMINI_BASE_PATH",
+      "displayNameKey": "gemini.basePath.displayName",
+      "descriptionKey": "gemini.basePath.description",
+      "instructionsKey": "gemini.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "https://generativelanguage.googleapis.com/v1beta/models",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "GEMINI_DEFAULT_MODEL",
+      "displayNameKey": "gemini.defaultModel.displayName",
+      "descriptionKey": "gemini.defaultModel.description",
+      "instructionsKey": "gemini.defaultModel.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": "gemini-2.0-flash"
+    }
+  ]
+} 

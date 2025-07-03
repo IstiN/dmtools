@@ -36,6 +36,16 @@ public class IntegrationTypeDto {
     private String iconUrl;
     
     /**
+     * Categories this integration belongs to (e.g., SourceCode, TrackerClient, AI).
+     */
+    private List<String> categories = new ArrayList<>();
+    
+    /**
+     * Setup documentation URL for the current locale.
+     */
+    private String setupDocumentationUrl;
+    
+    /**
      * List of configuration parameters for this integration type.
      */
     private List<ConfigParamDefinition> configParams = new ArrayList<>();
@@ -63,6 +73,11 @@ public class IntegrationTypeDto {
         private String description;
         
         /**
+         * Instructions for how to obtain or configure this parameter (can contain markdown).
+         */
+        private String instructions;
+        
+        /**
          * Whether the parameter is required.
          */
         private boolean required;
@@ -78,7 +93,7 @@ public class IntegrationTypeDto {
         private String defaultValue;
         
         /**
-         * Type of the parameter (e.g., "string", "password", "url", "select").
+         * Type of the parameter (e.g., "string", "password", "url", "select", "textarea").
          */
         private String type;
         

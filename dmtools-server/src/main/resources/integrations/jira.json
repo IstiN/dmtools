@@ -1,0 +1,46 @@
+{
+  "type": "jira",
+  "displayNameKey": "integration.jira.displayName",
+  "descriptionKey": "integration.jira.description",
+  "iconUrl": "/img/integrations/jira-icon.svg",
+  "categories": ["TrackerClient"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/jira_setup_en.md",
+    "ru": "/docs/integrations/jira_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "JIRA_BASE_PATH",
+      "displayNameKey": "jira.basePath.displayName",
+      "descriptionKey": "jira.basePath.description",
+      "instructionsKey": "jira.basePath.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "JIRA_LOGIN_PASS_TOKEN",
+      "displayNameKey": "jira.token.displayName",
+      "descriptionKey": "jira.token.description",
+      "instructionsKey": "jira.token.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    },
+    {
+      "key": "JIRA_AUTH_TYPE",
+      "displayNameKey": "jira.authType.displayName",
+      "descriptionKey": "jira.authType.description",
+      "instructionsKey": "jira.authType.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    }
+  ]
+} 

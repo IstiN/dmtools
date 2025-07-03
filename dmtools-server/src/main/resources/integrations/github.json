@@ -1,0 +1,71 @@
+{
+  "type": "github",
+  "displayNameKey": "integration.github.displayName",
+  "descriptionKey": "integration.github.description",
+  "iconUrl": "/img/integrations/github-icon.svg",
+  "categories": ["SourceCode"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/github_setup_en.md",
+    "ru": "/docs/integrations/github_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "SOURCE_GITHUB_TOKEN",
+      "displayNameKey": "github.token.displayName",
+      "descriptionKey": "github.token.description",
+      "instructionsKey": "github.token.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^ghp_[a-zA-Z0-9]{36}$",
+        "minLength": 40,
+        "maxLength": 40
+      }
+    },
+    {
+      "key": "SOURCE_GITHUB_BASE_PATH",
+      "displayNameKey": "github.basePath.displayName",
+      "descriptionKey": "github.basePath.description",
+      "instructionsKey": "github.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "https://api.github.com",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "SOURCE_GITHUB_WORKSPACE",
+      "displayNameKey": "github.workspace.displayName",
+      "descriptionKey": "github.workspace.description",
+      "instructionsKey": "github.workspace.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "SOURCE_GITHUB_REPOSITORY",
+      "displayNameKey": "github.repository.displayName",
+      "descriptionKey": "github.repository.description",
+      "instructionsKey": "github.repository.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "SOURCE_GITHUB_BRANCH",
+      "displayNameKey": "github.branch.displayName",
+      "descriptionKey": "github.branch.description",
+      "instructionsKey": "github.branch.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": "main"
+    }
+  ]
+} 

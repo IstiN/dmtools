@@ -1,0 +1,76 @@
+{
+  "type": "bitbucket",
+  "displayNameKey": "integration.bitbucket.displayName",
+  "descriptionKey": "integration.bitbucket.description",
+  "iconUrl": "/img/integrations/bitbucket-icon.svg",
+  "categories": ["SourceCode"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/bitbucket_setup_en.md",
+    "ru": "/docs/integrations/bitbucket_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "BITBUCKET_BASE_PATH",
+      "displayNameKey": "bitbucket.basePath.displayName",
+      "descriptionKey": "bitbucket.basePath.description",
+      "instructionsKey": "bitbucket.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "https://api.bitbucket.org",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "BITBUCKET_TOKEN",
+      "displayNameKey": "bitbucket.token.displayName",
+      "descriptionKey": "bitbucket.token.description",
+      "instructionsKey": "bitbucket.token.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    },
+    {
+      "key": "BITBUCKET_API_VERSION",
+      "displayNameKey": "bitbucket.apiVersion.displayName",
+      "descriptionKey": "bitbucket.apiVersion.description",
+      "instructionsKey": "bitbucket.apiVersion.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": "2.0"
+    },
+    {
+      "key": "BITBUCKET_WORKSPACE",
+      "displayNameKey": "bitbucket.workspace.displayName",
+      "descriptionKey": "bitbucket.workspace.description",
+      "instructionsKey": "bitbucket.workspace.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "BITBUCKET_REPOSITORY",
+      "displayNameKey": "bitbucket.repository.displayName",
+      "descriptionKey": "bitbucket.repository.description",
+      "instructionsKey": "bitbucket.repository.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "BITBUCKET_BRANCH",
+      "displayNameKey": "bitbucket.branch.displayName",
+      "descriptionKey": "bitbucket.branch.description",
+      "instructionsKey": "bitbucket.branch.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": "main"
+    }
+  ]
+} 

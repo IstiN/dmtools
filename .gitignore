@@ -27,6 +27,7 @@ replay_pid*
 *.properties
 !gradle.properties
 !gradle-wrapper.properties
+!**/i18n/*.properties
 application*.properties
 config.properties
 **/config.properties
