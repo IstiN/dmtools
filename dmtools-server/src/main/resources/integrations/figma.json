@@ -1,0 +1,36 @@
+{
+  "type": "figma",
+  "displayNameKey": "integration.figma.displayName",
+  "descriptionKey": "integration.figma.description",
+  "iconUrl": "/img/integrations/figma-icon.svg",
+  "categories": ["Design"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/figma_setup_en.md",
+    "ru": "/docs/integrations/figma_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "FIGMA_BASE_PATH",
+      "displayNameKey": "figma.basePath.displayName",
+      "descriptionKey": "figma.basePath.description",
+      "instructionsKey": "figma.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "https://api.figma.com",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "FIGMA_TOKEN",
+      "displayNameKey": "figma.token.displayName",
+      "descriptionKey": "figma.token.description",
+      "instructionsKey": "figma.token.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    }
+  ]
+} 

@@ -1,0 +1,56 @@
+{
+  "type": "confluence",
+  "displayNameKey": "integration.confluence.displayName",
+  "descriptionKey": "integration.confluence.description",
+  "iconUrl": "/img/integrations/confluence-icon.svg",
+  "categories": ["Documentation"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/confluence_setup_en.md",
+    "ru": "/docs/integrations/confluence_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "CONFLUENCE_BASE_PATH",
+      "displayNameKey": "confluence.basePath.displayName",
+      "descriptionKey": "confluence.basePath.description",
+      "instructionsKey": "confluence.basePath.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "CONFLUENCE_LOGIN_PASS_TOKEN",
+      "displayNameKey": "confluence.token.displayName",
+      "descriptionKey": "confluence.token.description",
+      "instructionsKey": "confluence.token.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    },
+    {
+      "key": "CONFLUENCE_GRAPHQL_PATH",
+      "displayNameKey": "confluence.graphqlPath.displayName",
+      "descriptionKey": "confluence.graphqlPath.description",
+      "instructionsKey": "confluence.graphqlPath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "CONFLUENCE_DEFAULT_SPACE",
+      "displayNameKey": "confluence.defaultSpace.displayName",
+      "descriptionKey": "confluence.defaultSpace.description",
+      "instructionsKey": "confluence.defaultSpace.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    }
+  ]
+} 

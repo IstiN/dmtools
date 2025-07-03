@@ -1,0 +1,36 @@
+{
+  "type": "rally",
+  "displayNameKey": "integration.rally.displayName",
+  "descriptionKey": "integration.rally.description",
+  "iconUrl": "/img/integrations/rally-icon.svg",
+  "categories": ["TrackerClient"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/rally_setup_en.md",
+    "ru": "/docs/integrations/rally_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "RALLY_PATH",
+      "displayNameKey": "rally.path.displayName",
+      "descriptionKey": "rally.path.description",
+      "instructionsKey": "rally.path.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "RALLY_TOKEN",
+      "displayNameKey": "rally.token.displayName",
+      "descriptionKey": "rally.token.description",
+      "instructionsKey": "rally.token.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    }
+  ]
+} 

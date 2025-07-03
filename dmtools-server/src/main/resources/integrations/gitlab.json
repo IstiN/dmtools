@@ -1,0 +1,66 @@
+{
+  "type": "gitlab",
+  "displayNameKey": "integration.gitlab.displayName",
+  "descriptionKey": "integration.gitlab.description",
+  "iconUrl": "/img/integrations/gitlab-icon.svg",
+  "categories": ["SourceCode"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/gitlab_setup_en.md",
+    "ru": "/docs/integrations/gitlab_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "GITLAB_BASE_PATH",
+      "displayNameKey": "gitlab.basePath.displayName",
+      "descriptionKey": "gitlab.basePath.description",
+      "instructionsKey": "gitlab.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "https://gitlab.com",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "GITLAB_TOKEN",
+      "displayNameKey": "gitlab.token.displayName",
+      "descriptionKey": "gitlab.token.description",
+      "instructionsKey": "gitlab.token.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    },
+    {
+      "key": "GITLAB_WORKSPACE",
+      "displayNameKey": "gitlab.workspace.displayName",
+      "descriptionKey": "gitlab.workspace.description",
+      "instructionsKey": "gitlab.workspace.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "GITLAB_REPOSITORY",
+      "displayNameKey": "gitlab.repository.displayName",
+      "descriptionKey": "gitlab.repository.description",
+      "instructionsKey": "gitlab.repository.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "GITLAB_BRANCH",
+      "displayNameKey": "gitlab.branch.displayName",
+      "descriptionKey": "gitlab.branch.description",
+      "instructionsKey": "gitlab.branch.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": "main"
+    }
+  ]
+} 

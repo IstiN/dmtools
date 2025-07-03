@@ -25,6 +25,7 @@ public class IntegrationService {
     private final UserRepository userRepo;
     private final WorkspaceRepository workspaceRepo;
     private final EncryptionUtils encryptionUtils;
+    private final IntegrationConfigurationLoader configurationLoader;
 
     @Autowired
     public IntegrationService(
@@ -34,7 +35,8 @@ public class IntegrationService {
             IntegrationWorkspaceRepository workspaceRepository,
             UserRepository userRepo,
             WorkspaceRepository workspaceRepo,
-            EncryptionUtils encryptionUtils) {
+            EncryptionUtils encryptionUtils,
+            IntegrationConfigurationLoader configurationLoader) {
         this.integrationRepository = integrationRepository;
         this.configRepository = configRepository;
         this.userRepository = userRepository;
@@ -42,6 +44,7 @@ public class IntegrationService {
         this.userRepo = userRepo;
         this.workspaceRepo = workspaceRepo;
         this.encryptionUtils = encryptionUtils;
+        this.configurationLoader = configurationLoader;
     }
 
     /**
@@ -516,125 +519,12 @@ public class IntegrationService {
 
     /**
      * Get available integration types.
+     * Loads integration types from JSON configuration files.
      *
      * @return List of integration type DTOs
      */
     public List<IntegrationTypeDto> getAvailableIntegrationTypes() {
-        // This would typically come from a registry of supported integration types
-        // For now, we'll return a few example types
-        List<IntegrationTypeDto> types = new ArrayList<>();
-        
-        // Jira integration type
-        IntegrationTypeDto jira = new IntegrationTypeDto();
-        jira.setType("jira");
-        jira.setDisplayName("Jira");
-        jira.setDescription("Integration with Atlassian Jira for issue tracking");
-        jira.setIconUrl("/img/integrations/jira-icon.svg");
-        
-        List<IntegrationTypeDto.ConfigParamDefinition> jiraParams = new ArrayList<>();
-        jiraParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-            "baseUrl", "Jira URL", "The base URL of your Jira instance", 
-            true, false, "https://your-domain.atlassian.net", "url", null));
-        jiraParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-            "username", "Username", "Your Jira username or email", 
-            true, false, null, "string", null));
-        jiraParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-            "apiToken", "API Token", "Your Jira API token", 
-            true, true, null, "password", null));
-        jira.setConfigParams(jiraParams);
-        
-        // GitHub integration type
-        IntegrationTypeDto github = new IntegrationTypeDto();
-        github.setType("github");
-        github.setDisplayName("GitHub");
-        github.setDescription("Integration with GitHub for source code management");
-        github.setIconUrl("/img/integrations/github-icon.svg");
-        
-        List<IntegrationTypeDto.ConfigParamDefinition> githubParams = new ArrayList<>();
-        githubParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-            "apiUrl", "API URL", "The GitHub API URL", 
-            true, false, "https://api.github.com", "url", null));
-        githubParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-            "accessToken", "Personal Access Token", "Your GitHub personal access token", 
-            true, true, null, "password", null));
-        github.setConfigParams(githubParams);
-        
-        // OpenAI integration type
-        IntegrationTypeDto openai = new IntegrationTypeDto();
-        openai.setType("openai");
-        openai.setDisplayName("OpenAI");
-        openai.setDescription("Integration with OpenAI API for AI capabilities");
-        openai.setIconUrl("/img/integrations/openai-icon.svg");
-        
-        List<IntegrationTypeDto.ConfigParamDefinition> openaiParams = new ArrayList<>();
-        openaiParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-            "apiKey", "API Key", "Your OpenAI API key", 
-            true, true, null, "password", null));
-        openaiParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-            "model", "Default Model", "The default model to use", 
-            true, false, "gpt-4", "select", 
-            Arrays.asList("gpt-4", "gpt-4-turbo", "gpt-3.5-turbo")));
-        openaiParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-            "temperature", "Temperature", "Controls randomness (0-1)", 
-            false, false, "0.7", "string", null));
-        openai.setConfigParams(openaiParams);
-        
-        types.add(jira);
-        types.add(github);
-        types.add(openai);
-
-        // Slack integration type
-        IntegrationTypeDto slack = new IntegrationTypeDto();
-        slack.setType("slack");
-        slack.setDisplayName("Slack");
-        slack.setDescription("Integration with Slack for team communication");
-        slack.setIconUrl("/img/integrations/slack-icon.svg");
-
-        List<IntegrationTypeDto.ConfigParamDefinition> slackParams = new ArrayList<>();
-        slackParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-                "botToken", "Bot User OAuth Token", "Your Slack bot token (starts with xoxb-)",
-                true, true, null, "password", null));
-        slack.setConfigParams(slackParams);
-        types.add(slack);
-
-        // GitLab integration type
-        IntegrationTypeDto gitlab = new IntegrationTypeDto();
-        gitlab.setType("gitlab");
-        gitlab.setDisplayName("GitLab");
-        gitlab.setDescription("Integration with GitLab for source code management");
-        gitlab.setIconUrl("/img/integrations/gitlab-icon.svg");
-
-        List<IntegrationTypeDto.ConfigParamDefinition> gitlabParams = new ArrayList<>();
-        gitlabParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-                "baseUrl", "GitLab URL", "The base URL of your GitLab instance",
-                true, false, "https://gitlab.com", "url", null));
-        gitlabParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-                "accessToken", "Personal Access Token", "Your GitLab personal access token",
-                true, true, null, "password", null));
-        gitlab.setConfigParams(gitlabParams);
-        types.add(gitlab);
-
-        // Jenkins integration type
-        IntegrationTypeDto jenkins = new IntegrationTypeDto();
-        jenkins.setType("jenkins");
-        jenkins.setDisplayName("Jenkins");
-        jenkins.setDescription("Integration with Jenkins for continuous integration");
-        jenkins.setIconUrl("/img/integrations/jenkins-icon.svg");
-
-        List<IntegrationTypeDto.ConfigParamDefinition> jenkinsParams = new ArrayList<>();
-        jenkinsParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-                "baseUrl", "Jenkins URL", "The URL of your Jenkins instance",
-                true, false, null, "url", null));
-        jenkinsParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-                "username", "Username", "Your Jenkins username",
-                true, false, null, "string", null));
-        jenkinsParams.add(new IntegrationTypeDto.ConfigParamDefinition(
-                "apiToken", "API Token", "Your Jenkins API token",
-                true, true, null, "password", null));
-        jenkins.setConfigParams(jenkinsParams);
-        types.add(jenkins);
-        
-        return types;
+        return configurationLoader.getAllIntegrationTypes();
     }
 
     /**
@@ -644,9 +534,6 @@ public class IntegrationService {
      * @return The integration type DTO
      */
     public IntegrationTypeDto getIntegrationTypeSchema(String type) {
-        return getAvailableIntegrationTypes().stream()
-                .filter(t -> t.getType().equals(type))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Integration type not found: " + type));
+        return configurationLoader.getIntegrationType(type);
     }
 } 
