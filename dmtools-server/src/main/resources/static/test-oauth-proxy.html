@@ -162,8 +162,8 @@
             
             <div class="form-group">
                 <label for="redirectUri">Client Redirect URI:</label>
-                <input type="text" id="redirectUri" placeholder="https://myapp.com/auth/callback or myapp://auth/callback" 
-                       value="https://myapp.com/auth/callback">
+                <input type="text" id="redirectUri" placeholder="https://myappdmtoolscallback.com/auth/callback or myapp://auth/callback" 
+                       value="https://myappdmtoolscallback.com/auth/callback">
             </div>
             
             <div>
@@ -176,17 +176,41 @@
         </div>
 
         <div class="section">
-            <h2>🔄 Code Exchange (Step 2)</h2>
-            <p>After the OAuth provider redirects to your client with a temporary code, use this to exchange it for a JWT token:</p>
+            <h2>👤 Get User Info via API (Step 3)</h2>
+            <p>After successful OAuth authentication and token exchange, use this to get current user information from the API:</p>
             
             <div class="form-group">
-                <label for="tempCode">Temporary Code:</label>
-                <input type="text" id="tempCode" placeholder="Enter the temp code from OAuth callback">
+                <label for="jwtToken">JWT Token (Bearer):</label>
+                <input type="text" id="jwtToken" placeholder="Enter JWT token from code exchange">
+            </div>
+            
+            <div>
+                <button class="btn-success" onclick="getUserInfo()">👤 Get User Info via API</button>
+                <button class="btn-secondary" onclick="getUserInfoWithSession()">🔐 Get User Info (Session Auth)</button>
+            </div>
+            
+            <div id="userInfoResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>🔄 Code Exchange (Step 2)</h2>
+            <p>After authentication, you'll be redirected with an authorization code. Paste the full redirect URL below:</p>
+            
+            <div class="form-group">
+                <label for="redirectUri">📎 Full Redirect URI:</label>
+                <input type="text" id="redirectUri" placeholder="https://myappdmtoolscallback.com/auth/callback?code=temp_90b93f65903543bc9a311082ad982fd0&state=oauth_proxy_88190d2c-7d55-476e-b7e4-f949ef815350" style="width: 100%; font-family: monospace; padding: 8px;">
+                <button class="btn-secondary" onclick="parseRedirectUri()" style="margin-top: 5px;">🔍 Parse Parameters</button>
+                <button class="btn-info" onclick="loadExampleRedirectUri()" style="margin-top: 5px; margin-left: 10px;">📋 Load Example</button>
             </div>
             
             <div class="form-group">
-                <label for="originalState">Original State:</label>
-                <input type="text" id="originalState" placeholder="Enter the original state parameter">
+                <label for="authCode">Authorization Code:</label>
+                <input type="text" id="authCode" placeholder="Extracted from redirect URI or enter manually">
+            </div>
+            
+            <div class="form-group">
+                <label for="state">State:</label>
+                <input type="text" id="state" placeholder="Extracted from redirect URI or enter manually">
             </div>
             
             <div>
@@ -194,6 +218,29 @@
             </div>
             
             <div id="exchangeResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>📚 API Documentation & Testing</h2>
+            <p>Explore all available APIs and test them directly:</p>
+            
+            <div>
+                <button class="btn-primary" onclick="window.open('/swagger-ui.html', '_blank')">📖 Open Swagger UI</button>
+                <button class="btn-secondary" onclick="window.open('/v3/api-docs', '_blank')">📄 View OpenAPI Spec</button>
+                <button class="btn-success" onclick="testPublicEndpoint()">🔓 Test Public Endpoint</button>
+            </div>
+            
+            <div id="docsResult" class="result" style="display: none;"></div>
+            
+            <h3>🔗 Other API Endpoints to Try:</h3>
+            <div class="code-block">
+GET /api/auth/user - Get current user info (requires auth)
+GET /api/auth/is-local - Check if user is local auth
+GET /api/auth/public-test - Public test endpoint (no auth)
+GET /api/integrations - Get user integrations (requires auth)
+GET /api/integrations/types - Get available integration types
+GET /api/config - Get application configuration
+            </div>
         </div>
 
         <div class="section">
@@ -231,8 +278,8 @@
             
             <h3>Flutter Web App:</h3>
             <div class="code-block">
-// Step 1: Initiate OAuth
-final response = await http.post('/api/oauth/initiate', body: {
+ // Step 1: Initiate OAuth
+ final response = await http.post('/api/oauth-proxy/initiate', body: {
   'provider': 'google',
   'client_redirect_uri': '${window.location.origin}/auth/callback',
   'client_type': 'web',
@@ -242,8 +289,8 @@ final response = await http.post('/api/oauth/initiate', body: {
 // Step 2: Redirect user to auth_url
 window.location.href = data['auth_url'];
 
-// Step 3: Handle callback and exchange code
-final token = await http.post('/api/oauth/exchange', body: {
+ // Step 3: Handle callback and exchange code
+ final token = await http.post('/api/oauth-proxy/exchange', body: {
   'code': tempCode,
   'state': originalState
 });
@@ -251,8 +298,8 @@ final token = await http.post('/api/oauth/exchange', body: {
             
             <h3>Mobile App (Custom URI):</h3>
             <div class="code-block">
-// Step 1: Initiate OAuth with custom URI scheme
-final response = await http.post('/api/oauth/initiate', body: {
+ // Step 1: Initiate OAuth with custom URI scheme
+ final response = await http.post('/api/oauth-proxy/initiate', body: {
   'provider': 'google',
   'client_redirect_uri': 'myapp://auth/callback',
   'client_type': 'mobile',
@@ -280,7 +327,7 @@ await launchUrl(Uri.parse(data['auth_url']));
             try {
                 showResult('proxyResult', 'Initiating OAuth proxy flow...', 'info');
 
-                const response = await fetch('/api/oauth/initiate', {
+                                 const response = await fetch('/api/oauth-proxy/initiate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -297,7 +344,7 @@ await launchUrl(Uri.parse(data['auth_url']));
 
                 if (response.ok) {
                     currentState = data.state;
-                    document.getElementById('originalState').value = data.state;
+                    document.getElementById('state').value = data.state;
                     
                     showResult('proxyResult', 
                         `✅ OAuth initiation successful!\n\n` +
@@ -318,18 +365,18 @@ await launchUrl(Uri.parse(data['auth_url']));
         }
 
         async function exchangeCode() {
-            const tempCode = document.getElementById('tempCode').value;
-            const originalState = document.getElementById('originalState').value;
+            const tempCode = document.getElementById('authCode').value;
+            const originalState = document.getElementById('state').value;
 
             if (!tempCode || !originalState) {
-                showResult('exchangeResult', '❌ Please enter both temp code and original state', 'error');
+                showResult('exchangeResult', '❌ Please enter both authorization code and state', 'error');
                 return;
             }
 
             try {
                 showResult('exchangeResult', 'Exchanging code for JWT token...', 'info');
 
-                const response = await fetch('/api/oauth/exchange', {
+                                 const response = await fetch('/api/oauth-proxy/exchange', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -342,26 +389,114 @@ await launchUrl(Uri.parse(data['auth_url']));
 
                 const data = await response.json();
 
-                if (response.ok) {
-                    showResult('exchangeResult', 
-                        `🎉 Token exchange successful!\n\n` +
-                        `Access Token: ${data.access_token}\n` +
-                        `Token Type: ${data.token_type}\n` +
-                        `Expires in: ${data.expires_in} seconds\n\n` +
-                        `💡 Use this token in Authorization header:\n` +
-                        `Authorization: Bearer ${data.access_token}`, 
-                        'success');
-                } else {
+                                 if (response.ok) {
+                     // Auto-populate JWT token field
+                     if (data.access_token) {
+                         document.getElementById('jwtToken').value = data.access_token;
+                     }
+                     
+                     showResult('exchangeResult', 
+                         `🎉 Token exchange successful!\n\n` +
+                         `Access Token: ${data.access_token}\n` +
+                         `Token Type: ${data.token_type}\n` +
+                         `Expires in: ${data.expires_in} seconds\n\n` +
+                         `💡 Use this token in Authorization header:\n` +
+                         `Authorization: Bearer ${data.access_token}\n\n` +
+                         `✅ JWT token automatically populated below - you can now test user info!`, 
+                         'success');
+                 } else {
                     showResult('exchangeResult', `❌ Error: ${data.error}\n${data.message}`, 'error');
                 }
+
             } catch (error) {
                 showResult('exchangeResult', `❌ Network error: ${error.message}`, 'error');
             }
         }
 
+        async function getUserInfo() {
+            const jwtToken = document.getElementById('jwtToken').value;
+
+            if (!jwtToken) {
+                showResult('userInfoResult', '❌ Please enter a JWT token first', 'error');
+                return;
+            }
+
+            try {
+                showResult('userInfoResult', 'Getting user info via API...', 'info');
+
+                const response = await fetch('/api/auth/user', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${jwtToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('userInfoResult', 
+                        `🎉 User info retrieved successfully!\n\n` +
+                        `Authenticated: ${data.authenticated}\n` +
+                        `ID: ${data.id || 'N/A'}\n` +
+                        `Email: ${data.email || 'N/A'}\n` +
+                        `Name: ${data.name || 'N/A'}\n` +
+                        `Given Name: ${data.givenName || 'N/A'}\n` +
+                        `Family Name: ${data.familyName || 'N/A'}\n` +
+                        `Provider: ${data.provider || 'N/A'}\n` +
+                        `Picture URL: ${data.pictureUrl || 'N/A'}\n\n` +
+                        `✅ JWT authentication working correctly!\n\n` +
+                        `Raw Response:\n${JSON.stringify(data, null, 2)}`, 
+                        'success');
+                } else {
+                    showResult('userInfoResult', `❌ Error: ${data.error || 'Failed to get user info'}\n${data.message || ''}`, 'error');
+                }
+
+            } catch (error) {
+                showResult('userInfoResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getUserInfoWithSession() {
+            try {
+                showResult('userInfoResult', 'Getting user info via session authentication...', 'info');
+
+                const response = await fetch('/api/auth/user', {
+                    method: 'GET',
+                    credentials: 'include',  // Include session cookies
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('userInfoResult', 
+                        `🎉 User info retrieved via session!\n\n` +
+                        `Authenticated: ${data.authenticated}\n` +
+                        `ID: ${data.id || 'N/A'}\n` +
+                        `Email: ${data.email || 'N/A'}\n` +
+                        `Name: ${data.name || 'N/A'}\n` +
+                        `Given Name: ${data.givenName || 'N/A'}\n` +
+                        `Family Name: ${data.familyName || 'N/A'}\n` +
+                        `Provider: ${data.provider || 'N/A'}\n` +
+                        `Picture URL: ${data.pictureUrl || 'N/A'}\n\n` +
+                        `✅ Session authentication working!\n\n` +
+                        `Raw Response:\n${JSON.stringify(data, null, 2)}`, 
+                        'success');
+                } else {
+                    showResult('userInfoResult', `❌ Error: ${data.error || 'Failed to get user info'}\n${data.message || ''}`, 'error');
+                }
+
+            } catch (error) {
+                showResult('userInfoResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
         async function getProviders() {
             try {
-                const response = await fetch('/api/oauth/providers');
+                                 const response = await fetch('/api/oauth-proxy/providers');
                 const data = await response.json();
 
                 showResult('proxyResult', 
@@ -375,6 +510,17 @@ await launchUrl(Uri.parse(data['auth_url']));
             }
         }
 
+        async function testPublicEndpoint() {
+            try {
+                showResult('docsResult', 'Testing public endpoint...', 'info');
+                const response = await fetch('/api/oauth-proxy/providers');
+                const data = await response.json();
+                showResult('docsResult', `✅ Public endpoint test successful!\n\nEndpoint: /api/oauth-proxy/providers\nResponse: ${JSON.stringify(data, null, 2)}`, 'success');
+            } catch (error) {
+                showResult('docsResult', `❌ Error testing public endpoint: ${error.message}`, 'error');
+            }
+        }
+
         function showResult(elementId, message, type) {
             const element = document.getElementById(elementId);
             element.innerHTML = message;
@@ -385,9 +531,123 @@ await launchUrl(Uri.parse(data['auth_url']));
         function clearResults() {
             document.getElementById('proxyResult').style.display = 'none';
             document.getElementById('exchangeResult').style.display = 'none';
-            document.getElementById('tempCode').value = '';
-            document.getElementById('originalState').value = '';
+            document.getElementById('authCode').value = '';
+            document.getElementById('state').value = '';
             currentState = null;
+        }
+
+        function resetForm() {
+            document.getElementById('clientRedirectUri').value = window.location.origin + window.location.pathname;
+            document.getElementById('clientType').value = 'web';
+            document.getElementById('environment').value = 'dev';
+            document.getElementById('redirectUri').value = '';
+            document.getElementById('authCode').value = '';
+            document.getElementById('state').value = '';
+            document.getElementById('jwtToken').value = '';
+            document.getElementById('proxyResult').style.display = 'none';
+            document.getElementById('exchangeResult').style.display = 'none';
+            document.getElementById('userInfoResult').style.display = 'none';
+            document.getElementById('docsResult').style.display = 'none';
+            currentState = null;
+        }
+
+        function parseRedirectUri() {
+            const fullUri = document.getElementById('redirectUri').value.trim();
+            
+            if (!fullUri) {
+                showResult('exchangeResult', '❌ Please enter a redirect URI first', 'error');
+                return;
+            }
+            
+            try {
+                // Debug: Log the input URL
+                console.log('🔍 DEBUG: Parsing URL:', fullUri);
+                console.log('🔍 DEBUG: URL length:', fullUri.length);
+                
+                // Handle URLs that might not have protocol
+                let urlToParse = fullUri;
+                if (!fullUri.startsWith('http://') && !fullUri.startsWith('https://')) {
+                    urlToParse = 'https://' + fullUri;
+                }
+                
+                console.log('🔍 DEBUG: URL to parse:', urlToParse);
+                
+                const url = new URL(urlToParse);
+                console.log('🔍 DEBUG: URL search params:', url.search);
+                
+                const code = url.searchParams.get('code');
+                const state = url.searchParams.get('state');
+                
+                console.log('🔍 DEBUG: Extracted code:', code);
+                console.log('🔍 DEBUG: Extracted state:', state);
+                console.log('🔍 DEBUG: Code type:', typeof code);
+                console.log('🔍 DEBUG: Code null?:', code === null);
+                console.log('🔍 DEBUG: Code empty?:', code === '');
+                console.log('🔍 DEBUG: Code falsy?:', !code);
+                
+                // Show all parameters for debugging
+                const allParams = [];
+                for (const [key, value] of url.searchParams) {
+                    allParams.push(`${key}=${value}`);
+                }
+                console.log('🔍 DEBUG: All parameters:', allParams.join('&'));
+                
+                if (!code) {
+                    showResult('exchangeResult', 
+                        `❌ No authorization code found in the URL.\n\n` +
+                        `🔍 Debug info:\n` +
+                        `URL: ${fullUri}\n` +
+                        `Search params: ${url.search}\n` +
+                        `All params: ${allParams.join('&')}\n\n` +
+                        `💡 Make sure the URL contains ?code=...`, 
+                        'error');
+                    return;
+                }
+                
+                if (!state) {
+                    showResult('exchangeResult', 
+                        `❌ No state parameter found in the URL.\n\n` +
+                        `🔍 Debug info:\n` +
+                        `URL: ${fullUri}\n` +
+                        `Search params: ${url.search}\n` +
+                        `All params: ${allParams.join('&')}\n\n` +
+                        `💡 Make sure the URL contains &state=...`, 
+                        'error');
+                    return;
+                }
+                
+                // Populate the fields
+                document.getElementById('authCode').value = code;
+                document.getElementById('state').value = state;
+                
+                console.log('🔍 DEBUG: Populated authCode field with:', code);
+                console.log('🔍 DEBUG: Populated state field with:', state);
+                
+                showResult('exchangeResult', 
+                    `✅ Successfully parsed parameters!\n\n` +
+                    `🔑 Authorization Code: ${code}\n` +
+                    `🏷️ State: ${state}\n\n` +
+                    `📋 Extracted from: ${url.origin}${url.pathname}\n\n` +
+                    `✨ Ready to exchange code for token!`, 
+                    'success');
+                    
+            } catch (error) {
+                console.error('🔍 DEBUG: Error parsing URL:', error);
+                showResult('exchangeResult', 
+                    `❌ Error parsing URL: ${error.message}\n\n` +
+                    `🔍 Debug info:\n` +
+                    `Input URL: ${fullUri}\n` +
+                    `Error: ${error.stack || error.message}\n\n` +
+                    `💡 Make sure the URL format is correct:\n` +
+                    `https://myappdmtoolscallback.com/callback?code=...&state=...`, 
+                    'error');
+            }
+        }
+
+        function loadExampleRedirectUri() {
+            const exampleUri = 'https://myappdmtoolscallback.com/auth/callback?code=temp_90b93f65903543bc9a311082ad982fd0&state=oauth_proxy_88190d2c-7d55-476e-b7e4-f949ef815350';
+            document.getElementById('redirectUri').value = exampleUri;
+            showResult('exchangeResult', `Example redirect URI loaded: ${exampleUri}`, 'info');
         }
 
         // Auto-populate redirect URI based on client type
@@ -397,7 +657,7 @@ await launchUrl(Uri.parse(data['auth_url']));
             
             switch(clientType) {
                 case 'web':
-                    redirectUriInput.value = 'https://myapp.com/auth/callback';
+                    redirectUriInput.value = 'https://myappdmtoolscallback.com/auth/callback';
                     break;
                 case 'mobile':
                     redirectUriInput.value = 'myapp://auth/callback';
@@ -407,6 +667,6 @@ await launchUrl(Uri.parse(data['auth_url']));
                     break;
             }
         });
-    </script>
-</body>
+         </script>
+ </body>
 </html> 

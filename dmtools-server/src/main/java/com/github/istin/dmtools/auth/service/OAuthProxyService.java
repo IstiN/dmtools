@@ -31,8 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OAuthProxyService {
 
     private static final Logger logger = LoggerFactory.getLogger(OAuthProxyService.class);
-    private static final int STATE_EXPIRY_MINUTES = 5;
-    private static final int TEMP_CODE_EXPIRY_MINUTES = 5;
+    private static final int STATE_EXPIRY_MINUTES = 15; // Increased to 15 minutes for better testing experience
+    private static final int TEMP_CODE_EXPIRY_MINUTES = 15; // Increased to 15 minutes for better testing experience
     private static final String OAUTH_PROXY_STATE_PREFIX = "oauth_proxy_";
     
     private final ClientRegistrationRepository clientRegistrationRepository;
@@ -182,10 +182,10 @@ public class OAuthProxyService {
                     // Extract real user information
                     String email = extractEmail(realOAuth2User, provider);
                     String userId = realOAuth2User.getName();
-                    String givenName = realOAuth2User.getAttribute("given_name");
-                    String familyName = realOAuth2User.getAttribute("family_name");
-                    String name = realOAuth2User.getAttribute("name");
-                    String picture = realOAuth2User.getAttribute("picture");
+                    String givenName = extractGivenName(realOAuth2User, provider);
+                    String familyName = extractFamilyName(realOAuth2User, provider);
+                    String name = extractName(realOAuth2User, provider);
+                    String picture = extractPicture(realOAuth2User, provider);
                     
                     logger.info("📧 OAUTH SERVICE - Real user details: email={}, name={}, userId={}", email, name, userId);
                     
@@ -316,19 +316,27 @@ public class OAuthProxyService {
 
     private String extractEmail(OAuth2User user, String provider) {
         String email = null;
+        Map<String, Object> attributes = user.getAttributes();
+        
         switch (provider.toLowerCase()) {
             case "google":
                 email = user.getAttribute("email");
                 break;
             case "microsoft":
-                // Microsoft can return email in different fields depending on the endpoint used
-                email = user.getAttribute("email");
+                // Microsoft Graph API can return email in different fields
+                email = user.getAttribute("mail");
                 if (email == null) {
-                    email = user.getAttribute("mail");
+                    email = user.getAttribute("email");
                 }
                 if (email == null) {
                     email = user.getAttribute("userPrincipalName");
                 }
+                if (email == null) {
+                    email = user.getAttribute("preferred_username");
+                }
+                logger.info("🔍 OAUTH SERVICE - Microsoft email extraction: mail={}, email={}, userPrincipalName={}, preferred_username={}", 
+                           attributes.get("mail"), attributes.get("email"), 
+                           attributes.get("userPrincipalName"), attributes.get("preferred_username"));
                 break;
             case "github":
                 email = user.getAttribute("email");
@@ -337,8 +345,99 @@ public class OAuthProxyService {
                 email = user.getAttribute("email");
         }
         
-        logger.debug("Extracted email for provider {}: {}", provider, email);
+        logger.info("📧 OAUTH SERVICE - Extracted email for provider {}: {}", provider, email);
         return email;
+    }
+    
+    private String extractName(OAuth2User user, String provider) {
+        String name = null;
+        Map<String, Object> attributes = user.getAttributes();
+        
+        switch (provider.toLowerCase()) {
+            case "google":
+                name = user.getAttribute("name");
+                break;
+            case "microsoft":
+                // Microsoft Graph API uses 'displayName'
+                name = user.getAttribute("displayName");
+                if (name == null) {
+                    name = user.getAttribute("name");
+                }
+                // Fallback: construct from given/family names
+                if (name == null) {
+                    String givenName = user.getAttribute("givenName");
+                    String surname = user.getAttribute("surname");
+                    if (givenName != null && surname != null) {
+                        name = givenName + " " + surname;
+                    } else if (givenName != null) {
+                        name = givenName;
+                    } else if (surname != null) {
+                        name = surname;
+                    }
+                }
+                logger.info("🔍 OAUTH SERVICE - Microsoft name extraction: displayName={}, name={}, givenName={}, surname={}", 
+                           attributes.get("displayName"), attributes.get("name"), 
+                           attributes.get("givenName"), attributes.get("surname"));
+                break;
+            case "github":
+                name = user.getAttribute("name");
+                break;
+            default:
+                name = user.getAttribute("name");
+        }
+        
+        logger.info("👤 OAUTH SERVICE - Extracted name for provider {}: {}", provider, name);
+        return name;
+    }
+    
+    private String extractGivenName(OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("given_name");
+            case "microsoft":
+                String givenName = user.getAttribute("givenName");
+                if (givenName == null) {
+                    givenName = user.getAttribute("given_name");
+                }
+                return givenName;
+            case "github":
+                return null; // GitHub doesn't provide given name
+            default:
+                return user.getAttribute("given_name");
+        }
+    }
+    
+    private String extractFamilyName(OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("family_name");
+            case "microsoft":
+                String familyName = user.getAttribute("surname");
+                if (familyName == null) {
+                    familyName = user.getAttribute("family_name");
+                }
+                return familyName;
+            case "github":
+                return null; // GitHub doesn't provide family name
+            default:
+                return user.getAttribute("family_name");
+        }
+    }
+    
+    private String extractPicture(OAuth2User user, String provider) {
+        switch (provider.toLowerCase()) {
+            case "google":
+                return user.getAttribute("picture");
+            case "microsoft":
+                // Microsoft Graph API might have picture in different field
+                String picture = user.getAttribute("picture");
+                // Note: Microsoft Graph photo requires separate API call to /me/photo/$value
+                return picture;
+            case "github":
+                return user.getAttribute("avatar_url");
+            default:
+                return user.getAttribute("picture");
+        }
     }
 
     public String getClientRedirectUri(String state) {
@@ -394,6 +493,7 @@ public class OAuthProxyService {
     private OAuth2User exchangeAuthorizationCodeForUser(String provider, String authorizationCode) {
         try {
             logger.info("🔄 OAUTH SERVICE - Exchanging authorization code with {} for real user data", provider);
+            logger.info("🔧 OAUTH SERVICE - Auth code preview: {}...", authorizationCode.substring(0, Math.min(10, authorizationCode.length())));
             
             // Get client registration for the provider
             ClientRegistration clientRegistration = clientRegistrationRepository.findByRegistrationId(provider);
@@ -402,17 +502,11 @@ public class OAuthProxyService {
                 return null;
             }
             
-            // Check if this is a test authorization code (starts with "test_")
-            if (authorizationCode.startsWith("test_") || authorizationCode.startsWith("final_") || authorizationCode.startsWith("quick_")) {
-                logger.warn("⚠️ OAUTH SERVICE - Detected test authorization code, cannot perform real token exchange");
-                logger.warn("⚠️ OAUTH SERVICE - Test code: {}", authorizationCode.substring(0, 10) + "...");
-                logger.info("💡 OAUTH SERVICE - To get real user data, use a real OAuth flow with Google");
-                return null; // Return null to trigger fallback to test user
-            }
+            logger.info("✅ OAUTH SERVICE - Found client registration for {}", provider);
+            logger.info("🔗 OAUTH SERVICE - Token URI: {}", clientRegistration.getProviderDetails().getTokenUri());
+            logger.info("📍 OAUTH SERVICE - Redirect URI: {}", clientRegistration.getRedirectUri());
             
-            // Perform real OAuth2 token exchange with Google
-            logger.info("🔗 OAUTH SERVICE - Performing real token exchange with {}", provider);
-            
+            // Perform real OAuth2 token exchange
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -425,6 +519,12 @@ public class OAuthProxyService {
             tokenRequestBody.add("client_id", clientRegistration.getClientId());
             tokenRequestBody.add("client_secret", clientRegistration.getClientSecret());
             
+            // Add scope for Microsoft
+            if ("microsoft".equalsIgnoreCase(provider)) {
+                tokenRequestBody.add("scope", "openid profile email");
+                logger.info("🔧 OAUTH SERVICE - Added Microsoft scopes: openid profile email");
+            }
+            
             HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(tokenRequestBody, headers);
             
             // Exchange authorization code for access token
@@ -435,9 +535,15 @@ public class OAuthProxyService {
                 Map.class
             );
             
+            logger.info("📨 OAUTH SERVICE - Token response status: {}", tokenResponse.getStatusCode());
+            
             if (tokenResponse.getStatusCode() == HttpStatus.OK && tokenResponse.getBody() != null) {
                 Map<String, Object> tokenData = tokenResponse.getBody();
                 String accessToken = (String) tokenData.get("access_token");
+                String idToken = (String) tokenData.get("id_token");
+                
+                logger.info("🔑 OAUTH SERVICE - Access token: {}", accessToken != null ? "RECEIVED" : "NULL");
+                logger.info("🪪 OAUTH SERVICE - ID token: {}", idToken != null ? "RECEIVED" : "NULL");
                 
                 if (accessToken != null) {
                     logger.info("✅ OAUTH SERVICE - Successfully obtained access token from {}", provider);
@@ -446,13 +552,18 @@ public class OAuthProxyService {
                     return fetchUserProfile(provider, accessToken, clientRegistration);
                 } else {
                     logger.error("❌ OAUTH SERVICE - No access token in response from {}", provider);
+                    logger.error("📋 OAUTH SERVICE - Token response body: {}", tokenData);
                 }
             } else {
                 logger.error("❌ OAUTH SERVICE - Token exchange failed with status: {}", tokenResponse.getStatusCode());
+                if (tokenResponse.getBody() != null) {
+                    logger.error("📋 OAUTH SERVICE - Error response body: {}", tokenResponse.getBody());
+                }
             }
             
         } catch (Exception e) {
             logger.error("❌ OAUTH SERVICE - Error during token exchange: {}", e.getMessage(), e);
+            logger.error("💥 OAUTH SERVICE - Exception details: ", e);
         }
         
         return null;
@@ -478,11 +589,19 @@ public class OAuthProxyService {
                 Map.class
             );
             
+            logger.info("📨 OAUTH SERVICE - User profile response status: {}", userInfoResponse.getStatusCode());
+            
             if (userInfoResponse.getStatusCode() == HttpStatus.OK && userInfoResponse.getBody() != null) {
                 Map<String, Object> userAttributes = userInfoResponse.getBody();
                 logger.info("✅ OAUTH SERVICE - Successfully fetched user profile from {}", provider);
-                logger.info("👤 OAUTH SERVICE - User attributes: email={}, name={}", 
-                           userAttributes.get("email"), userAttributes.get("name"));
+                logger.info("📋 OAUTH SERVICE - Raw user attributes: {}", userAttributes);
+                
+                // Log specific fields for debugging
+                if ("microsoft".equalsIgnoreCase(provider)) {
+                    logger.info("🔍 OAUTH SERVICE - Microsoft user fields: id={}, mail={}, userPrincipalName={}, displayName={}, givenName={}, surname={}", 
+                               userAttributes.get("id"), userAttributes.get("mail"), userAttributes.get("userPrincipalName"),
+                               userAttributes.get("displayName"), userAttributes.get("givenName"), userAttributes.get("surname"));
+                }
                 
                 // For GitHub, fetch email addresses separately since the /user endpoint doesn't return them
                 if ("github".equalsIgnoreCase(provider) && userAttributes.get("email") == null) {
@@ -538,10 +657,18 @@ public class OAuthProxyService {
                 String userNameAttributeName = clientRegistration.getProviderDetails()
                     .getUserInfoEndpoint().getUserNameAttributeName();
                 
-                return new DefaultOAuth2User(authorities, userAttributes, userNameAttributeName);
+                logger.info("🔑 OAUTH SERVICE - Creating OAuth2User with username attribute: {}", userNameAttributeName);
+                
+                OAuth2User oauth2User = new DefaultOAuth2User(authorities, userAttributes, userNameAttributeName);
+                logger.info("✅ OAUTH SERVICE - Created OAuth2User successfully. Principal name: {}", oauth2User.getName());
+                
+                return oauth2User;
                 
             } else {
                 logger.error("❌ OAUTH SERVICE - Failed to fetch user profile, status: {}", userInfoResponse.getStatusCode());
+                if (userInfoResponse.getBody() != null) {
+                    logger.error("📋 OAUTH SERVICE - Error response body: {}", userInfoResponse.getBody());
+                }
             }
             
         } catch (Exception e) {

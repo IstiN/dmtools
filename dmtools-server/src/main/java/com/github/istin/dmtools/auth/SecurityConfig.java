@@ -168,11 +168,11 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/error").permitAll()
+                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/error").permitAll()
                     .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
                     .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                     .requestMatchers("/", "/test-*.html").permitAll()
-                    .requestMatchers("/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()
+                    .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()  // Added /temp/** for test files
                     .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/v1/chat/**").permitAll()
