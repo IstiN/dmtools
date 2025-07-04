@@ -69,7 +69,7 @@ public class OAuthProxyController {
             Map<String, Object> response = Map.of(
                 "auth_url", authUrl,
                 "state", state,
-                "expires_in", 300 // 5 minutes
+                "expires_in", 900 // 15 minutes
             );
             
             logger.info("📤 OAUTH PROXY - Returning successful response with auth_url");
