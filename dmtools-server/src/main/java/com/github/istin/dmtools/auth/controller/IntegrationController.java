@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.auth.controller;
 
 import com.github.istin.dmtools.auth.service.IntegrationService;
+import com.github.istin.dmtools.auth.service.UserService;
 import com.github.istin.dmtools.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * REST controller for managing integrations.
@@ -28,10 +30,12 @@ import java.util.Map;
 public class IntegrationController {
 
     private final IntegrationService integrationService;
+    private final UserService userService;
 
     @Autowired
-    public IntegrationController(IntegrationService integrationService) {
+    public IntegrationController(IntegrationService integrationService, UserService userService) {
         this.integrationService = integrationService;
+        this.userService = userService;
     }
 
     private String getUserId(Authentication authentication) {
@@ -39,7 +43,12 @@ public class IntegrationController {
         if (principal instanceof OAuth2User) {
             return ((OAuth2User) principal).getAttribute("sub");
         } else if (principal instanceof UserDetails) {
-            return ((UserDetails) principal).getUsername();
+            // For JWT authentication, the username is the email
+            // We need to find the user by email and return the user ID
+            String email = ((UserDetails) principal).getUsername();
+            return userService.findByEmail(email)
+                    .map(user -> user.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("User not found for email: " + email));
         }
         return authentication.getName();
     }
