@@ -20,6 +20,7 @@ public class IntegrationTypeConfig {
     private List<String> categories;
     private List<ConfigParamConfig> configParams;
     private Map<String, String> setupDocumentation;
+    private boolean hidden = false; // Default to visible
 
     public IntegrationTypeConfig() {
     }
@@ -104,5 +105,13 @@ public class IntegrationTypeConfig {
 
     public void setSetupDocumentation(Map<String, String> setupDocumentation) {
         this.setupDocumentation = setupDocumentation;
+    }
+
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
     }
 } 

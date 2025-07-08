@@ -142,6 +142,12 @@ public class WorkspaceController {
             return null;
         }
 
+        // Handle PlaceholderAuthentication during OAuth flow
+        if (authentication instanceof com.github.istin.dmtools.auth.PlaceholderAuthentication) {
+            logger.info("PlaceholderAuthentication detected, authentication still in progress");
+            return null;
+        }
+
         Object principal = authentication.getPrincipal();
         String email = null;
 
@@ -152,7 +158,13 @@ public class WorkspaceController {
         } else if (principal instanceof User) {
             email = ((User) principal).getEmail();
         } else if (principal instanceof String) {
-            email = (String) principal;
+            String principalStr = (String) principal;
+            // Check if it's a placeholder string from PlaceholderAuthentication
+            if (principalStr.startsWith("placeholder_")) {
+                logger.info("Placeholder principal detected: {}, authentication still in progress", principalStr);
+                return null;
+            }
+            email = principalStr;
         } else {
             logger.warn("Unknown principal type: {}", principal.getClass().getName());
             return null;

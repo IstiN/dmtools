@@ -67,6 +67,6 @@ public class BasicGithub extends GitHub {
 
     @Override
     public SourceCodeConfig getDefaultConfig() {
-        return DEFAULT_CONFIG;
+        return config;
     }
 }

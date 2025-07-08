@@ -105,4 +105,46 @@ public class IntegrationDto {
         
         return dto;
     }
+    
+    /**
+     * Converts an Integration entity to DTO with manually provided config params.
+     * This is a workaround for entity relationship issues.
+     * 
+     * @param integration The integration entity
+     * @param configParams The config params loaded manually
+     * @return The integration DTO
+     */
+    public static IntegrationDto fromEntity(Integration integration, java.util.List<com.github.istin.dmtools.auth.model.IntegrationConfig> configParams) {
+        IntegrationDto dto = new IntegrationDto();
+        dto.setId(integration.getId());
+        dto.setName(integration.getName());
+        dto.setDescription(integration.getDescription());
+        dto.setType(integration.getType());
+        dto.setEnabled(integration.isEnabled());
+        dto.setCreatedById(integration.getCreatedBy().getId());
+        dto.setCreatedByName(integration.getCreatedBy().getName());
+        dto.setCreatedByEmail(integration.getCreatedBy().getEmail());
+        dto.setUsageCount(integration.getUsageCount());
+        dto.setCreatedAt(integration.getCreatedAt());
+        dto.setUpdatedAt(integration.getUpdatedAt());
+        dto.setLastUsedAt(integration.getLastUsedAt());
+        
+        // Convert manually provided config params, excluding sensitive values
+        dto.setConfigParams(configParams.stream()
+                .map(config -> {
+                    IntegrationConfigDto configDto = new IntegrationConfigDto();
+                    configDto.setId(config.getId());
+                    configDto.setParamKey(config.getParamKey());
+                    // Only include the value if it's not sensitive
+                    if (!config.isSensitive()) {
+                        configDto.setParamValue(config.getParamValue());
+                    }
+                    // Note: paramValue remains null for sensitive configs, which Jackson converts to undefined in JSON
+                    configDto.setSensitive(config.isSensitive());
+                    return configDto;
+                })
+                .collect(Collectors.toSet()));
+        
+        return dto;
+    }
 } 
