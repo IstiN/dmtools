@@ -55,19 +55,10 @@ cd playwright-api-tests && npx playwright show-report
 The application is gradle based. You can't create any POM files and dependencies there. 
 
 It's java server / jar app, you can't run any python nodjs logic here.
-When we introduce new component in html pages first the component must be added to styleguide if it doens't exist. If it exists we must use it.
-
-
-For any new page:
-Import styleguide.css first (for components)
-Import styles.css second (for layouts)
-Use component classes from styleguide, if there is no component create new components first there
-Add layout classes as needed
-No more duplicates! 🎉 The design system is now the single source of truth for all UI components.
 
 Use "./gradlew " compile for files what you're changing command if you change any java code and run unitTests of what was changed to be sure that code is compiling and working.
 
-If you need to create new API endpoint you must create specification in OpenApi as well.
+If you need to create new API endpoint you must create specification in OpenApi (Swagger) as well.
 
 
 Use 'prototype' folder for any prototyping work.
