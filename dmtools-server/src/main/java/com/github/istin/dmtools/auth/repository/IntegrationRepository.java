@@ -3,6 +3,7 @@ package com.github.istin.dmtools.auth.repository;
 import com.github.istin.dmtools.auth.model.Integration;
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.model.Workspace;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -50,4 +51,11 @@ public interface IntegrationRepository extends JpaRepository<Integration, String
      * Find enabled integrations by type
      */
     List<Integration> findByTypeAndEnabledTrue(String type);
+    
+    /**
+     * Find integration by ID with config params eagerly loaded
+     */
+    @EntityGraph(attributePaths = {"configParams"})
+    @Query("SELECT i FROM Integration i WHERE i.id = :id")
+    Optional<Integration> findByIdWithConfigParams(@Param("id") String id);
 } 

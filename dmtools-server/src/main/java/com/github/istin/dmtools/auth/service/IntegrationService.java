@@ -4,13 +4,33 @@ import com.github.istin.dmtools.auth.model.*;
 import com.github.istin.dmtools.auth.repository.*;
 import com.github.istin.dmtools.auth.util.EncryptionUtils;
 import com.github.istin.dmtools.dto.*;
+import com.github.istin.dmtools.github.GitHub;
+import com.github.istin.dmtools.github.BasicGithub;
+import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
+import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
+import com.github.istin.dmtools.atlassian.jira.JiraClient;
+import com.github.istin.dmtools.atlassian.jira.model.Ticket;
+import com.github.istin.dmtools.common.model.IUser;
+import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.tracker.TrackerClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.core.io.ClassPathResource;
 
 /**
  * Service for managing integrations.
@@ -87,12 +107,20 @@ public class IntegrationService {
      * @param includeSensitive Whether to include sensitive configuration values
      * @return The integration DTO
      */
+    @Transactional(readOnly = true)
     public IntegrationDto getIntegrationById(String integrationId, String userId, boolean includeSensitive) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         Integration integration = integrationRepository.findById(integrationId)
                 .orElseThrow(() -> new IllegalArgumentException("Integration not found"));
+        
+        // Manually load config params since the entity relationship is broken
+        var manualConfigs = configRepository.findAll().stream()
+                .filter(c -> c.getIntegration().getId().equals(integration.getId()))
+                .toList();
+        
+        // Config params loaded successfully via manual approach
         
         // Check if the user has access to this integration
         boolean isCreator = integration.getCreatedBy().getId().equals(userId);
@@ -109,21 +137,48 @@ public class IntegrationService {
                          iu.getPermissionLevel() == IntegrationPermissionLevel.ADMIN);
         
         if (includeSensitive && canViewSensitiveData) {
-            IntegrationDto dto = IntegrationDto.fromEntityWithSensitiveData(integration);
-            
-            // Decrypt sensitive values
-            dto.getConfigParams().stream()
-                    .filter(IntegrationConfigDto::isSensitive)
-                    .forEach(config -> {
-                        if (config.getParamValue() != null) {
-                            config.setParamValue(encryptionUtils.decrypt(config.getParamValue()));
-                        }
-                    });
-            
-            return dto;
+            return createDtoWithSensitiveData(integration, manualConfigs);
         } else {
-            return IntegrationDto.fromEntity(integration);
+            return IntegrationDto.fromEntity(integration, manualConfigs);
         }
+    }
+
+    /**
+     * Helper method to create DTO with sensitive data and manual config params.
+     */
+    private IntegrationDto createDtoWithSensitiveData(Integration integration, java.util.List<IntegrationConfig> manualConfigs) {
+        IntegrationDto dto = new IntegrationDto();
+        dto.setId(integration.getId());
+        dto.setName(integration.getName());
+        dto.setDescription(integration.getDescription());
+        dto.setType(integration.getType());
+        dto.setEnabled(integration.isEnabled());
+        dto.setCreatedById(integration.getCreatedBy().getId());
+        dto.setCreatedByName(integration.getCreatedBy().getName());
+        dto.setCreatedByEmail(integration.getCreatedBy().getEmail());
+        dto.setUsageCount(integration.getUsageCount());
+        dto.setCreatedAt(integration.getCreatedAt());
+        dto.setUpdatedAt(integration.getUpdatedAt());
+        dto.setLastUsedAt(integration.getLastUsedAt());
+        
+        // Convert manually provided config params, including sensitive values
+        dto.setConfigParams(manualConfigs.stream()
+                .map(config -> {
+                    IntegrationConfigDto configDto = new IntegrationConfigDto();
+                    configDto.setId(config.getId());
+                    configDto.setParamKey(config.getParamKey());
+                    // Include all values, decrypting sensitive ones
+                    if (config.isSensitive() && config.getParamValue() != null) {
+                        configDto.setParamValue(encryptionUtils.decrypt(config.getParamValue()));
+                    } else {
+                        configDto.setParamValue(config.getParamValue());
+                    }
+                    configDto.setSensitive(config.isSensitive());
+                    return configDto;
+                })
+                .collect(java.util.stream.Collectors.toSet()));
+        
+        return dto;
     }
 
     /**
@@ -169,7 +224,20 @@ public class IntegrationService {
             }
         }
         
-        return IntegrationDto.fromEntity(savedIntegration);
+        // Force flush to ensure all data is written to database before reload
+        configRepository.flush();
+        
+        // Use regular findById 
+        Integration reloadedIntegration = integrationRepository.findById(savedIntegration.getId())
+                .orElseThrow(() -> new IllegalStateException("Integration not found after save"));
+        
+        // Manually load config params since the entity relationship is broken
+        var manualConfigs = configRepository.findAll().stream()
+                .filter(c -> c.getIntegration().getId().equals(reloadedIntegration.getId()))
+                .toList();
+        
+        // Create DTO with manual config params
+        return IntegrationDto.fromEntity(reloadedIntegration, manualConfigs);
     }
 
     /**
@@ -268,7 +336,10 @@ public class IntegrationService {
             throw new IllegalArgumentException("User does not have permission to delete this integration");
         }
         
-        // Delete the integration and all related entities
+        // Delete all related configuration parameters first to avoid foreign key constraint violations
+        configRepository.deleteByIntegration(integration);
+        
+        // Delete the integration and all remaining related entities
         integrationRepository.delete(integration);
     }
 
@@ -503,18 +574,450 @@ public class IntegrationService {
     }
 
     /**
-     * Test an integration connection.
+     * Test a specific integration based on type.
      *
      * @param request The test integration request
-     * @return A map containing the test result
+     * @return Test result
      */
     public Map<String, Object> testIntegration(TestIntegrationRequest request) {
-        // This would be implemented based on the specific integration type
-        // For now, we'll return a simple success response
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("message", "Connection test successful");
-        return result;
+        return switch (request.getType()) {
+            case "github" -> testGitHubIntegration(request.getConfigParams());
+            case "jira" -> testJiraIntegration(request.getConfigParams());
+            case "confluence" -> testConfluenceIntegration(request.getConfigParams());
+            case "figma" -> testFigmaIntegration(request.getConfigParams());
+            // TODO: Add cases for other integration types
+            default -> {
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", false);
+                result.put("message", "Unsupported integration type: " + request.getType());
+                yield result;
+            }
+        };
+    }
+
+    /**
+     * Tests a GitHub integration with the provided configuration parameters.
+     *
+     * @param configParams A map containing the configuration parameters for the test.
+     *                     Expected keys are: SOURCE_GITHUB_TOKEN, SOURCE_GITHUB_WORKSPACE,
+     *                     SOURCE_GITHUB_REPOSITORY, SOURCE_GITHUB_BRANCH, and an optional
+     *                     SOURCE_GITHUB_BASE_PATH.
+     * @return A map containing the result of the connection test. The map includes
+     *         a "success" key with a boolean value, a "message" key with a
+     *         descriptive string, and if successful, additional keys for "user",
+     *         "userId", and "configuration" details.
+     */
+    private Map<String, Object> testGitHubIntegration(Map<String, String> configParams) {
+        String token = configParams.get("SOURCE_GITHUB_TOKEN");
+        String workspace = configParams.get("SOURCE_GITHUB_WORKSPACE");
+        String repository = configParams.get("SOURCE_GITHUB_REPOSITORY");
+        String branch = configParams.get("SOURCE_GITHUB_BRANCH");
+        String basePath = configParams.getOrDefault("SOURCE_GITHUB_BASE_PATH", "https://api.github.com");
+
+        // Create a SourceCodeConfig for testing
+        SourceCodeConfig config = SourceCodeConfig.builder()
+                .type(SourceCodeConfig.Type.GITHUB)
+                .auth(token)
+                .path(basePath)
+                .workspaceName(workspace)
+                .repoName(repository)
+                .branchName(branch)
+                .build();
+        
+        try {
+            // Create GitHub instance
+            GitHub gitHub = new BasicGithub(config);
+
+            // Disable caching for the test
+            gitHub.setClearCache(true);
+            gitHub.setCacheGetRequestsEnabled(false);
+            gitHub.setCachePostRequestsEnabled(false);
+
+            // Test the connection
+            Map<String, Object> result = gitHub.testConnectionDetailed();
+            
+            // Add configuration details to the result for context
+            Map<String, String> configContext = new HashMap<>();
+            configContext.put("workspace", workspace);
+            configContext.put("repository", repository);
+            configContext.put("branch", branch);
+            configContext.put("basePath", basePath);
+            result.put("configuration", configContext);
+            
+            return result;
+        } catch (IOException e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Failed to initialize GitHub client: " + e.getMessage());
+            return errorResult;
+        }
+    }
+
+    /**
+     * Tests a Jira integration with the provided configuration parameters.
+     *
+     * @param configParams A map containing the configuration parameters for the test.
+     *                     Expected keys are: JIRA_BASE_PATH, JIRA_LOGIN_PASS_TOKEN, and an optional
+     *                     JIRA_AUTH_TYPE.
+     * @return A map containing the result of the connection test. The map includes
+     *         a "success" key with a boolean value, a "message" key with a
+     *         descriptive string, and if successful, additional keys for "user",
+     *         "userId", and "configuration" details.
+     */
+    private Map<String, Object> testJiraIntegration(Map<String, String> configParams) {
+        try {
+            String basePath = configParams.get("JIRA_BASE_PATH");
+            String token = configParams.get("JIRA_LOGIN_PASS_TOKEN");
+            String authType = configParams.getOrDefault("JIRA_AUTH_TYPE", "Basic");
+            
+            // Validate required parameters
+            if (basePath == null || basePath.trim().isEmpty()) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", "Jira base path is required");
+                errorResult.put("error", "missing_base_path");
+                return errorResult;
+            }
+            
+            if (token == null || token.trim().isEmpty()) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", "Jira token is required");
+                errorResult.put("error", "missing_token");
+                return errorResult;
+            }
+            
+            // Validate base path format
+            if (!basePath.startsWith("http://") && !basePath.startsWith("https://")) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", "Jira base path must start with http:// or https://");
+                errorResult.put("error", "invalid_base_path_format");
+                return errorResult;
+            }
+            
+            // Create Jira client and test connection
+            JiraClient<Ticket> jiraClient = new JiraClient<Ticket>(basePath, token) {
+                @Override
+                public String[] getDefaultQueryFields() {
+                    return new String[]{"summary", "status"};
+                }
+                
+                @Override
+                public String[] getExtendedQueryFields() {
+                    return getDefaultQueryFields();
+                }
+                
+                @Override
+                public String getTextFieldsOnly(ITicket ticket) {
+                    return "";
+                }
+                
+                @Override
+                public void deleteCommentIfExists(String ticketKey, String comment) throws IOException {
+                    // Not needed for testing
+                }
+                
+                @Override
+                public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
+                    return Collections.emptyList();
+                }
+                
+                @Override
+                public TrackerClient.TextType getTextType() {
+                    return TrackerClient.TextType.MARKDOWN;
+                }
+            };
+            
+            if (authType != null && !authType.trim().isEmpty()) {
+                jiraClient.setAuthType(authType);
+            }
+            jiraClient.setLogEnabled(false); // Disable logging during testing
+            
+            // Disable caching for the test
+            jiraClient.setClearCache(true);
+            jiraClient.setCacheGetRequestsEnabled(false);
+            
+            // Test connection by getting current user profile
+            IUser user = jiraClient.performMyProfile();
+            
+            // If we get here, the connection test was successful
+            Map<String, Object> successResult = new HashMap<>();
+            successResult.put("success", true);
+            successResult.put("message", "Jira connection test successful");
+            
+            // Add user information
+            Map<String, Object> userInfo = new HashMap<>();
+            userInfo.put("displayName", user.getFullName());
+            userInfo.put("accountId", user.getID());
+            if (user.getEmailAddress() != null) {
+                userInfo.put("emailAddress", user.getEmailAddress());
+            }
+            successResult.put("user", userInfo);
+            
+            // Add configuration info
+            Map<String, Object> configInfo = new HashMap<>();
+            configInfo.put("basePath", basePath);
+            configInfo.put("authType", authType);
+            successResult.put("configuration", configInfo);
+            
+            return successResult;
+            
+        } catch (IOException e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            
+            String errorMessage = e.getMessage();
+            if (errorMessage != null) {
+                // Check for common error patterns
+                if (errorMessage.contains("401") || errorMessage.contains("Unauthorized")) {
+                    errorResult.put("message", "Jira authentication failed - invalid token or credentials");
+                    errorResult.put("error", "authentication_failed");
+                } else if (errorMessage.contains("403") || errorMessage.contains("Forbidden")) {
+                    errorResult.put("message", "Jira access forbidden - insufficient permissions");
+                    errorResult.put("error", "access_forbidden");
+                } else if (errorMessage.contains("404") || errorMessage.contains("Not Found")) {
+                    errorResult.put("message", "Jira instance not found - check base path");
+                    errorResult.put("error", "instance_not_found");
+                } else if (errorMessage.contains("timeout") || errorMessage.contains("ConnectException")) {
+                    errorResult.put("message", "Connection timeout - Jira instance may be unreachable");
+                    errorResult.put("error", "connection_timeout");
+                } else {
+                    errorResult.put("message", "Jira connection failed: " + errorMessage);
+                    errorResult.put("error", "connection_failed");
+                }
+            } else {
+                errorResult.put("message", "Jira connection failed with unknown error");
+                errorResult.put("error", "unknown_error");
+            }
+            
+            return errorResult;
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Unexpected error during Jira connection test: " + e.getMessage());
+            errorResult.put("error", "unexpected_error");
+            return errorResult;
+        }
+    }
+
+    /**
+     * Tests a Confluence integration with the provided configuration parameters.
+     *
+     * @param configParams A map containing the configuration parameters for the test.
+     *                     Expected keys are: CONFLUENCE_BASE_PATH, CONFLUENCE_TOKEN.
+     * @return A map containing the result of the connection test.
+     */
+    private Map<String, Object> testConfluenceIntegration(Map<String, String> configParams) {
+        try {
+            String basePath = configParams.get("CONFLUENCE_BASE_PATH");
+            String token = configParams.get("CONFLUENCE_TOKEN");
+            
+            // Validate required parameters
+            if (basePath == null || basePath.trim().isEmpty()) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", "Confluence base path is required");
+                errorResult.put("error", "missing_base_path");
+                return errorResult;
+            }
+            
+            if (token == null || token.trim().isEmpty()) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", "Confluence token is required");
+                errorResult.put("error", "missing_token");
+                return errorResult;
+            }
+            
+            // Validate base path format
+            if (!basePath.startsWith("http://") && !basePath.startsWith("https://")) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", "Confluence base path must start with http:// or https://");
+                errorResult.put("error", "invalid_base_path_format");
+                return errorResult;
+            }
+            
+            // Create a basic HTTP client to test connection
+            HttpClient httpClient = HttpClient.newHttpClient();
+            
+            // Test basic connectivity to Confluence
+            HttpRequest testRequest = HttpRequest.newBuilder()
+                .uri(URI.create(basePath + "/rest/api/user/current"))
+                .header("Authorization", "Bearer " + token)
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+            
+            HttpResponse<String> response = httpClient.send(testRequest, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                // Parse response to get user info
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode userInfo = objectMapper.readTree(response.body());
+                
+                Map<String, Object> successResult = new HashMap<>();
+                successResult.put("success", true);
+                successResult.put("message", "Confluence connection test successful");
+                
+                // Add user information
+                Map<String, Object> userDetails = new HashMap<>();
+                userDetails.put("displayName", userInfo.path("displayName").asText());
+                userDetails.put("accountId", userInfo.path("accountId").asText());
+                if (userInfo.has("emailAddress")) {
+                    userDetails.put("emailAddress", userInfo.path("emailAddress").asText());
+                }
+                successResult.put("user", userDetails);
+                
+                // Add configuration info
+                Map<String, Object> configInfo = new HashMap<>();
+                configInfo.put("basePath", basePath);
+                successResult.put("configuration", configInfo);
+                
+                return successResult;
+            } else {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                
+                if (response.statusCode() == 401) {
+                    errorResult.put("message", "Confluence authentication failed - invalid token");
+                    errorResult.put("error", "authentication_failed");
+                } else if (response.statusCode() == 403) {
+                    errorResult.put("message", "Confluence access forbidden - insufficient permissions");
+                    errorResult.put("error", "access_forbidden");
+                } else if (response.statusCode() == 404) {
+                    errorResult.put("message", "Confluence instance not found - check base path");
+                    errorResult.put("error", "instance_not_found");
+                } else {
+                    errorResult.put("message", "Confluence connection failed with status: " + response.statusCode());
+                    errorResult.put("error", "connection_failed");
+                }
+                
+                return errorResult;
+            }
+            
+        } catch (IOException e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Confluence connection failed: " + e.getMessage());
+            errorResult.put("error", "io_error");
+            return errorResult;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Confluence connection test was interrupted");
+            errorResult.put("error", "interrupted");
+            return errorResult;
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Unexpected error during Confluence connection test: " + e.getMessage());
+            errorResult.put("error", "unexpected_error");
+            return errorResult;
+        }
+    }
+
+    /**
+     * Tests a Figma integration with the provided configuration parameters.
+     *
+     * @param configParams A map containing the configuration parameters for the test.
+     *                     Expected keys are: FIGMA_TOKEN.
+     * @return A map containing the result of the connection test.
+     */
+    private Map<String, Object> testFigmaIntegration(Map<String, String> configParams) {
+        try {
+            String token = configParams.get("FIGMA_TOKEN");
+            String basePath = configParams.getOrDefault("FIGMA_BASE_PATH", "https://api.figma.com");
+            
+            // Validate required parameters
+            if (token == null || token.trim().isEmpty()) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", "Figma token is required");
+                errorResult.put("error", "missing_token");
+                return errorResult;
+            }
+            
+            // Create a basic HTTP client to test connection
+            HttpClient httpClient = HttpClient.newHttpClient();
+            
+            // Test basic connectivity to Figma
+            HttpRequest testRequest = HttpRequest.newBuilder()
+                .uri(URI.create(basePath + "/v1/me"))
+                .header("X-Figma-Token", token)
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+            
+            HttpResponse<String> response = httpClient.send(testRequest, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() == 200) {
+                // Parse response to get user info
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode userInfo = objectMapper.readTree(response.body());
+                
+                Map<String, Object> successResult = new HashMap<>();
+                successResult.put("success", true);
+                successResult.put("message", "Figma connection test successful");
+                
+                // Add user information
+                Map<String, Object> userDetails = new HashMap<>();
+                userDetails.put("id", userInfo.path("id").asText());
+                userDetails.put("handle", userInfo.path("handle").asText());
+                if (userInfo.has("email")) {
+                    userDetails.put("email", userInfo.path("email").asText());
+                }
+                successResult.put("user", userDetails);
+                
+                // Add configuration info
+                Map<String, Object> configInfo = new HashMap<>();
+                configInfo.put("basePath", basePath);
+                successResult.put("configuration", configInfo);
+                
+                return successResult;
+            } else {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                
+                if (response.statusCode() == 401) {
+                    errorResult.put("message", "Figma authentication failed - invalid token");
+                    errorResult.put("error", "authentication_failed");
+                } else if (response.statusCode() == 403) {
+                    errorResult.put("message", "Figma access forbidden - insufficient permissions");
+                    errorResult.put("error", "access_forbidden");
+                } else if (response.statusCode() == 404) {
+                    errorResult.put("message", "Figma API endpoint not found");
+                    errorResult.put("error", "endpoint_not_found");
+                } else {
+                    errorResult.put("message", "Figma connection failed with status: " + response.statusCode());
+                    errorResult.put("error", "connection_failed");
+                }
+                
+                return errorResult;
+            }
+            
+        } catch (IOException e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Figma connection failed: " + e.getMessage());
+            errorResult.put("error", "io_error");
+            return errorResult;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Figma connection test was interrupted");
+            errorResult.put("error", "interrupted");
+            return errorResult;
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Unexpected error during Figma connection test: " + e.getMessage());
+            errorResult.put("error", "unexpected_error");
+            return errorResult;
+        }
     }
 
     /**
@@ -535,5 +1038,39 @@ public class IntegrationService {
      */
     public IntegrationTypeDto getIntegrationTypeSchema(String type) {
         return configurationLoader.getIntegrationType(type);
+    }
+
+    /**
+     * Get setup documentation content for a specific integration type.
+     *
+     * @param type The integration type
+     * @param locale The locale for documentation
+     * @return The documentation content as markdown text
+     */
+    public String getIntegrationDocumentation(String type, String locale) {
+        IntegrationTypeDto integrationTypeSchema = configurationLoader.getIntegrationType(type, locale);
+        String documentationUrl = integrationTypeSchema.getSetupDocumentationUrl();
+        
+        if (documentationUrl == null || documentationUrl.trim().isEmpty()) {
+            throw new RuntimeException("No documentation available for integration type: " + type);
+        }
+        
+        // Remove leading slash if present and ensure the path is relative to resources
+        String resourcePath = documentationUrl.startsWith("/") ? documentationUrl.substring(1) : documentationUrl;
+        
+        try {
+            // Load the documentation file from classpath resources
+            ClassPathResource resource = new ClassPathResource(resourcePath);
+            if (!resource.exists()) {
+                throw new RuntimeException("Documentation file not found: " + resourcePath);
+            }
+            
+            // Read the content as string
+            try (InputStream inputStream = resource.getInputStream()) {
+                return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read documentation file: " + resourcePath, e);
+        }
     }
 } 

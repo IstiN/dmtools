@@ -122,6 +122,7 @@ public class IntegrationConfigurationLoader {
      */
     public List<IntegrationTypeDto> getAllIntegrationTypes(String locale) {
         return configurations.values().stream()
+                .filter(config -> !config.isHidden())
                 .map(config -> convertToDto(config, locale))
                 .collect(Collectors.toList());
     }
@@ -145,6 +146,7 @@ public class IntegrationConfigurationLoader {
      */
     public List<IntegrationTypeDto> getIntegrationsByCategory(String category, String locale) {
         return configurations.values().stream()
+                .filter(config -> !config.isHidden())
                 .filter(config -> config.getCategories().contains(category))
                 .map(config -> convertToDto(config, locale))
                 .collect(Collectors.toList());

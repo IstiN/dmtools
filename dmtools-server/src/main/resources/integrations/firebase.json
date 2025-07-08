@@ -4,6 +4,7 @@
   "descriptionKey": "integration.firebase.description",
   "iconUrl": "/img/integrations/firebase-icon.svg",
   "categories": ["Database", "Cloud"],
+  "hidden": true,
   "setupDocumentation": {
     "en": "/docs/integrations/firebase_setup_en.md",
     "ru": "/docs/integrations/firebase_setup_ru.md"

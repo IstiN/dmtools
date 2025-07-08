@@ -698,4 +698,70 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
         // Return null if the URI is not recognized
         return null;
     }
+
+    /**
+     * Tests the GitHub connection by making a simple API call to verify authentication and connectivity.
+     * 
+     * @return true if the connection is successful, false otherwise
+     */
+    public boolean testConnection() {
+        try {
+            String path = path("user");
+            GenericRequest getRequest = new GenericRequest(this, path);
+            String response = execute(getRequest);
+            
+            if (response != null && !response.isEmpty()) {
+                JSONObject jsonResponse = new JSONObject(response);
+                // Check if the response contains expected user fields
+                return jsonResponse.has("login") || jsonResponse.has("id");
+            }
+            return false;
+        } catch (Exception e) {
+            logger.warn("GitHub connection test failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Tests the GitHub connection and returns detailed information about the result.
+     * 
+     * @return Map containing test result details
+     */
+    public Map<String, Object> testConnectionDetailed() {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            String path = path("user");
+            GenericRequest getRequest = new GenericRequest(this, path);
+            String response = execute(getRequest);
+            
+            if (response != null && !response.isEmpty()) {
+                JSONObject jsonResponse = new JSONObject(response);
+                
+                if (jsonResponse.has("login") || jsonResponse.has("id")) {
+                    result.put("success", true);
+                    result.put("message", "GitHub API connection successful");
+                    result.put("user", jsonResponse.optString("login", "unknown"));
+                    result.put("userId", jsonResponse.optString("id", "unknown"));
+                } else {
+                    result.put("success", false);
+                    result.put("message", "Unexpected response format from GitHub API");
+                }
+            } else {
+                result.put("success", false);
+                result.put("message", "Empty response from GitHub API");
+            }
+        } catch (RateLimitException e) {
+            result.put("success", false);
+            result.put("message", "GitHub API rate limit exceeded");
+            result.put("error", "rate_limit");
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "GitHub API connection failed: " + e.getMessage());
+            result.put("error", e.getClass().getSimpleName());
+            logger.warn("GitHub connection test failed", e);
+        }
+        
+        return result;
+    }
 }

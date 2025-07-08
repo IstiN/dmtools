@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Integration Connection Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 800px; 
+            margin: 0 auto;
+        }
+        .test { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px;
+        }
+        .success { 
+            background-color: #d4edda; 
+            border-color: #c3e6cb;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            border-color: #f5c6cb;
+        }
+        .warning { 
+            background-color: #fff3cd; 
+            border-color: #ffeaa7;
+        }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none;
+            border-radius: 3px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input, textarea { 
+            width: 100%; 
+            padding: 8px; 
+            margin: 5px 0; 
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .config-form {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Integration Connection Test</h1>
+    <p>This page tests the integration connection functionality in DMTools for GitHub and Jira.</p>
+    
+    <div class="test">
+        <h3>GitHub Configuration Test</h3>
+        <div class="config-form">
+            <label for="token">GitHub Token (required):</label>
+            <input type="password" id="token" placeholder="ghp_..." value="">
+            
+            <label for="basePath">Base Path (optional):</label>
+            <input type="text" id="basePath" placeholder="https://api.github.com" value="https://api.github.com">
+            
+            <label for="workspace">Workspace/Organization (optional):</label>
+            <input type="text" id="workspace" placeholder="your-org" value="">
+            
+            <label for="repository">Repository (optional):</label>
+            <input type="text" id="repository" placeholder="your-repo" value="">
+            
+            <label for="branch">Branch (optional):</label>
+            <input type="text" id="branch" placeholder="main" value="main">
+        </div>
+        
+        <button onclick="testGitHubIntegration()">🔍 Test GitHub Connection</button>
+        <button onclick="clearResults()">🧹 Clear Results</button>
+        
+        <div id="github-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test with Sample Invalid Config</h3>
+        <p>This will test the error handling by sending an invalid token.</p>
+        <button onclick="testInvalidConfig()">🚫 Test Invalid Configuration</button>
+        <div id="invalid-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Jira Integration Test</h3>
+        <div class="config-form">
+            <label for="jiraBasePath">Jira Base Path (required):</label>
+            <input type="text" id="jiraBasePath" placeholder="https://your-domain.atlassian.net" value="">
+            
+            <label for="jiraToken">Jira Token (required):</label>
+            <input type="password" id="jiraToken" placeholder="your-api-token" value="">
+            
+            <label for="jiraAuthType">Auth Type (optional):</label>
+            <input type="text" id="jiraAuthType" placeholder="Basic" value="Basic">
+        </div>
+        
+        <button onclick="testJiraIntegration()">🔍 Test Jira Connection</button>
+        <div id="jira-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test Other Integration Type</h3>
+        <p>This will test how the service handles non-GitHub integration types.</p>
+        <button onclick="testOtherIntegrationType()">🔧 Test Unknown Integration</button>
+        <div id="other-result"></div>
+    </div>
+
+    <script>
+        async function testGitHubIntegration() {
+            const resultDiv = document.getElementById('github-result');
+            resultDiv.innerHTML = '<div>🔄 Testing GitHub connection...</div>';
+            
+            const token = document.getElementById('token').value;
+            const basePath = document.getElementById('basePath').value;
+            const workspace = document.getElementById('workspace').value;
+            const repository = document.getElementById('repository').value;
+            const branch = document.getElementById('branch').value;
+            
+            if (!token.trim()) {
+                resultDiv.innerHTML = '<div class="result error">❌ Please enter a GitHub token</div>';
+                return;
+            }
+            
+            const configParams = {
+                SOURCE_GITHUB_TOKEN: token
+            };
+            
+            if (basePath.trim()) configParams.SOURCE_GITHUB_BASE_PATH = basePath;
+            if (workspace.trim()) configParams.SOURCE_GITHUB_WORKSPACE = workspace;
+            if (repository.trim()) configParams.SOURCE_GITHUB_REPOSITORY = repository;
+            if (branch.trim()) configParams.SOURCE_GITHUB_BRANCH = branch;
+            
+            try {
+                const response = await fetch('/api/integrations/test', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'github',
+                        configParams: configParams
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (data.success) {
+                        resultDiv.innerHTML = `<div class="result success">✅ SUCCESS: GitHub connection test passed!
+                        
+Details:
+${JSON.stringify(data, null, 2)}</div>`;
+                    } else {
+                        resultDiv.innerHTML = `<div class="result error">❌ FAILED: GitHub connection test failed
+                        
+Error Details:
+${JSON.stringify(data, null, 2)}</div>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ HTTP ERROR: ${response.status} ${response.statusText}
+                    
+Response:
+${JSON.stringify(data, null, 2)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ NETWORK ERROR: ${error.message}</div>`;
+            }
+        }
+        
+        async function testInvalidConfig() {
+            const resultDiv = document.getElementById('invalid-result');
+            resultDiv.innerHTML = '<div>🔄 Testing invalid configuration...</div>';
+            
+            try {
+                const response = await fetch('/api/integrations/test', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'github',
+                        configParams: {
+                            SOURCE_GITHUB_TOKEN: 'invalid_token_123'
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `<div class="result ${data.success ? 'warning' : 'success'}">
+${data.success ? '⚠️ UNEXPECTED: Invalid token was accepted' : '✅ EXPECTED: Invalid token was rejected'}
+
+Response:
+${JSON.stringify(data, null, 2)}</div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ NETWORK ERROR: ${error.message}</div>`;
+            }
+        }
+        
+        async function testOtherIntegrationType() {
+            const resultDiv = document.getElementById('other-result');
+            resultDiv.innerHTML = '<div>🔄 Testing unknown integration type...</div>';
+            
+            try {
+                const response = await fetch('/api/integrations/test', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'jira',
+                        configParams: {
+                            some_param: 'test_value'
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `<div class="result ${data.warning ? 'warning' : 'success'}">
+${data.warning ? '⚠️ EXPECTED: Non-implemented integration type handled gracefully' : '✅ SUCCESS: Integration test completed'}
+
+Response:
+${JSON.stringify(data, null, 2)}</div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ NETWORK ERROR: ${error.message}</div>`;
+            }
+        }
+        
+        async function testJiraIntegration() {
+            const resultDiv = document.getElementById('jira-result');
+            resultDiv.innerHTML = '<div>🔄 Testing Jira connection...</div>';
+            
+            const basePath = document.getElementById('jiraBasePath').value;
+            const token = document.getElementById('jiraToken').value;
+            const authType = document.getElementById('jiraAuthType').value;
+            
+            if (!basePath.trim()) {
+                resultDiv.innerHTML = '<div class="result error">❌ Please enter a Jira base path</div>';
+                return;
+            }
+            
+            if (!token.trim()) {
+                resultDiv.innerHTML = '<div class="result error">❌ Please enter a Jira token</div>';
+                return;
+            }
+            
+            const configParams = {
+                JIRA_BASE_PATH: basePath,
+                JIRA_LOGIN_PASS_TOKEN: token
+            };
+            
+            if (authType.trim()) {
+                configParams.JIRA_AUTH_TYPE = authType;
+            }
+            
+            try {
+                const response = await fetch('/api/integrations/test', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'jira',
+                        configParams: configParams
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (data.success) {
+                        resultDiv.innerHTML = `<div class="result success">✅ SUCCESS: Jira connection test passed!
+                        
+Details:
+${JSON.stringify(data, null, 2)}</div>`;
+                    } else {
+                        resultDiv.innerHTML = `<div class="result error">❌ FAILED: Jira connection test failed
+                        
+Error Details:
+${JSON.stringify(data, null, 2)}</div>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ HTTP ERROR: ${response.status} ${response.statusText}
+                    
+Response:
+${JSON.stringify(data, null, 2)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ NETWORK ERROR: ${error.message}</div>`;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('github-result').innerHTML = '';
+            document.getElementById('invalid-result').innerHTML = '';
+            document.getElementById('jira-result').innerHTML = '';
+            document.getElementById('other-result').innerHTML = '';
+        }
+    </script>
+</body>
+</html> 

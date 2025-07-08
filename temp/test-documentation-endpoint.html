@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Documentation Endpoint</title>
+</head>
+<body>
+    <h1>Test Documentation Endpoint</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testEndpoints() {
+            const results = document.getElementById('results');
+            
+            try {
+                // First get integration types to see the setupDocumentationUrl
+                console.log('Testing integration types...');
+                const typesResponse = await fetch('/api/integrations/types?locale=en');
+                const types = await typesResponse.json();
+                
+                const githubType = types.find(t => t.type === 'github');
+                results.innerHTML += `<h2>GitHub Integration Type</h2>`;
+                results.innerHTML += `<p>Setup Documentation URL: ${githubType?.setupDocumentationUrl || 'Not found'}</p>`;
+                
+                console.log('GitHub type:', githubType);
+                
+                // Test the documentation endpoint
+                console.log('Testing documentation endpoint...');
+                const docResponse = await fetch('/api/integrations/types/github/documentation?locale=en');
+                results.innerHTML += `<h2>Documentation Endpoint Response</h2>`;
+                results.innerHTML += `<p>Status: ${docResponse.status}</p>`;
+                results.innerHTML += `<p>Content-Type: ${docResponse.headers.get('content-type')}</p>`;
+                
+                if (docResponse.ok) {
+                    const docContent = await docResponse.text();
+                    results.innerHTML += `<p>Content Length: ${docContent.length}</p>`;
+                    results.innerHTML += `<pre>${docContent.substring(0, 500)}...</pre>`;
+                } else {
+                    const errorText = await docResponse.text();
+                    results.innerHTML += `<p>Error: ${errorText}</p>`;
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<p>Error: ${error.message}</p>`;
+                console.error('Error:', error);
+            }
+        }
+        
+        // Run tests when page loads
+        testEndpoints();
+    </script>
+</body>
+</html> 

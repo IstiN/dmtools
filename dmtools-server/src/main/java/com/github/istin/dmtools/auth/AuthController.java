@@ -142,6 +142,20 @@ public class AuthController {
         } else if (principal instanceof User) {
             user = (User) principal;
             logger.info("🔍 AUTH DEBUG - Direct User principal: {}", user.getEmail());
+        } else if (authentication instanceof com.github.istin.dmtools.auth.PlaceholderAuthentication) {
+            // Handle PlaceholderAuthentication during OAuth flow
+            logger.info("🔍 AUTH DEBUG - PlaceholderAuthentication detected, authentication still in progress");
+            return ResponseEntity.ok(Map.of("authenticated", false, "message", "Authentication in progress"));
+        } else if (principal instanceof String) {
+            // Handle String principals, but check if it's a placeholder
+            String principalStr = (String) principal;
+            if (principalStr.startsWith("placeholder_")) {
+                logger.info("🔍 AUTH DEBUG - Placeholder principal detected: {}", principalStr);
+                return ResponseEntity.ok(Map.of("authenticated", false, "message", "Authentication in progress"));
+            }
+            email = principalStr;
+            logger.info("🔍 AUTH DEBUG - String principal email: {}", email);
+            user = userService.findByEmail(email).orElse(null);
         }
 
         if (user != null) {

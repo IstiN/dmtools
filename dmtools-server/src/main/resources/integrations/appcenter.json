@@ -4,6 +4,7 @@
   "descriptionKey": "integration.appcenter.description",
   "iconUrl": "/img/integrations/appcenter-icon.svg",
   "categories": ["DevOps"],
+  "hidden": true,
   "setupDocumentation": {
     "en": "/docs/integrations/appcenter_setup_en.md",
     "ru": "/docs/integrations/appcenter_setup_ru.md"
@@ -24,7 +25,7 @@
       "displayNameKey": "appcenter.organization.displayName",
       "descriptionKey": "appcenter.organization.description",
       "instructionsKey": "appcenter.organization.instructions",
-      "required": false,
+      "required": true,
       "sensitive": false,
       "inputType": "string",
       "defaultValue": null

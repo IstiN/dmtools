@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -39,6 +40,11 @@ public class IntegrationController {
     }
 
     private String getUserId(Authentication authentication) {
+        // Handle PlaceholderAuthentication during OAuth flow
+        if (authentication instanceof com.github.istin.dmtools.auth.PlaceholderAuthentication) {
+            throw new IllegalArgumentException("Authentication still in progress, cannot extract user ID");
+        }
+        
         Object principal = authentication.getPrincipal();
         if (principal instanceof OAuth2User) {
             return ((OAuth2User) principal).getAttribute("sub");
@@ -49,6 +55,13 @@ public class IntegrationController {
             return userService.findByEmail(email)
                     .map(user -> user.getId())
                     .orElseThrow(() -> new IllegalArgumentException("User not found for email: " + email));
+        } else if (principal instanceof String) {
+            String principalStr = (String) principal;
+            // Check if it's a placeholder string from PlaceholderAuthentication
+            if (principalStr.startsWith("placeholder_")) {
+                throw new IllegalArgumentException("Authentication still in progress, cannot extract user ID");
+            }
+            return principalStr;
         }
         return authentication.getName();
     }
@@ -328,6 +341,7 @@ public class IntegrationController {
      * Test an integration connection.
      *
      * @param request The test integration request
+     * @param authentication The authenticated user
      * @return Test result
      */
     @PostMapping("/test")
@@ -338,7 +352,10 @@ public class IntegrationController {
         @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     public ResponseEntity<Map<String, Object>> testIntegration(
-            @Valid @RequestBody TestIntegrationRequest request) {
+            @Valid @RequestBody TestIntegrationRequest request,
+            Authentication authentication) {
+        // Validate that user is authenticated before allowing testing
+        String userId = getUserId(authentication);
         return ResponseEntity.ok(integrationService.testIntegration(request));
     }
 
@@ -372,6 +389,29 @@ public class IntegrationController {
     })
     public ResponseEntity<IntegrationTypeDto> getIntegrationTypeSchema(@PathVariable String type) {
         return ResponseEntity.ok(integrationService.getIntegrationTypeSchema(type));
+    }
+
+    /**
+     * Get setup documentation content for a specific integration type.
+     *
+     * @param type The integration type
+     * @param locale The locale for documentation (optional, defaults to 'en')
+     * @return The documentation content as plain text/markdown
+     */
+    @GetMapping("/types/{type}/documentation")
+    @Operation(summary = "Get integration setup documentation", description = "Retrieves the setup documentation content for a specific integration type")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Documentation retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "404", description = "Integration type or documentation not found")
+    })
+    public ResponseEntity<String> getIntegrationDocumentation(
+            @PathVariable String type,
+            @RequestParam(value = "locale", defaultValue = "en") String locale) {
+        String documentation = integrationService.getIntegrationDocumentation(type, locale);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(documentation);
     }
 
     /**
