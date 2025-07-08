@@ -116,6 +116,14 @@ test.describe.serial('Integrations API', () => {
             }
         });
 
+        console.log('Documentation endpoint response status:', response.status());
+        console.log('Documentation endpoint response headers:', response.headers());
+
+        if (response.status() !== 200) {
+            const errorText = await response.text();
+            console.log('Error response body:', errorText);
+        }
+
         expect(response.status()).toBe(200);
         expect(response.headers()['content-type']).toContain('text/plain');
         

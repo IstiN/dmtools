@@ -29,6 +29,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -38,9 +39,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * Controller for MCP (Model Context Protocol) server functionality.
+ * Provides tools and resources for JIRA, GitHub, and Confluence integrations.
+ */
 @RestController
 @RequestMapping("/mcp")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
+@Order(1000) // Give this controller lower priority than API controllers
 public class McpServerController {
 
     private static final Logger logger = LoggerFactory.getLogger(McpServerController.class);
@@ -198,13 +204,22 @@ public class McpServerController {
 
     @RequestMapping(value = "/**", method = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
     public ResponseEntity<Map<String, Object>> handleAllOtherRequests(HttpServletRequest httpRequest) {
-        logger.info("🌐 Catch-all request: {} {} from: {}", httpRequest.getMethod(), httpRequest.getRequestURI(), httpRequest.getRemoteAddr());
+        String requestURI = httpRequest.getRequestURI();
+        
+        // Skip API endpoints - let specific controllers handle them
+        if (requestURI.startsWith("/api/")) {
+            logger.debug("🔄 Skipping API path: {}", requestURI);
+            // Let other controllers handle this by returning 404 - Spring will try other mappings
+            return ResponseEntity.notFound().build();
+        }
+        
+        logger.info("🌐 Catch-all request: {} {} from: {}", httpRequest.getMethod(), requestURI, httpRequest.getRemoteAddr());
         logger.info("📋 Headers: {}", getRequestHeaders(httpRequest));
-        System.out.println("🌐 Catch-all request: " + httpRequest.getMethod() + " " + httpRequest.getRequestURI());
+        System.out.println("🌐 Catch-all request: " + httpRequest.getMethod() + " " + requestURI);
         return ResponseEntity.ok(Map.of(
             "message", "DMTools MCP Server",
             "method", httpRequest.getMethod(),
-            "path", httpRequest.getRequestURI(),
+            "path", requestURI,
             "availableEndpoints", List.of(
                 "POST /mcp/ - MCP protocol endpoint",
                 "GET /mcp/ - Server info",
