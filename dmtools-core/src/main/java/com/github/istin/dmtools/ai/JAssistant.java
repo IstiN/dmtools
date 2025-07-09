@@ -4,6 +4,7 @@ import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
+import com.github.istin.dmtools.ba.UserStoryGenerator;
 import com.github.istin.dmtools.ba.UserStoryGeneratorParams;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.*;
@@ -89,7 +90,7 @@ public class JAssistant {
         this.conversationObserver = conversationObserver;
     }
 
-    public void generateCode(String role, TicketContext ticketContext) throws Exception {
+    public String generateCode(String role, TicketContext ticketContext) throws Exception {
         ITicket ticket = ticketContext.getTicket();
 
         CodeGeneration codeGeneration = new CodeGeneration(trackerClient.getBasePath(), role, ticketContext);
@@ -113,6 +114,7 @@ public class JAssistant {
         logger.info(finalResponse);
         trackerClient.postComment(ticketContext.getTicket().getTicketKey(), "<p>AI Generated Code: </p>" + finalResponse);
         trackerClient.addLabelIfNotExists(ticketContext.getTicket(), "ai_generated_code");
+        return finalResponse;
 
     }
 
@@ -184,7 +186,7 @@ public class JAssistant {
         }
     }
 
-    public JSONArray generateUserStories(TicketContext ticketContext, List<? extends ITicket> listOfLinkedUserStories, String projectCode, String issueType, String acceptanceCriteriaField, String relationship, String outputType, String priorities, String parentField) throws Exception {
+    public UserStoryGenerator.Result generateUserStories(TicketContext ticketContext, List<? extends ITicket> listOfLinkedUserStories, String projectCode, String issueType, String acceptanceCriteriaField, String relationship, String outputType, String priorities, String parentField) throws Exception {
         ITicket mainTicket = ticketContext.getTicket();
         String key = mainTicket.getTicketKey();
 
@@ -203,19 +205,21 @@ public class JAssistant {
             String response = ai.chat(aiRequest);
             String comment = USER_STORIES_COMMENT_PREFIX + response;
             trackerClient.postComment(key, comment);
+            return new UserStoryGenerator.Result(ticketContext.getTicket().getKey(), null, null, response);
         } else {
             String aiRequest = promptManager.generateUserStoriesAsJSONArray(userStoryCreationPrompt);
-            JSONArray array = AI.Utils.chatAsJSONArray(ai, aiRequest);
-            if (!array.isEmpty()) {
-                createUserStories(projectCode, issueType, acceptanceCriteriaField, relationship, parentField, array, mainTicket);
+            JSONArray newUserStories = AI.Utils.chatAsJSONArray(ai, aiRequest);
+            JSONArray updatedUserStories = null;
+            if (!newUserStories.isEmpty()) {
+                createUserStories(projectCode, issueType, acceptanceCriteriaField, relationship, parentField, newUserStories, mainTicket);
             } else {
                 String aiResponseToUpdateUserStories = promptManager.updateUserStoriesAsJSONArray(userStoryCreationPrompt);
-                JSONArray objects = AI.Utils.chatAsJSONArray(ai, aiResponseToUpdateUserStories);
-                updateUserStories(acceptanceCriteriaField, objects);
-                return objects;
+                updatedUserStories = AI.Utils.chatAsJSONArray(ai, aiResponseToUpdateUserStories);
+                updateUserStories(acceptanceCriteriaField, updatedUserStories);
             }
+            return new UserStoryGenerator.Result(ticketContext.getTicket().getKey(), updatedUserStories, newUserStories, null);
         }
-        return null;
+
     }
 
     private void updateUserStories(String acceptanceCriteriaField, JSONArray objects) throws IOException {

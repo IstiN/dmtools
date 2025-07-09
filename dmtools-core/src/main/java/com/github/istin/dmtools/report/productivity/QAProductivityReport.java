@@ -8,29 +8,32 @@ import com.github.istin.dmtools.common.timeline.Release;
 import com.github.istin.dmtools.common.timeline.WeeksReleaseGenerator;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.metrics.rules.*;
 import com.github.istin.dmtools.report.ProductivityTools;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.Employees;
+import org.apache.commons.io.FileUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-public class QAProductivityReport extends AbstractJob<QAProductivityReportParams> {
+public class QAProductivityReport extends AbstractJob<QAProductivityReportParams, ResultItem> {
 
     @Override
-    public void runJob(QAProductivityReportParams qaProductivityReportParams) throws Exception {
+    public ResultItem runJob(QAProductivityReportParams qaProductivityReportParams) throws Exception {
         WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(qaProductivityReportParams.getStartDate());
         String formula = qaProductivityReportParams.getFormula();
         Employees testers = Employees.getTesters(qaProductivityReportParams.getEmployees());
-        ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, testers, qaProductivityReportParams.getIgnoreTicketPrefixes());
+        String response = FileUtils.readFileToString(ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, qaProductivityReportParams.getReportName() + (qaProductivityReportParams.isWeight() ? "_sp" : ""), formula, qaProductivityReportParams.getInputJQL(), generateListOfMetrics(qaProductivityReportParams), Release.Style.BY_SPRINTS, testers, qaProductivityReportParams.getIgnoreTicketPrefixes()));
         Set<String> unknownNames = testers.getUnknownNames();
         System.out.println("Unknown Names");
         System.out.println(unknownNames.size());
         System.out.println(unknownNames);
+        return new ResultItem("qaProductivityReport", response);
     }
 
     @Override

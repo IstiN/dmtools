@@ -11,6 +11,7 @@ import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.di.DaggerCommitsTriageComponent;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.openai.utils.AIResponseParser;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.prompt.Prompt;
@@ -22,7 +23,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CommitsTriage extends AbstractJob<CommitsTriageParams> {
+public class CommitsTriage extends AbstractJob<CommitsTriageParams, List<ResultItem>> {
 
     @Inject
     TrackerClient<? extends ITicket> trackerClient;
@@ -42,9 +43,9 @@ public class CommitsTriage extends AbstractJob<CommitsTriageParams> {
     }
 
     @Override
-    public void runJob(CommitsTriageParams params) throws Exception {
+    public List<ResultItem> runJob(CommitsTriageParams params) throws Exception {
         SourceCode sourceCode = sourceCodeFactory.createSourceCodes(params.getSourceType());
-
+        List<ResultItem> results = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext();
@@ -53,8 +54,10 @@ public class CommitsTriage extends AbstractJob<CommitsTriageParams> {
             context.set("ticket", ticketContext);
             String triageResults = triage(sourceCode, params, context);
             trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", below results of triage. \n" + triageResults);
+            results.add(new ResultItem(ticket.getKey(), triageResults));
             return false;
         }, params.getInputJQL(), trackerClient.getExtendedQueryFields());
+        return results;
     }
 
     public String triage(SourceCode sourceCode, CommitsTriageParams params, PromptContext context) throws Exception {

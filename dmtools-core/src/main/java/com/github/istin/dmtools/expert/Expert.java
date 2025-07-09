@@ -28,10 +28,11 @@ import com.github.istin.dmtools.di.ExpertComponent;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.job.Params;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.search.AbstractSearchOrchestrator;
 import com.github.istin.dmtools.search.CodebaseSearchOrchestrator;
-// import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator; // Temporarily disabled
+import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
@@ -42,7 +43,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Expert extends AbstractJob<ExpertParams> {
+public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
 
     @Inject
     TrackerClient<? extends ITicket> trackerClient;
@@ -74,8 +75,8 @@ public class Expert extends AbstractJob<ExpertParams> {
 
     List<CodebaseSearchOrchestrator> listOfCodebaseSearchOrchestrator = new ArrayList<>();
 
-    // @Inject
-    // ConfluenceSearchOrchestrator confluenceSearchOrchestrator; // Temporarily disabled
+     @Inject
+     ConfluenceSearchOrchestrator confluenceSearchOrchestrator; // Temporarily disabled
 
     @Inject
     TrackerSearchOrchestrator trackerSearchOrchestrator;
@@ -104,7 +105,7 @@ public class Expert extends AbstractJob<ExpertParams> {
     }
 
     @Override
-    protected void runJobImpl(ExpertParams expertParams) throws Exception {
+    protected List<ResultItem> runJobImpl(ExpertParams expertParams) throws Exception {
         String projectContext = expertParams.getProjectContext();
         String request = expertParams.getRequest();
         String systemRequest = expertParams.getSystemRequest();
@@ -145,6 +146,7 @@ public class Expert extends AbstractJob<ExpertParams> {
 
         String finalProjectContext = projectContext;
         String finalSystemRequest = systemRequest;
+        List<ResultItem> results = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext(true);
@@ -188,8 +190,10 @@ public class Expert extends AbstractJob<ExpertParams> {
             } else {
                 trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", there is response on your request: \n" + "System Request: " + systemRequestCommentAlias + "\n"+ request + "\n\nAI Response is: \n" + response);
             }
+            results.add(new ResultItem(ticket.getTicketKey(), response));
             return false;
         }, inputJQL, trackerClient.getExtendedQueryFields());
+        return results;
     }
 
     private String getKeywordsBlacklist(String keywordsBlacklist) throws Exception {
@@ -267,15 +271,12 @@ public class Expert extends AbstractJob<ExpertParams> {
 
     private List<ChunkPreparation.Chunk> extendContextWithConfluence(String ticketKey, ExpertParams expertParams, RequestDecompositionAgent.Result structuredRequest) throws Exception {
         // Temporarily disabled due to ClassCastException
-        /*
         String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
         int confluenceLimit = expertParams.getConfluenceLimit();
         int confluenceIterations = expertParams.getConfluenceIterations();
         List<ChunkPreparation.Chunk> chunks = confluenceSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, confluenceLimit, confluenceIterations);
         saveAndAttachStats(ticketKey, chunks, confluenceSearchOrchestrator);
         return chunks;
-        */
-        return new ArrayList<>(); // Return empty list temporarily
     }
 
     private List<ChunkPreparation.Chunk> extendContextWithTracker(String ticketKey, ExpertParams expertParams, RequestDecompositionAgent.Result structuredRequest) throws Exception {

@@ -10,6 +10,7 @@ import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.report.freemarker.GenericCell;
@@ -17,13 +18,14 @@ import com.github.istin.dmtools.report.freemarker.GenericReport;
 import com.github.istin.dmtools.report.freemarker.GenericRow;
 import org.json.JSONArray;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class CodeGenerator extends AbstractJob<CodeGeneratorParams> {
+public class CodeGenerator extends AbstractJob<CodeGeneratorParams, List<ResultItem>> {
 
     @Override
-    public void runJob(CodeGeneratorParams params) throws Exception {
-        runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getInputJQL(), params.getInitiator(), params.getRole(), params.getSources());
+    public List<ResultItem> runJob(CodeGeneratorParams params) throws Exception {
+        return runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getInputJQL(), params.getInitiator(), params.getRole(), params.getSources());
     }
 
     @Override
@@ -31,7 +33,7 @@ public class CodeGenerator extends AbstractJob<CodeGeneratorParams> {
         return null;
     }
 
-    public static void runJob(String confluenceRootPage, String eachPagePrefix, String inputJQL, String initiator, String role, JSONArray sources) throws Exception {
+    public static List<ResultItem> runJob(String confluenceRootPage, String eachPagePrefix, String inputJQL, String initiator, String role, JSONArray sources) throws Exception {
         BasicConfluence confluence = BasicConfluence.getInstance();
 
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
@@ -42,21 +44,24 @@ public class CodeGenerator extends AbstractJob<CodeGeneratorParams> {
 
         JAssistant jAssistant = new JAssistant(trackerClient, basicSourceCodes, openAI, promptManager);
 
+        List<ResultItem> resultItems = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext();
-            generateCode(confluenceRootPage, eachPagePrefix, role, ticketContext, jAssistant, conversationObserver, confluence, basicSourceCodes);
+            String response = generateCode(confluenceRootPage, eachPagePrefix, role, ticketContext, jAssistant, conversationObserver, confluence, basicSourceCodes);
             trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", code is prepared.");
+            resultItems.add(new ResultItem(ticket.getKey(), response));
             return false;
         }, inputJQL, trackerClient.getExtendedQueryFields());
+        return resultItems;
     }
 
-    public static void generateCode(String confluenceRootPage, String eachPagePrefix, String role, TicketContext ticketContext, JAssistant jAssistant, ConversationObserver conversationObserver, BasicConfluence confluence, List<SourceCode> basicSourceCode) throws Exception {
-        jAssistant.generateCode(role, ticketContext);
+    public static String generateCode(String confluenceRootPage, String eachPagePrefix, String role, TicketContext ticketContext, JAssistant jAssistant, ConversationObserver conversationObserver, BasicConfluence confluence, List<SourceCode> basicSourceCode) throws Exception {
+        String response = jAssistant.generateCode(role, ticketContext);
         List<ConversationObserver.Message> messages = conversationObserver.getMessages();
         if (confluenceRootPage == null || eachPagePrefix == null || confluenceRootPage.isEmpty() || eachPagePrefix.isEmpty()) {
             messages.clear();
-            return;
+            return "";
         }
 
         if (!messages.isEmpty()) {
@@ -72,5 +77,6 @@ public class CodeGenerator extends AbstractJob<CodeGeneratorParams> {
             conversationObserver.printAndClear();
             confluence.publishPageToDefaultSpace(confluenceRootPage, eachPagePrefix, genericReport);
         }
+        return response;
     }
 }

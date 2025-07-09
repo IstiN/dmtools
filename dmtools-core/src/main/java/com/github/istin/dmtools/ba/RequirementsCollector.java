@@ -14,6 +14,7 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.documentation.DocumentationEditor;
 import com.github.istin.dmtools.documentation.area.TicketDocumentationHistoryTrackerViaConfluence;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import org.apache.logging.log4j.LogManager;
@@ -22,20 +23,20 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RequirementsCollector extends AbstractJob<RequirementsCollectorParams> {
+public class RequirementsCollector extends AbstractJob<RequirementsCollectorParams, List<ResultItem>> {
     private static final Logger logger = LogManager.getLogger(RequirementsCollector.class);
     @Override
-    public void runJob(RequirementsCollectorParams params) throws Exception {
-        runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getInputJQL(), params.getExcludeJQL(), params.getLabelNameToMarkAsReviewed(), params.getEachPagePrefix());
+    public List<ResultItem> runJob(RequirementsCollectorParams params) throws Exception {
+        return runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getInputJQL(), params.getExcludeJQL(), params.getLabelNameToMarkAsReviewed(), params.getEachPagePrefix());
     }
 
-    public static void runJob(String roleSpecific, String projectSpecific, String storiesJql, String excludeJQL, String labelNameToMarkAsReviewed, String eachPagePrefix) throws Exception {
+    public static List<ResultItem> runJob(String roleSpecific, String projectSpecific, String storiesJql, String excludeJQL, String labelNameToMarkAsReviewed, String eachPagePrefix) throws Exception {
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
         ConversationObserver conversationObserver = new ConversationObserver();
         BasicOpenAI openAI = new BasicOpenAI(conversationObserver);
         PromptManager promptManager = new PromptManager();
         JAssistant jAssistant = new JAssistant(trackerClient, null, openAI, promptManager);
-
+        List<ResultItem> results = new ArrayList<>();
         trackerClient.searchAndPerform(new JiraClient.Performer() {
             @Override
             public boolean perform(ITicket ticket) throws Exception {
@@ -48,9 +49,11 @@ public class RequirementsCollector extends AbstractJob<RequirementsCollectorPara
                 String viewUrl = confluence.findContent(researchPageName).getViewUrl(confluence.getBasePath());
                 trackerClient.postCommentIfNotExists(ticket.getKey(), "Research in Existing Jira Tickets Was Done " + viewUrl);
                 trackerClient.addLabelIfNotExists(ticket, labelNameToMarkAsReviewed);
+                results.add(new ResultItem(ticket.getKey(), viewUrl));
                 return false;
             }
         }, storiesJql, trackerClient.getExtendedQueryFields());
+        return results;
     }
 
     protected static String makeSearchAndCollectRequirementsToPage(TrackerClient<? extends ITicket> trackerClient, JAssistant jAssistant, String jqlToSearch, String excludeJQL, TicketContext featureContext, String roleSpecific, String projectSpecific, String eachPagePrefix) throws Exception {

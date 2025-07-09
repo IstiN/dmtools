@@ -13,6 +13,7 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.expert.ExpertRequest;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.metrics.rules.CommentsWrittenRule;
 import com.github.istin.dmtools.metrics.rules.TestCasesCreatorsRule;
@@ -23,6 +24,7 @@ import com.github.istin.dmtools.report.ProductivityTools;
 import com.github.istin.dmtools.report.freemarker.DevProductivityReport;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.Employees;
+import org.apache.commons.io.FileUtils;
 
 import java.io.IOException;
 import java.util.*;
@@ -30,7 +32,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class AIAgentsReport extends AbstractJob<AIAgentsReportParams> {
+public class AIAgentsReport extends AbstractJob<AIAgentsReportParams, ResultItem> {
 
     private static final String AI_RESPONSE_PATTERN = ".*AI Response.*";
     private static final String FEATURE_REVIEW_PATTERN =
@@ -62,7 +64,7 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams> {
     private List<String> listOfRequests = new ArrayList<>();
 
     @Override
-    public void runJob(AIAgentsReportParams aiAgentsReportParams) throws Exception {
+    public ResultItem runJob(AIAgentsReportParams aiAgentsReportParams) throws Exception {
         usersPerRegex.clear();
         interactionsPerRegexPerUser.clear();
         allUsers.clear();
@@ -70,7 +72,7 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams> {
         WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(aiAgentsReportParams.getStartDate());
         String formula = aiAgentsReportParams.getFormula();
         TrackerClient<? extends ITicket> jira = BasicJiraClient.getInstance();
-        ProductivityTools.generate(jira, releaseGenerator, aiAgentsReportParams.getReportName() + (aiAgentsReportParams.isWeight() ? "_sp" : ""), formula, aiAgentsReportParams.getInputJQL(), generateListOfMetrics(aiAgentsReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(aiAgentsReportParams.getEmployees()), aiAgentsReportParams.getIgnoreTicketPrefixes(), new HtmlInjection() {
+        String response = FileUtils.readFileToString(ProductivityTools.generate(jira, releaseGenerator, aiAgentsReportParams.getReportName() + (aiAgentsReportParams.isWeight() ? "_sp" : ""), formula, aiAgentsReportParams.getInputJQL(), generateListOfMetrics(aiAgentsReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(aiAgentsReportParams.getEmployees()), aiAgentsReportParams.getIgnoreTicketPrefixes(), new HtmlInjection() {
             @Override
             public String getHtmBeforeTimeline(DevProductivityReport productivityReport) {
                 try {
@@ -80,7 +82,8 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams> {
                     throw new RuntimeException(e);
                 }
             }
-        });
+        }));
+        return new ResultItem("aiAgentsReport", response);
     }
 
     private String generateAnalyticsHtml(BasicJiraClient jira) throws Exception {

@@ -2,15 +2,16 @@ package com.github.istin.dmtools.job;
 
 import com.github.istin.dmtools.ai.AI;
 import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 public class AbstractJobTest {
 
-    private static class TestJob extends AbstractJob<String> {
+    private static class TestJob extends AbstractJob<String, String> {
         @Override
-        public void runJob(String s) throws Exception {
-
+        public String runJob(String s) throws Exception {
+            return "success";
         }
 
         @Override
@@ -35,7 +36,7 @@ public class AbstractJobTest {
 
     @Test
     public void testGetTemplateParameterClass() {
-        AbstractJob<String> job = new TestJob();
+        AbstractJob<String, String> job = new TestJob();
         assertEquals(String.class, job.getParamsClass());
     }
 
@@ -43,8 +44,8 @@ public class AbstractJobTest {
     public void testGetTemplateParameterClassThrowsException() {
         class InvalidJob extends AbstractJob {
             @Override
-            public void runJob(Object o) throws Exception {
-
+            public Object runJob(Object o) throws Exception {
+                return "success";
             }
 
             @Override

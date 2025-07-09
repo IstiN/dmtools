@@ -2,14 +2,14 @@ package com.github.istin.dmtools.job;
 
 import com.github.istin.dmtools.ai.AI;
 
-public interface Job<Params> {
+public interface Job<Params, Result> {
 
     /**
      * Runs the job with the given parameters
      * @param params The parameters
      * @throws Exception If an error occurs
      */
-    void runJob(Params params) throws Exception;
+    Result runJob(Params params) throws Exception;
 
     /**
      * Gets the name of the job
