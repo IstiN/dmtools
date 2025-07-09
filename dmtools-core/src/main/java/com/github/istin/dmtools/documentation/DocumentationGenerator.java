@@ -31,16 +31,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorParams> {
+public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorParams, JSONObject> {
     private static final Logger logger = LogManager.getLogger(DocumentationGenerator.class);
     public static String NAME = "DocumentationEditor";
 
     @Override
-    public void runJob(DocumentationGeneratorParams params) throws Exception {
-        runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getJQL(), params.getListOfStatusesToSort(), params.isReadFeatureAreasFromConfluenceRootPage());
+    public JSONObject runJob(DocumentationGeneratorParams params) throws Exception {
+        return runJob(params.getConfluenceRootPage(), params.getEachPagePrefix(), params.getJQL(), params.getListOfStatusesToSort(), params.isReadFeatureAreasFromConfluenceRootPage());
     }
 
-    public static void runJob(String confluenceRootPage, String eachPagePrefix, String jql, String[] listOfStatusesToSort, boolean isReadFeatureAreasFromConfluenceRootPage) throws Exception {
+    public static JSONObject runJob(String confluenceRootPage, String eachPagePrefix, String jql, String[] listOfStatusesToSort, boolean isReadFeatureAreasFromConfluenceRootPage) throws Exception {
         ConversationObserver conversationObserver = new ConversationObserver();
         BasicOpenAI openAIClient = new BasicOpenAI(conversationObserver);
         PromptManager promptManager = new PromptManager();
@@ -82,6 +82,7 @@ public class DocumentationGenerator extends AbstractJob<DocumentationGeneratorPa
                 documentationEditor.attachImagesForPage(childKey, tracker, figma);
             }
         }
+        return optimizedFeatureAreas;
     }
 
     public static @NotNull List<? extends ITicket> retrieveTickets(TrackerClient tracker, String jql, String[] listOfStatusesToSort) throws Exception {

@@ -9,23 +9,27 @@ import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 
-public class SolutionArchitectureCreator extends AbstractJob<SolutionArchitectureCreatorParams> {
+import java.util.ArrayList;
+import java.util.List;
+
+public class SolutionArchitectureCreator extends AbstractJob<SolutionArchitectureCreatorParams, List<ResultItem>> {
 
     @Override
-    public void runJob(SolutionArchitectureCreatorParams params) throws Exception {
-        runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getStoriesJql(), params.getLabelNameToMarkAsReviewed());
+    public List<ResultItem> runJob(SolutionArchitectureCreatorParams params) throws Exception {
+        return runJob(params.getRoleSpecific(), params.getProjectSpecific(), params.getStoriesJql(), params.getLabelNameToMarkAsReviewed());
     }
 
-    public static void runJob(String roleSpecific, String projectSpecific, String storiesJql, String labelNameToMarkAsReviewed) throws Exception {
+    public static List<ResultItem> runJob(String roleSpecific, String projectSpecific, String storiesJql, String labelNameToMarkAsReviewed) throws Exception {
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
         ConversationObserver conversationObserver = new ConversationObserver();
         BasicOpenAI openAI = new BasicOpenAI(conversationObserver);
         PromptManager promptManager = new PromptManager();
         JAssistant jAssistant = new JAssistant(trackerClient, null, openAI, promptManager);
-
+        List<ResultItem> resultItems = new ArrayList<>();
         trackerClient.searchAndPerform(new JiraClient.Performer() {
             @Override
             public boolean perform(ITicket ticket) throws Exception {
@@ -36,9 +40,11 @@ public class SolutionArchitectureCreator extends AbstractJob<SolutionArchitectur
                 String solution = jAssistant.createSolutionForTicket(trackerClient, roleSpecific, projectSpecific, ticketContext);
                 trackerClient.updateDescription(ticket.getKey(), ticketDescription + "\n" + solution);
                 trackerClient.addLabelIfNotExists(ticket, labelNameToMarkAsReviewed);
+                resultItems.add(new ResultItem(ticket.getKey(), solution));
                 return false;
             }
         }, storiesJql, trackerClient.getExtendedQueryFields());
+        return resultItems;
     }
 
     @Override

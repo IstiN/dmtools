@@ -9,13 +9,14 @@ import com.github.istin.dmtools.common.model.IDiffStats;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.di.SourceCodeFactory;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 
 import java.util.Calendar;
 import java.util.List;
 
-public class SourceCodeCommitTrackerSyncJob extends AbstractJob<SourceCodeCommitTrackerSyncParams> {
+public class SourceCodeCommitTrackerSyncJob extends AbstractJob<SourceCodeCommitTrackerSyncParams, ResultItem> {
     @Override
-    public void runJob(SourceCodeCommitTrackerSyncParams sourceCodeCommitTrackerSyncParams) throws Exception {
+    public ResultItem runJob(SourceCodeCommitTrackerSyncParams sourceCodeCommitTrackerSyncParams) throws Exception {
         SourceCodeConfig[] sourceCodeConfigs = sourceCodeCommitTrackerSyncParams.getSourceCodeConfig();
         List<SourceCode> sourceCodes = new SourceCodeFactory().createSourceCodes(sourceCodeConfigs);
 
@@ -56,6 +57,7 @@ public class SourceCodeCommitTrackerSyncJob extends AbstractJob<SourceCodeCommit
             }
         }
         //System.out.println(commitsFromBranch);
+        return new ResultItem("SourceCodeCommitTrackerSync", "success");
     }
 
     @Override

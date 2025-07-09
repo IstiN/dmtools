@@ -14,8 +14,9 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.di.DaggerTestCasesGeneratorComponent;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
-import lombok.Getter;
+import lombok.*;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -24,7 +25,19 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
+public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, List<TestCasesGenerator.TestCasesResult>> {
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Getter
+    @Setter
+    public class TestCasesResult {
+        private String key;
+        private List<ITicket> similarTestCases;
+        private List<TestCaseGeneratorAgent.TestCase> newTestCases;
+    }
+
 
     @Inject
     TrackerClient<? extends ITicket> trackerClient;
@@ -54,19 +67,21 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
     }
 
     @Override
-    public void runJob(TestCasesGeneratorParams params) throws Exception {
+    public List<TestCasesResult> runJob(TestCasesGeneratorParams params) throws Exception {
+        final List<TestCasesResult> result = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
             List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext();
             String additionalRules = new ConfluencePagesContext(params.getConfluencePages(), confluence, false).toText();
-            generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params);
+            result.add(generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params));
             trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
             return false;
         }, params.getInputJql(), trackerClient.getExtendedQueryFields());
+        return result;
     }
 
-    public void generateTestCases(TicketContext ticketContext, String extraRules, List<? extends ITicket> listOfAllTestCases, TestCasesGeneratorParams params) throws Exception {
+    public TestCasesResult generateTestCases(TicketContext ticketContext, String extraRules, List<? extends ITicket> listOfAllTestCases, TestCasesGeneratorParams params) throws Exception {
         ITicket mainTicket = ticketContext.getTicket();
         String key = mainTicket.getTicketKey();
 
@@ -75,13 +90,13 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
         List<TestCaseGeneratorAgent.TestCase> newTestCases = testCaseGeneratorAgent.run(new TestCaseGeneratorAgent.Params(params.getTestCasesPriorities(), finaResults.toString(), ticketContext.toText(), extraRules));
 
         if (params.getOutputType().equals(TestCasesGeneratorParams.OutputType.comment)) {
-            StringBuilder comment = new StringBuilder();
+            StringBuilder result = new StringBuilder();
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
-                comment.append("Summary: ").append(testCase.getSummary()).append("<br>");
-                comment.append("Priority: ").append(testCase.getPriority()).append("<br>");
-                comment.append("Description: ").append(testCase.getDescription()).append("<br>");
+                result.append("Summary: ").append(testCase.getSummary()).append("<br>");
+                result.append("Priority: ").append(testCase.getPriority()).append("<br>");
+                result.append("Description: ").append(testCase.getDescription()).append("<br>");
             }
-            trackerClient.postComment(key, comment.toString());
+            trackerClient.postComment(key, result.toString());
         } else {
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
                 String projectCode = key.split("-")[0];
@@ -102,6 +117,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams> {
                 trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), params.getTestCaseLinkRelationship());
             }
         }
+        return new TestCasesResult(ticketContext.getTicket().getKey(), finaResults, newTestCases);
     }
 
     @NotNull

@@ -21,10 +21,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class ScrumMasterDaily extends AbstractJob<ScrumMasterDailyParams> {
+public class ScrumMasterDaily extends AbstractJob<ScrumMasterDailyParams, String> {
     private static final Logger logger = LogManager.getLogger(ScrumMasterDaily.class);
     @Override
-    public void runJob(ScrumMasterDailyParams scrumMasterDailyParams) throws Exception {
+    public String runJob(ScrumMasterDailyParams scrumMasterDailyParams) throws Exception {
         BasicConfluence confluence = BasicConfluence.getInstance();
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
         Calendar yesterday = Calendar.getInstance();
@@ -114,6 +114,7 @@ public class ScrumMasterDaily extends AbstractJob<ScrumMasterDailyParams> {
         logger.log(Level.INFO, finalPageDescription);
         Content content = confluence.findContent(scrumMasterDailyParams.getConfluencePage());
         confluence.updatePage(content, BasicConfluence.macroCloudHTML(finalPageDescription.toString()));
+        return finalPageDescription.toString();
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.github.istin.dmtools.ai.JAssistant;
 import com.github.istin.dmtools.file.FileContentListener;
 import com.github.istin.dmtools.file.SourceCodeReader;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 
@@ -18,10 +19,10 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
+public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams, ResultItem> {
 
     @Override
-    public void runJob(UnitTestsGeneratorParams params) throws Exception {
+    public ResultItem runJob(UnitTestsGeneratorParams params) throws Exception {
         List<String> extensionsList = Arrays.asList(params.getFileExtensions());
         String[] excludeClasses = params.getExcludeClasses();
         SourceCodeReader sourceCodeReader = new SourceCodeReader(extensionsList, Paths.get(params.getSrcFolder()));
@@ -60,6 +61,7 @@ public class UnitTestsGenerator extends AbstractJob<UnitTestsGeneratorParams> {
                 }
             }
         });
+        return new ResultItem("unitests", "success");
     }
 
     @Override

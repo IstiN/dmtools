@@ -16,6 +16,7 @@ import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.excel.ExcelMetric;
 import com.github.istin.dmtools.excel.model.ExcelMetricConfig;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.metrics.*;
 import com.github.istin.dmtools.metrics.rules.TicketMovedToStatusRule;
 import com.github.istin.dmtools.report.IReleaseGenerator;
@@ -23,6 +24,7 @@ import com.github.istin.dmtools.report.ProductivityTools;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.report.timeinstatus.TimeInStatus;
 import com.github.istin.dmtools.team.Employees;
+import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -30,10 +32,10 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class DevProductivityReport extends AbstractJob<DevProductivityReportParams> {
+public class DevProductivityReport extends AbstractJob<DevProductivityReportParams, ResultItem> {
 
     @Override
-    public void runJob(DevProductivityReportParams devProductivityReportParams) throws Exception {
+    public ResultItem runJob(DevProductivityReportParams devProductivityReportParams) throws Exception {
         IReleaseGenerator releaseGenerator = devProductivityReportParams.getTimePeriodType() == DevProductivityReportParams.TimePeriodType.WEEKS ?
                 new WeeksReleaseGenerator(devProductivityReportParams.getStartDate())
                 : new QuartersReleaseGenerator(devProductivityReportParams.getStartDate());
@@ -48,11 +50,13 @@ public class DevProductivityReport extends AbstractJob<DevProductivityReportPara
         } else {
             employees = Employees.getDevelopers();
         }
-        ProductivityTools.generate(trackerClient, releaseGenerator, team, formula, inputJQL, generateListOfMetrics(devProductivityReportParams, employees, DateUtils.parseCalendar(devProductivityReportParams.getStartDate())), Release.Style.BY_SPRINTS, devProductivityReportParams.getIgnoreTicketPrefixes());
+        String response = FileUtils.readFileToString(ProductivityTools.generate(trackerClient, releaseGenerator, team, formula, inputJQL, generateListOfMetrics(devProductivityReportParams, employees, DateUtils.parseCalendar(devProductivityReportParams.getStartDate())), Release.Style.BY_SPRINTS, devProductivityReportParams.getIgnoreTicketPrefixes()));
         Set<String> unknownNames = employees.getUnknownNames();
         System.out.println("Unknown Names");
         System.out.println(unknownNames.size());
         System.out.println(unknownNames);
+        return new ResultItem("devProductivityReport", response);
+
     }
 
     @Override

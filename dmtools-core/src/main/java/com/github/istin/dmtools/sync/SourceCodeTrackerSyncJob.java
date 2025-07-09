@@ -14,6 +14,7 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.report.model.KeyTime;
 import io.github.furstenheim.CopyDown;
 import org.apache.logging.log4j.LogManager;
@@ -25,12 +26,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
 
-public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncParams> {
+public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncParams, ResultItem> {
 
     private static final Logger logger = LogManager.getLogger(SourceCodeTrackerSyncJob.class);
 
     @Override
-    public void runJob(SourceCodeTrackerSyncParams sourceCodeTrackerSyncParams) throws Exception {
+    public ResultItem runJob(SourceCodeTrackerSyncParams sourceCodeTrackerSyncParams) throws Exception {
         List<SourceCode> sources = SourceCode.Impl.getConfiguredSourceCodes(new JSONArray());
         for (SourceCode sourceCode : sources) {
             String defaultWorkspace = sourceCode.getDefaultWorkspace();
@@ -88,6 +89,7 @@ public class SourceCodeTrackerSyncJob extends AbstractJob<SourceCodeTrackerSyncP
                     sourceCodeTrackerSyncParams.getAddPullRequestLabelsAsIssueType(), sourceCodeTrackerSyncParams.getInProgressReopenedStatuses()
             );
         }
+        return new ResultItem("SourceCodeTrackerSync", "success");
     }
 
     @Override

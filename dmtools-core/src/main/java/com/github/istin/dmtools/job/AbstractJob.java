@@ -7,7 +7,7 @@ import lombok.Setter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-public abstract class AbstractJob<Params> implements Job<Params>{
+public abstract class AbstractJob<Params, Result> implements Job<Params, Result>{
 
     @Getter
     @Setter
@@ -50,8 +50,8 @@ public abstract class AbstractJob<Params> implements Job<Params>{
     }
     
     @Override
-    public void runJob(Params params) throws Exception {
-        executeJob(params);
+    public Result runJob(Params params) throws Exception {
+        return executeJob(params);
     }
     
     /**
@@ -59,10 +59,10 @@ public abstract class AbstractJob<Params> implements Job<Params>{
      * @param params The job parameters
      * @throws Exception If an error occurs
      */
-    protected void executeJob(Params params) throws Exception {
+    protected Result executeJob(Params params) throws Exception {
         // Default implementation calls the old runJob method for backwards compatibility
         // This allows existing job implementations to continue working without changes
-        runJobImpl(params);
+        return runJobImpl(params);
     }
     
     /**
@@ -71,7 +71,7 @@ public abstract class AbstractJob<Params> implements Job<Params>{
      * @param params The job parameters
      * @throws Exception If an error occurs
      */
-    protected void runJobImpl(Params params) throws Exception {
+    protected Result runJobImpl(Params params) throws Exception {
         // This method should be overridden by subclasses that don't implement executeJob
         throw new UnsupportedOperationException("Either executeJob or runJobImpl must be implemented");
     }

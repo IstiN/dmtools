@@ -9,23 +9,26 @@ import com.github.istin.dmtools.common.timeline.WeeksReleaseGenerator;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.figma.BasicFigmaClient;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.metrics.rules.*;
 import com.github.istin.dmtools.report.ProductivityTools;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.Employees;
+import org.apache.commons.io.FileUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BAProductivityReport extends AbstractJob<BAProductivityReportParams> {
+public class BAProductivityReport extends AbstractJob<BAProductivityReportParams, ResultItem> {
 
     @Override
-    public void runJob(BAProductivityReportParams baProductivityReportParams) throws Exception {
+    public ResultItem runJob(BAProductivityReportParams baProductivityReportParams) throws Exception {
         WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(baProductivityReportParams.getStartDate());
         String formula = baProductivityReportParams.getFormula();
-        ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, baProductivityReportParams.getReportName() + (baProductivityReportParams.isWeight() ? "_sp" : ""), formula, baProductivityReportParams.getInputJQL(), generateListOfMetrics(baProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getBusinessAnalysts(baProductivityReportParams.getEmployees()), baProductivityReportParams.getIgnoreTicketPrefixes());
+        String response = FileUtils.readFileToString(ProductivityTools.generate(BasicJiraClient.getInstance(), releaseGenerator, baProductivityReportParams.getReportName() + (baProductivityReportParams.isWeight() ? "_sp" : ""), formula, baProductivityReportParams.getInputJQL(), generateListOfMetrics(baProductivityReportParams), Release.Style.BY_SPRINTS, Employees.getBusinessAnalysts(baProductivityReportParams.getEmployees()), baProductivityReportParams.getIgnoreTicketPrefixes()));
+        return new ResultItem("baProductivityReport", response);
     }
 
     @Override

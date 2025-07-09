@@ -12,7 +12,7 @@ public class JobTest {
     @Test
     public void testRunJob() throws Exception {
         // Create a mock of the Job interface
-        Job<Object> jobMock = Mockito.mock(Job.class);
+        Job<Object, Object> jobMock = Mockito.mock(Job.class);
 
         // Define a parameter object
         Object params = new Object();
@@ -27,7 +27,7 @@ public class JobTest {
     @Test
     public void testGetName() {
         // Create a mock of the Job interface
-        Job<Object> jobMock = Mockito.mock(Job.class);
+        Job<Object, Object> jobMock = Mockito.mock(Job.class);
 
         // Define the expected name
         String expectedName = "TestJob";
@@ -45,7 +45,7 @@ public class JobTest {
     @Test
     public void testGetParamsClass() {
         // Create a mock of the Job interface
-        Job<Object> jobMock = Mockito.mock(Job.class);
+        Job<Object, Object> jobMock = Mockito.mock(Job.class);
 
         // Define the expected class
         Class<Object> expectedClass = Object.class;

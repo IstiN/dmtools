@@ -8,6 +8,7 @@ import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.report.ReportUtils;
@@ -27,7 +28,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class JEstimator extends AbstractJob<JEstimatorParams> {
+public class JEstimator extends AbstractJob<JEstimatorParams, ResultItem> {
     private static final Logger logger = LogManager.getLogger(JEstimator.class);
 
     @Override
@@ -76,11 +77,11 @@ public class JEstimator extends AbstractJob<JEstimatorParams> {
     }
 
     @Override
-    public void runJob(JEstimatorParams params) throws Exception {
-        runJob(params.getJQL(), params.getReportName());
+    public ResultItem runJob(JEstimatorParams params) throws Exception {
+        return runJob(params.getJQL(), params.getReportName());
     }
 
-    private static void runJob(String jql, String reportName) throws Exception {
+    private static ResultItem runJob(String jql, String reportName) throws Exception {
         TrackerClient<? extends ITicket> jira = BasicJiraClient.getInstance();
         BasicOpenAI openAIClient = new BasicOpenAI();
         ConversationObserver conversationObserver = new ConversationObserver();
@@ -133,7 +134,7 @@ public class JEstimator extends AbstractJob<JEstimatorParams> {
             mainReport.getRows().add(row);
         }
 
-        publishReport(mainReport);
+        return new ResultItem(jql, publishReport(mainReport));
     }
 
     protected static Double parseFromFile(File file) throws IOException {
@@ -166,7 +167,7 @@ public class JEstimator extends AbstractJob<JEstimatorParams> {
         return number;
     };
 
-    protected static void estimateTicket(AIEstimatedTicket aiEstimatedTicket, List<AIEstimatedTicket> tickets, JAssistant jAssistant, ConversationObserver conversationObserver) throws Exception {
+    protected static String estimateTicket(AIEstimatedTicket aiEstimatedTicket, List<AIEstimatedTicket> tickets, JAssistant jAssistant, ConversationObserver conversationObserver) throws Exception {
         List<AIEstimatedTicket> listWithoutSource = tickets.stream().filter(ticket -> !ticket.getKey().equalsIgnoreCase(aiEstimatedTicket.getKey())).collect(Collectors.toList());
         Double developerEstimation = jAssistant.estimateStory("Developer", aiEstimatedTicket.getKey(), listWithoutSource, false);
         aiEstimatedTicket.setAiEstimation(developerEstimation);
@@ -182,11 +183,11 @@ public class JEstimator extends AbstractJob<JEstimatorParams> {
         }
 
         conversationObserver.printAndClear();
-        publishReport(genericReport);
+        return publishReport(genericReport);
     }
 
-    protected static void publishReport(GenericReport genericReport) throws IOException, TemplateException {
+    protected static String publishReport(GenericReport genericReport) throws IOException, TemplateException {
         String name = genericReport.getName();
-        new ReportUtils().write(name, "table_report", genericReport, null);
+        return FileUtils.readFileToString(new ReportUtils().write(name, "table_report", genericReport, null));
     }
 }

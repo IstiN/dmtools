@@ -11,25 +11,29 @@ import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.job.AbstractJob;
+import com.github.istin.dmtools.job.ResultItem;
 import com.github.istin.dmtools.openai.BasicOpenAI;
 import com.github.istin.dmtools.openai.PromptManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class BusinessAnalyticDORGeneration extends AbstractJob<BusinessAnalyticDORGenerationParams> {
+import java.util.ArrayList;
+import java.util.List;
+
+public class BusinessAnalyticDORGeneration extends AbstractJob<BusinessAnalyticDORGenerationParams, List<ResultItem>> {
     private static final Logger logger = LogManager.getLogger(BusinessAnalyticDORGeneration.class);
     @Override
-    public void runJob(BusinessAnalyticDORGenerationParams params) throws Exception {
-        runJob(params.getOutputConfluencePage(), params.getInputJQL(), params.getInitiator());
+    public List<ResultItem> runJob(BusinessAnalyticDORGenerationParams params) throws Exception {
+        return runJob(params.getOutputConfluencePage(), params.getInputJQL(), params.getInitiator());
     }
 
-    public static void runJob(String outputConfluencePage, String inputJQL, String initiator) throws Exception {
+    public static List<ResultItem> runJob(String outputConfluencePage, String inputJQL, String initiator) throws Exception {
         TrackerClient<? extends ITicket> trackerClient = BasicJiraClient.getInstance();
         ConversationObserver conversationObserver = new ConversationObserver();
         BasicOpenAI openAI = new BasicOpenAI(conversationObserver);
         PromptManager promptManager = new PromptManager();
         JAssistant jAssistant = new JAssistant(trackerClient, null, openAI, promptManager);
-
+        List<ResultItem> resultItems = new ArrayList<>();
         trackerClient.searchAndPerform(new JiraClient.Performer() {
             @Override
             public boolean perform(ITicket ticket) throws Exception {
@@ -40,9 +44,11 @@ public class BusinessAnalyticDORGeneration extends AbstractJob<BusinessAnalyticD
                 Content content = confluence.findContent(outputConfluencePage);
                 String output = jAssistant.buildDORGenerationForStory(ticketContext, content.getStorage().getValue());
                 confluence.updatePage(content.getId(), content.getTitle(), content.getParentId(), output, confluence.getDefaultSpace(), ticket.getKey() + " " + ticket.getTicketLink());
+                resultItems.add(new ResultItem(ticket.getKey(), output));
                 return false;
             }
         }, inputJQL, trackerClient.getExtendedQueryFields());
+        return resultItems;
     }
 
     @Override

@@ -23,9 +23,11 @@ import com.github.istin.dmtools.sm.ScrumMasterDaily;
 import com.github.istin.dmtools.sync.SourceCodeCommitTrackerSyncJob;
 import com.github.istin.dmtools.sync.SourceCodeTrackerSyncJob;
 
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.Properties;
 
 public class JobRunner {
 
@@ -78,16 +80,20 @@ public class JobRunner {
         }
         
         JobParams jobParams = new JobParams(new String(decodeBase64(args[0])));
+        Object result = new JobRunner().run(jobParams);
+        System.err.println("Job '" + jobParams.getName() + "' not found.");
+        System.exit(1);
+    }
+
+    public Object run(JobParams jobParams) throws Exception {
         for (Job job : JOBS) {
             if (job.getName().equalsIgnoreCase(jobParams.getName())) {
                 Object paramsByClass = jobParams.getParamsByClass(job.getParamsClass());
                 initMetadata(job, paramsByClass);
-                job.runJob(paramsByClass);
-                return;
+                return job.runJob(paramsByClass);
             }
         }
-        System.err.println("Job '" + jobParams.getName() + "' not found.");
-        System.exit(1);
+        throw new IllegalArgumentException("unknown job name");
     }
 
     private static void printHelp() {
@@ -131,7 +137,7 @@ public class JobRunner {
     public static String decodeBase64(String input) {
         byte[] decodedBytes = Base64.getDecoder().decode(input);
         // Convert the decoded bytes to a string
-        return new java.lang.String(decodedBytes);
+        return new String(decodedBytes);
     }
 
     public static String encodeBase64(String input) {
@@ -154,8 +160,8 @@ public class JobRunner {
         
         // Try to read from properties file
         try {
-            java.util.Properties props = new java.util.Properties();
-            java.io.InputStream is = JobRunner.class.getClassLoader().getResourceAsStream("version.properties");
+            Properties props = new Properties();
+            InputStream is = JobRunner.class.getClassLoader().getResourceAsStream("version.properties");
             if (is != null) {
                 props.load(is);
                 String version = props.getProperty("version");

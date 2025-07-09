@@ -3,6 +3,7 @@ package com.github.istin.dmtools.ai.agent;
 import com.github.istin.dmtools.di.DaggerTestCaseGeneratorAgentComponent;
 import com.github.istin.dmtools.openai.utils.AIResponseParser;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 import lombok.ToString;
 import org.json.JSONArray;
@@ -25,6 +26,7 @@ public class TestCaseGeneratorAgent extends AbstractSimpleAgent<TestCaseGenerato
     @AllArgsConstructor
     @Getter
     @ToString
+    @Data
     public static class TestCase {
         private String priority;
         private String summary;

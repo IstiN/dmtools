@@ -19,10 +19,10 @@ import org.json.JSONObject;
 import java.util.List;
 import java.util.Set;
 
-public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
+public class PreSaleSupport extends AbstractJob<PreSaleSupportParams, String> {
 
     @Override
-    public void runJob(PreSaleSupportParams preSaleSupportParams) throws Exception {
+    public String runJob(PreSaleSupportParams preSaleSupportParams) throws Exception {
         String confluenceRootPage = preSaleSupportParams.getConfluenceRootPage();
         String folderWithPdfAssets = preSaleSupportParams.getFolderWithPdfAssets();
         String prefix = "jai";
@@ -152,6 +152,7 @@ public class PreSaleSupport extends AbstractJob<PreSaleSupportParams> {
                     Proofread the proposal document for errors and inconsistencies.
                     Ensure alignment with client requirements and expectations.
                  */
+        return "Success";
     }
 
     private static void buildKeyAreas(String rootRequirementsPageName, BasicConfluence confluence, PdfAsTrackerClient rfpInputTracker, DocumentationEditor documentationEditor, List<PdfPageAsTicket> dataInputTicketsWithRequirements, KeyAreaMapperViaConfluence ticketAreaMapper) throws Exception {
