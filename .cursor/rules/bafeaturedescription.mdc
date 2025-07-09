@@ -3,6 +3,8 @@ description:
 globs:
 alwaysApply: false
 ---
+BACKGROUND: We have Flutter App for Web / Mobile and java server and dmtools-core to make single jar file to run jobs.
+You must not describe mobile web features. Your part is only server and core modules.
 
 **What it does**: Brief description of the feature's primary purpose and value
 **Target Users**: Who uses this feature (developers, project managers, etc.)
