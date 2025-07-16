@@ -1,0 +1,2867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Execution Test - DMTools</title>
+    <script>
+        /**
+         * OAuth Handler - Reusable module for handling OAuth authentication flows
+         * 
+         * Features:
+         * - Automatic detection and handling of OAuth redirects (code/state parameters)
+         * - Token exchange and storage
+         * - Authentication state management
+         * - OAuth flow initiation
+         * - Session storage for tokens with expiration
+         */
+
+        class OAuthHandler {
+            constructor(options = {}) {
+                this.options = {
+                    tokenStorageKey: 'dmtools_oauth_token',
+                    stateStorageKey: 'dmtools_oauth_state',
+                    autoHandleRedirect: true,
+                    redirectUrlCleanup: true,
+                    onTokenReceived: null,
+                    onAuthError: null,
+                    onAuthSuccess: null,
+                    debug: false,
+                    ...options
+                };
+                
+                // Initialize
+                this.init();
+            }
+            
+            init() {
+                if (this.options.autoHandleRedirect) {
+                    this.handleOAuthRedirect();
+                }
+            }
+            
+            /**
+             * Check if current URL contains OAuth redirect parameters
+             */
+            isOAuthRedirect() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const state = urlParams.get('state');
+                return !!(code && state);
+            }
+            
+            /**
+             * Automatically handle OAuth redirect if present
+             */
+            async handleOAuthRedirect() {
+                if (!this.isOAuthRedirect()) {
+                    this.log('No OAuth redirect detected');
+                    return;
+                }
+                
+                this.log('OAuth redirect detected, processing...');
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const state = urlParams.get('state');
+                const error = urlParams.get('error');
+                const errorDescription = urlParams.get('error_description');
+                
+                if (error) {
+                    this.log('OAuth error received:', error, errorDescription);
+                    if (this.options.onAuthError) {
+                        this.options.onAuthError(error, errorDescription);
+                    }
+                    return;
+                }
+                
+                try {
+                    // Exchange code for token
+                    await this.exchangeCodeForToken(code, state);
+                    
+                    // Clean up URL if requested
+                    if (this.options.redirectUrlCleanup) {
+                        this.cleanupRedirectUrl();
+                    }
+                    
+                } catch (error) {
+                    this.log('Error handling OAuth redirect:', error);
+                    if (this.options.onAuthError) {
+                        this.options.onAuthError('exchange_failed', error.message);
+                    }
+                }
+            }
+            
+            /**
+             * Exchange authorization code for access token
+             */
+            async exchangeCodeForToken(code, state) {
+                this.log('Exchanging code for token...', { code: code.substring(0, 10) + '...', state });
+                
+                try {
+                    const response = await fetch('/api/oauth-proxy/exchange', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            code: code,
+                            state: state
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        this.log('Token exchange successful');
+                        
+                        // Store token with expiration
+                        this.storeToken(data);
+                        
+                        // Notify success
+                        if (this.options.onTokenReceived) {
+                            this.options.onTokenReceived(data);
+                        }
+                        if (this.options.onAuthSuccess) {
+                            this.options.onAuthSuccess(data);
+                        }
+                        
+                        return data;
+                    } else {
+                        throw new Error(`Token exchange failed: ${data.error || data.message || 'Unknown error'}`);
+                    }
+                    
+                } catch (error) {
+                    this.log('Token exchange error:', error);
+                    throw error;
+                }
+            }
+            
+            /**
+             * Initiate OAuth flow
+             */
+            async initiateOAuth(provider = 'google', options = {}) {
+                const config = {
+                    provider: provider,
+                    client_redirect_uri: options.redirectUri || window.location.href.split('?')[0],
+                    client_type: options.clientType || 'web',
+                    environment: options.environment || 'prod',
+                    ...options
+                };
+                
+                this.log('Initiating OAuth flow:', config);
+                
+                try {
+                    const response = await fetch('/api/oauth-proxy/initiate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(config)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        this.log('OAuth initiation successful', data);
+                        
+                        // Store state for verification
+                        sessionStorage.setItem(this.options.stateStorageKey, data.state);
+                        
+                        // Redirect to OAuth provider
+                        window.location.href = data.auth_url;
+                        
+                        return data;
+                    } else {
+                        throw new Error(`OAuth initiation failed: ${data.error || data.message || 'Unknown error'}`);
+                    }
+                    
+                } catch (error) {
+                    this.log('OAuth initiation error:', error);
+                    throw error;
+                }
+            }
+            
+            /**
+             * Store token in localStorage with expiration
+             */
+            storeToken(tokenData) {
+                const expirationTime = Date.now() + (tokenData.expires_in * 1000);
+                const tokenInfo = {
+                    access_token: tokenData.access_token,
+                    token_type: tokenData.token_type || 'Bearer',
+                    expires_at: expirationTime,
+                    expires_in: tokenData.expires_in,
+                    stored_at: Date.now()
+                };
+                
+                localStorage.setItem(this.options.tokenStorageKey, JSON.stringify(tokenInfo));
+                this.log('Token stored with expiration:', new Date(expirationTime));
+            }
+            
+            /**
+             * Get stored token if valid
+             */
+            getStoredToken() {
+                try {
+                    const tokenStr = localStorage.getItem(this.options.tokenStorageKey);
+                    if (!tokenStr) {
+                        return null;
+                    }
+                    
+                    const tokenInfo = JSON.parse(tokenStr);
+                    
+                    // Check if token is expired (with 5 minute buffer)
+                    const now = Date.now();
+                    const bufferTime = 5 * 60 * 1000; // 5 minutes
+                    
+                    if (tokenInfo.expires_at && now > (tokenInfo.expires_at - bufferTime)) {
+                        this.log('Token expired, removing...');
+                        this.clearToken();
+                        return null;
+                    }
+                    
+                    return tokenInfo;
+                    
+                } catch (error) {
+                    this.log('Error getting stored token:', error);
+                    this.clearToken();
+                    return null;
+                }
+            }
+            
+            /**
+             * Get authorization header value
+             */
+            getAuthHeader() {
+                const token = this.getStoredToken();
+                if (!token) {
+                    return null;
+                }
+                return `${token.token_type} ${token.access_token}`;
+            }
+            
+            /**
+             * Check if user is authenticated
+             */
+            isAuthenticated() {
+                return !!this.getStoredToken();
+            }
+            
+            /**
+             * Clear stored token
+             */
+            clearToken() {
+                localStorage.removeItem(this.options.tokenStorageKey);
+                sessionStorage.removeItem(this.options.stateStorageKey);
+                this.log('Token cleared');
+            }
+            
+            /**
+             * Test authentication by calling user info endpoint
+             */
+            async testAuthentication() {
+                const authHeader = this.getAuthHeader();
+                if (!authHeader) {
+                    throw new Error('No authentication token available');
+                }
+                
+                this.log('Testing authentication...');
+                
+                try {
+                    const response = await fetch('/api/auth/user', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': authHeader,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        this.log('Authentication test successful', data);
+                        return data;
+                    } else {
+                        throw new Error(`Authentication test failed: ${data.error || 'Unknown error'}`);
+                    }
+                    
+                } catch (error) {
+                    this.log('Authentication test error:', error);
+                    throw error;
+                }
+            }
+            
+            /**
+             * Make authenticated API request
+             */
+            async authenticatedFetch(url, options = {}) {
+                const authHeader = this.getAuthHeader();
+                if (!authHeader) {
+                    throw new Error('No authentication token available');
+                }
+                
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': authHeader,
+                    ...options.headers
+                };
+                
+                return fetch(url, {
+                    ...options,
+                    headers
+                });
+            }
+            
+            /**
+             * Clean up redirect URL parameters
+             */
+            cleanupRedirectUrl() {
+                if (window.history && window.history.replaceState) {
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                    this.log('URL cleaned up');
+                }
+            }
+            
+            /**
+             * Add authentication UI to existing button or create new one
+             */
+            addAuthButton(containerId, options = {}) {
+                const container = document.getElementById(containerId);
+                if (!container) {
+                    this.log('Container not found:', containerId);
+                    return;
+                }
+                
+                const buttonConfig = {
+                    text: 'Authenticate with Google',
+                    className: 'btn-primary oauth-btn',
+                    style: 'margin: 5px;',
+                    provider: 'google',
+                    ...options
+                };
+                
+                // Create button
+                const button = document.createElement('button');
+                button.textContent = buttonConfig.text;
+                button.className = buttonConfig.className;
+                button.style.cssText = buttonConfig.style;
+                
+                // Add click handler
+                button.onclick = () => {
+                    this.initiateOAuth(buttonConfig.provider, buttonConfig);
+                };
+                
+                container.appendChild(button);
+                this.log('Auth button added to container:', containerId);
+                
+                return button;
+            }
+            
+            /**
+             * Get authentication status summary
+             */
+            getAuthStatus() {
+                const token = this.getStoredToken();
+                if (!token) {
+                    return {
+                        authenticated: false,
+                        token: null,
+                        expiresAt: null,
+                        timeRemaining: null
+                    };
+                }
+                
+                const timeRemaining = token.expires_at - Date.now();
+                return {
+                    authenticated: true,
+                    token: token.access_token.substring(0, 10) + '...',
+                    expiresAt: new Date(token.expires_at),
+                    timeRemaining: Math.max(0, Math.floor(timeRemaining / 1000)), // seconds
+                    timeRemainingFormatted: this.formatTimeRemaining(timeRemaining)
+                };
+            }
+            
+            /**
+             * Format time remaining in human readable format
+             */
+            formatTimeRemaining(milliseconds) {
+                if (milliseconds <= 0) return 'Expired';
+                
+                const seconds = Math.floor(milliseconds / 1000);
+                const minutes = Math.floor(seconds / 60);
+                const hours = Math.floor(minutes / 60);
+                
+                if (hours > 0) {
+                    return `${hours}h ${minutes % 60}m`;
+                } else if (minutes > 0) {
+                    return `${minutes}m ${seconds % 60}s`;
+                } else {
+                    return `${seconds}s`;
+                }
+            }
+            
+            /**
+             * Logout user
+             */
+            async logout() {
+                this.log('Logging out...');
+                
+                try {
+                    // Clear local token first
+                    this.clearToken();
+                    
+                    // Call server logout endpoint
+                    await fetch('/logout', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        }
+                    });
+                    
+                    this.log('Logout successful');
+                    
+                } catch (error) {
+                    this.log('Logout error:', error);
+                    // Still clear local token even if server call fails
+                    this.clearToken();
+                }
+            }
+            
+            /**
+             * Debug logging
+             */
+            log(...args) {
+                if (this.options.debug) {
+                    console.log('[OAuthHandler]', ...args);
+                }
+            }
+        }
+
+        // Also expose globally for easy usage
+        window.OAuthHandler = OAuthHandler;
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            border: 1px solid #e9ecef;
+        }
+        h1 {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin: 30px 0;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        .section:hover {
+            border-color: #007bff;
+            box-shadow: 0 6px 20px rgba(0,123,255,0.15);
+        }
+        .section h2 {
+            color: #007bff;
+            margin-top: 0;
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        .btn-warning {
+            background-color: #ffc107;
+            color: black;
+        }
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .result.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .result.info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .examples {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        @media (max-width: 768px) {
+            .examples {
+                grid-template-columns: 1fr;
+            }
+        }
+        .example-card {
+            border: 2px solid #e0e6ed;
+            border-radius: 8px;
+            padding: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        .example-card:hover {
+            border-color: #007bff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+        .example-card h3 {
+            margin-top: 0;
+            color: #007bff;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .code-block {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #e2e8f0;
+            overflow-x: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .auth-section {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .auth-status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        .auth-status.authenticated {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .auth-status.not-authenticated {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .auth-status.processing {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Hybrid Job Execution System Test</h1>
+        
+        <!-- 🎨 NEW: UI Form Builder Section -->
+        <div class="section">
+            <h2>🎨 Interactive Job Builder</h2>
+            <p>Build and execute jobs using this interactive form - no JSON required!</p>
+            
+            <div class="form-builder-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                
+                <!-- Left Panel: Form Builder -->
+                <div class="form-panel">
+                    <h3>📋 Job Configuration</h3>
+                    
+                    <!-- Job Type Selection -->
+                    <div class="form-group">
+                        <label for="formJobType">🎯 Job Type:</label>
+                        <select id="formJobType" onchange="updateJobForm()">
+                            <option value="">-- Select Job Type --</option>
+                            <option value="Expert">🧠 Expert - AI-powered analysis and recommendations</option>
+                            <option value="TestCasesGenerator">🧪 Test Cases Generator - Generate test cases for stories</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Dynamic Job Parameters -->
+                    <div id="jobParamsContainer" style="display: none;">
+                        <h4>⚙️ Job Parameters</h4>
+                        <div id="dynamicParams"></div>
+                    </div>
+                    
+                    <!-- Integration Selection -->
+                    <div id="integrationContainer" style="display: none;">
+                        <h4>🔗 Required Integrations</h4>
+                        <div id="integrationInfo" class="info-box" style="background: #e8f4fd; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                            Select integrations needed for this job
+                        </div>
+                        <div id="integrationCheckboxes"></div>
+                    </div>
+                    
+                    <!-- Execution Controls -->
+                    <div id="executionContainer" style="display: none;">
+                        <h4>🚀 Execution</h4>
+                        <div class="form-group">
+                            <label for="formExecutionMode">Execution Mode:</label>
+                            <select id="formExecutionMode">
+                                <option value="SERVER_MANAGED">SERVER_MANAGED (Recommended)</option>
+                                <option value="STANDALONE">STANDALONE</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Validation Status -->
+                        <div id="validationStatus" style="margin: 15px 0; padding: 10px; border-radius: 4px; display: none;">
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 20px;">
+                            <button id="executeButton" onclick="executeJobFromForm()" class="btn-primary" style="background: #28a745; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;" disabled>
+                                ▶️ Execute Job
+                            </button>
+                            <button onclick="copyGeneratedJSON()" class="btn-secondary" style="background: #6c757d; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-left: 10px;">
+                                📋 Copy JSON
+                            </button>
+                            <button onclick="validateForm()" class="btn-info" style="background: #17a2b8; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-left: 10px;">
+                                ✅ Validate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Panel: Generated JSON Preview -->
+                <div class="json-panel">
+                    <h3>📄 Generated JSON</h3>
+                    <div class="form-group">
+                        <textarea id="generatedJSON" rows="20" readonly style="font-family: monospace; background: #f8f9fa; width: 100%; resize: vertical;" placeholder="Configure your job using the form on the left to see the generated JSON here..."></textarea>
+                    </div>
+                    
+                    <!-- Quick Test Results -->
+                    <div id="formExecutionResult" class="result" style="display: none; margin-top: 10px;"></div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="quick-actions" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <h4>⚡ Quick Actions</h4>
+                <button onclick="loadExpertTemplate()" class="btn-quick">🧠 Load Expert Template</button>
+                <button onclick="loadTestCasesTemplate()" class="btn-quick">🧪 Load Test Cases Template</button>
+                <button onclick="clearForm()" class="btn-quick">🗑️ Clear Form</button>
+                
+                <style>
+                    .btn-quick {
+                        background: #007bff;
+                        color: white;
+                        border: none;
+                        padding: 8px 15px;
+                        margin: 5px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        transition: background-color 0.2s;
+                    }
+                    .btn-quick:hover {
+                        background: #0056b3;
+                    }
+                    
+                    /* Enhanced form builder styling */
+                    .form-builder-container {
+                        border: 1px solid #e0e0e0;
+                        border-radius: 8px;
+                        padding: 20px;
+                        background: #fafafa;
+                    }
+                    
+                    .form-panel, .json-panel {
+                        background: white;
+                        padding: 15px;
+                        border-radius: 6px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }
+                    
+                    .form-group {
+                        margin-bottom: 15px;
+                    }
+                    
+                    .form-group label {
+                        display: block;
+                        margin-bottom: 5px;
+                        font-weight: 500;
+                        color: #333;
+                    }
+                    
+                    .form-group input, .form-group select, .form-group textarea {
+                        width: 100%;
+                        padding: 8px 12px;
+                        border: 1px solid #ddd;
+                        border-radius: 4px;
+                        font-size: 14px;
+                        box-sizing: border-box;
+                    }
+                    
+                    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+                        border-color: #007bff;
+                        outline: none;
+                        box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+                    }
+                    
+                    .info-box {
+                        font-size: 13px;
+                        border: 1px solid #bee5eb;
+                        border-radius: 4px;
+                    }
+                    
+                    .btn-primary {
+                        transition: background-color 0.2s;
+                        font-weight: 500;
+                    }
+                    
+                    .btn-primary:hover {
+                        background: #218838 !important;
+                    }
+                    
+                    .btn-secondary {
+                        transition: background-color 0.2s;
+                    }
+                    
+                    .btn-secondary:hover {
+                        background: #5a6268 !important;
+                    }
+                    
+                    #generatedJSON {
+                        border: 1px solid #ddd;
+                        border-radius: 4px;
+                    }
+                    
+                    @media (max-width: 768px) {
+                        .form-builder-container {
+                            grid-template-columns: 1fr !important;
+                        }
+                    }
+                </style>
+            </div>
+        </div>
+
+        <div class="auth-section">
+            <h3>🔐 Authentication</h3>
+            <p>Authentication is automatically handled using OAuth. Click the button below to authenticate or check your current status:</p>
+            
+            <div id="authStatus" class="auth-status not-authenticated">
+                🔒 Not authenticated
+            </div>
+            
+            <div>
+                <button id="authButton" class="btn-warning" onclick="handleAuth()">🔑 Authenticate with Google</button>
+                <button class="btn-secondary" onclick="testAuth()">🔍 Test Authentication</button>
+                <button class="btn-danger" onclick="logout()" style="display: none;" id="logoutButton">🚪 Logout</button>
+            </div>
+            
+            <div id="authResult" class="result" style="display: none;"></div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label style="font-size: 12px; color: #666;">Manual Token Override (Optional):</label>
+                <input type="password" id="authToken" placeholder="Enter JWT token manually if needed" style="font-size: 12px;">
+                <small style="color: #666;">Note: OAuth authentication is preferred and automatic</small>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🎯 Understanding Jobs & Integrations</h2>
+            <div class="example-card">
+                <h3>📚 How Jobs Work</h3>
+                <p><strong>Jobs are predefined templates</strong> - you don't create jobs, you <strong>execute</strong> existing job types:</p>
+                <ul style="text-align: left; margin: 10px 0;">
+                    <li>🔧 <strong>Job Types</strong>: Expert, TestCasesGenerator (predefined)</li>
+                    <li>⚙️ <strong>Execution</strong>: Run job type with your specific parameters</li>
+                    <li>🔌 <strong>Integrations</strong>: Use integration <em>type names</em> (jira, openai, confluence)</li>
+                    <li>🔄 <strong>Auto-Resolution</strong>: Server automatically finds your configured integrations</li>
+                </ul>
+                <p><strong>💡 Key Point:</strong> In your JSON, use integration type names like "jira", "openai" - NOT integration IDs!</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📋 Available Jobs & Integrations</h2>
+            <p>Explore available jobs, their detailed information, and integrations:</p>
+            
+            <div style="margin-bottom: 15px;">
+                <h3>🔧 Job Information</h3>
+                <button class="btn-primary" onclick="getAvailableJobs()">📊 Get Available Jobs</button>
+                <button class="btn-success" onclick="getJobTypes()">📋 Get Detailed Job Types</button>
+                <button class="btn-secondary" onclick="getJobDetails('Expert')">🤖 Expert Details</button>
+                <button class="btn-secondary" onclick="getJobDetails('TestCasesGenerator')">🧪 TestCases Details</button>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <h3>🔗 Integration Information</h3>
+                <button class="btn-primary" onclick="getIntegrations()">🔌 Get My Integrations</button>
+                <button class="btn-success" onclick="getIntegrationTypes()">🏷️ Get Integration Types</button>
+                <button class="btn-secondary" onclick="getJobIntegrations('Expert')">🔗 Expert Integrations</button>
+                <button class="btn-secondary" onclick="getJobIntegrations('TestCasesGenerator')">🔗 TestCases Integrations</button>
+            </div>
+            
+            <div id="availableJobsResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>🤖 Expert Job Execution</h2>
+            <p>Test the Expert job for AI-powered analysis and recommendations:</p>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="expertTemplateSelect">📝 Select Pregenerated Template:</label>
+                <select id="expertTemplateSelect" onchange="loadExpertTemplate()" style="margin-bottom: 10px;">
+                    <option value="">-- Choose a template --</option>
+                    <option value="single-ticket">Single Ticket Analysis</option>
+                    <option value="project-bugs">Project Bug Review</option>
+                    <option value="epic-analysis">Epic Implementation Review</option>
+                    <option value="security-review">Security Analysis</option>
+                    <option value="performance-review">Performance Review</option>
+                    <option value="code-review">Code Quality Assessment</option>
+                </select>
+            </div>
+            
+            <div id="expertTemplateInfo" class="example-card" style="display: none; margin-bottom: 20px;">
+                <h3 id="expertTemplateTitle">Template Info</h3>
+                <p id="expertTemplateDescription">Template description will appear here.</p>
+                <div class="form-group">
+                    <label for="expertJqlInput">🎯 Customize JQL Query:</label>
+                    <input type="text" id="expertJqlInput" placeholder="Enter your JQL query" onchange="updateExpertTemplate()">
+                    <small style="color: #666;">💡 Tip: Only adjust the ticket keys/project names in the JQL query</small>
+                </div>
+                <div class="form-group">
+                    <label for="expertInitiatorInput">👤 Your Email:</label>
+                    <input type="email" id="expertInitiatorInput" placeholder="your-email@company.com" onchange="updateExpertTemplate()">
+                </div>
+            </div>
+            
+            <div class="examples">
+                <div class="example-card">
+                    <h3>💡 Integration Categories</h3>
+                    <p><strong>📝 Updated Requirements:</strong> Jobs now use integration categories instead of specific tool names:</p>
+                    <div class="code-block">
+{
+  "requiredIntegrations": [
+    "TrackerClient",  // ← jira, rally
+    "AI",            // ← openai, gemini  
+    "Documentation"  // ← confluence
+  ],
+  "optionalIntegrations": [
+    "SourceCode"     // ← github, gitlab, bitbucket
+  ]
+}
+                    </div>
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                        <strong>🔄 Auto-Resolution:</strong> The system automatically finds your configured integrations that match these categories.
+                    </p>
+                </div>
+                
+                <div class="example-card">
+                    <h3>🎯 Quick Start Templates</h3>
+                    <p>Select a template above and customize the IDs to get started quickly!</p>
+                    <ul style="text-align: left; font-size: 14px;">
+                        <li><strong>Single Ticket:</strong> Analyze specific ticket</li>
+                        <li><strong>Project Bugs:</strong> Review recent bugs</li>
+                        <li><strong>Epic Analysis:</strong> Comprehensive epic review</li>
+                        <li><strong>Security Review:</strong> Security-focused analysis</li>
+                        <li><strong>Performance:</strong> Performance optimization review</li>
+                        <li><strong>Code Quality:</strong> Code quality assessment</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="expertJson">Expert Job JSON:</label>
+                <textarea id="expertJson" placeholder="Select a template above or enter Expert job JSON here..."></textarea>
+            </div>
+            
+            <div>
+                <button class="btn-primary" onclick="executeExpertJob()">🚀 Execute Expert Job</button>
+                <button class="btn-secondary" onclick="clearExpertJson()">🧹 Clear</button>
+                <button class="btn-warning" onclick="validateExpertJson()">✅ Validate JSON</button>
+            </div>
+            
+            <div id="expertResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>🧪 TestCasesGenerator Job Execution</h2>
+            <p>Test the TestCasesGenerator job for automated test case creation:</p>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="testCasesTemplateSelect">📝 Select Pregenerated Template:</label>
+                <select id="testCasesTemplateSelect" onchange="loadTestCasesTemplate()" style="margin-bottom: 10px;">
+                    <option value="">-- Choose a template --</option>
+                    <option value="story-tests">Story Test Cases</option>
+                    <option value="epic-tests">Epic Test Cases</option>
+                    <option value="feature-tests">Feature Test Suite</option>
+                    <option value="regression-tests">Regression Test Cases</option>
+                    <option value="api-tests">API Test Cases</option>
+                    <option value="ui-tests">UI Test Cases</option>
+                </select>
+            </div>
+            
+            <div id="testCasesTemplateInfo" class="example-card" style="display: none; margin-bottom: 20px;">
+                <h3 id="testCasesTemplateTitle">Template Info</h3>
+                <p id="testCasesTemplateDescription">Template description will appear here.</p>
+                <div class="form-group">
+                    <label for="testCasesJqlInput">🎯 Customize Input JQL:</label>
+                    <input type="text" id="testCasesJqlInput" placeholder="Enter your JQL query" onchange="updateTestCasesTemplate()">
+                </div>
+                <div class="form-group">
+                    <label for="testCasesInitiatorInput">👤 Your Email:</label>
+                    <input type="email" id="testCasesInitiatorInput" placeholder="your-email@company.com" onchange="updateTestCasesTemplate()">
+                </div>
+                <div class="form-group">
+                    <label for="testCasesExistingJqlInput">🔍 Existing Test Cases JQL (optional):</label>
+                    <input type="text" id="testCasesExistingJqlInput" placeholder="project = YOUR_PROJECT AND type = 'Test Case'" onchange="updateTestCasesTemplate()">
+                </div>
+            </div>
+            
+            <div class="examples">
+                <div class="example-card">
+                    <h3>📝 Integration Updates</h3>
+                    <p><strong>New Category-Based Requirements:</strong></p>
+                    <div class="code-block">
+{
+  "requiredIntegrations": [
+    "TrackerClient",  // ← For JIRA/Rally integration
+    "AI"             // ← For OpenAI/Gemini AI
+  ],
+  "optionalIntegrations": [
+    "Documentation", // ← For Confluence
+    "SourceCode"     // ← For GitHub/GitLab
+  ]
+}
+                    </div>
+                </div>
+                
+                <div class="example-card">
+                    <h3>🧪 Template Types</h3>
+                    <ul style="text-align: left; font-size: 14px;">
+                        <li><strong>Story Tests:</strong> Test cases for user stories</li>
+                        <li><strong>Epic Tests:</strong> Comprehensive epic testing</li>
+                        <li><strong>Feature Tests:</strong> Feature-specific test suite</li>
+                        <li><strong>Regression:</strong> Regression test cases</li>
+                        <li><strong>API Tests:</strong> API testing scenarios</li>
+                        <li><strong>UI Tests:</strong> User interface test cases</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="testCasesJson">TestCasesGenerator Job JSON:</label>
+                <textarea id="testCasesJson" placeholder="Select a template above or enter TestCasesGenerator job JSON here..."></textarea>
+            </div>
+            
+            <div>
+                <button class="btn-primary" onclick="executeTestCasesJob()">🚀 Execute TestCases Job</button>
+                <button class="btn-secondary" onclick="clearTestCasesJson()">🧹 Clear</button>
+                <button class="btn-warning" onclick="validateTestCasesJson()">✅ Validate JSON</button>
+            </div>
+            
+            <div id="testCasesResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>⚙️ Custom Job Execution</h2>
+            <p>Execute any job with custom JSON payload:</p>
+            
+            <div class="form-group">
+                <label for="customJson">Custom Job JSON:</label>
+                <textarea id="customJson" placeholder="Enter any job JSON payload here..."></textarea>
+            </div>
+            
+            <div>
+                <button class="btn-primary" onclick="executeCustomJob()">🚀 Execute Custom Job</button>
+                <button class="btn-success" onclick="validateJson()">✅ Validate JSON</button>
+                <button class="btn-secondary" onclick="clearCustomJson()">🧹 Clear</button>
+            </div>
+            
+            <div id="customResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>💾 Saved Job Configurations</h2>
+            <p>Manage saved job configurations that can be reused and executed later:</p>
+            
+            <div class="sub-section">
+                <button class="btn-primary" onclick="getSavedJobConfigurations()">📋 Get My Saved Jobs</button>
+                <button class="btn-success" onclick="showCreateJobConfigModal()">➕ Create New Job Config</button>
+            </div>
+            
+            <div id="savedJobConfigsResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>🏗️ Create Job Configuration</h2>
+            <p>Create a new saved job configuration with specific parameters and integration mappings:</p>
+            
+            <div class="input-group">
+                <label for="jobConfigName">Configuration Name:</label>
+                <input type="text" id="jobConfigName" placeholder="My Expert Analysis Config" />
+            </div>
+            
+            <div class="input-group">
+                <label for="jobConfigDescription">Description:</label>
+                <input type="text" id="jobConfigDescription" placeholder="Expert analysis for specific project tickets" />
+            </div>
+            
+            <div class="input-group">
+                <label for="jobConfigType">Job Type:</label>
+                <select id="jobConfigType">
+                    <option value="Expert">Expert</option>
+                    <option value="TestCasesGenerator">TestCasesGenerator</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="jobConfigParams">Job Parameters (JSON):</label>
+                <textarea id="jobConfigParams" rows="8" placeholder='{
+  "request": "Analyze this ticket for technical debt",
+  "inputJql": "project = DMC AND labels = technical-debt",
+  "initiator": "your-email@example.com"
+}'></textarea>
+            </div>
+            
+            <div class="input-group">
+                <label for="jobConfigIntegrations">Integration Mappings (JSON):</label>
+                <textarea id="jobConfigIntegrations" rows="4" placeholder='{
+  "TrackerClient": "jira",
+  "AI": "openai",
+  "Documentation": "confluence"
+}'></textarea>
+            </div>
+            
+            <div>
+                <button class="btn-success" onclick="createJobConfiguration()">💾 Save Configuration</button>
+                <button class="btn-secondary" onclick="clearJobConfigForm()">🧹 Clear Form</button>
+            </div>
+            
+            <div id="createJobConfigResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>🚀 Execute Saved Job Configuration</h2>
+            <p>Execute a saved job configuration with optional parameter overrides:</p>
+            
+            <div class="input-group">
+                <label for="executeJobConfigId">Job Configuration ID:</label>
+                <input type="text" id="executeJobConfigId" placeholder="uuid-of-saved-job-config" />
+            </div>
+            
+            <div class="input-group">
+                <label for="executeParamOverrides">Parameter Overrides (JSON, optional):</label>
+                <textarea id="executeParamOverrides" rows="4" placeholder='{
+  "request": "Updated analysis request",
+  "inputJql": "key = DMC-456"
+}'></textarea>
+            </div>
+            
+            <div class="input-group">
+                <label for="executeIntegrationOverrides">Integration Overrides (JSON, optional):</label>
+                <textarea id="executeIntegrationOverrides" rows="4" placeholder='{
+  "TrackerClient": "different-jira-integration"
+}'></textarea>
+            </div>
+            
+            <div>
+                <button class="btn-primary" onclick="executeSavedJobConfiguration()">🚀 Execute</button>
+                <button class="btn-secondary" onclick="getExecutionParameters()">👁️ Preview Parameters</button>
+            </div>
+            
+            <div id="executeSavedJobResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>🪝 Webhook Job Execution</h2>
+            <p>Execute saved job configurations via webhook (for external integrations):</p>
+            
+            <div class="input-group">
+                <label for="webhookJobConfigId">Job Configuration ID:</label>
+                <input type="text" id="webhookJobConfigId" placeholder="uuid-of-saved-job-config" />
+            </div>
+            
+            <div class="input-group">
+                <label for="webhookApiKey">API Key (optional):</label>
+                <input type="text" id="webhookApiKey" placeholder="your-webhook-api-key" />
+            </div>
+            
+            <div class="input-group">
+                <label for="webhookOverrides">Parameter Overrides (JSON, optional):</label>
+                <textarea id="webhookOverrides" rows="4" placeholder='{
+  "parameterOverrides": {
+    "request": "Webhook triggered analysis"
+  },
+                  "executionMode": "SERVER_MANAGED"
+}'></textarea>
+            </div>
+            
+            <div>
+                <button class="btn-warning" onclick="executeWebhookJob()">🪝 Execute via Webhook</button>
+                <button class="btn-secondary" onclick="generateWebhookCurl()">📋 Generate cURL</button>
+            </div>
+            
+            <div id="webhookJobResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>📚 API Documentation</h2>
+            <p>Explore the complete API documentation:</p>
+            
+            <div>
+                <button class="btn-primary" onclick="window.open('/swagger-ui.html', '_blank')">📖 Open Swagger UI</button>
+                <button class="btn-secondary" onclick="window.open('/v3/api-docs', '_blank')">📄 View OpenAPI Spec</button>
+            </div>
+            
+            <h3>🔗 Available Endpoints:</h3>
+            <div class="code-block">
+📋 Job Management:
+GET /api/v1/jobs/available - Get list of available job names
+GET /api/v1/jobs/types - Get detailed job type information with parameters
+GET /api/v1/jobs/types/{jobName} - Get detailed information for a specific job
+GET /api/v1/jobs/{jobName}/integrations - Get required integrations for a job
+POST /api/v1/jobs/execute - Execute a job with server-managed integrations
+POST /api/v1/jobs/configurations/{configId}/execute - Execute a saved job configuration
+
+💾 Job Configuration Management:
+GET /api/v1/job-configurations - Get user's saved job configurations
+GET /api/v1/job-configurations/{id} - Get specific job configuration
+POST /api/v1/job-configurations - Create new job configuration
+PUT /api/v1/job-configurations/{id} - Update job configuration
+DELETE /api/v1/job-configurations/{id} - Delete job configuration
+POST /api/v1/job-configurations/{id}/execute - Execute saved job config with overrides
+
+🪝 Webhook Execution:
+POST /api/v1/job-configurations/{id}/webhook - Execute job config via webhook
+Header: X-API-Key (optional for authentication)
+
+🔌 Integration Management:
+GET /api/integrations - Get user's configured integrations
+GET /api/integrations/types - Get available integration types
+GET /api/integrations/types/{type}/schema - Get schema for integration type
+GET /api/integrations/{id} - Get specific integration details
+
+🔐 Authentication:
+All endpoints require: Bearer token in Authorization header (except webhooks)
+Content-Type: application/json
+
+📊 Response Format:
+- Job types include: displayName, description, categories, executionModes, 
+  requiredIntegrations, optionalIntegrations, configParams with examples
+- Integration types include: type, displayName, description, categories, 
+  configParams with validation rules and instructions
+- Job configurations include: id, name, description, jobType, parameters,
+  integrationMappings, enabled status, creation/execution metadata
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global OAuth handler instance
+        let oauthHandler;
+        
+        // Initialize OAuth handler when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            oauthHandler = new OAuthHandler({
+                debug: true,
+                autoHandleRedirect: true,
+                redirectUrlCleanup: true,
+                onTokenReceived: function(tokenData) {
+                    console.log('Token received:', tokenData);
+                    updateAuthStatus();
+                    showResult('authResult', 
+                        `🎉 Authentication successful!\n\n` +
+                        `Token type: ${tokenData.token_type}\n` +
+                        `Expires in: ${tokenData.expires_in} seconds\n\n` +
+                        `✅ Ready to execute jobs!`, 
+                        'success');
+                },
+                onAuthError: function(error, description) {
+                    console.error('Auth error:', error, description);
+                    updateAuthStatus();
+                    showResult('authResult', 
+                        `❌ Authentication error: ${error}\n` +
+                        `Description: ${description || 'Unknown error'}`, 
+                        'error');
+                },
+                onAuthSuccess: function(tokenData) {
+                    updateAuthStatus();
+                }
+            });
+            
+            // Initial status update
+            updateAuthStatus();
+        });
+        
+        // Update authentication status display
+        function updateAuthStatus() {
+            const authStatus = document.getElementById('authStatus');
+            const authButton = document.getElementById('authButton');
+            const logoutButton = document.getElementById('logoutButton');
+            
+            if (oauthHandler && oauthHandler.isAuthenticated()) {
+                const status = oauthHandler.getAuthStatus();
+                authStatus.className = 'auth-status authenticated';
+                authStatus.innerHTML = `🔓 Authenticated (expires in ${status.timeRemainingFormatted})`;
+                authButton.style.display = 'none';
+                logoutButton.style.display = 'inline-block';
+            } else {
+                authStatus.className = 'auth-status not-authenticated';
+                authStatus.innerHTML = '🔒 Not authenticated';
+                authButton.style.display = 'inline-block';
+                logoutButton.style.display = 'none';
+            }
+        }
+        
+        // Handle authentication button click
+        async function handleAuth() {
+            if (oauthHandler.isAuthenticated()) {
+                await testAuth();
+            } else {
+                const authStatus = document.getElementById('authStatus');
+                authStatus.className = 'auth-status processing';
+                authStatus.innerHTML = '🔄 Redirecting to Google...';
+                
+                try {
+                    await oauthHandler.initiateOAuth('google');
+                } catch (error) {
+                    updateAuthStatus();
+                    showResult('authResult', `❌ Failed to initiate OAuth: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        // Logout function
+        async function logout() {
+            try {
+                await oauthHandler.logout();
+                updateAuthStatus();
+                showResult('authResult', '✅ Logged out successfully', 'success');
+            } catch (error) {
+                showResult('authResult', `❌ Logout error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Authentication helpers
+        function getAuthHeaders() {
+            // Try OAuth token first
+            if (oauthHandler && oauthHandler.isAuthenticated()) {
+                const authHeader = oauthHandler.getAuthHeader();
+                if (authHeader) {
+                    return {
+                        'Authorization': authHeader,
+                        'Content-Type': 'application/json'
+                    };
+                }
+            }
+            
+            // Fallback to manual token input
+            const token = document.getElementById('authToken').value;
+            if (!token) {
+                showResult('authResult', '❌ Please authenticate first or enter a JWT token manually', 'error');
+                return null;
+            }
+            return {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        async function testAuth() {
+            try {
+                showResult('authResult', 'Testing authentication...', 'info');
+                
+                let userData;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    userData = await oauthHandler.testAuthentication();
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    
+                    const response = await fetch('/api/auth/user', {
+                        headers: headers
+                    });
+                    userData = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(userData.error || 'Authentication failed');
+                    }
+                }
+
+                if (userData.authenticated) {
+                    updateAuthStatus();
+                    showResult('authResult', 
+                        `✅ Authentication successful!\n\n` +
+                        `User: ${userData.name || userData.email || 'N/A'}\n` +
+                        `Provider: ${userData.provider || 'N/A'}\n` +
+                        `Email: ${userData.email || 'N/A'}\n\n` +
+                        `🎉 Ready to execute jobs!`, 
+                        'success');
+                } else {
+                    showResult('authResult', `❌ Authentication failed: User not authenticated`, 'error');
+                }
+            } catch (error) {
+                showResult('authResult', `❌ Authentication test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Job API functions
+        async function getAvailableJobs() {
+            try {
+                showResult('availableJobsResult', 'Getting available jobs...', 'info');
+                
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch('/api/v1/jobs/available');
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch('/api/v1/jobs/available', { headers: headers });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('availableJobsResult', 
+                        `✅ Available jobs retrieved!\n\n` +
+                        `Jobs: ${JSON.stringify(data, null, 2)}`, 
+                        'success');
+                } else {
+                    showResult('availableJobsResult', `❌ Error: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('availableJobsResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getJobIntegrations(jobName) {
+            try {
+                showResult('availableJobsResult', `Getting integrations for ${jobName}...`, 'info');
+                
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch(`/api/v1/jobs/${jobName}/integrations`);
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch(`/api/v1/jobs/${jobName}/integrations`, { headers: headers });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('availableJobsResult', 
+                        `✅ ${jobName} integrations retrieved!\n\n` +
+                        `Required integrations: ${JSON.stringify(data, null, 2)}`, 
+                        'success');
+                } else {
+                    showResult('availableJobsResult', `❌ Error: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('availableJobsResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getJobTypes() {
+            try {
+                showResult('availableJobsResult', 'Getting detailed job types...', 'info');
+                
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch('/api/v1/jobs/types');
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch('/api/v1/jobs/types', { headers: headers });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    let result = `✅ Detailed job types retrieved!\n\n`;
+                    data.forEach(job => {
+                        result += `🔧 ${job.displayName || job.type}\n`;
+                        result += `   Description: ${job.description || 'No description'}\n`;
+                        result += `   Categories: ${job.categories.join(', ') || 'None'}\n`;
+                        result += `   Execution Modes: ${job.executionModes.join(', ') || 'None'}\n`;
+                        result += `   Required Integrations: ${job.requiredIntegrations.join(', ') || 'None'}\n`;
+                        result += `   Optional Integrations: ${job.optionalIntegrations.join(', ') || 'None'}\n`;
+                        result += `   Parameters: ${job.configParams.length} defined\n\n`;
+                    });
+                    showResult('availableJobsResult', result, 'success');
+                } else {
+                    showResult('availableJobsResult', `❌ Error: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('availableJobsResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getJobDetails(jobName) {
+            try {
+                showResult('availableJobsResult', `Getting details for ${jobName}...`, 'info');
+                
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch(`/api/v1/jobs/types/${jobName}`);
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch(`/api/v1/jobs/types/${jobName}`, { headers: headers });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    let result = `✅ ${jobName} details retrieved!\n\n`;
+                    result += `🔧 ${data.displayName || data.type}\n`;
+                    result += `📝 Description: ${data.description || 'No description'}\n`;
+                    result += `🏷️ Categories: ${data.categories.join(', ') || 'None'}\n`;
+                    result += `⚙️ Execution Modes: ${data.executionModes.join(', ') || 'None'}\n`;
+                    result += `🔗 Required Integrations: ${data.requiredIntegrations.join(', ') || 'None'}\n`;
+                    result += `🔌 Optional Integrations: ${data.optionalIntegrations.join(', ') || 'None'}\n\n`;
+                    
+                    if (data.configParams && data.configParams.length > 0) {
+                        result += `📋 Parameters (${data.configParams.length}):\n`;
+                        data.configParams.forEach(param => {
+                            result += `  • ${param.displayName || param.key} (${param.type || 'text'})${param.required ? ' *' : ''}\n`;
+                            if (param.description) result += `    ${param.description}\n`;
+                            if (param.defaultValue) result += `    Default: ${param.defaultValue}\n`;
+                            if (param.examples && param.examples.length > 0) {
+                                result += `    Examples: ${param.examples.slice(0, 2).join(', ')}\n`;
+                            }
+                            result += `\n`;
+                        });
+                    }
+                    
+                    showResult('availableJobsResult', result, 'success');
+                } else {
+                    showResult('availableJobsResult', `❌ Error: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('availableJobsResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getIntegrations() {
+            try {
+                showResult('availableJobsResult', 'Getting your integrations...', 'info');
+                
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch('/api/integrations');
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch('/api/integrations', { headers: headers });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    let result = `✅ Your integrations retrieved!\n\n`;
+                    if (data.length === 0) {
+                        result += `No integrations configured yet.\n`;
+                    } else {
+                        data.forEach(integration => {
+                            result += `🔌 ${integration.name} (${integration.type})\n`;
+                            result += `   ID: ${integration.id}\n`;
+                            result += `   Status: ${integration.enabled ? '✅ Enabled' : '❌ Disabled'}\n`;
+                            result += `   Created: ${integration.createdAt}\n`;
+                            if (integration.lastUsed) result += `   Last Used: ${integration.lastUsed}\n`;
+                            result += `\n`;
+                        });
+                    }
+                    showResult('availableJobsResult', result, 'success');
+                } else {
+                    showResult('availableJobsResult', `❌ Error: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('availableJobsResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getIntegrationTypes() {
+            try {
+                showResult('availableJobsResult', 'Getting integration types...', 'info');
+                
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch('/api/integrations/types');
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch('/api/integrations/types', { headers: headers });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    let result = `✅ Integration types retrieved!\n\n`;
+                    data.forEach(integration => {
+                        result += `🔌 ${integration.displayName || integration.type}\n`;
+                        result += `   Type: ${integration.type}\n`;
+                        result += `   Description: ${integration.description || 'No description'}\n`;
+                        result += `   Categories: ${integration.categories.join(', ') || 'None'}\n`;
+                        result += `   Parameters: ${integration.configParams.length} defined\n\n`;
+                    });
+                    showResult('availableJobsResult', result, 'success');
+                } else {
+                    showResult('availableJobsResult', `❌ Error: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('availableJobsResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function executeJob(jsonPayload, resultElementId) {
+            try {
+                const payload = JSON.parse(jsonPayload);
+                showResult(resultElementId, `Executing ${payload.jobName} job...`, 'info');
+                
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch('/api/v1/jobs/execute', {
+                        method: 'POST',
+                        body: jsonPayload
+                    });
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch('/api/v1/jobs/execute', {
+                        method: 'POST',
+                        headers: headers,
+                        body: jsonPayload
+                    });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult(resultElementId, 
+                        `🎉 Job execution completed!\n\n` +
+                        `Job: ${payload.jobName}\n` +
+                        `Status: ${data.status || 'SUCCESS'}\n` +
+                        `Result: ${JSON.stringify(data, null, 2)}`, 
+                        'success');
+                } else {
+                    showResult(resultElementId, 
+                        `❌ Job execution failed!\n\n` +
+                        `Error: ${data.error || data.message}\n` +
+                        `Details: ${JSON.stringify(data, null, 2)}`, 
+                        'error');
+                }
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    showResult(resultElementId, `❌ Invalid JSON: ${error.message}`, 'error');
+                } else {
+                    showResult(resultElementId, `❌ Network error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Expert job functions
+        function loadExpertTemplate() {
+            const templateSelect = document.getElementById('expertTemplateSelect');
+            const templateInfo = document.getElementById('expertTemplateInfo');
+            const expertJson = document.getElementById('expertJson');
+            const expertJqlInput = document.getElementById('expertJqlInput');
+            const expertInitiatorInput = document.getElementById('expertInitiatorInput');
+
+            const selectedTemplate = templateSelect.value;
+            const templateTitle = document.getElementById('expertTemplateTitle');
+            const templateDescription = document.getElementById('expertTemplateDescription');
+
+            if (selectedTemplate) {
+                templateInfo.style.display = 'block';
+                templateTitle.textContent = `Pregenerated Template: ${selectedTemplate.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+                
+                let templateJson = '';
+                let templateJql = '';
+                let templateInitiator = '';
+
+                switch (selectedTemplate) {
+                                         case 'single-ticket':
+                         templateJson = JSON.stringify({
+                             "jobName": "Expert",
+                             "params": {
+                                 "request": "Analyze this ticket for technical implementation approach and provide recommendations",
+                                 "inputJql": "key = MAPC-1",
+                                 "initiator": "test@example.com",
+                                 "outputType": "comment"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+                         }, null, 2);
+                        templateJql = "key = MAPC-1";
+                        templateInitiator = "test@example.com";
+                        break;
+                                         case 'project-bugs':
+                         templateJson = JSON.stringify({
+                             "jobName": "Expert",
+                             "params": {
+                                 "request": "Review recent bugs and suggest improvement strategies",
+                                 "inputJql": "project = DMC AND type = Bug AND created >= -30d",
+                                 "initiator": "analyst@example.com",
+                                 "outputType": "confluence"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Bug AND created >= -30d";
+                        templateInitiator = "analyst@example.com";
+                        break;
+                                         case 'epic-analysis':
+                         templateJson = JSON.stringify({
+                             "jobName": "Expert",
+                             "params": {
+                                 "request": "Comprehensive analysis of the epic implementation",
+                                 "inputJql": "project = DMC AND type = Epic AND key = DMC-100",
+                                 "initiator": "project-manager@example.com",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Epic AND key = DMC-100";
+                        templateInitiator = "project-manager@example.com";
+                        break;
+                                         case 'security-review':
+                         templateJson = JSON.stringify({
+                             "jobName": "Expert",
+                             "params": {
+                                 "request": "Security assessment and recommendations for the application",
+                                 "inputJql": "project = DMC AND type = Bug AND priority = Critical",
+                                 "initiator": "security-team@example.com",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Bug AND priority = Critical";
+                        templateInitiator = "security-team@example.com";
+                        break;
+                                         case 'performance-review':
+                         templateJson = JSON.stringify({
+                             "jobName": "Expert",
+                             "params": {
+                                 "request": "Performance optimization review and recommendations",
+                                 "inputJql": "project = DMC AND type = Story AND priority = High",
+                                 "initiator": "dev-ops@example.com",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Story AND priority = High";
+                        templateInitiator = "dev-ops@example.com";
+                        break;
+                                         case 'code-review':
+                         templateJson = JSON.stringify({
+                             "jobName": "Expert",
+                             "params": {
+                                 "request": "Code quality assessment and recommendations for the latest changes",
+                                 "inputJql": "project = DMC AND type = Code Review AND status = Open",
+                                 "initiator": "code-review-team@example.com",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Code Review AND status = Open";
+                        templateInitiator = "code-review-team@example.com";
+                        break;
+                    default:
+                        templateInfo.style.display = 'none';
+                        expertJson.value = '';
+                        expertJqlInput.value = '';
+                        expertInitiatorInput.value = '';
+                        return;
+                }
+
+                expertJson.value = templateJson;
+                expertJqlInput.value = templateJql;
+                expertInitiatorInput.value = templateInitiator;
+            } else {
+                templateInfo.style.display = 'none';
+                expertJson.value = '';
+                expertJqlInput.value = '';
+                expertInitiatorInput.value = '';
+            }
+        }
+
+        function updateExpertTemplate() {
+            const expertJson = document.getElementById('expertJson');
+            const expertJqlInput = document.getElementById('expertJqlInput');
+            const expertInitiatorInput = document.getElementById('expertInitiatorInput');
+
+            const currentJson = JSON.parse(expertJson.value);
+            currentJson.params.inputJql = expertJqlInput.value;
+            currentJson.params.initiator = expertInitiatorInput.value;
+            expertJson.value = JSON.stringify(currentJson, null, 2);
+        }
+
+                 function loadExpertExample1() {
+             document.getElementById('expertJson').value = JSON.stringify({
+                 "jobName": "Expert",
+                 "params": {
+                     "request": "Analyze this ticket for technical implementation approach and provide recommendations",
+                     "inputJql": "key = MAPC-1",
+                     "initiator": "test@example.com",
+                     "outputType": "comment"
+                 },
+                 "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+             }, null, 2);
+         }
+
+                 function loadExpertExample2() {
+             document.getElementById('expertJson').value = JSON.stringify({
+                 "jobName": "Expert",
+                 "params": {
+                     "request": "Review recent bugs and suggest improvement strategies",
+                     "inputJql": "project = DMC AND type = Bug AND created >= -30d",
+                     "initiator": "analyst@example.com",
+                     "outputType": "confluence"
+                 },
+                 "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+             }, null, 2);
+         }
+
+        async function executeExpertJob() {
+            const jsonPayload = document.getElementById('expertJson').value.trim();
+            if (!jsonPayload) {
+                showResult('expertResult', '❌ Please enter Expert job JSON first', 'error');
+                return;
+            }
+            await executeJob(jsonPayload, 'expertResult');
+        }
+
+        function clearExpertJson() {
+            document.getElementById('expertJson').value = '';
+            document.getElementById('expertResult').style.display = 'none';
+        }
+
+        function validateExpertJson() {
+            const jsonPayload = document.getElementById('expertJson').value.trim();
+            if (!jsonPayload) {
+                showResult('expertResult', '❌ Please enter JSON first', 'error');
+                return;
+            }
+            
+            try {
+                const parsed = JSON.parse(jsonPayload);
+                showResult('expertResult', 
+                    `✅ JSON is valid!\n\n` +
+                    `Formatted JSON:\n${JSON.stringify(parsed, null, 2)}`, 
+                    'success');
+            } catch (error) {
+                showResult('expertResult', `❌ Invalid JSON: ${error.message}`, 'error');
+            }
+        }
+
+        // TestCases job functions
+        function loadTestCasesTemplate() {
+            const templateSelect = document.getElementById('testCasesTemplateSelect');
+            const templateInfo = document.getElementById('testCasesTemplateInfo');
+            const testCasesJson = document.getElementById('testCasesJson');
+            const testCasesJqlInput = document.getElementById('testCasesJqlInput');
+            const testCasesInitiatorInput = document.getElementById('testCasesInitiatorInput');
+            const testCasesExistingJqlInput = document.getElementById('testCasesExistingJqlInput');
+
+            const selectedTemplate = templateSelect.value;
+            const templateTitle = document.getElementById('testCasesTemplateTitle');
+            const templateDescription = document.getElementById('testCasesTemplateDescription');
+
+            if (selectedTemplate) {
+                templateInfo.style.display = 'block';
+                templateTitle.textContent = `Pregenerated Template: ${selectedTemplate.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+                
+                let templateJson = '';
+                let templateJql = '';
+                let templateInitiator = '';
+                let templateExistingJql = '';
+
+                switch (selectedTemplate) {
+                                         case 'story-tests':
+                         templateJson = JSON.stringify({
+                             "jobName": "TestCasesGenerator",
+                             "params": {
+                                 "inputJql": "project = DMC AND type = Story AND status = 'In Progress'",
+                                 "initiator": "qa@example.com",
+                                 "existingTestCasesJql": "project = DMC AND type = 'Test Case'",
+                                 "testCasesPriorities": "High,Medium,Low",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Story AND status = 'In Progress'";
+                        templateInitiator = "qa@example.com";
+                        templateExistingJql = "project = DMC AND type = 'Test Case'";
+                        break;
+                                         case 'epic-tests':
+                         templateJson = JSON.stringify({
+                             "jobName": "TestCasesGenerator",
+                             "params": {
+                                 "inputJql": "project = DMC AND type = Epic AND key = DMC-9",
+                                 "initiator": "testlead@example.com",
+                                 "existingTestCasesJql": "project = DMC AND type = 'Test Case' AND labels = 'epic-dmc-9'",
+                                 "testCasesPriorities": "Critical,High",
+                                 "outputType": "confluence"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Epic AND key = DMC-9";
+                        templateInitiator = "testlead@example.com";
+                        templateExistingJql = "project = DMC AND type = 'Test Case' AND labels = 'epic-dmc-9'";
+                        break;
+                                         case 'feature-tests':
+                         templateJson = JSON.stringify({
+                             "jobName": "TestCasesGenerator",
+                             "params": {
+                                 "inputJql": "project = DMC AND type = Feature AND status = 'In Progress'",
+                                 "initiator": "product-owner@example.com",
+                                 "existingTestCasesJql": "project = DMC AND type = 'Test Case' AND labels = 'feature-dmc-1'",
+                                 "testCasesPriorities": "Critical,High",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Feature AND status = 'In Progress'";
+                        templateInitiator = "product-owner@example.com";
+                        templateExistingJql = "project = DMC AND type = 'Test Case' AND labels = 'feature-dmc-1'";
+                        break;
+                                         case 'regression-tests':
+                         templateJson = JSON.stringify({
+                             "jobName": "TestCasesGenerator",
+                             "params": {
+                                 "inputJql": "project = DMC AND type = Regression AND status = Open",
+                                 "initiator": "qa@example.com",
+                                 "existingTestCasesJql": "project = DMC AND type = 'Test Case' AND labels = 'regression-dmc-1'",
+                                 "testCasesPriorities": "Critical,High",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = Regression AND status = Open";
+                        templateInitiator = "qa@example.com";
+                        templateExistingJql = "project = DMC AND type = 'Test Case' AND labels = 'regression-dmc-1'";
+                        break;
+                                         case 'api-tests':
+                         templateJson = JSON.stringify({
+                             "jobName": "TestCasesGenerator",
+                             "params": {
+                                 "inputJql": "project = DMC AND type = API Test AND status = Open",
+                                 "initiator": "dev-ops@example.com",
+                                 "existingTestCasesJql": "project = DMC AND type = 'Test Case' AND labels = 'api-dmc-1'",
+                                 "testCasesPriorities": "Critical,High",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = API Test AND status = Open";
+                        templateInitiator = "dev-ops@example.com";
+                        templateExistingJql = "project = DMC AND type = 'Test Case' AND labels = 'api-dmc-1'";
+                        break;
+                                         case 'ui-tests':
+                         templateJson = JSON.stringify({
+                             "jobName": "TestCasesGenerator",
+                             "params": {
+                                 "inputJql": "project = DMC AND type = UI Test AND status = Open",
+                                 "initiator": "ux-team@example.com",
+                                 "existingTestCasesJql": "project = DMC AND type = 'Test Case' AND labels = 'ui-dmc-1'",
+                                 "testCasesPriorities": "Critical,High",
+                                 "outputType": "jira"
+                             },
+                             "requiredIntegrations": ["TrackerClient", "AI"]
+                         }, null, 2);
+                        templateJql = "project = DMC AND type = UI Test AND status = Open";
+                        templateInitiator = "ux-team@example.com";
+                        templateExistingJql = "project = DMC AND type = 'Test Case' AND labels = 'ui-dmc-1'";
+                        break;
+                    default:
+                        templateInfo.style.display = 'none';
+                        testCasesJson.value = '';
+                        testCasesJqlInput.value = '';
+                        testCasesInitiatorInput.value = '';
+                        testCasesExistingJqlInput.value = '';
+                        return;
+                }
+
+                testCasesJson.value = templateJson;
+                testCasesJqlInput.value = templateJql;
+                testCasesInitiatorInput.value = templateInitiator;
+                testCasesExistingJqlInput.value = templateExistingJql;
+            } else {
+                templateInfo.style.display = 'none';
+                testCasesJson.value = '';
+                testCasesJqlInput.value = '';
+                testCasesInitiatorInput.value = '';
+                testCasesExistingJqlInput.value = '';
+            }
+        }
+
+        function updateTestCasesTemplate() {
+            const testCasesJson = document.getElementById('testCasesJson');
+            const testCasesJqlInput = document.getElementById('testCasesJqlInput');
+            const testCasesInitiatorInput = document.getElementById('testCasesInitiatorInput');
+            const testCasesExistingJqlInput = document.getElementById('testCasesExistingJqlInput');
+
+            const currentJson = JSON.parse(testCasesJson.value);
+            currentJson.params.inputJql = testCasesJqlInput.value;
+            currentJson.params.initiator = testCasesInitiatorInput.value;
+            currentJson.params.existingTestCasesJql = testCasesExistingJqlInput.value;
+            testCasesJson.value = JSON.stringify(currentJson, null, 2);
+        }
+
+                 function loadTestCasesExample1() {
+             document.getElementById('testCasesJson').value = JSON.stringify({
+                 "jobName": "TestCasesGenerator",
+                 "params": {
+                     "inputJql": "project = DMC AND type = Story AND status = 'In Progress'",
+                     "initiator": "qa@example.com",
+                     "existingTestCasesJql": "project = DMC AND type = 'Test Case'",
+                     "testCasesPriorities": "High,Medium,Low",
+                     "outputType": "jira"
+                 },
+                 "requiredIntegrations": ["TrackerClient", "AI"]
+             }, null, 2);
+         }
+
+                 function loadTestCasesExample2() {
+             document.getElementById('testCasesJson').value = JSON.stringify({
+                 "jobName": "TestCasesGenerator",
+                 "params": {
+                     "inputJql": "project = DMC AND type = Epic AND key = DMC-9",
+                     "initiator": "testlead@example.com",
+                     "existingTestCasesJql": "project = DMC AND type = 'Test Case' AND labels = 'epic-dmc-9'",
+                     "testCasesPriorities": "Critical,High",
+                     "outputType": "confluence"
+                 },
+                 "requiredIntegrations": ["TrackerClient", "AI", "Documentation"]
+             }, null, 2);
+         }
+
+        async function executeTestCasesJob() {
+            const jsonPayload = document.getElementById('testCasesJson').value.trim();
+            if (!jsonPayload) {
+                showResult('testCasesResult', '❌ Please enter TestCasesGenerator job JSON first', 'error');
+                return;
+            }
+            await executeJob(jsonPayload, 'testCasesResult');
+        }
+
+        function clearTestCasesJson() {
+            document.getElementById('testCasesJson').value = '';
+            document.getElementById('testCasesResult').style.display = 'none';
+        }
+
+        function validateTestCasesJson() {
+            const jsonPayload = document.getElementById('testCasesJson').value.trim();
+            if (!jsonPayload) {
+                showResult('testCasesResult', '❌ Please enter JSON first', 'error');
+                return;
+            }
+            
+            try {
+                const parsed = JSON.parse(jsonPayload);
+                showResult('testCasesResult', 
+                    `✅ JSON is valid!\n\n` +
+                    `Formatted JSON:\n${JSON.stringify(parsed, null, 2)}`, 
+                    'success');
+            } catch (error) {
+                showResult('testCasesResult', `❌ Invalid JSON: ${error.message}`, 'error');
+            }
+        }
+
+        // Custom job functions
+        async function executeCustomJob() {
+            const jsonPayload = document.getElementById('customJson').value.trim();
+            if (!jsonPayload) {
+                showResult('customResult', '❌ Please enter custom job JSON first', 'error');
+                return;
+            }
+            await executeJob(jsonPayload, 'customResult');
+        }
+
+        function validateJson() {
+            const jsonPayload = document.getElementById('customJson').value.trim();
+            if (!jsonPayload) {
+                showResult('customResult', '❌ Please enter JSON first', 'error');
+                return;
+            }
+            
+            try {
+                const parsed = JSON.parse(jsonPayload);
+                showResult('customResult', 
+                    `✅ JSON is valid!\n\n` +
+                    `Formatted JSON:\n${JSON.stringify(parsed, null, 2)}`, 
+                    'success');
+            } catch (error) {
+                showResult('customResult', `❌ Invalid JSON: ${error.message}`, 'error');
+            }
+        }
+
+        function clearCustomJson() {
+            document.getElementById('customJson').value = '';
+            document.getElementById('customResult').style.display = 'none';
+        }
+
+        // Saved Job Configuration functions
+        async function getSavedJobConfigurations() {
+            try {
+                showResult('savedJobConfigsResult', 'Getting saved job configurations...', 'info');
+                
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch('/api/v1/job-configurations');
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch('/api/v1/job-configurations', { headers: headers });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    let result = `✅ Found ${data.length} saved job configurations!\n\n`;
+                    if (data.length === 0) {
+                        result += `No saved configurations found. Create one using the form below.`;
+                    } else {
+                        data.forEach(config => {
+                            result += `📋 ${config.name}\n`;
+                            result += `   ID: ${config.id}\n`;
+                            result += `   Type: ${config.jobType}\n`;
+                            result += `   Description: ${config.description || 'No description'}\n`;
+                            result += `   Created: ${config.createdAt}\n`;
+                            result += `   Executions: ${config.executionCount}\n`;
+                            result += `   Enabled: ${config.enabled ? 'Yes' : 'No'}\n\n`;
+                        });
+                    }
+                    showResult('savedJobConfigsResult', result, 'success');
+                } else {
+                    showResult('savedJobConfigsResult', `❌ Error: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('savedJobConfigsResult', `❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function createJobConfiguration() {
+            try {
+                const name = document.getElementById('jobConfigName').value.trim();
+                const description = document.getElementById('jobConfigDescription').value.trim();
+                const jobType = document.getElementById('jobConfigType').value;
+                const paramsText = document.getElementById('jobConfigParams').value.trim();
+                const integrationsText = document.getElementById('jobConfigIntegrations').value.trim();
+
+                if (!name || !paramsText || !integrationsText) {
+                    showResult('createJobConfigResult', '❌ Please fill in all required fields', 'error');
+                    return;
+                }
+
+                const jobParameters = JSON.parse(paramsText);
+                const integrationMappings = JSON.parse(integrationsText);
+
+                const payload = {
+                    name: name,
+                    description: description,
+                    jobType: jobType,
+                    jobParameters: jobParameters,
+                    integrationMappings: integrationMappings,
+                    enabled: true
+                };
+
+                showResult('createJobConfigResult', 'Creating job configuration...', 'info');
+
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch('/api/v1/job-configurations', {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch('/api/v1/job-configurations', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('createJobConfigResult', 
+                        `🎉 Job configuration created successfully!\n\n` +
+                        `ID: ${data.id}\n` +
+                        `Name: ${data.name}\n` +
+                        `Type: ${data.jobType}\n` +
+                        `Created: ${data.createdAt}\n\n` +
+                        `✅ Ready to execute!`, 
+                        'success');
+                    clearJobConfigForm();
+                } else {
+                    showResult('createJobConfigResult', 
+                        `❌ Failed to create job configuration!\n\n` +
+                        `Error: ${data.error || data.message}`, 
+                        'error');
+                }
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    showResult('createJobConfigResult', `❌ Invalid JSON: ${error.message}`, 'error');
+                } else {
+                    showResult('createJobConfigResult', `❌ Network error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function executeSavedJobConfiguration() {
+            try {
+                const configId = document.getElementById('executeJobConfigId').value.trim();
+                const paramOverridesText = document.getElementById('executeParamOverrides').value.trim();
+                const integrationOverridesText = document.getElementById('executeIntegrationOverrides').value.trim();
+
+                if (!configId) {
+                    showResult('executeSavedJobResult', '❌ Please enter a job configuration ID', 'error');
+                    return;
+                }
+
+                const payload = {
+                    executionMode: 'SERVER_MANAGED'
+                };
+
+                if (paramOverridesText) {
+                    payload.parameterOverrides = JSON.parse(paramOverridesText);
+                }
+
+                if (integrationOverridesText) {
+                    payload.integrationOverrides = JSON.parse(integrationOverridesText);
+                }
+
+                showResult('executeSavedJobResult', 'Executing saved job configuration...', 'info');
+
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch(`/api/v1/jobs/configurations/${configId}/execute`, {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch(`/api/v1/jobs/configurations/${configId}/execute`, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('executeSavedJobResult', 
+                        `🎉 Job execution completed!\n\n` +
+                        `Configuration ID: ${configId}\n` +
+                        `Status: ${data.status || 'SUCCESS'}\n` +
+                        `Result: ${JSON.stringify(data, null, 2)}`, 
+                        'success');
+                } else {
+                    showResult('executeSavedJobResult', 
+                        `❌ Job execution failed!\n\n` +
+                        `Error: ${data.error || data.message}\n` +
+                        `Details: ${JSON.stringify(data, null, 2)}`, 
+                        'error');
+                }
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    showResult('executeSavedJobResult', `❌ Invalid JSON: ${error.message}`, 'error');
+                } else {
+                    showResult('executeSavedJobResult', `❌ Network error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function getExecutionParameters() {
+            try {
+                const configId = document.getElementById('executeJobConfigId').value.trim();
+                const paramOverridesText = document.getElementById('executeParamOverrides').value.trim();
+                const integrationOverridesText = document.getElementById('executeIntegrationOverrides').value.trim();
+
+                if (!configId) {
+                    showResult('executeSavedJobResult', '❌ Please enter a job configuration ID', 'error');
+                    return;
+                }
+
+                const payload = {};
+
+                if (paramOverridesText) {
+                    payload.parameterOverrides = JSON.parse(paramOverridesText);
+                }
+
+                if (integrationOverridesText) {
+                    payload.integrationOverrides = JSON.parse(integrationOverridesText);
+                }
+
+                showResult('executeSavedJobResult', 'Getting execution parameters...', 'info');
+
+                let response;
+                if (oauthHandler && oauthHandler.isAuthenticated()) {
+                    response = await oauthHandler.authenticatedFetch(`/api/v1/job-configurations/${configId}/execute`, {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    const headers = getAuthHeaders();
+                    if (!headers) return;
+                    response = await fetch(`/api/v1/job-configurations/${configId}/execute`, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('executeSavedJobResult', 
+                        `👁️ Execution parameters preview:\n\n` +
+                        `Job Type: ${data.jobType}\n` +
+                        `Execution Mode: ${data.executionMode}\n\n` +
+                        `Final Parameters:\n${JSON.stringify(data.jobParameters, null, 2)}\n\n` +
+                        `Integration Mappings:\n${JSON.stringify(data.integrationMappings, null, 2)}`, 
+                        'info');
+                } else {
+                    showResult('executeSavedJobResult', 
+                        `❌ Error getting execution parameters!\n\n` +
+                        `Error: ${data.error || data.message}`, 
+                        'error');
+                }
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    showResult('executeSavedJobResult', `❌ Invalid JSON: ${error.message}`, 'error');
+                } else {
+                    showResult('executeSavedJobResult', `❌ Network error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function executeWebhookJob() {
+            try {
+                const configId = document.getElementById('webhookJobConfigId').value.trim();
+                const apiKey = document.getElementById('webhookApiKey').value.trim();
+                const overridesText = document.getElementById('webhookOverrides').value.trim();
+
+                if (!configId) {
+                    showResult('webhookJobResult', '❌ Please enter a job configuration ID', 'error');
+                    return;
+                }
+
+                let payload = {};
+                if (overridesText) {
+                    payload = JSON.parse(overridesText);
+                }
+
+                showResult('webhookJobResult', 'Executing webhook job...', 'info');
+
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (apiKey) {
+                    headers['X-API-Key'] = apiKey;
+                }
+
+                const response = await fetch(`/api/v1/job-configurations/${configId}/webhook`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.text();
+
+                if (response.ok) {
+                    showResult('webhookJobResult', 
+                        `🎉 Webhook job executed!\n\n` +
+                        `Configuration ID: ${configId}\n` +
+                        `Response: ${data}`, 
+                        'success');
+                } else {
+                    showResult('webhookJobResult', 
+                        `❌ Webhook execution failed!\n\n` +
+                        `Status: ${response.status}\n` +
+                        `Error: ${data}`, 
+                        'error');
+                }
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    showResult('webhookJobResult', `❌ Invalid JSON: ${error.message}`, 'error');
+                } else {
+                    showResult('webhookJobResult', `❌ Network error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        function generateWebhookCurl() {
+            const configId = document.getElementById('webhookJobConfigId').value.trim();
+            const apiKey = document.getElementById('webhookApiKey').value.trim();
+            const overridesText = document.getElementById('webhookOverrides').value.trim();
+
+            if (!configId) {
+                showResult('webhookJobResult', '❌ Please enter a job configuration ID first', 'error');
+                return;
+            }
+
+            let curlCommand = `curl -X POST "${window.location.origin}/api/v1/job-configurations/${configId}/webhook" \\\n`;
+            curlCommand += `  -H "Content-Type: application/json"`;
+
+            if (apiKey) {
+                curlCommand += ` \\\n  -H "X-API-Key: ${apiKey}"`;
+            }
+
+            if (overridesText) {
+                curlCommand += ` \\\n  -d '${overridesText}'`;
+            }
+
+            showResult('webhookJobResult', 
+                `📋 Generated cURL command:\n\n${curlCommand}\n\n` +
+                `💡 Copy and paste this command to execute the webhook from external systems.`, 
+                'info');
+        }
+
+        function clearJobConfigForm() {
+            document.getElementById('jobConfigName').value = '';
+            document.getElementById('jobConfigDescription').value = '';
+            document.getElementById('jobConfigType').value = 'Expert';
+            document.getElementById('jobConfigParams').value = '';
+            document.getElementById('jobConfigIntegrations').value = '';
+            document.getElementById('createJobConfigResult').style.display = 'none';
+        }
+
+        function showCreateJobConfigModal() {
+            // For now, just scroll to the create section
+            document.querySelector('h2:contains("🏗️ Create Job Configuration")').scrollIntoView({ behavior: 'smooth' });
+            
+            // Pre-fill with example data
+            document.getElementById('jobConfigName').value = 'My Expert Analysis Config';
+            document.getElementById('jobConfigDescription').value = 'Expert analysis for project tickets';
+            document.getElementById('jobConfigParams').value = JSON.stringify({
+                "request": "Analyze this ticket for technical debt",
+                "inputJql": "project = DMC AND labels = technical-debt",
+                "initiator": "your-email@example.com"
+            }, null, 2);
+            document.getElementById('jobConfigIntegrations').value = JSON.stringify({
+                "TrackerClient": "jira",
+                "AI": "openai", 
+                "Documentation": "confluence"
+            }, null, 2);
+        }
+
+        // 🎨 UI Form Builder Functions
+        
+        // Job configuration templates
+        const jobConfigs = {
+            Expert: {
+                requiredIntegrations: ['TrackerClient', 'AI', 'Documentation'],
+                optionalIntegrations: ['SourceCode'],
+                params: [
+                    {
+                        key: 'request',
+                        label: '🎯 Analysis Request',
+                        type: 'textarea',
+                        required: true,
+                        placeholder: 'Describe what you want the AI to analyze (e.g., "Analyze this ticket for technical implementation approach")',
+                        rows: 3
+                    },
+                    {
+                        key: 'inputJql',
+                        label: '🔍 JQL Query',
+                        type: 'text',
+                        required: true,
+                        placeholder: 'Enter JQL query (e.g., "key = DMC-123" or "project = DMC AND type = Bug")'
+                    },
+                    {
+                        key: 'initiator',
+                        label: '👤 Your Email',
+                        type: 'email',
+                        required: true,
+                        placeholder: 'your.email@company.com'
+                    },
+                    {
+                        key: 'outputType',
+                        label: '📤 Output Type',
+                        type: 'select',
+                        required: true,
+                        options: [
+                            { value: 'comment', label: 'Add Comment to Ticket' },
+                            { value: 'jira', label: 'Create New Jira Ticket' },
+                            { value: 'confluence', label: 'Create Confluence Page' }
+                        ]
+                    }
+                ]
+            },
+            TestCasesGenerator: {
+                requiredIntegrations: ['TrackerClient', 'AI'],
+                optionalIntegrations: ['Documentation', 'SourceCode'],
+                params: [
+                    {
+                        key: 'inputJql',
+                        label: '🔍 Stories JQL',
+                        type: 'text',
+                        required: true,
+                        placeholder: 'JQL for stories to generate tests for (e.g., "project = DMC AND type = Story")'
+                    },
+                    {
+                        key: 'initiator',
+                        label: '👤 Your Email',
+                        type: 'email',
+                        required: true,
+                        placeholder: 'your.email@company.com'
+                    },
+                    {
+                        key: 'existingTestCasesJql',
+                        label: '🧪 Existing Test Cases JQL',
+                        type: 'text',
+                        required: false,
+                        placeholder: 'JQL for existing test cases (optional, e.g., "project = DMC AND type = \'Test Case\'")'
+                    },
+                    {
+                        key: 'testCasesPriorities',
+                        label: '📊 Test Case Priorities',
+                        type: 'text',
+                        required: false,
+                        placeholder: 'Comma-separated priorities (e.g., "Critical,High,Medium")'
+                    },
+                    {
+                        key: 'outputType',
+                        label: '📤 Output Type',
+                        type: 'select',
+                        required: true,
+                        options: [
+                            { value: 'jira', label: 'Create Jira Test Cases' },
+                            { value: 'confluence', label: 'Create Confluence Test Plan' }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        function updateJobForm() {
+            const jobType = document.getElementById('formJobType').value;
+            const paramsContainer = document.getElementById('jobParamsContainer');
+            const integrationContainer = document.getElementById('integrationContainer');
+            const executionContainer = document.getElementById('executionContainer');
+            
+            if (!jobType) {
+                paramsContainer.style.display = 'none';
+                integrationContainer.style.display = 'none';
+                executionContainer.style.display = 'none';
+                updateGeneratedJSON();
+                return;
+            }
+
+            const config = jobConfigs[jobType];
+            
+            // Show containers
+            paramsContainer.style.display = 'block';
+            integrationContainer.style.display = 'block';
+            executionContainer.style.display = 'block';
+            
+            // Build dynamic parameters form
+            buildParamsForm(config.params);
+            
+            // Build integrations selection
+            buildIntegrationsForm(config.requiredIntegrations, config.optionalIntegrations);
+            
+            // Update JSON preview
+            updateGeneratedJSON();
+        }
+
+        function buildParamsForm(params) {
+            const container = document.getElementById('dynamicParams');
+            container.innerHTML = '';
+            
+            params.forEach(param => {
+                const div = document.createElement('div');
+                div.className = 'form-group';
+                
+                const label = document.createElement('label');
+                label.innerHTML = `${param.label}${param.required ? ' <span style="color: red;">*</span>' : ''}:`;
+                label.setAttribute('for', `form_${param.key}`);
+                div.appendChild(label);
+                
+                let input;
+                if (param.type === 'textarea') {
+                    input = document.createElement('textarea');
+                    input.rows = param.rows || 2;
+                } else if (param.type === 'select') {
+                    input = document.createElement('select');
+                    param.options.forEach(option => {
+                        const opt = document.createElement('option');
+                        opt.value = option.value;
+                        opt.textContent = option.label;
+                        input.appendChild(opt);
+                    });
+                } else {
+                    input = document.createElement('input');
+                    input.type = param.type;
+                }
+                
+                input.id = `form_${param.key}`;
+                input.placeholder = param.placeholder || '';
+                input.required = param.required;
+                input.onchange = updateGeneratedJSON;
+                input.oninput = updateGeneratedJSON;
+                
+                div.appendChild(input);
+                container.appendChild(div);
+            });
+        }
+
+        function buildIntegrationsForm(required, optional = []) {
+            const container = document.getElementById('integrationCheckboxes');
+            const infoDiv = document.getElementById('integrationInfo');
+            
+            container.innerHTML = '';
+            
+            // Update info text
+            infoDiv.innerHTML = `
+                <strong>Required:</strong> ${required.join(', ')}<br>
+                <strong>Optional:</strong> ${optional.length ? optional.join(', ') : 'None'}
+            `;
+            
+            // Required integrations (always checked)
+            required.forEach(integration => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '5px';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `integration_${integration}`;
+                checkbox.checked = true;
+                checkbox.disabled = true; // Required ones cannot be unchecked
+                checkbox.onchange = updateGeneratedJSON;
+                
+                const label = document.createElement('label');
+                label.setAttribute('for', checkbox.id);
+                label.innerHTML = `✅ ${integration} <em>(required)</em>`;
+                label.style.marginLeft = '5px';
+                
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+            
+            // Optional integrations
+            optional.forEach(integration => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '5px';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `integration_${integration}`;
+                checkbox.checked = false;
+                checkbox.onchange = updateGeneratedJSON;
+                
+                const label = document.createElement('label');
+                label.setAttribute('for', checkbox.id);
+                label.innerHTML = `⚪ ${integration} <em>(optional)</em>`;
+                label.style.marginLeft = '5px';
+                
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+            
+            updateGeneratedJSON();
+        }
+
+        function updateGeneratedJSON() {
+            const jobType = document.getElementById('formJobType').value;
+            if (!jobType) {
+                document.getElementById('generatedJSON').value = '';
+                updateValidation();
+                return;
+            }
+            
+            const config = jobConfigs[jobType];
+            
+            // Collect parameters
+            const params = {};
+            config.params.forEach(param => {
+                const input = document.getElementById(`form_${param.key}`);
+                if (input && input.value.trim()) {
+                    params[param.key] = input.value.trim();
+                }
+            });
+            
+            // Collect integrations
+            const integrations = [];
+            [...config.requiredIntegrations, ...config.optionalIntegrations].forEach(integration => {
+                const checkbox = document.getElementById(`integration_${integration}`);
+                if (checkbox && checkbox.checked) {
+                    integrations.push(integration);
+                }
+            });
+            
+            // Build final JSON
+            const json = {
+                jobName: jobType,
+                params: params,
+                requiredIntegrations: integrations
+            };
+            
+            document.getElementById('generatedJSON').value = JSON.stringify(json, null, 2);
+            updateValidation();
+        }
+
+        function updateValidation() {
+            const jobType = document.getElementById('formJobType').value;
+            const executeButton = document.getElementById('executeButton');
+            const validationDiv = document.getElementById('validationStatus');
+            
+            if (!jobType) {
+                executeButton.disabled = true;
+                validationDiv.style.display = 'none';
+                return;
+            }
+            
+            const issues = validateCurrentForm();
+            
+            if (issues.length === 0) {
+                executeButton.disabled = false;
+                validationDiv.style.display = 'block';
+                validationDiv.style.background = '#d4edda';
+                validationDiv.style.color = '#155724';
+                validationDiv.style.border = '1px solid #c3e6cb';
+                validationDiv.innerHTML = '✅ Form is valid and ready to execute!';
+            } else {
+                executeButton.disabled = true;
+                validationDiv.style.display = 'block';
+                validationDiv.style.background = '#f8d7da';
+                validationDiv.style.color = '#721c24';
+                validationDiv.style.border = '1px solid #f5c6cb';
+                validationDiv.innerHTML = `❌ Please fix the following issues:<br>• ${issues.join('<br>• ')}`;
+            }
+        }
+
+        function validateCurrentForm() {
+            const jobType = document.getElementById('formJobType').value;
+            if (!jobType) return ['Please select a job type'];
+            
+            const config = jobConfigs[jobType];
+            const issues = [];
+            
+            // Validate required parameters
+            config.params.forEach(param => {
+                if (param.required) {
+                    const input = document.getElementById(`form_${param.key}`);
+                    if (!input || !input.value.trim()) {
+                        issues.push(`${param.label.replace(/🎯|🔍|👤|📤|🧪|📊/g, '').trim()} is required`);
+                    } else if (param.type === 'email' && input.value.trim()) {
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailRegex.test(input.value.trim())) {
+                            issues.push(`${param.label.replace(/👤/g, '').trim()} must be a valid email address`);
+                        }
+                    }
+                }
+            });
+            
+            // Validate at least one integration is selected
+            const selectedIntegrations = [...config.requiredIntegrations, ...config.optionalIntegrations].filter(integration => {
+                const checkbox = document.getElementById(`integration_${integration}`);
+                return checkbox && checkbox.checked;
+            });
+            
+            if (selectedIntegrations.length === 0) {
+                issues.push('At least one integration must be selected');
+            }
+            
+            return issues;
+        }
+
+        function validateForm() {
+            updateValidation();
+            const validationDiv = document.getElementById('validationStatus');
+            validationDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        async function executeJobFromForm() {
+            const jsonText = document.getElementById('generatedJSON').value;
+            if (!jsonText.trim()) {
+                showResult('formExecutionResult', '❌ Please configure the job first', 'error');
+                return;
+            }
+            
+            try {
+                const jobData = JSON.parse(jsonText);
+                
+                showResult('formExecutionResult', '🚀 Executing job...', 'info');
+                
+                const response = await fetch('/api/v1/jobs/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': getAuthHeader()
+                    },
+                    body: jsonText
+                });
+                
+                if (response.ok) {
+                    const result = await response.text();
+                    showResult('formExecutionResult', `✅ Job executed successfully!<br><details><summary>View Result</summary><pre>${result}</pre></details>`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    showResult('formExecutionResult', `❌ Job execution failed (${response.status}): ${errorText}`, 'error');
+                }
+            } catch (error) {
+                showResult('formExecutionResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function copyGeneratedJSON() {
+            const textarea = document.getElementById('generatedJSON');
+            textarea.select();
+            document.execCommand('copy');
+            
+            // Show brief confirmation
+            const originalValue = textarea.value;
+            textarea.value = '✅ Copied to clipboard!';
+            setTimeout(() => {
+                textarea.value = originalValue;
+            }, 1000);
+        }
+
+        function loadExpertTemplate() {
+            document.getElementById('formJobType').value = 'Expert';
+            updateJobForm();
+            
+            // Fill in sample values
+            setTimeout(() => {
+                document.getElementById('form_request').value = 'Analyze this ticket for technical implementation approach and provide recommendations';
+                document.getElementById('form_inputJql').value = 'key = DMC-123';
+                document.getElementById('form_initiator').value = 'analyst@example.com';
+                document.getElementById('form_outputType').value = 'comment';
+                updateGeneratedJSON();
+            }, 100);
+        }
+
+        function loadTestCasesTemplate() {
+            document.getElementById('formJobType').value = 'TestCasesGenerator';
+            updateJobForm();
+            
+            // Fill in sample values
+            setTimeout(() => {
+                document.getElementById('form_inputJql').value = 'project = DMC AND type = Story AND status = "In Progress"';
+                document.getElementById('form_initiator').value = 'qa@example.com';
+                document.getElementById('form_existingTestCasesJql').value = 'project = DMC AND type = "Test Case"';
+                document.getElementById('form_testCasesPriorities').value = 'Critical,High,Medium';
+                document.getElementById('form_outputType').value = 'jira';
+                updateGeneratedJSON();
+            }, 100);
+        }
+
+        function clearForm() {
+            document.getElementById('formJobType').value = '';
+            updateJobForm();
+        }
+
+        // Utility functions
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `result ${type}`;
+            element.style.display = 'block';
+        }
+    </script>
+</body>
+</html> 
