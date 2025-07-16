@@ -9,8 +9,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.stereotype.Component;
 
 @SpringBootApplication(scanBasePackages = "com.github.istin.dmtools")
-@EnableJpaRepositories(basePackages = "com.github.istin.dmtools.auth.repository")
-@EntityScan(basePackages = "com.github.istin.dmtools.auth.model")
+@EnableJpaRepositories(basePackages = {"com.github.istin.dmtools.auth.repository", "com.github.istin.dmtools.server.repository"})
+@EntityScan(basePackages = {"com.github.istin.dmtools.auth.model", "com.github.istin.dmtools.server.model"})
 public class DmToolsServerApplication {
 
     public static void main(String[] args) {
