@@ -71,6 +71,14 @@ class IntegrationServiceTest {
             integration.setId("int1");
             return integration;
         });
+        when(integrationRepository.findById("int1")).thenAnswer(i -> {
+            Integration integration = new Integration();
+            integration.setId("int1");
+            integration.setName("Test Integration");
+            integration.setType("jira");
+            integration.setCreatedBy(user);
+            return Optional.of(integration);
+        });
 
         // Act
         IntegrationDto result = integrationService.createIntegration(request, "user1");
@@ -170,6 +178,15 @@ class IntegrationServiceTest {
             Integration integration = i.getArgument(0);
             integration.setId("github_int1");
             return integration;
+        });
+        when(integrationRepository.findById("github_int1")).thenAnswer(i -> {
+            Integration integration = new Integration();
+            integration.setId("github_int1");
+            integration.setName("GitHub Integration");
+            integration.setDescription("GitHub integration for dmtools repository");
+            integration.setType("github");
+            integration.setCreatedBy(user);
+            return Optional.of(integration);
         });
         when(encryptionUtils.encrypt("test_github_token_12345"))
             .thenReturn("encrypted_token_value");
