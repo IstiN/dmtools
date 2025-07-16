@@ -1,0 +1,125 @@
+{
+  "type": "Expert",
+  "displayNameKey": "job.expert.displayName",
+  "descriptionKey": "job.expert.description",
+  "iconUrl": "/img/jobs/expert-icon.svg",
+  "categories": ["AI", "Analysis", "Automation"],
+  "setupDocumentation": {
+    "en": "/docs/jobs/expert_setup_en.md",
+    "ru": "/docs/jobs/expert_setup_ru.md"
+  },
+  "executionModes": ["STANDALONE", "SERVER_MANAGED"],
+  "requiredIntegrations": ["TrackerClient", "AI", "Documentation"],
+  "optionalIntegrations": ["SourceCode"],
+  "configParams": [
+    {
+      "key": "request",
+      "displayNameKey": "expert.request.displayName",
+      "descriptionKey": "expert.request.description",
+      "instructionsKey": "expert.request.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "minLength": 10,
+        "maxLength": 2000
+      },
+      "examples": [
+        "Analyze this ticket for technical implementation approach",
+        "Review the code changes and provide security recommendations",
+        "Suggest improvements for this feature implementation"
+      ]
+    },
+    {
+      "key": "inputJql",
+      "displayNameKey": "expert.inputJql.displayName", 
+      "descriptionKey": "expert.inputJql.description",
+      "instructionsKey": "expert.inputJql.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^.+$"
+      },
+      "examples": [
+        "key = DMC-123",
+        "project = DMC AND type = Bug AND created >= -7d",
+        "assignee = currentUser() AND status = 'In Progress'"
+      ]
+    },
+    {
+      "key": "initiator",
+      "displayNameKey": "expert.initiator.displayName",
+      "descriptionKey": "expert.initiator.description", 
+      "instructionsKey": "expert.initiator.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "email",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      },
+      "examples": [
+        "developer@company.com",
+        "analyst@company.com",
+        "projectmanager@company.com"
+      ]
+    },
+    {
+      "key": "outputType",
+      "displayNameKey": "expert.outputType.displayName",
+      "descriptionKey": "expert.outputType.description",
+      "instructionsKey": "expert.outputType.instructions", 
+      "required": false,
+      "sensitive": false,
+      "inputType": "select",
+      "defaultValue": "comment",
+      "validation": {
+        "enum": ["comment", "confluence", "console"]
+      },
+      "options": [
+        {"value": "comment", "labelKey": "expert.outputType.comment"},
+        {"value": "confluence", "labelKey": "expert.outputType.confluence"},
+        {"value": "console", "labelKey": "expert.outputType.console"}
+      ]
+    },
+    {
+      "key": "tempFolder",
+      "displayNameKey": "expert.tempFolder.displayName",
+      "descriptionKey": "expert.tempFolder.description",
+      "instructionsKey": "expert.tempFolder.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9_\\-\\/]*$"
+      },
+      "examples": [
+        "/tmp/expert-analysis",
+        "temp/expert-reports",
+        "analysis-workspace"
+      ]
+    },
+    {
+      "key": "attachmentsFolder",
+      "displayNameKey": "expert.attachmentsFolder.displayName",
+      "descriptionKey": "expert.attachmentsFolder.description",
+      "instructionsKey": "expert.attachmentsFolder.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9_\\-\\/]*$"
+      },
+      "examples": [
+        "/attachments/expert",
+        "expert-attachments",
+        "analysis-files"
+      ]
+    }
+  ]
+} 

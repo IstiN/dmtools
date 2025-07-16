@@ -1,0 +1,184 @@
+{
+  "type": "TestCasesGenerator",
+  "displayNameKey": "job.testcasesGenerator.displayName",
+  "descriptionKey": "job.testcasesGenerator.description",
+  "iconUrl": "/img/jobs/testcases-icon.svg",
+  "categories": ["AI", "Testing", "QA", "Automation"],
+  "setupDocumentation": {
+    "en": "/docs/jobs/testcases_generator_setup_en.md",
+    "ru": "/docs/jobs/testcases_generator_setup_ru.md"
+  },
+  "executionModes": ["STANDALONE", "SERVER_MANAGED"],
+  "requiredIntegrations": ["TrackerClient", "AI"],
+  "optionalIntegrations": ["Documentation", "SourceCode"],
+  "configParams": [
+    {
+      "key": "inputJql",
+      "displayNameKey": "testcases.inputJql.displayName",
+      "descriptionKey": "testcases.inputJql.description",
+      "instructionsKey": "testcases.inputJql.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^.+$"
+      },
+      "examples": [
+        "project = DMC AND type = Story",
+        "project = DMC AND type = Epic AND key = DMC-9",
+        "assignee = currentUser() AND type IN (Story, Task, Bug)"
+      ]
+    },
+    {
+      "key": "initiator",
+      "displayNameKey": "testcases.initiator.displayName",
+      "descriptionKey": "testcases.initiator.description",
+      "instructionsKey": "testcases.initiator.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "email",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      },
+      "examples": [
+        "qa@company.com",
+        "testlead@company.com",
+        "automation@company.com"
+      ]
+    },
+    {
+      "key": "existingTestCasesJql",
+      "displayNameKey": "testcases.existingTestCasesJql.displayName",
+      "descriptionKey": "testcases.existingTestCasesJql.description",
+      "instructionsKey": "testcases.existingTestCasesJql.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^.*$"
+      },
+      "examples": [
+        "project = DMC AND type = 'Test Case'",
+        "project = DMC AND type = 'Test Case' AND labels = 'automated'",
+        "type = 'Test Case' AND component = 'Authentication'"
+      ]
+    },
+    {
+      "key": "testCasesPriorities",
+      "displayNameKey": "testcases.testCasesPriorities.displayName",
+      "descriptionKey": "testcases.testCasesPriorities.description",
+      "instructionsKey": "testcases.testCasesPriorities.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": "High,Medium,Low",
+      "validation": {
+        "pattern": "^[a-zA-Z0-9,\\s]+$"
+      },
+      "examples": [
+        "Critical,High,Medium,Low",
+        "High,Medium,Low",
+        "P1,P2,P3"
+      ]
+    },
+    {
+      "key": "outputType",
+      "displayNameKey": "testcases.outputType.displayName",
+      "descriptionKey": "testcases.outputType.description",
+      "instructionsKey": "testcases.outputType.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "select",
+      "defaultValue": "jira",
+      "validation": {
+        "enum": ["jira", "confluence", "console"]
+      },
+      "options": [
+        {"value": "jira", "labelKey": "testcases.outputType.jira"},
+        {"value": "confluence", "labelKey": "testcases.outputType.confluence"},
+        {"value": "console", "labelKey": "testcases.outputType.console"}
+      ]
+    },
+    {
+      "key": "testCaseType",
+      "displayNameKey": "testcases.testCaseType.displayName",
+      "descriptionKey": "testcases.testCaseType.description",
+      "instructionsKey": "testcases.testCaseType.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "select",
+      "defaultValue": "functional",
+      "validation": {
+        "enum": ["functional", "integration", "unit", "acceptance", "regression"]
+      },
+      "options": [
+        {"value": "functional", "labelKey": "testcases.testCaseType.functional"},
+        {"value": "integration", "labelKey": "testcases.testCaseType.integration"},
+        {"value": "unit", "labelKey": "testcases.testCaseType.unit"},
+        {"value": "acceptance", "labelKey": "testcases.testCaseType.acceptance"},
+        {"value": "regression", "labelKey": "testcases.testCaseType.regression"}
+      ]
+    },
+    {
+      "key": "maxTestCasesPerTicket",
+      "displayNameKey": "testcases.maxTestCasesPerTicket.displayName",
+      "descriptionKey": "testcases.maxTestCasesPerTicket.description",
+      "instructionsKey": "testcases.maxTestCasesPerTicket.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "10",
+      "validation": {
+        "min": 1,
+        "max": 50
+      },
+      "examples": [
+        "5",
+        "10",
+        "20"
+      ]
+    },
+    {
+      "key": "includeNegativeTestCases",
+      "displayNameKey": "testcases.includeNegativeTestCases.displayName",
+      "descriptionKey": "testcases.includeNegativeTestCases.description",
+      "instructionsKey": "testcases.includeNegativeTestCases.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "true",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "includeEdgeCases",
+      "displayNameKey": "testcases.includeEdgeCases.displayName",
+      "descriptionKey": "testcases.includeEdgeCases.description",
+      "instructionsKey": "testcases.includeEdgeCases.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "true",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "generateAutomationScript",
+      "displayNameKey": "testcases.generateAutomationScript.displayName",
+      "descriptionKey": "testcases.generateAutomationScript.description",
+      "instructionsKey": "testcases.generateAutomationScript.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "false",
+      "validation": {
+        "type": "boolean"
+      }
+    }
+  ]
+} 
