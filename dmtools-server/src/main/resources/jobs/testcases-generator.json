@@ -1,5 +1,7 @@
 {
   "type": "TestCasesGenerator",
+  "displayName": "AI Test Cases Generator",
+  "description": "Automatically generate comprehensive test cases for tickets using AI analysis. Creates detailed test scenarios including positive, negative, and edge cases with automation scripts.",
   "displayNameKey": "job.testcasesGenerator.displayName",
   "descriptionKey": "job.testcasesGenerator.description",
   "iconUrl": "/img/jobs/testcases-icon.svg",
@@ -14,6 +16,8 @@
   "configParams": [
     {
       "key": "inputJql",
+      "displayName": "Ticket Query (JQL)",
+      "description": "JQL query to select tickets for which to generate test cases. Target stories, tasks, or bugs that need testing scenarios.",
       "displayNameKey": "testcases.inputJql.displayName",
       "descriptionKey": "testcases.inputJql.description",
       "instructionsKey": "testcases.inputJql.instructions",
@@ -32,6 +36,8 @@
     },
     {
       "key": "initiator",
+      "displayName": "Initiator Email",
+      "description": "Email address of the person requesting test case generation. Used for notifications and tracking.",
       "displayNameKey": "testcases.initiator.displayName",
       "descriptionKey": "testcases.initiator.description",
       "instructionsKey": "testcases.initiator.instructions",
@@ -85,55 +91,181 @@
       ]
     },
     {
-      "key": "outputType",
-      "displayNameKey": "testcases.outputType.displayName",
-      "descriptionKey": "testcases.outputType.description",
-      "instructionsKey": "testcases.outputType.instructions",
+      "key": "relatedTestCasesRules",
+      "displayNameKey": "testcases.relatedTestCasesRules.displayName",
+      "descriptionKey": "testcases.relatedTestCasesRules.description",
+      "instructionsKey": "testcases.relatedTestCasesRules.instructions",
       "required": false,
       "sensitive": false,
-      "inputType": "select",
-      "defaultValue": "jira",
+      "inputType": "textarea",
+      "defaultValue": null,
       "validation": {
-        "enum": ["jira", "confluence", "console"]
+        "maxLength": 2000
       },
-      "options": [
-        {"value": "jira", "labelKey": "testcases.outputType.jira"},
-        {"value": "confluence", "labelKey": "testcases.outputType.confluence"},
-        {"value": "console", "labelKey": "testcases.outputType.console"}
+      "examples": [
+        "Include test cases for all related user stories",
+        "Generate test cases for dependent components",
+        "Consider integration test scenarios"
       ]
     },
     {
-      "key": "testCaseType",
-      "displayNameKey": "testcases.testCaseType.displayName",
-      "descriptionKey": "testcases.testCaseType.description",
-      "instructionsKey": "testcases.testCaseType.instructions",
+      "key": "testCaseIssueType",
+      "displayNameKey": "testcases.testCaseIssueType.displayName",
+      "descriptionKey": "testcases.testCaseIssueType.description",
+      "instructionsKey": "testcases.testCaseIssueType.instructions",
       "required": false,
       "sensitive": false,
-      "inputType": "select",
-      "defaultValue": "functional",
+      "inputType": "text",
+      "defaultValue": "Test Case",
       "validation": {
-        "enum": ["functional", "integration", "unit", "acceptance", "regression"]
+        "pattern": "^[a-zA-Z0-9\\s]+$"
       },
-      "options": [
-        {"value": "functional", "labelKey": "testcases.testCaseType.functional"},
-        {"value": "integration", "labelKey": "testcases.testCaseType.integration"},
-        {"value": "unit", "labelKey": "testcases.testCaseType.unit"},
-        {"value": "acceptance", "labelKey": "testcases.testCaseType.acceptance"},
-        {"value": "regression", "labelKey": "testcases.testCaseType.regression"}
+      "examples": [
+        "Test Case",
+        "Test Scenario",
+        "Manual Test"
       ]
     },
     {
-      "key": "maxTestCasesPerTicket",
-      "displayNameKey": "testcases.maxTestCasesPerTicket.displayName",
-      "descriptionKey": "testcases.maxTestCasesPerTicket.description",
-      "instructionsKey": "testcases.maxTestCasesPerTicket.instructions",
+      "key": "testCaseLinkRelationship",
+      "displayNameKey": "testcases.testCaseLinkRelationship.displayName",
+      "descriptionKey": "testcases.testCaseLinkRelationship.description",
+      "instructionsKey": "testcases.testCaseLinkRelationship.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": "is tested by",
+      "validation": {
+        "pattern": "^[a-zA-Z0-9\\s]+$"
+      },
+      "examples": [
+        "is tested by",
+        "tests",
+        "verifies"
+      ]
+    },
+    {
+      "key": "confluencePages",
+      "displayNameKey": "testcases.confluencePages.displayName",
+      "descriptionKey": "testcases.confluencePages.description",
+      "instructionsKey": "testcases.confluencePages.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "array",
+      "defaultValue": null,
+      "validation": {
+        "minItems": 0,
+        "maxItems": 100
+      },
+      "examples": [
+        "https://confluence.company.com/test-strategy",
+        "https://confluence.company.com/page1",
+        "https://confluence.company.com/page2"
+      ]
+    },
+    {
+      "key": "isCodeAsSource",
+      "displayNameKey": "testcases.isCodeAsSource.displayName",
+      "descriptionKey": "testcases.isCodeAsSource.description",
+      "instructionsKey": "testcases.isCodeAsSource.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "false",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "isConfluenceAsSource",
+      "displayNameKey": "testcases.isConfluenceAsSource.displayName",
+      "descriptionKey": "testcases.isConfluenceAsSource.description",
+      "instructionsKey": "testcases.isConfluenceAsSource.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "false",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "isTrackerAsSource",
+      "displayNameKey": "testcases.isTrackerAsSource.displayName",
+      "descriptionKey": "testcases.isTrackerAsSource.description",
+      "instructionsKey": "testcases.isTrackerAsSource.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "false",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "transformConfluencePagesToMarkdown",
+      "displayNameKey": "testcases.transformConfluencePagesToMarkdown.displayName",
+      "descriptionKey": "testcases.transformConfluencePagesToMarkdown.description",
+      "instructionsKey": "testcases.transformConfluencePagesToMarkdown.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "true",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "ticketContextDepth",
+      "displayNameKey": "testcases.ticketContextDepth.displayName",
+      "descriptionKey": "testcases.ticketContextDepth.description",
+      "instructionsKey": "testcases.ticketContextDepth.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "1",
+      "validation": {
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "chunksProcessingTimeoutInMinutes",
+      "displayNameKey": "testcases.chunksProcessingTimeoutInMinutes.displayName",
+      "descriptionKey": "testcases.chunksProcessingTimeoutInMinutes.description",
+      "instructionsKey": "testcases.chunksProcessingTimeoutInMinutes.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "0",
+      "validation": {
+        "min": 0,
+        "max": 120
+      },
+      "examples": [
+        "0",
+        "5",
+        "10",
+        "30"
+      ]
+    },
+    {
+      "key": "filesLimit",
+      "displayNameKey": "testcases.filesLimit.displayName",
+      "descriptionKey": "testcases.filesLimit.description",
+      "instructionsKey": "testcases.filesLimit.instructions",
       "required": false,
       "sensitive": false,
       "inputType": "number",
       "defaultValue": "10",
       "validation": {
         "min": 1,
-        "max": 50
+        "max": 100
       },
       "examples": [
         "5",
@@ -142,43 +274,152 @@
       ]
     },
     {
-      "key": "includeNegativeTestCases",
-      "displayNameKey": "testcases.includeNegativeTestCases.displayName",
-      "descriptionKey": "testcases.includeNegativeTestCases.description",
-      "instructionsKey": "testcases.includeNegativeTestCases.instructions",
+      "key": "confluenceLimit",
+      "displayNameKey": "testcases.confluenceLimit.displayName",
+      "descriptionKey": "testcases.confluenceLimit.description",
+      "instructionsKey": "testcases.confluenceLimit.instructions",
       "required": false,
       "sensitive": false,
-      "inputType": "boolean",
-      "defaultValue": "true",
+      "inputType": "number",
+      "defaultValue": "10",
       "validation": {
-        "type": "boolean"
-      }
+        "min": 1,
+        "max": 100
+      },
+      "examples": [
+        "5",
+        "10",
+        "20"
+      ]
     },
     {
-      "key": "includeEdgeCases",
-      "displayNameKey": "testcases.includeEdgeCases.displayName",
-      "descriptionKey": "testcases.includeEdgeCases.description",
-      "instructionsKey": "testcases.includeEdgeCases.instructions",
+      "key": "trackerLimit",
+      "displayNameKey": "testcases.trackerLimit.displayName",
+      "descriptionKey": "testcases.trackerLimit.description",
+      "instructionsKey": "testcases.trackerLimit.instructions",
       "required": false,
       "sensitive": false,
-      "inputType": "boolean",
-      "defaultValue": "true",
+      "inputType": "number",
+      "defaultValue": "10",
       "validation": {
-        "type": "boolean"
-      }
+        "min": 1,
+        "max": 100
+      },
+      "examples": [
+        "5",
+        "10",
+        "20"
+      ]
     },
     {
-      "key": "generateAutomationScript",
-      "displayNameKey": "testcases.generateAutomationScript.displayName",
-      "descriptionKey": "testcases.generateAutomationScript.description",
-      "instructionsKey": "testcases.generateAutomationScript.instructions",
+      "key": "filesIterations",
+      "displayNameKey": "testcases.filesIterations.displayName",
+      "descriptionKey": "testcases.filesIterations.description",
+      "instructionsKey": "testcases.filesIterations.instructions",
       "required": false,
       "sensitive": false,
-      "inputType": "boolean",
-      "defaultValue": "false",
+      "inputType": "number",
+      "defaultValue": "1",
       "validation": {
-        "type": "boolean"
-      }
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "confluenceIterations",
+      "displayNameKey": "testcases.confluenceIterations.displayName",
+      "descriptionKey": "testcases.confluenceIterations.description",
+      "instructionsKey": "testcases.confluenceIterations.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "1",
+      "validation": {
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "trackerIterations",
+      "displayNameKey": "testcases.trackerIterations.displayName",
+      "descriptionKey": "testcases.trackerIterations.description",
+      "instructionsKey": "testcases.trackerIterations.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "1",
+      "validation": {
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "fieldName",
+      "displayNameKey": "testcases.fieldName.displayName",
+      "descriptionKey": "testcases.fieldName.description",
+      "instructionsKey": "testcases.fieldName.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9_\\s-]+$"
+      },
+      "examples": [
+        "Test Cases",
+        "Generated Tests",
+        "QA Analysis"
+      ]
+    },
+    {
+      "key": "outputType",
+      "displayNameKey": "testcases.outputType.displayName",
+      "descriptionKey": "testcases.outputType.description",
+      "instructionsKey": "testcases.outputType.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "select",
+      "defaultValue": "comment",
+      "validation": {
+        "enum": ["comment", "field", "creation"]
+      },
+      "options": [
+        {"value": "comment", "labelKey": "testcases.outputType.comment"},
+        {"value": "field", "labelKey": "testcases.outputType.field"},
+        {"value": "creation", "labelKey": "testcases.outputType.creation"}
+      ]
+    },
+    {
+      "key": "operationType",
+      "displayNameKey": "testcases.operationType.displayName",
+      "descriptionKey": "testcases.operationType.description",
+      "instructionsKey": "testcases.operationType.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "select",
+      "defaultValue": "Append",
+      "validation": {
+        "enum": ["Replace", "Append"]
+      },
+      "options": [
+        {"value": "Replace", "labelKey": "testcases.operationType.replace"},
+        {"value": "Append", "labelKey": "testcases.operationType.append"}
+      ]
     }
   ]
 } 
