@@ -3,25 +3,23 @@ const { test, expect } = require('@playwright/test');
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
 
 test.describe('Job Execution API', () => {
-  let authCookie;
+  let authToken;
 
   test.beforeAll(async ({ request }) => {
     console.log('Setting up authentication for job execution tests...');
     
-    // Login to get authentication cookie
-    const loginResponse = await request.post(`${BASE_URL}/api/auth/login`, {
+    // Authenticate first to get JWT token
+    const loginResponse = await request.post(`${BASE_URL}/api/auth/local-login`, {
       data: {
         username: 'testuser',
-        password: 'testpass'
+        password: 'secret123'
       }
     });
     
     if (loginResponse.status() === 200) {
-      const cookies = loginResponse.headers()['set-cookie'];
-      if (cookies) {
-        authCookie = cookies.split(';')[0];
-        console.log('Authentication successful');
-      }
+      const loginData = await loginResponse.json();
+      authToken = loginData.token;
+      console.log('Authentication successful, got JWT token');
     } else {
       console.log('Authentication failed, proceeding without auth for testing');
     }
@@ -30,7 +28,7 @@ test.describe('Job Execution API', () => {
   test.describe('Job Management Endpoints', () => {
     test('should get available jobs for server-managed execution', async ({ request }) => {
       const response = await request.get(`${BASE_URL}/api/v1/jobs/available`, {
-        headers: authCookie ? { 'Cookie': authCookie } : {}
+        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
       });
 
       console.log('Available jobs endpoint response status:', response.status());
@@ -52,7 +50,7 @@ test.describe('Job Execution API', () => {
 
     test('should get required integrations for Expert job', async ({ request }) => {
       const response = await request.get(`${BASE_URL}/api/v1/jobs/Expert/integrations`, {
-        headers: authCookie ? { 'Cookie': authCookie } : {}
+        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
       });
 
       console.log('Expert integrations endpoint response status:', response.status());
@@ -72,7 +70,7 @@ test.describe('Job Execution API', () => {
 
     test('should get required integrations for TestCasesGenerator job', async ({ request }) => {
       const response = await request.get(`${BASE_URL}/api/v1/jobs/TestCasesGenerator/integrations`, {
-        headers: authCookie ? { 'Cookie': authCookie } : {}
+        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
       });
 
       console.log('TestCasesGenerator integrations endpoint response status:', response.status());
@@ -92,7 +90,7 @@ test.describe('Job Execution API', () => {
 
     test('should return 404 for non-existent job integrations', async ({ request }) => {
       const response = await request.get(`${BASE_URL}/api/v1/jobs/NonExistentJob/integrations`, {
-        headers: authCookie ? { 'Cookie': authCookie } : {}
+        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
       });
 
       console.log('Non-existent job integrations response status:', response.status());
@@ -108,7 +106,7 @@ test.describe('Job Execution API', () => {
       const invalidRequest1 = await request.post(`${BASE_URL}/api/v1/jobs/execute`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(authCookie ? { 'Cookie': authCookie } : {})
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         data: {
           params: { request: "Test analysis" }
@@ -126,7 +124,7 @@ test.describe('Job Execution API', () => {
       const invalidRequest2 = await request.post(`${BASE_URL}/api/v1/jobs/execute`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(authCookie ? { 'Cookie': authCookie } : {})
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         data: {
           jobName: "Expert"
@@ -159,7 +157,7 @@ test.describe('Job Execution API', () => {
       const response = await request.post(`${BASE_URL}/api/v1/jobs/execute`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(authCookie ? { 'Cookie': authCookie } : {})
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         data: expertRequest
       });
@@ -210,7 +208,7 @@ test.describe('Job Execution API', () => {
       const response = await request.post(`${BASE_URL}/api/v1/jobs/execute`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(authCookie ? { 'Cookie': authCookie } : {})
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         data: testCasesRequest
       });
@@ -257,7 +255,7 @@ test.describe('Job Execution API', () => {
       const response = await request.post(`${BASE_URL}/api/v1/jobs/execute`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(authCookie ? { 'Cookie': authCookie } : {})
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         data: autoDetectRequest
       });
@@ -289,7 +287,7 @@ test.describe('Job Execution API', () => {
       const response = await request.post(`${BASE_URL}/api/v1/jobs/execute`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(authCookie ? { 'Cookie': authCookie } : {})
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         data: invalidJobRequest
       });
@@ -326,7 +324,7 @@ test.describe('Job Execution API', () => {
       const response = await request.post(`${BASE_URL}/api/v1/jobs/execute`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(authCookie ? { 'Cookie': authCookie } : {})
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         data: testRequest
       });
@@ -379,7 +377,7 @@ test.describe('Job Execution API', () => {
       const response = await request.post(`${BASE_URL}/api/v1/jobs/execute`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(authCookie ? { 'Cookie': authCookie } : {})
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         data: securityTestRequest
       });
