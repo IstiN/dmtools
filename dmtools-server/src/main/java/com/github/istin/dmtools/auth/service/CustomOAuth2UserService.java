@@ -31,13 +31,18 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        OAuth2User oauth2User = super.loadUser(userRequest);
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
+        logger.info("🔍 OAuth2 User Service - Loading user from provider: {}", registrationId);
         
-        logger.info("🔍 OAuth2 User Service - Processing user from provider: {}", registrationId);
-        logger.debug("🔍 OAuth2 User Service - User attributes: {}", oauth2User.getAttributes());
-
         try {
+            OAuth2User oauth2User = super.loadUser(userRequest);
+            logger.info("✅ OAuth2 User Service - Successfully loaded user from provider: {}", registrationId);
+            logger.info("🔍 OAuth2 User Service - User attributes: {}", oauth2User.getAttributes());
+            
+            if ("microsoft".equalsIgnoreCase(registrationId)) {
+                logger.info("🔍 Microsoft user attributes detail: {}", oauth2User.getAttributes());
+                logger.info("🔍 Microsoft user name: {}", oauth2User.getName());
+            }
             // Extract user information based on provider
             String email = extractEmail(oauth2User, registrationId, userRequest);
             String name = extractName(oauth2User, registrationId);
@@ -59,9 +64,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             logger.info("✅ OAuth2 User Service - User created/updated in database: {}", user.getId());
             
             return oauth2User;
+        } catch (OAuth2AuthenticationException e) {
+            logger.error("❌ OAuth2 User Service - OAuth2 authentication error loading user from {}: {}", registrationId, e.getMessage(), e);
+            throw e;
         } catch (Exception e) {
-            logger.error("❌ OAuth2 User Service - Error processing user: {}", e.getMessage(), e);
-            throw new OAuth2AuthenticationException("Failed to process OAuth2 user");
+            logger.error("❌ OAuth2 User Service - Error processing user from {}: {}", registrationId, e.getMessage(), e);
+            throw new OAuth2AuthenticationException("Failed to process OAuth2 user from " + registrationId + ": " + e.getMessage());
         }
     }
     
@@ -81,7 +89,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 }
                 break;
             case "microsoft":
+                // Microsoft Graph API can return email in different fields
                 email = (String) attributes.get("mail");
+                if (email == null) {
+                    email = (String) attributes.get("email");
+                }
+                if (email == null) {
+                    email = (String) attributes.get("userPrincipalName");
+                }
+                logger.info("🔍 Microsoft email extraction: mail={}, email={}, userPrincipalName={}", 
+                           attributes.get("mail"), attributes.get("email"), attributes.get("userPrincipalName"));
                 break;
             default:
                 email = (String) attributes.get("email");
