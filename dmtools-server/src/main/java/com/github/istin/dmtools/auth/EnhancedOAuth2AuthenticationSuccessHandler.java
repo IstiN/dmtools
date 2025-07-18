@@ -1,6 +1,8 @@
 package com.github.istin.dmtools.auth;
 
+import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.service.OAuthProxyService;
+import com.github.istin.dmtools.auth.service.UserService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,15 +31,25 @@ public class EnhancedOAuth2AuthenticationSuccessHandler extends SavedRequestAwar
 
     private static final Logger logger = LoggerFactory.getLogger(EnhancedOAuth2AuthenticationSuccessHandler.class);
     private static final String SPRING_SECURITY_CONTEXT_KEY = "SPRING_SECURITY_CONTEXT";
+    
     private final SecurityContextRepository securityContextRepository;
     private final OAuthProxyService oAuthProxyService;
+    private final UserService userService;
+    private final JwtUtils jwtUtils;
+    
+    @Value("${spring.profiles.active:local}")
+    private String activeProfile;
 
-    public EnhancedOAuth2AuthenticationSuccessHandler(OAuthProxyService oAuthProxyService) {
+    public EnhancedOAuth2AuthenticationSuccessHandler(OAuthProxyService oAuthProxyService, 
+                                                     UserService userService, 
+                                                     JwtUtils jwtUtils) {
         this.oAuthProxyService = oAuthProxyService;
+        this.userService = userService;
+        this.jwtUtils = jwtUtils;
         this.securityContextRepository = new HttpSessionSecurityContextRepository();
         setDefaultTargetUrl("/");
         setAlwaysUseDefaultTargetUrl(false); // Changed to false to allow custom redirects
-        logger.info("EnhancedOAuth2AuthenticationSuccessHandler initialized with OAuth proxy support");
+        logger.info("EnhancedOAuth2AuthenticationSuccessHandler initialized with OAuth proxy support and JWT generation");
     }
 
     @Override
@@ -78,6 +91,26 @@ public class EnhancedOAuth2AuthenticationSuccessHandler extends SavedRequestAwar
             logger.info("  - Authorities: {}", oauth2Token.getAuthorities());
             logger.debug("  - User attributes: {}", oauth2User.getAttributes());
             
+            // Extract user information and create/update user in database
+            try {
+                logger.info("💾 OAUTH HANDLER - Creating/updating user in database...");
+                User user = userService.createOrUpdateOAuth2User(oauth2Token);
+                logger.info("✅ OAUTH HANDLER - User created/updated successfully: {}", user.getEmail());
+                
+                // Generate JWT token for the user
+                logger.info("🔐 OAUTH HANDLER - Generating JWT token for user: {}", user.getEmail());
+                String jwtToken = jwtUtils.generateJwtToken(user.getEmail(), user.getId());
+                logger.info("✅ OAUTH HANDLER - JWT token generated successfully");
+                
+                // Set JWT token as secure cookie
+                setJwtCookie(response, jwtToken);
+                logger.info("🍪 OAUTH HANDLER - JWT token set as secure cookie");
+                
+            } catch (Exception e) {
+                logger.error("❌ OAUTH HANDLER - Failed to create user or generate JWT token", e);
+                // Continue with session-based auth even if JWT generation fails
+            }
+            
             // Check session
             HttpSession session = request.getSession(true); // Always create session if it doesn't exist
             logger.info("Session: ID = {}", session.getId());
@@ -102,10 +135,15 @@ public class EnhancedOAuth2AuthenticationSuccessHandler extends SavedRequestAwar
             session.setMaxInactiveInterval(3600); // 1 hour timeout
             
             // Add auth success cookie for debugging
-            Cookie authCookie = new Cookie("auth_success", "true");
-            authCookie.setPath("/");
-            authCookie.setMaxAge(300); // 5 minutes
-            response.addCookie(authCookie);
+            if (isProductionEnvironment()) {
+                // Use Set-Cookie header for production with SameSite attribute
+                response.addHeader("Set-Cookie", "auth_success=true; Path=/; Max-Age=300; Secure; SameSite=Lax");
+            } else {
+                Cookie authCookie = new Cookie("auth_success", "true");
+                authCookie.setPath("/");
+                authCookie.setMaxAge(300); // 5 minutes
+                response.addCookie(authCookie);
+            }
             logger.info("Added auth_success cookie for debugging");
         } else {
             logger.warn("Authentication is not an OAuth2AuthenticationToken: {}", authentication.getClass().getSimpleName());
@@ -115,5 +153,32 @@ public class EnhancedOAuth2AuthenticationSuccessHandler extends SavedRequestAwar
         setAlwaysUseDefaultTargetUrl(true);
         logger.info("Redirecting to default target URL: {}", getDefaultTargetUrl());
         super.onAuthenticationSuccess(request, response, authentication);
+    }
+    
+    /**
+     * Sets JWT token as a secure cookie with appropriate settings for production/development
+     */
+    private void setJwtCookie(HttpServletResponse response, String jwtToken) {
+        if (isProductionEnvironment()) {
+            // Use Set-Cookie header for production with all security attributes
+            String cookieValue = String.format("jwt=%s; Path=/; Max-Age=86400; HttpOnly; Secure; SameSite=Lax", jwtToken);
+            response.addHeader("Set-Cookie", cookieValue);
+            logger.info("🔒 OAUTH HANDLER - Set secure JWT cookie for production environment");
+        } else {
+            // Use Cookie object for development (non-secure)
+            Cookie jwtCookie = new Cookie("jwt", jwtToken);
+            jwtCookie.setHttpOnly(true);
+            jwtCookie.setPath("/");
+            jwtCookie.setMaxAge(86400); // 24 hours (same as JWT expiration)
+            response.addCookie(jwtCookie);
+            logger.info("🔓 OAUTH HANDLER - Set non-secure JWT cookie for development environment");
+        }
+    }
+    
+    /**
+     * Determines if we're running in a production environment
+     */
+    private boolean isProductionEnvironment() {
+        return "prod".equals(activeProfile) || "production".equals(activeProfile);
     }
 } 
