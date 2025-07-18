@@ -40,6 +40,7 @@ public class SecurityConfig {
     private final AuthDebugFilter authDebugFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
+    private final StatelessOAuth2AuthorizationRequestRepository statelessOAuth2AuthorizationRequestRepository;
     private final String activeProfile;
 
     // Optional OAuth2 components - may not be available if OAuth2 is not configured
@@ -59,13 +60,15 @@ public class SecurityConfig {
                          AuthDebugFilter authDebugFilter, 
                          JwtAuthenticationFilter jwtAuthenticationFilter, 
                          CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
+                         StatelessOAuth2AuthorizationRequestRepository statelessOAuth2AuthorizationRequestRepository,
                          @Value("${spring.profiles.active:default}") String activeProfile) {
         this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
+        this.statelessOAuth2AuthorizationRequestRepository = statelessOAuth2AuthorizationRequestRepository;
         this.activeProfile = activeProfile;
-        logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
+        logger.info("SecurityConfig initialized with custom OAuth2 handlers, stateless auth repository, and resolver.");
     }
 
     @Bean
@@ -182,13 +185,15 @@ public class SecurityConfig {
 
         // Configure OAuth2 login only if ClientRegistrationRepository is available
         if (clientRegistrationRepository != null) {
-            logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
+            logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login with stateless authorization request repository");
             http.oauth2Login(oauth2 -> {
-                if (customOAuth2AuthorizationRequestResolver != null) {
-                    oauth2.authorizationEndpoint(authorization -> authorization
-                            .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
-                    );
-                }
+                oauth2.authorizationEndpoint(authorization -> {
+                    // Use stateless authorization request repository for Cloud Run compatibility
+                    authorization.authorizationRequestRepository(statelessOAuth2AuthorizationRequestRepository);
+                    if (customOAuth2AuthorizationRequestResolver != null) {
+                        authorization.authorizationRequestResolver(customOAuth2AuthorizationRequestResolver);
+                    }
+                });
                 oauth2.userInfoEndpoint(userInfo -> {
                     if (customOAuth2UserService != null) {
                         userInfo.userService(customOAuth2UserService);
@@ -200,6 +205,7 @@ public class SecurityConfig {
                 .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
                 .failureHandler(customOAuth2AuthenticationFailureHandler);
             });
+            logger.info("✅ OAuth2 login configured with stateless authorization request repository for production compatibility");
         } else {
             logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");
         }
