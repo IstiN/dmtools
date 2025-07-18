@@ -1,5 +1,7 @@
 {
   "type": "Expert",
+  "displayName": "AI Expert Analysis",
+  "description": "Leverage AI expertise to analyze tickets, provide technical recommendations, and generate detailed insights based on project context and requirements.",
   "displayNameKey": "job.expert.displayName",
   "descriptionKey": "job.expert.description",
   "iconUrl": "/img/jobs/expert-icon.svg",
@@ -14,6 +16,8 @@
   "configParams": [
     {
       "key": "request",
+      "displayName": "Analysis Request",
+      "description": "Describe what kind of analysis or expert advice you need for the selected tickets",
       "displayNameKey": "expert.request.displayName",
       "descriptionKey": "expert.request.description",
       "instructionsKey": "expert.request.instructions",
@@ -33,6 +37,8 @@
     },
     {
       "key": "inputJql",
+      "displayName": "Ticket Query (JQL)",
+      "description": "JQL query to select which tickets to analyze. Use Jira Query Language to filter tickets by project, type, status, etc.",
       "displayNameKey": "expert.inputJql.displayName", 
       "descriptionKey": "expert.inputJql.description",
       "instructionsKey": "expert.inputJql.instructions",
@@ -51,6 +57,8 @@
     },
     {
       "key": "initiator",
+      "displayName": "Initiator Email",
+      "description": "Email address of the person requesting the analysis. Used for notifications and tracking.",
       "displayNameKey": "expert.initiator.displayName",
       "descriptionKey": "expert.initiator.description", 
       "instructionsKey": "expert.initiator.instructions",
@@ -68,6 +76,333 @@
       ]
     },
     {
+      "key": "projectContext",
+      "displayNameKey": "expert.projectContext.displayName",
+      "descriptionKey": "expert.projectContext.description",
+      "instructionsKey": "expert.projectContext.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 5000
+      },
+      "examples": [
+        "This is a Java Spring Boot microservice for user authentication",
+        "Frontend React application with TypeScript and Material-UI",
+        "https://confluence.company.com/project-overview"
+      ]
+    },
+    {
+      "key": "systemRequest",
+      "displayNameKey": "expert.systemRequest.displayName",
+      "descriptionKey": "expert.systemRequest.description",
+      "instructionsKey": "expert.systemRequest.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 5000
+      },
+      "examples": [
+        "Act as a senior software architect and provide detailed technical analysis",
+        "Focus on security aspects and potential vulnerabilities",
+        "https://confluence.company.com/analysis-template"
+      ]
+    },
+    {
+      "key": "systemRequestCommentAlias",
+      "displayNameKey": "expert.systemRequestCommentAlias.displayName",
+      "descriptionKey": "expert.systemRequestCommentAlias.description",
+      "instructionsKey": "expert.systemRequestCommentAlias.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 100
+      },
+      "examples": [
+        "Technical Analysis",
+        "Security Review",
+        "Architecture Assessment"
+      ]
+    },
+    {
+      "key": "requestDecompositionChunkProcessing",
+      "displayNameKey": "expert.requestDecompositionChunkProcessing.displayName",
+      "descriptionKey": "expert.requestDecompositionChunkProcessing.description",
+      "instructionsKey": "expert.requestDecompositionChunkProcessing.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "false",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "keywordsBlacklist",
+      "displayNameKey": "expert.keywordsBlacklist.displayName",
+      "descriptionKey": "expert.keywordsBlacklist.description",
+      "instructionsKey": "expert.keywordsBlacklist.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 1000
+      },
+      "examples": [
+        "password,secret,api-key,token",
+        "internal,confidential,private",
+        "https://confluence.company.com/keywords-blacklist"
+      ]
+    },
+    {
+      "key": "confluencePages",
+      "displayNameKey": "expert.confluencePages.displayName",
+      "descriptionKey": "expert.confluencePages.description",
+      "instructionsKey": "expert.confluencePages.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "array",
+      "defaultValue": null,
+      "validation": {
+        "minItems": 0,
+        "maxItems": 100
+      },
+      "examples": [
+        "https://confluence.company.com/page1",
+        "https://confluence.company.com/page2",
+        "https://confluence.company.com/documentation/api"
+      ]
+    },
+    {
+      "key": "isCodeAsSource",
+      "displayNameKey": "expert.isCodeAsSource.displayName",
+      "descriptionKey": "expert.isCodeAsSource.description",
+      "instructionsKey": "expert.isCodeAsSource.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "false",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "isConfluenceAsSource",
+      "displayNameKey": "expert.isConfluenceAsSource.displayName",
+      "descriptionKey": "expert.isConfluenceAsSource.description",
+      "instructionsKey": "expert.isConfluenceAsSource.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "false",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "isTrackerAsSource",
+      "displayNameKey": "expert.isTrackerAsSource.displayName",
+      "descriptionKey": "expert.isTrackerAsSource.description",
+      "instructionsKey": "expert.isTrackerAsSource.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "false",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "transformConfluencePagesToMarkdown",
+      "displayNameKey": "expert.transformConfluencePagesToMarkdown.displayName",
+      "descriptionKey": "expert.transformConfluencePagesToMarkdown.description",
+      "instructionsKey": "expert.transformConfluencePagesToMarkdown.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": "true",
+      "validation": {
+        "type": "boolean"
+      }
+    },
+    {
+      "key": "ticketContextDepth",
+      "displayNameKey": "expert.ticketContextDepth.displayName",
+      "descriptionKey": "expert.ticketContextDepth.description",
+      "instructionsKey": "expert.ticketContextDepth.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "1",
+      "validation": {
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "chunksProcessingTimeoutInMinutes",
+      "displayNameKey": "expert.chunksProcessingTimeoutInMinutes.displayName",
+      "descriptionKey": "expert.chunksProcessingTimeoutInMinutes.description",
+      "instructionsKey": "expert.chunksProcessingTimeoutInMinutes.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "0",
+      "validation": {
+        "min": 0,
+        "max": 120
+      },
+      "examples": [
+        "0",
+        "5",
+        "10",
+        "30"
+      ]
+    },
+    {
+      "key": "filesLimit",
+      "displayNameKey": "expert.filesLimit.displayName",
+      "descriptionKey": "expert.filesLimit.description",
+      "instructionsKey": "expert.filesLimit.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "10",
+      "validation": {
+        "min": 1,
+        "max": 100
+      },
+      "examples": [
+        "5",
+        "10",
+        "20"
+      ]
+    },
+    {
+      "key": "confluenceLimit",
+      "displayNameKey": "expert.confluenceLimit.displayName",
+      "descriptionKey": "expert.confluenceLimit.description",
+      "instructionsKey": "expert.confluenceLimit.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "10",
+      "validation": {
+        "min": 1,
+        "max": 100
+      },
+      "examples": [
+        "5",
+        "10",
+        "20"
+      ]
+    },
+    {
+      "key": "trackerLimit",
+      "displayNameKey": "expert.trackerLimit.displayName",
+      "descriptionKey": "expert.trackerLimit.description",
+      "instructionsKey": "expert.trackerLimit.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "10",
+      "validation": {
+        "min": 1,
+        "max": 100
+      },
+      "examples": [
+        "5",
+        "10",
+        "20"
+      ]
+    },
+    {
+      "key": "filesIterations",
+      "displayNameKey": "expert.filesIterations.displayName",
+      "descriptionKey": "expert.filesIterations.description",
+      "instructionsKey": "expert.filesIterations.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "1",
+      "validation": {
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "confluenceIterations",
+      "displayNameKey": "expert.confluenceIterations.displayName",
+      "descriptionKey": "expert.confluenceIterations.description",
+      "instructionsKey": "expert.confluenceIterations.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "1",
+      "validation": {
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "trackerIterations",
+      "displayNameKey": "expert.trackerIterations.displayName",
+      "descriptionKey": "expert.trackerIterations.description",
+      "instructionsKey": "expert.trackerIterations.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "1",
+      "validation": {
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "fieldName",
+      "displayNameKey": "expert.fieldName.displayName",
+      "descriptionKey": "expert.fieldName.description",
+      "instructionsKey": "expert.fieldName.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9_\\s-]+$"
+      },
+      "examples": [
+        "Analysis Result",
+        "Technical Review",
+        "Security Assessment"
+      ]
+    },
+    {
       "key": "outputType",
       "displayNameKey": "expert.outputType.displayName",
       "descriptionKey": "expert.outputType.description",
@@ -77,48 +412,29 @@
       "inputType": "select",
       "defaultValue": "comment",
       "validation": {
-        "enum": ["comment", "confluence", "console"]
+        "enum": ["comment", "field", "creation"]
       },
       "options": [
         {"value": "comment", "labelKey": "expert.outputType.comment"},
-        {"value": "confluence", "labelKey": "expert.outputType.confluence"},
-        {"value": "console", "labelKey": "expert.outputType.console"}
+        {"value": "field", "labelKey": "expert.outputType.field"},
+        {"value": "creation", "labelKey": "expert.outputType.creation"}
       ]
     },
     {
-      "key": "tempFolder",
-      "displayNameKey": "expert.tempFolder.displayName",
-      "descriptionKey": "expert.tempFolder.description",
-      "instructionsKey": "expert.tempFolder.instructions",
+      "key": "operationType",
+      "displayNameKey": "expert.operationType.displayName",
+      "descriptionKey": "expert.operationType.description",
+      "instructionsKey": "expert.operationType.instructions",
       "required": false,
       "sensitive": false,
-      "inputType": "text",
-      "defaultValue": null,
+      "inputType": "select",
+      "defaultValue": "Append",
       "validation": {
-        "pattern": "^[a-zA-Z0-9_\\-\\/]*$"
+        "enum": ["Replace", "Append"]
       },
-      "examples": [
-        "/tmp/expert-analysis",
-        "temp/expert-reports",
-        "analysis-workspace"
-      ]
-    },
-    {
-      "key": "attachmentsFolder",
-      "displayNameKey": "expert.attachmentsFolder.displayName",
-      "descriptionKey": "expert.attachmentsFolder.description",
-      "instructionsKey": "expert.attachmentsFolder.instructions",
-      "required": false,
-      "sensitive": false,
-      "inputType": "text",
-      "defaultValue": null,
-      "validation": {
-        "pattern": "^[a-zA-Z0-9_\\-\\/]*$"
-      },
-      "examples": [
-        "/attachments/expert",
-        "expert-attachments",
-        "analysis-files"
+      "options": [
+        {"value": "Replace", "labelKey": "expert.operationType.replace"},
+        {"value": "Append", "labelKey": "expert.operationType.append"}
       ]
     }
   ]
