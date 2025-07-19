@@ -119,7 +119,7 @@ jobs:
           SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_AUTHORIZATION_URI: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
           SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_TOKEN_URI: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
           SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_USER_INFO_URI: "https://graph.microsoft.com/v1.0/me"
-          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_USER_NAME_ATTRIBUTE: "userPrincipalName"
+          SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_USER_NAME_ATTRIBUTE: "mail"
           SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_MICROSOFT_JWK_SET_URI: "https://login.microsoftonline.com/common/discovery/v2.0/keys"
           SERVER_FORWARD_HEADERS_STRATEGY: "FRAMEWORK"
           SERVER_USE_FORWARD_HEADERS: "true"
