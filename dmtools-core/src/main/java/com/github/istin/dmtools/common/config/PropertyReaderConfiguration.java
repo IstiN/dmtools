@@ -52,6 +52,16 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     }
     
     @Override
+    public String getJiraEmail() {
+        return propertyReader.getJiraEmail();
+    }
+    
+    @Override
+    public String getJiraApiToken() {
+        return propertyReader.getJiraApiToken();
+    }
+    
+    @Override
     public String getJiraBasePath() {
         return propertyReader.getJiraBasePath();
     }
@@ -279,6 +289,21 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     @Override
     public String getConfluenceLoginPassToken() {
         return propertyReader.getConfluenceLoginPassToken();
+    }
+    
+    @Override
+    public String getConfluenceEmail() {
+        return propertyReader.getConfluenceEmail();
+    }
+    
+    @Override
+    public String getConfluenceApiToken() {
+        return propertyReader.getConfluenceApiToken();
+    }
+    
+    @Override
+    public String getConfluenceAuthType() {
+        return propertyReader.getConfluenceAuthType();
     }
     
     @Override
