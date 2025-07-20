@@ -2,6 +2,7 @@ package com.github.istin.dmtools.common.utils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Base64;
 import java.util.Properties;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -60,7 +61,27 @@ public class PropertyReader {
 	}
 
 	public String getJiraLoginPassToken() {
+		// Priority 1: Use separate email and API token if both are available
+		String email = getJiraEmail();
+		String apiToken = getJiraApiToken();
+		
+		if (email != null && !email.trim().isEmpty() && 
+			apiToken != null && !apiToken.trim().isEmpty()) {
+			// Automatically combine email:token and base64 encode
+			String credentials = email.trim() + ":" + apiToken.trim();
+			return Base64.getEncoder().encodeToString(credentials.getBytes());
+		}
+		
+		// Priority 2: Fall back to existing base64-encoded token
 		return getValue("JIRA_LOGIN_PASS_TOKEN");
+	}
+	
+	public String getJiraEmail() {
+		return getValue("JIRA_EMAIL");
+	}
+	
+	public String getJiraApiToken() {
+		return getValue("JIRA_API_TOKEN");
 	}
 
 	public String getJiraBasePath() {
@@ -201,7 +222,40 @@ public class PropertyReader {
 	}
 
 	public String getConfluenceLoginPassToken() {
+		// Priority 1: Use separate email and API token if both are available
+		String email = getConfluenceEmail();
+		String apiToken = getConfluenceApiToken();
+		String authType = getConfluenceAuthType();
+		
+		if (email != null && !email.trim().isEmpty() && 
+			apiToken != null && !apiToken.trim().isEmpty()) {
+			
+			// For Bearer auth, use token directly without email combination
+			if ("Bearer".equalsIgnoreCase(authType)) {
+				return apiToken.trim();
+			}
+			
+			// For Basic auth (default), combine email:token and base64 encode
+			String credentials = email.trim() + ":" + apiToken.trim();
+			return Base64.getEncoder().encodeToString(credentials.getBytes());
+		}
+		
+		// Priority 2: Fall back to existing base64-encoded token
 		return getValue("CONFLUENCE_LOGIN_PASS_TOKEN");
+	}
+	
+	public String getConfluenceEmail() {
+		return getValue("CONFLUENCE_EMAIL");
+	}
+	
+	public String getConfluenceApiToken() {
+		return getValue("CONFLUENCE_API_TOKEN");
+	}
+	
+	public String getConfluenceAuthType() {
+		String authType = getValue("CONFLUENCE_AUTH_TYPE");
+		// Default to Basic if not specified
+		return authType != null ? authType : "Basic";
 	}
 
 	public String getConfluenceGraphQLPath() {

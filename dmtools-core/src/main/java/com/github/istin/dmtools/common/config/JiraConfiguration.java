@@ -9,6 +9,18 @@ public interface JiraConfiguration {
      * @return The Jira login/password token
      */
     String getJiraLoginPassToken();
+    
+    /**
+     * Gets the Jira email address for authentication
+     * @return The Jira email address
+     */
+    String getJiraEmail();
+    
+    /**
+     * Gets the Jira API token for authentication
+     * @return The Jira API token
+     */
+    String getJiraApiToken();
 
     /**
      * Gets the Jira base path URL

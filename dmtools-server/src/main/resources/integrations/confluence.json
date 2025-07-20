@@ -23,11 +23,48 @@
       }
     },
     {
+      "key": "CONFLUENCE_EMAIL",
+      "displayNameKey": "confluence.email.displayName",
+      "descriptionKey": "confluence.email.description",
+      "instructionsKey": "confluence.email.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "email",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+      }
+    },
+    {
+      "key": "CONFLUENCE_API_TOKEN",
+      "displayNameKey": "confluence.apiToken.displayName",
+      "descriptionKey": "confluence.apiToken.description",
+      "instructionsKey": "confluence.apiToken.instructions",
+      "required": false,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    },
+    {
+      "key": "CONFLUENCE_AUTH_TYPE",
+      "displayNameKey": "confluence.authType.displayName",
+      "descriptionKey": "confluence.authType.description",
+      "instructionsKey": "confluence.authType.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "select",
+      "defaultValue": "Basic",
+      "options": [
+        {"value": "Basic", "label": "Basic"},
+        {"value": "Bearer", "label": "Bearer"}
+      ]
+    },
+    {
       "key": "CONFLUENCE_LOGIN_PASS_TOKEN",
       "displayNameKey": "confluence.token.displayName",
       "descriptionKey": "confluence.token.description",
       "instructionsKey": "confluence.token.instructions",
-      "required": true,
+      "required": false,
       "sensitive": true,
       "inputType": "password",
       "defaultValue": null

@@ -15,6 +15,24 @@ public interface ConfluenceConfiguration {
      * @return The Confluence login/password token
      */
     String getConfluenceLoginPassToken();
+    
+    /**
+     * Gets the Confluence email address for authentication
+     * @return The Confluence email address
+     */
+    String getConfluenceEmail();
+    
+    /**
+     * Gets the Confluence API token for authentication
+     * @return The Confluence API token
+     */
+    String getConfluenceApiToken();
+    
+    /**
+     * Gets the Confluence authentication type
+     * @return The Confluence authentication type (Basic or Bearer)
+     */
+    String getConfluenceAuthType();
 
     /**
      * Gets the Confluence GraphQL path

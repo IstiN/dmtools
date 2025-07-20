@@ -23,11 +23,34 @@
       }
     },
     {
+      "key": "JIRA_EMAIL",
+      "displayNameKey": "jira.email.displayName",
+      "descriptionKey": "jira.email.description",
+      "instructionsKey": "jira.email.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "email",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+      }
+    },
+    {
+      "key": "JIRA_API_TOKEN",
+      "displayNameKey": "jira.apiToken.displayName",
+      "descriptionKey": "jira.apiToken.description",
+      "instructionsKey": "jira.apiToken.instructions",
+      "required": false,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    },
+    {
       "key": "JIRA_LOGIN_PASS_TOKEN",
       "displayNameKey": "jira.token.displayName",
       "descriptionKey": "jira.token.description",
       "instructionsKey": "jira.token.instructions",
-      "required": true,
+      "required": false,
       "sensitive": true,
       "inputType": "password",
       "defaultValue": null

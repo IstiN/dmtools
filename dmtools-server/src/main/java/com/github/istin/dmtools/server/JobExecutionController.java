@@ -185,7 +185,21 @@ public class JobExecutionController {
                     logger.warn("  ⚠️  No URL parameter found for JIRA integration");
                 }
                 
-                if (params.containsKey("token")) {
+                // Priority 1: Use separate email and API token if both are available
+                if (params.containsKey("JIRA_EMAIL") && params.containsKey("JIRA_API_TOKEN")) {
+                    String email = params.get("JIRA_EMAIL");
+                    String apiToken = params.get("JIRA_API_TOKEN");
+                    if (email != null && !email.trim().isEmpty() && 
+                        apiToken != null && !apiToken.trim().isEmpty()) {
+                        // Automatically combine email:token and base64 encode
+                        String credentials = email.trim() + ":" + apiToken.trim();
+                        String encodedToken = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+                        config.put("token", encodedToken);
+                        logger.info("  ✅ Mapped 'JIRA_EMAIL' + 'JIRA_API_TOKEN' to auto-encoded token: [SENSITIVE]");
+                    }
+                } 
+                // Priority 2: Use legacy token methods
+                else if (params.containsKey("token")) {
                     config.put("token", params.get("token"));
                     logger.info("  ✅ Mapped 'token' parameter: [SENSITIVE]");
                 } else if (params.containsKey("password")) {
@@ -195,7 +209,7 @@ public class JobExecutionController {
                     config.put("token", params.get("JIRA_LOGIN_PASS_TOKEN"));
                     logger.info("  ✅ Mapped 'JIRA_LOGIN_PASS_TOKEN' to 'token': [SENSITIVE]");
                 } else {
-                    logger.warn("  ⚠️  No token parameter found for JIRA integration");
+                    logger.warn("  ⚠️  No authentication parameters found for JIRA integration");
                 }
                 
                 if (params.containsKey("authType")) {
@@ -234,14 +248,45 @@ public class JobExecutionController {
                     logger.warn("  ⚠️  No URL parameter found for Confluence integration");
                 }
                 
-                if (params.containsKey("token")) {
+                // Priority 1: Use separate email and API token if both are available
+                if (params.containsKey("CONFLUENCE_EMAIL") && params.containsKey("CONFLUENCE_API_TOKEN")) {
+                    String email = params.get("CONFLUENCE_EMAIL");
+                    String apiToken = params.get("CONFLUENCE_API_TOKEN");
+                    String authType = params.getOrDefault("CONFLUENCE_AUTH_TYPE", "Basic");
+                    
+                    if (email != null && !email.trim().isEmpty() && 
+                        apiToken != null && !apiToken.trim().isEmpty()) {
+                        
+                        // For Bearer auth, use token directly without email combination
+                        if ("Bearer".equalsIgnoreCase(authType)) {
+                            config.put("token", apiToken.trim());
+                            config.put("authType", "Bearer");
+                            logger.info("  ✅ Mapped 'CONFLUENCE_EMAIL' + 'CONFLUENCE_API_TOKEN' to Bearer token: [SENSITIVE]");
+                        } else {
+                            // For Basic auth (default), combine email:token and base64 encode
+                            String credentials = email.trim() + ":" + apiToken.trim();
+                            String encodedToken = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+                            config.put("token", encodedToken);
+                            config.put("authType", "Basic");
+                            logger.info("  ✅ Mapped 'CONFLUENCE_EMAIL' + 'CONFLUENCE_API_TOKEN' to auto-encoded Basic token: [SENSITIVE]");
+                        }
+                    }
+                } 
+                // Priority 2: Use legacy token methods
+                else if (params.containsKey("token")) {
                     config.put("token", params.get("token"));
                     logger.info("  ✅ Mapped 'token' parameter: [SENSITIVE]");
                 } else if (params.containsKey("CONFLUENCE_LOGIN_PASS_TOKEN")) {
                     config.put("token", params.get("CONFLUENCE_LOGIN_PASS_TOKEN"));
                     logger.info("  ✅ Mapped 'CONFLUENCE_LOGIN_PASS_TOKEN' to 'token': [SENSITIVE]");
                 } else {
-                    logger.warn("  ⚠️  No token parameter found for Confluence integration");
+                    logger.warn("  ⚠️  No authentication parameters found for Confluence integration");
+                }
+                
+                // Handle auth type if provided separately
+                if (params.containsKey("CONFLUENCE_AUTH_TYPE") && !config.has("authType")) {
+                    config.put("authType", params.get("CONFLUENCE_AUTH_TYPE"));
+                    logger.info("  ✅ Mapped 'CONFLUENCE_AUTH_TYPE' to 'authType': {}", params.get("CONFLUENCE_AUTH_TYPE"));
                 }
                 
                 if (params.containsKey("defaultSpace")) {
