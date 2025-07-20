@@ -52,16 +52,15 @@ public class JobConfigurationLoader {
                 continue;
             }
             
-            String jobType = filename.substring(0, filename.lastIndexOf('.'));
-            
             try (InputStream inputStream = resource.getInputStream()) {
                 JobTypeConfig config = objectMapper.readValue(inputStream, JobTypeConfig.class);
                 
                 // Validate configuration
                 validateConfiguration(config, filename);
                 
-                configurations.put(jobType, config);
-                logger.debug("Loaded configuration for job type: {}", jobType);
+                // Use the type field from JSON as the key, not the filename
+                configurations.put(config.getType(), config);
+                logger.debug("Loaded configuration for job type: {} from file: {}", config.getType(), filename);
             } catch (Exception e) {
                 logger.error("Failed to load configuration from file: {}", filename, e);
                 throw new IOException("Failed to load configuration from file: " + filename, e);

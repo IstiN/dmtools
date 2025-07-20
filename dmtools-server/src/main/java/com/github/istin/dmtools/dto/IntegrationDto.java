@@ -7,7 +7,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,6 +30,12 @@ public class IntegrationDto {
     private String createdByName;
     private String createdByEmail;
     private long usageCount;
+    
+    /**
+     * Categories this integration belongs to (e.g., TrackerClient, AI, Documentation).
+     * Populated from integration type configuration.
+     */
+    private List<String> categories = new ArrayList<>();
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
@@ -82,6 +90,19 @@ public class IntegrationDto {
     }
     
     /**
+     * Converts an Integration entity to DTO with categories from integration type configuration.
+     * 
+     * @param integration The integration entity
+     * @param categories The categories for this integration type
+     * @return The integration DTO with categories
+     */
+    public static IntegrationDto fromEntityWithCategories(Integration integration, List<String> categories) {
+        IntegrationDto dto = fromEntity(integration);
+        dto.setCategories(new ArrayList<>(categories));
+        return dto;
+    }
+    
+    /**
      * Converts an Integration entity to DTO, including all configuration values.
      * This should only be used when the user has permission to see sensitive values.
      * 
@@ -107,6 +128,19 @@ public class IntegrationDto {
     }
     
     /**
+     * Converts an Integration entity to DTO with categories and sensitive data.
+     * 
+     * @param integration The integration entity
+     * @param categories The categories for this integration type
+     * @return The integration DTO with categories and sensitive data
+     */
+    public static IntegrationDto fromEntityWithSensitiveDataAndCategories(Integration integration, List<String> categories) {
+        IntegrationDto dto = fromEntityWithSensitiveData(integration);
+        dto.setCategories(new ArrayList<>(categories));
+        return dto;
+    }
+    
+    /**
      * Converts an Integration entity to DTO with manually provided config params.
      * This is a workaround for entity relationship issues.
      * 
@@ -114,7 +148,7 @@ public class IntegrationDto {
      * @param configParams The config params loaded manually
      * @return The integration DTO
      */
-    public static IntegrationDto fromEntity(Integration integration, java.util.List<com.github.istin.dmtools.auth.model.IntegrationConfig> configParams) {
+    public static IntegrationDto fromEntityWithManualConfig(Integration integration, java.util.List<com.github.istin.dmtools.auth.model.IntegrationConfig> configParams) {
         IntegrationDto dto = new IntegrationDto();
         dto.setId(integration.getId());
         dto.setName(integration.getName());
@@ -145,6 +179,20 @@ public class IntegrationDto {
                 })
                 .collect(Collectors.toSet()));
         
+        return dto;
+    }
+    
+    /**
+     * Converts an Integration entity to DTO with manually provided config params and categories.
+     * 
+     * @param integration The integration entity
+     * @param configParams The config params loaded manually
+     * @param categories The categories for this integration type
+     * @return The integration DTO with categories
+     */
+    public static IntegrationDto fromEntityWithManualConfigAndCategories(Integration integration, java.util.List<com.github.istin.dmtools.auth.model.IntegrationConfig> configParams, List<String> categories) {
+        IntegrationDto dto = fromEntityWithManualConfig(integration, configParams);
+        dto.setCategories(new ArrayList<>(categories));
         return dto;
     }
 } 

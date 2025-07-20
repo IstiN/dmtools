@@ -79,8 +79,31 @@ public class IntegrationService {
         
         List<Integration> integrations = integrationRepository.findAccessibleToUser(user);
         return integrations.stream()
-                .map(IntegrationDto::fromEntity)
+                .map(integration -> {
+                    // Get categories for this integration type
+                    List<String> categories = getCategoriesForIntegrationType(integration.getType());
+                    return IntegrationDto.fromEntityWithCategories(integration, categories);
+                })
                 .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get categories for a specific integration type.
+     * 
+     * @param integrationType The integration type (e.g., "jira", "openai")
+     * @return List of categories for this integration type
+     */
+    private List<String> getCategoriesForIntegrationType(String integrationType) {
+        try {
+            if (configurationLoader.hasIntegrationType(integrationType)) {
+                IntegrationTypeDto integrationTypeDto = configurationLoader.getIntegrationType(integrationType);
+                return integrationTypeDto.getCategories();
+            }
+        } catch (Exception e) {
+            // Log but don't fail - just return empty categories
+            System.out.println("Warning: Could not load categories for integration type '" + integrationType + "': " + e.getMessage());
+        }
+        return new ArrayList<>();
     }
 
     /**
@@ -95,7 +118,11 @@ public class IntegrationService {
         
         List<Integration> integrations = integrationRepository.findByWorkspace(workspace);
         return integrations.stream()
-                .map(IntegrationDto::fromEntity)
+                .map(integration -> {
+                    // Get categories for this integration type
+                    List<String> categories = getCategoriesForIntegrationType(integration.getType());
+                    return IntegrationDto.fromEntityWithCategories(integration, categories);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -139,7 +166,9 @@ public class IntegrationService {
         if (includeSensitive && canViewSensitiveData) {
             return createDtoWithSensitiveData(integration, manualConfigs);
         } else {
-            return IntegrationDto.fromEntity(integration, manualConfigs);
+            // Get categories for this integration type
+            List<String> categories = getCategoriesForIntegrationType(integration.getType());
+            return IntegrationDto.fromEntityWithManualConfigAndCategories(integration, manualConfigs, categories);
         }
     }
 
@@ -160,6 +189,10 @@ public class IntegrationService {
         dto.setCreatedAt(integration.getCreatedAt());
         dto.setUpdatedAt(integration.getUpdatedAt());
         dto.setLastUsedAt(integration.getLastUsedAt());
+        
+        // Get categories for this integration type
+        List<String> categories = getCategoriesForIntegrationType(integration.getType());
+        dto.setCategories(new ArrayList<>(categories));
         
         // Convert manually provided config params, including sensitive values
         dto.setConfigParams(manualConfigs.stream()
@@ -236,8 +269,9 @@ public class IntegrationService {
                 .filter(c -> c.getIntegration().getId().equals(reloadedIntegration.getId()))
                 .toList();
         
-        // Create DTO with manual config params
-        return IntegrationDto.fromEntity(reloadedIntegration, manualConfigs);
+        // Create DTO with manual config params and categories
+        List<String> categories = getCategoriesForIntegrationType(reloadedIntegration.getType());
+        return IntegrationDto.fromEntityWithManualConfigAndCategories(reloadedIntegration, manualConfigs, categories);
     }
 
     /**
@@ -309,7 +343,9 @@ public class IntegrationService {
         }
         
         Integration updatedIntegration = integrationRepository.save(integration);
-        return IntegrationDto.fromEntity(updatedIntegration);
+        // Get categories for this integration type
+        List<String> categories = getCategoriesForIntegrationType(updatedIntegration.getType());
+        return IntegrationDto.fromEntityWithCategories(updatedIntegration, categories);
     }
 
     /**
@@ -372,7 +408,9 @@ public class IntegrationService {
         
         integration.setEnabled(enabled);
         Integration updatedIntegration = integrationRepository.save(integration);
-        return IntegrationDto.fromEntity(updatedIntegration);
+        // Get categories for this integration type
+        List<String> categories = getCategoriesForIntegrationType(updatedIntegration.getType());
+        return IntegrationDto.fromEntityWithCategories(updatedIntegration, categories);
     }
 
     /**
@@ -657,8 +695,8 @@ public class IntegrationService {
      * Tests a Jira integration with the provided configuration parameters.
      *
      * @param configParams A map containing the configuration parameters for the test.
-     *                     Expected keys are: JIRA_BASE_PATH, JIRA_LOGIN_PASS_TOKEN, and an optional
-     *                     JIRA_AUTH_TYPE.
+     *                     Expected keys are: JIRA_BASE_PATH, and either (JIRA_EMAIL + JIRA_API_TOKEN) or JIRA_LOGIN_PASS_TOKEN, 
+     *                     and an optional JIRA_AUTH_TYPE.
      * @return A map containing the result of the connection test. The map includes
      *         a "success" key with a boolean value, a "message" key with a
      *         descriptive string, and if successful, additional keys for "user",
@@ -667,7 +705,6 @@ public class IntegrationService {
     private Map<String, Object> testJiraIntegration(Map<String, String> configParams) {
         try {
             String basePath = configParams.get("JIRA_BASE_PATH");
-            String token = configParams.get("JIRA_LOGIN_PASS_TOKEN");
             String authType = configParams.getOrDefault("JIRA_AUTH_TYPE", "Basic");
             
             // Validate required parameters
@@ -679,11 +716,28 @@ public class IntegrationService {
                 return errorResult;
             }
             
+            // Determine authentication token using priority logic
+            String token = null;
+            
+            // Priority 1: Use separate email and API token if both are available
+            String email = configParams.get("JIRA_EMAIL");
+            String apiToken = configParams.get("JIRA_API_TOKEN");
+            
+            if (email != null && !email.trim().isEmpty() && 
+                apiToken != null && !apiToken.trim().isEmpty()) {
+                // Automatically combine email:token and base64 encode
+                String credentials = email.trim() + ":" + apiToken.trim();
+                token = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+            } else {
+                // Priority 2: Use legacy base64-encoded token
+                token = configParams.get("JIRA_LOGIN_PASS_TOKEN");
+            }
+            
             if (token == null || token.trim().isEmpty()) {
                 Map<String, Object> errorResult = new HashMap<>();
                 errorResult.put("success", false);
-                errorResult.put("message", "Jira token is required");
-                errorResult.put("error", "missing_token");
+                errorResult.put("message", "Jira authentication is required - provide either (email + API token) or legacy base64 token");
+                errorResult.put("error", "missing_authentication");
                 return errorResult;
             }
             
@@ -805,13 +859,13 @@ public class IntegrationService {
      * Tests a Confluence integration with the provided configuration parameters.
      *
      * @param configParams A map containing the configuration parameters for the test.
-     *                     Expected keys are: CONFLUENCE_BASE_PATH, CONFLUENCE_TOKEN.
+     *                     Expected keys are: CONFLUENCE_BASE_PATH, and either (CONFLUENCE_EMAIL + CONFLUENCE_API_TOKEN + CONFLUENCE_AUTH_TYPE) or CONFLUENCE_LOGIN_PASS_TOKEN.
      * @return A map containing the result of the connection test.
      */
     private Map<String, Object> testConfluenceIntegration(Map<String, String> configParams) {
         try {
             String basePath = configParams.get("CONFLUENCE_BASE_PATH");
-            String token = configParams.get("CONFLUENCE_TOKEN");
+            String authType = configParams.getOrDefault("CONFLUENCE_AUTH_TYPE", "Basic");
             
             // Validate required parameters
             if (basePath == null || basePath.trim().isEmpty()) {
@@ -822,11 +876,38 @@ public class IntegrationService {
                 return errorResult;
             }
             
+            // Determine authentication token using priority logic
+            String token = null;
+            
+            // Priority 1: Use separate email and API token if both are available
+            String email = configParams.get("CONFLUENCE_EMAIL");
+            String apiToken = configParams.get("CONFLUENCE_API_TOKEN");
+            
+            if (email != null && !email.trim().isEmpty() && 
+                apiToken != null && !apiToken.trim().isEmpty()) {
+                
+                // For Bearer auth, use token directly without email combination
+                if ("Bearer".equalsIgnoreCase(authType)) {
+                    token = apiToken.trim();
+                } else {
+                    // For Basic auth (default), combine email:token and base64 encode
+                    String credentials = email.trim() + ":" + apiToken.trim();
+                    token = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+                }
+            } else {
+                // Priority 2: Use legacy base64-encoded token
+                token = configParams.get("CONFLUENCE_LOGIN_PASS_TOKEN");
+                if (token == null) {
+                    // Also check for the generic CONFLUENCE_TOKEN parameter
+                    token = configParams.get("CONFLUENCE_TOKEN");
+                }
+            }
+            
             if (token == null || token.trim().isEmpty()) {
                 Map<String, Object> errorResult = new HashMap<>();
                 errorResult.put("success", false);
-                errorResult.put("message", "Confluence token is required");
-                errorResult.put("error", "missing_token");
+                errorResult.put("message", "Confluence authentication is required - provide either (email + API token + auth type) or legacy base64 token");
+                errorResult.put("error", "missing_authentication");
                 return errorResult;
             }
             
@@ -842,10 +923,19 @@ public class IntegrationService {
             // Create a basic HTTP client to test connection
             HttpClient httpClient = HttpClient.newHttpClient();
             
+            // Determine the correct authorization header based on auth type
+            String authHeader;
+            if ("Bearer".equalsIgnoreCase(authType)) {
+                authHeader = "Bearer " + token;
+            } else {
+                // Default to Basic auth (for base64-encoded email:token)
+                authHeader = "Basic " + token;
+            }
+            
             // Test basic connectivity to Confluence
             HttpRequest testRequest = HttpRequest.newBuilder()
                 .uri(URI.create(basePath + "/rest/api/user/current"))
-                .header("Authorization", "Bearer " + token)
+                .header("Authorization", authHeader)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
