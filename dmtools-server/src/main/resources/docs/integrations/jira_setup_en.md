@@ -63,11 +63,29 @@ When setting up the Jira integration in DMTools, use the following values:
      - Cloud: `https://mycompany.atlassian.net`
      - Server: `https://jira.mycompany.com`
 
-2. **Login/Password Token**
-   - **For Cloud**: Use your email and API token in format `email:token`
-     - Example: `john.doe@company.com:ATTxxxxxxxxxxxxxxxx`
-   - **For Server**: Use your username and password in format `username:password`
-     - Example: `johndoe:mypassword`
+### Authentication Methods (Choose One)
+
+#### **Method 1: Separate Email and API Token (Recommended)**
+
+2. **Email Address**
+   - Your Jira account email address
+   - Example: `john.doe@company.com`
+
+3. **API Token**
+   - Your Jira API token (no manual encoding required)
+   - Example: `ATTxxxxxxxxxxxxxxxx`
+
+*Note: The system automatically combines and encodes these credentials internally.*
+
+#### **Method 2: Legacy Base64 Token**
+
+2. **Login/Password Token (Legacy)**
+   - **For Cloud**: Use your email and API token in format `base64(email:token)`
+     - Example: `am9obi5kb2VAY29tcGFueS5jb206QVRUeHh4eHh4eHh4eHh4eHh4`
+   - **For Server**: Use your username and password in format `base64(username:password)`
+     - Example: `am9obmRvZTpteXBhc3N3b3Jk`
+
+*Note: This method requires manual base64 encoding of `email:token` or `username:password`.*
 
 ### Optional Parameters
 
