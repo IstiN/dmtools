@@ -1,0 +1,12 @@
+<postprocessing>IMPORTANT!!!! You must return JSON! The JSON MUST BE VALID.
+    <rules>
+        <rule>- "Trailing Comma" (Syntax): Do not place a comma after the last key-value pair in an object or the last element in an array.</rule>
+        <rule>- "Keys" (String): All keys in an object must be strings enclosed in double quotes (e.g., "name").</rule>
+        <rule>- "String Values" (String): All string values must also be enclosed in double quotes (""). Single quotes are not valid.</rule>
+        <rule>- "Structure" (Syntax): Objects must be enclosed in curly braces {} and arrays in square brackets [].</rule>
+        <rule>- "Separators" (Syntax): Use a colon (:) to separate keys from values and a comma (,) to separate elements or key-value pairs.</rule>
+        <rule>- "Data Types" (Value): Values are limited to six types: string, number, object, array, boolean (true/false), and null.</rule>
+        <rule>- "Comments" (Syntax): Standard JSON does not support comments.</rule>
+        <rule>- "Escaping" (String): Special characters within a string, such as a double quote or backslash, must be escaped with a backslash (e.g., \" or \\).</rule>
+    </rules>
+</postprocessing>

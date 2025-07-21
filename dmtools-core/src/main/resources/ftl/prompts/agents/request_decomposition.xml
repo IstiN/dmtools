@@ -207,5 +207,5 @@
         </example>
     </examples>
     <#include "chunk_processing.xml">
-    <postprocessing>IMPORTANT!!!! You must return JSON! The JSON MUST BE VALID.</postprocessing>
+    <#include "json_formatting_rules.xml">
 </prompt>
