@@ -227,7 +227,7 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
             String response = teamAssistantAgent.run(params);
             attachResponse(teamAssistantAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");
             if (outputType == Params.OutputType.field) {
-                String fieldCustomCode = ((JiraClient) BasicJiraClient.getInstance()).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
+                String fieldCustomCode = ((JiraClient) trackerClient).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
                 String currentFieldValue = ticket.getFields().getString(fieldCustomCode);
                 if (expertParams.getOperationType() == Params.OperationType.Append) {
                     trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, currentFieldValue + "\n\n" + StringUtils.convertToMarkdown(response)));

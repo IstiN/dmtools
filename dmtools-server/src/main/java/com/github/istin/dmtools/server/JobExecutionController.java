@@ -684,16 +684,54 @@ public class JobExecutionController {
             // Convert integration mappings to JSONObject
             JSONObject integrationMappings = new JSONObject(executionParams.getIntegrationMappings().toString());
             
-            // Extract integration type names from the mappings
-            List<String> requiredIntegrations = new java.util.ArrayList<>();
-            integrationMappings.keys().forEachRemaining(key -> requiredIntegrations.add(key));
+            // Extract integration values (IDs or types) from the mappings
+            List<String> integrationValues = new java.util.ArrayList<>();
+            integrationMappings.keys().forEachRemaining(key -> {
+                String value = integrationMappings.getString(key);
+                integrationValues.add(value);
+            });
             
-            // For now, always use standard resolution by integration type
-            // In the future, specific integration ID resolution can be implemented
-            JSONObject resolvedIntegrations = integrationResolutionService.resolveIntegrationsForJob(
-                executionParams.getJobType(), 
-                requiredIntegrations
-            );
+            // Determine if we have integration IDs (UUIDs) or integration types
+            boolean hasIntegrationIds = integrationValues.stream()
+                .anyMatch(id -> id.contains("-") && id.length() > 30); // UUIDs contain dashes and are ~36 chars
+            
+            JSONObject resolvedIntegrations;
+            if (hasIntegrationIds) {
+                logger.info("🆔 Detected integration IDs (UUIDs) in saved job configuration, resolving from database");
+                resolvedIntegrations = resolveIntegrationIds(integrationValues, userId);
+                
+                // For Expert job, automatically include Confluence integration if available and not already included
+                if ("Expert".equals(executionParams.getJobType()) && !resolvedIntegrations.has("confluence")) {
+                    logger.info("🔧 Expert job detected - checking for available Confluence integration");
+                    try {
+                        // Find user's Confluence integration by type
+                        var userIntegrations = integrationService.getIntegrationsForUser(userId);
+                        var confluenceIntegrations = userIntegrations.stream()
+                            .filter(integration -> "confluence".equals(integration.getType()))
+                            .toList();
+                        
+                        if (!confluenceIntegrations.isEmpty()) {
+                            String confluenceId = confluenceIntegrations.get(0).getId();
+                            logger.info("✅ Found user's Confluence integration: {}, adding to resolved integrations", confluenceId);
+                            JSONObject confluenceConfig = resolveIntegrationIds(List.of(confluenceId), userId);
+                            if (confluenceConfig.has("confluence")) {
+                                resolvedIntegrations.put("confluence", confluenceConfig.getJSONObject("confluence"));
+                                logger.info("✅ Successfully added Confluence integration for Expert job");
+                            }
+                        } else {
+                            logger.warn("⚠️ No Confluence integration found for Expert job - URI processing may fail");
+                        }
+                    } catch (Exception e) {
+                        logger.error("❌ Failed to auto-include Confluence integration for Expert job: {}", e.getMessage());
+                    }
+                }
+            } else {
+                logger.info("🔧 Detected integration types in saved job configuration, resolving from properties");
+                resolvedIntegrations = integrationResolutionService.resolveIntegrationsForJob(
+                    executionParams.getJobType(), 
+                    integrationValues
+                );
+            }
             
             logger.debug("Resolved {} integrations for saved job {}", resolvedIntegrations.length(), configId);
             
