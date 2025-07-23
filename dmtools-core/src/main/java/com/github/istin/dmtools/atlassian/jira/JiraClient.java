@@ -45,7 +45,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class JiraClient<T extends Ticket> implements RestClient, TrackerClient<T>, UriToObject {
-    private static final Logger logger = LogManager.getLogger(JiraClient.class);
+    private final Logger logger;  // Changed from static to instance member
     public static final String PARAM_JQL = "jql";
     public static final String PARAM_FIELDS = "fields";
     public static final String PARAM_START_AT = "startAt";
@@ -78,9 +78,16 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         isLogEnabled = logEnabled;
     }
 
+    // Default constructor - backward compatibility
     public JiraClient(String basePath, String authorization) throws IOException {
+        this(basePath, authorization, LogManager.getLogger(JiraClient.class));
+    }
+    
+    // NEW: Constructor with logger injection for server-managed mode
+    public JiraClient(String basePath, String authorization, Logger logger) throws IOException {
         this.basePath = basePath;
         this.authorization = authorization;
+        this.logger = logger != null ? logger : LogManager.getLogger(JiraClient.class);
         Builder builder = new Builder();
         builder.connectTimeout(20, TimeUnit.SECONDS);
         builder.writeTimeout(20, TimeUnit.SECONDS);

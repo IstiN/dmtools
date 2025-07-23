@@ -13,11 +13,15 @@ import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.context.UriToObjectFactory;
 import com.github.istin.dmtools.di.SourceCodeFactory;
+import com.github.istin.dmtools.logging.CallbackLogger;
+import com.github.istin.dmtools.logging.LogCallback;
 import com.github.istin.dmtools.openai.BasicOpenAI;
+import com.github.istin.dmtools.openai.OpenAIClient;
 import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import dagger.Module;
 import dagger.Provides;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import javax.inject.Singleton;
@@ -26,14 +30,25 @@ import java.io.IOException;
 /**
  * Dagger module for server-managed job execution with pre-resolved integrations.
  * This module creates dependencies from credentials that have been resolved by the server.
+ * Enhanced to support callback logger injection for execution monitoring.
  */
 @Module
 public class ServerManagedIntegrationsModule {
     
     private final JSONObject resolvedIntegrations;
+    private final String executionId;
+    private final LogCallback logCallback;
     
+    // Original constructor for backward compatibility
     public ServerManagedIntegrationsModule(JSONObject resolvedIntegrations) {
+        this(resolvedIntegrations, null, null);
+    }
+    
+    // Enhanced constructor with callback logger support
+    public ServerManagedIntegrationsModule(JSONObject resolvedIntegrations, String executionId, LogCallback logCallback) {
         this.resolvedIntegrations = resolvedIntegrations;
+        this.executionId = executionId;
+        this.logCallback = logCallback;
     }
     
     @Provides
@@ -113,6 +128,8 @@ public class ServerManagedIntegrationsModule {
                 String authType = jiraConfig.optString("authType", "Basic");
                 
                 if (!basePath.isEmpty() && !token.isEmpty()) {
+                    // Create a custom JiraClient that replicates BasicJiraClient functionality
+                    // but uses resolved credentials instead of static properties
                     // Create a custom JiraClient that replicates BasicJiraClient functionality
                     // but uses resolved credentials instead of static properties
                     return new CustomServerManagedJiraClient(basePath, token, authType);
@@ -240,9 +257,10 @@ public class ServerManagedIntegrationsModule {
             }
             
             System.out.println("✅ [ServerManagedIntegrationsModule] Creating CustomServerManagedConfluence with url=" + url + 
-                ", defaultSpace=" + (defaultSpace != null ? defaultSpace : "null"));
+                ", defaultSpace=" + (defaultSpace != null ? defaultSpace : "null") +
+                ", executionTracking=" + (executionId != null && logCallback != null ? "enabled" : "disabled"));
             
-            return new CustomServerManagedConfluence(url, token, defaultSpace);
+            return new CustomServerManagedConfluence(url, token, defaultSpace, executionId, logCallback);
             
         } catch (Exception e) {
             System.err.println("❌ [ServerManagedIntegrationsModule] Failed to provide Confluence integration: " + e.getMessage());
@@ -263,11 +281,20 @@ public class ServerManagedIntegrationsModule {
     private static class CustomServerManagedConfluence extends Confluence {
         private final String defaultSpace;
         
+        private final CallbackLogger callbackLogger;
+        
         public CustomServerManagedConfluence(String basePath, String token, String defaultSpace) throws IOException {
+            this(basePath, token, defaultSpace, null, null);
+        }
+        
+        public CustomServerManagedConfluence(String basePath, String token, String defaultSpace, String executionId, LogCallback logCallback) throws IOException {
             super(basePath, token);
             this.defaultSpace = defaultSpace;
+            this.callbackLogger = (executionId != null && logCallback != null) ? 
+                new CallbackLogger(Confluence.class, executionId, logCallback) : null;
             System.out.println("🔧 [CustomServerManagedConfluence] Initialized with basePath=" + basePath + 
-                ", defaultSpace=" + (defaultSpace != null ? defaultSpace : "null"));
+                ", defaultSpace=" + (defaultSpace != null ? defaultSpace : "null") +
+                ", callbackLogging=" + (callbackLogger != null ? "enabled" : "disabled"));
         }
         
         public String getDefaultSpace() {

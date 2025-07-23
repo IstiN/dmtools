@@ -32,11 +32,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class Confluence extends AtlassianRestClient implements UriToObject {
-    private static final Logger logger = LogManager.getLogger(Confluence.class);
+    private final Logger logger;  // Changed from static to instance member
     private String graphQLPath;
 
+    // Default constructor - backward compatibility
     public Confluence(String basePath, String authorization) throws IOException {
+        this(basePath, authorization, LogManager.getLogger(Confluence.class));
+    }
+    
+    // NEW: Constructor with logger injection for server-managed mode
+    public Confluence(String basePath, String authorization, Logger logger) throws IOException {
         super(basePath, authorization);
+        this.logger = logger != null ? logger : LogManager.getLogger(Confluence.class);
         setClearCache(true);
         setCacheGetRequestsEnabled(false);
     }
