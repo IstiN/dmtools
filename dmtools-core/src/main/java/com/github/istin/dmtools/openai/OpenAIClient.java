@@ -26,7 +26,7 @@ import java.util.List;
 
 public class OpenAIClient extends AbstractRestClient implements AI {
 
-    private static final Logger logger = LogManager.getLogger(OpenAIClient.class);
+    private final Logger logger;  // Changed from static to instance member
 
     private final String model;
 
@@ -37,14 +37,22 @@ public class OpenAIClient extends AbstractRestClient implements AI {
     @Setter
     private ConversationObserver conversationObserver;
 
+    // Default constructor - backward compatibility
     public OpenAIClient(String basePath, String authorization, String model) throws IOException {
         this(basePath, authorization, model, null);
     }
 
+    // Default constructor with observer - backward compatibility
     public OpenAIClient(String basePath, String authorization, String model, ConversationObserver conversationObserver) throws IOException {
+        this(basePath, authorization, model, conversationObserver, LogManager.getLogger(OpenAIClient.class));
+    }
+    
+    // NEW: Constructor with logger injection for server-managed mode
+    public OpenAIClient(String basePath, String authorization, String model, ConversationObserver conversationObserver, Logger logger) throws IOException {
         super(basePath, authorization);
         this.model = model;
         this.conversationObserver = conversationObserver;
+        this.logger = logger != null ? logger : LogManager.getLogger(OpenAIClient.class);
         setCachePostRequestsEnabled(true);
     }
 
