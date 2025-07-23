@@ -1,0 +1,193 @@
+# Jira Cross-Referencing Best Practices
+
+## CRITICAL: Cross-Reference Requirements
+Since relationship management is not working properly in Jira, ALL issues MUST include explicit cross-references in the description text to maintain traceability.
+
+## Mandatory Cross-References by Issue Type
+
+### ALL Stories ([CORE], [API], [UI]) - REQUIRED EVERY TIME
+**Include in description text:**
+```
+**CROSS-REFERENCES:**
+- **Related Requirement:** DMT-123 (User Authentication: Login Flow)
+- **Epic:** DMT-456 (Customer Portal)
+- **Architecture Design:** DMT-789 (Authentication Service Design)
+- **Blocking Questions:** DMT-101 [Q] Should we support SSO?
+```
+
+### ALL Bugs - REQUIRED EVERY TIME
+**Include in description text:**
+```
+**CROSS-REFERENCES:**
+- **Related Story:** DMT-234 [CORE] Implement login validation
+- **Epic:** DMT-456 (Customer Portal) 
+- **Test Case:** DMT-345 (Login: Invalid password handling)
+- **Original Requirement:** DMT-123 (User Authentication: Login Flow)
+```
+
+### ALL Questions - REQUIRED EVERY TIME
+**Include in description text:**
+```
+**CROSS-REFERENCES:**
+- **Blocking Issues:** DMT-123, DMT-234, DMT-567
+- **Related Epic:** DMT-456 (Customer Portal)
+- **Related Requirements:** DMT-123 (User Authentication: Login Flow)
+```
+
+### ALL Test Cases - REQUIRED EVERY TIME
+**Include in description text:**
+```
+**CROSS-REFERENCES:**
+- **Tests Requirement:** DMT-123 (User Authentication: Login Flow)
+- **Related Stories:** DMT-234 [CORE], DMT-235 [API], DMT-236 [UI]
+- **Epic:** DMT-456 (Customer Portal)
+- **Automated Test:** DMT-567 (E2E Login Test Suite)
+```
+
+## Cross-Reference Format Standards
+
+### Reference Format
+Always use: `DMT-[NUMBER] ([Brief Description])`
+- ✅ **Epic:** DMT-456 (Customer Portal)
+- ✅ **Related Requirement:** DMT-123 (User Authentication: Login Flow)
+- ❌ **Epic:** DMT-456
+- ❌ **Related Requirement:** Login requirement
+
+### Description Section Location
+Place cross-references immediately after the main description, before technical details:
+```
+[Main issue description]
+
+**CROSS-REFERENCES:**
+- **Related Requirement:** DMT-123 (User Authentication: Login Flow)
+- **Epic:** DMT-456 (Customer Portal)
+[... other references]
+
+**TECHNICAL DETAILS:**
+[Implementation details continue here]
+```
+
+## Traceability Validation Checklist
+
+### Before Creating ANY Story
+- [ ] Requirement exists and is approved
+- [ ] Epic is defined and linked
+- [ ] Architecture design exists (if needed)
+- [ ] All cross-references added to description
+
+### Before Closing ANY Story  
+- [ ] All cross-references verified and updated
+- [ ] Related test cases created and linked
+- [ ] Epic updated with completion status
+- [ ] Architecture design marked as implemented
+
+### Before Creating ANY Bug
+- [ ] Original story identified and referenced
+- [ ] Epic context provided
+- [ ] Test case related to bug (if exists)
+- [ ] Requirement context included
+
+## Relationship Mapping Rules
+
+### Epic → Requirements → Stories Flow
+```
+Epic: DMT-456 (Customer Portal)
+  ↓
+Requirement: DMT-123 (User Authentication: Login Flow)
+  ↓
+Stories: 
+  - DMT-234 [CORE] Implement login validation service
+  - DMT-235 [API] Create POST /auth/login endpoint  
+  - DMT-236 [UI] Build login form with validation
+```
+
+**Each story MUST reference the complete chain:**
+- Epic: DMT-456
+- Requirement: DMT-123
+- Related Stories: (other stories in same requirement)
+
+### Question → Blocking Relationship
+```
+Question: DMT-101 [Q] Should we support SSO?
+  ↓ (blocks)
+Requirement: DMT-123 (User Authentication: Login Flow)
+  ↓ (blocks)
+Stories: DMT-234, DMT-235, DMT-236
+```
+
+**Questions MUST list ALL blocked items explicitly**
+
+### Bug → Story → Requirement Chain
+```
+Bug: DMT-567 [BUG-PROD] Login fails with special characters
+  ↓ (found in)
+Story: DMT-235 [API] Create POST /auth/login endpoint
+  ↓ (implements)  
+Requirement: DMT-123 (User Authentication: Login Flow)
+  ↓ (part of)
+Epic: DMT-456 (Customer Portal)
+```
+
+**Bugs MUST reference complete implementation chain**
+
+## Cross-Reference Validation Queries
+
+### Find Stories Missing Requirements
+```jql
+project = DMT AND issuetype in ("Core Story", "API Story", "UI Story") 
+AND description !~ "Related Requirement"
+```
+
+### Find Bugs Missing Story References  
+```jql
+project = DMT AND issuetype = Bug 
+AND description !~ "Related Story"
+```
+
+### Find Questions Missing Blocking Issues
+```jql
+project = DMT AND issuetype = Question 
+AND description !~ "Blocking Issues"
+```
+
+### Find Test Cases Missing Requirements
+```jql
+project = DMT AND issuetype = "Test Case" 
+AND description !~ "Tests Requirement"
+```
+
+## Emergency Cross-Reference Recovery
+
+### When Links Are Broken/Missing
+1. **Immediate Action:** Add cross-references to description text
+2. **Use JQL queries** to find related items
+3. **Update all related tickets** with bidirectional references
+4. **Verify using validation queries**
+
+### Bulk Cross-Reference Update Process
+1. Export all issues in epic/feature area
+2. Create cross-reference mapping spreadsheet  
+3. Update descriptions with complete reference chains
+4. Validate using JQL queries
+5. Create dashboard to monitor completeness
+
+## Daily Cross-Reference Hygiene
+
+### Team Lead Daily Check
+- Run validation queries for missing cross-references
+- Review new tickets for proper cross-referencing
+- Update any tickets missing required references
+
+### Developer Responsibility  
+- Always include cross-references when creating tickets
+- Update cross-references when working on related items
+- Verify references before moving tickets to "Done"
+
+### QA Responsibility
+- Verify cross-references during testing
+- Ensure test cases properly reference requirements and stories
+- Report missing cross-references as process bugs
+---
+alwaysApply: true
+description: Critical cross-referencing rules for Jira ticket relationships and traceability
+---

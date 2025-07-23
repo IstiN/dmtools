@@ -1,0 +1,90 @@
+---
+alwaysApply: true
+description: Jira issue structure, naming conventions, and cross-referencing requirements
+---
+
+# Jira Issue Structure & Cross-Referencing Rules
+
+## Issue Type Hierarchy
+All issues must follow the flat hierarchy structure where all issue types are children of Epics:
+- **Epic** (Feature Level) - no prefix
+- **Requirement** - owned by BA, no prefix
+- **Architecture Design** - owned by SA, no prefix  
+- **Visual Design** - owned by Visual Designer, no prefix
+- **Question** - BA/SA owned, prefix `[Q]`
+- **Core Story** - Dev team, prefix `[CORE]`
+- **API Story** - Dev team, prefix `[API]`
+- **UI Story** - Dev team, prefix `[UI]`
+- **Task** - All team members, no prefix
+- **Bug** - Reporter owned, prefix `[BUG-ENV]`
+- **Test Case** - QA team, no prefix
+- **Automated Test** - Test automation, no prefix
+
+## Mandatory Cross-References in Descriptions
+
+### For ALL Stories ([CORE], [API], [UI])
+**MUST include in description:**
+```
+**Related Requirement:** [Link to requirement ticket - e.g., DMT-123]
+**Epic:** [Link to parent epic - e.g., DMT-456]
+**Architecture Design:** [Link if applicable - e.g., DMT-789]
+**Feature Area:** [Select from: User Authentication, Dashboard, Reporting, Payment Processing, User Management, Integration, Analytics]
+```
+
+### For Bugs
+**MUST include in description:**
+```
+**Related Story:** [Link to original story - e.g., DMT-123]
+**Environment Found:** [Development/QA/UAT/Production]
+**Epic:** [Link to parent epic]
+**Test Case:** [Link to related test case if applicable]
+```
+
+### For Questions
+**MUST include in description:**
+```
+**Blocking Issues:** [List all issues this question blocks - e.g., DMT-123, DMT-456]
+**Related Epic:** [Link to parent epic]
+**Decision Required By:** [Date]
+**Target Audience:** [Business/Architecture/Development/QA]
+```
+
+### For Test Cases
+**MUST include in description:**
+```
+**Tests Requirement:** [Link to requirement - e.g., DMT-123]
+**Related Stories:** [Link to implementing stories]
+**Epic:** [Link to parent epic]
+**Automated Test:** [Link to automation ticket if exists]
+```
+
+## Naming Convention Requirements
+
+### Stories
+- `[CORE] [Action] [specific functionality]` - e.g., "Implement JWT token generation service"
+- `[API] [Action] [endpoint/integration]` - e.g., "Create POST /auth/login endpoint"  
+- `[UI] [Action] [component/page]` - e.g., "Build responsive login form with validation"
+
+### Requirements
+- `[Feature Area]: [Specific Functionality]` - e.g., "User Authentication: Login and Registration Flow"
+
+### Questions
+- `[Q] [Context]: [Specific Question]?` - e.g., "[Q] Login Security: Should we implement 2FA for all users?"
+
+### Bugs
+- `[BUG-ENVIRONMENT] [Brief description]` - e.g., "[BUG-PROD] Login fails for emails with special characters"
+
+## Mandatory Linking Rules
+1. **Stories MUST link to Requirements** using "Relates to"
+2. **Questions MUST link to blocked issues** using "Blocks"
+3. **Test Cases MUST link to Requirements/Stories** using "Tests"
+4. **Bugs MUST link to Related Stories** using "Relates to"
+5. **Stories implementing designs MUST link** using "Implements"
+
+## Component Assignment
+Always assign components based on Feature Area + Technical Layer:
+- Auth-Backend, Auth-Frontend, Auth-Integration
+- Dashboard-Backend, Dashboard-Frontend, Dashboard-Integration  
+- Reporting-Backend, Reporting-Frontend
+- Payment-Backend, Payment-Frontend
+- Common-Infrastructure

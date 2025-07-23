@@ -1,0 +1,207 @@
+# Jira Best Practices & Workflow Guidelines
+
+## General Best Practices
+
+### DO's ✅
+- **Always link stories to requirements** using "Relates to"
+- **Use prefixes consistently** ([CORE], [API], [UI], [Q], [BUG-ENV])
+- **Keep descriptions clear and concise** but comprehensive
+- **Update Feature Area for all issues** during creation
+- **Close questions when answered** and document decisions
+- **Create requirements before stories** - no story without requirement
+- **Document decisions in questions** for future reference
+- **Use components for technical classification** (Feature-Layer format)
+- **Link bugs to original stories** for proper traceability
+- **Keep epic size manageable** (< 30 requirements)
+
+### DON'Ts ❌
+- **Don't create stories without requirements** - always trace back
+- **Don't leave questions unanswered** - decisions impact delivery
+- **Don't mix business and technical details** in requirements
+- **Don't forget prefixes** on stories and bugs - they enable filtering
+- **Don't create duplicate test cases** - check existing coverage first
+- **Don't work on blocked items** - resolve questions first
+- **Don't close epics** without verifying all requirements are complete
+
+## Issue Creation Workflow
+
+### Phase 1: Requirements & Planning
+1. **BA Creates Epic** with clear scope and Feature Area
+2. **BA Creates Requirements** using standard template
+3. **BA/SA Create Questions** for any uncertainties
+4. **Get Answers & Update Requirements** based on decisions
+5. **Close Questions** when resolved
+
+### Phase 2: Architecture & Design  
+1. **SA Creates Architecture Design** after requirements approval
+2. **SA Reviews Requirements** for technical feasibility
+3. **SA Raises Questions** if technical concerns arise
+4. **Visual Designer Creates Visual Design** if UI components needed
+
+### Phase 3: Story Breakdown
+1. **BA/SA Create Stories** ([CORE], [API], [UI]) from approved requirements
+2. **Link Stories to Requirements** using "Relates to"
+3. **Assign Feature Area and Components** correctly
+4. **Estimate Stories** and add to sprint planning
+
+### Phase 4: Development
+1. **Dev Team Takes Stories** in logical order (CORE → API → UI)
+2. **Update Story Status** as work progresses
+3. **Link Implementation** to Architecture Design where applicable
+4. **Create Unit Tests** and integration tests during development
+
+### Phase 5: Testing
+1. **QA Creates Test Cases** linked to requirements and stories
+2. **Test Automation Creates Automated Tests** for critical paths
+3. **QA Validates Implementation** against acceptance criteria
+4. **Report Bugs** with proper cross-references to original stories
+
+## Sprint Management Best Practices
+
+### Sprint Planning
+- **Verify all stories have requirements** before adding to sprint
+- **Ensure no blocking questions** are unresolved
+- **Check dependencies** between stories within sprint
+- **Validate team capacity** vs. story points
+
+### Daily Standups
+- **Review blocked items** and work to unblock
+- **Check for new questions** that need immediate attention
+- **Identify cross-team dependencies** early
+- **Update story status** in real-time
+
+### Sprint Review
+- **Demo completed stories** against original requirements
+- **Verify all acceptance criteria** are met
+- **Update epic progress** and remaining work
+- **Document any scope changes** for retrospective
+
+## Quality Checklist
+
+### Before Starting Development
+- [ ] All requirements approved by stakeholders
+- [ ] No blocking questions remain open
+- [ ] Architecture design reviewed and approved  
+- [ ] Stories created and properly linked to requirements
+- [ ] Component and Feature Area assigned
+- [ ] Acceptance criteria clearly defined
+
+### Before Moving to QA
+- [ ] All acceptance criteria met
+- [ ] Unit tests added (min 80% coverage)
+- [ ] Integration tests passing
+- [ ] Code review completed
+- [ ] Documentation updated (if applicable)
+
+### Before Closing Sprint
+- [ ] All stories linked to requirements and epics
+- [ ] Test cases created for completed functionality
+- [ ] Bugs properly categorized and referenced
+- [ ] Questions answered and decisions documented
+- [ ] Epic progress updated
+
+## Feature Area Management
+
+### User Authentication
+- **Components:** Auth-Backend, Auth-Frontend, Auth-Integration  
+- **Key Requirements:** Login, Registration, Password Reset, 2FA
+- **Common Questions:** Security standards, SSO integration
+- **Testing Focus:** Security, edge cases, browser compatibility
+
+### Dashboard  
+- **Components:** Dashboard-Backend, Dashboard-Frontend, Dashboard-Integration
+- **Key Requirements:** Data visualization, real-time updates, filtering
+- **Common Questions:** Performance, data refresh rates
+- **Testing Focus:** Performance, responsiveness, data accuracy
+
+### Payment Processing
+- **Components:** Payment-Backend, Payment-Frontend
+- **Key Requirements:** Credit card processing, refunds, reporting
+- **Common Questions:** PCI compliance, payment gateway integration
+- **Testing Focus:** Security, transaction accuracy, error handling
+
+## Bug Management Guidelines
+
+### Bug Triage Process
+1. **Categorize by Environment:** Development/QA/UAT/Production
+2. **Link to Original Story** that introduced the issue
+3. **Assess Impact:** Critical/High/Medium/Low based on user impact
+4. **Assign to Feature Area** for proper team routing
+5. **Reference Epic Context** for business priority
+
+### Production Bug Escalation
+- **Critical/High Bugs:** Immediate team notification
+- **Medium Bugs:** Next sprint priority
+- **Low Bugs:** Backlog consideration
+- **Security Bugs:** Immediate escalation regardless of severity
+
+## Question Management Process
+
+### Question Categories & Routing
+- **Business:** Route to Product Owner/Business Analyst
+- **Technical:** Route to Solution Architect/Tech Lead  
+- **Integration:** Route to Solution Architect + External Teams
+- **Security:** Route to Security Team + Solution Architect
+- **UX:** Route to UX Designer + Product Owner
+- **Performance:** Route to Solution Architect + DevOps
+
+### Question Resolution Timeline
+- **Blocker Priority:** Same day resolution required
+- **High Priority:** 2-3 business days
+- **Medium Priority:** 1 week
+- **Low Priority:** Next sprint planning
+
+### Decision Documentation
+- **Update Question Description** with final decision
+- **Document Rationale** for future reference
+- **Update Related Requirements** if decision impacts scope
+- **Notify Blocked Stories** when question resolved
+
+## Automation & Monitoring
+
+### Automated Checks
+- **Missing Cross-References:** Daily JQL query execution
+- **Unlinked Stories:** Weekly review with BA team
+- **Open Questions:** Daily priority review
+- **Stale Code Reviews:** Items in review > 3 days
+
+### Dashboard Monitoring
+- **Feature Progress:** Epic completion percentage
+- **Bug Trends:** Production vs. non-production bug ratios
+- **Question Resolution:** Average time to answer by category
+- **Test Coverage:** Stories without test cases
+
+## Team Collaboration Guidelines
+
+### Business Analyst Responsibilities
+- Own requirements quality and completeness
+- Manage question resolution process
+- Validate story implementation against requirements
+- Maintain epic scope and progress tracking
+
+### Solution Architect Responsibilities  
+- Create architecture designs for complex features
+- Review technical feasibility of requirements
+- Guide technical decision-making process
+- Ensure consistent technical approach across features
+
+### Development Team Responsibilities
+- Follow naming conventions and prefixes
+- Maintain proper cross-references in all tickets
+- Create comprehensive test coverage
+- Update story status promptly
+
+### QA Team Responsibilities
+- Create test cases for all requirements
+- Verify cross-reference completeness during testing
+- Report bugs with proper traceability
+- Maintain test automation coverage
+
+### Product Owner Responsibilities
+- Prioritize requirements and epics
+- Make timely business decisions on questions
+- Review and approve requirement completeness
+- Validate delivered functionality meets business needs
+---
+description: Jira workflow best practices and process guidelines for team collaboration
+---
