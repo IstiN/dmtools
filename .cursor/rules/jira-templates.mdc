@@ -1,0 +1,205 @@
+# Jira Ticket Templates
+
+## Requirement Template
+```
+**Feature Area:** [User Authentication/Dashboard/Reporting/Payment Processing/User Management/Integration/Analytics]
+**Priority:** [High/Medium/Low]
+
+**Business Context:**
+[Why is this needed? What problem does it solve? Must Be short!]
+
+**User Story:**
+As a [user type]
+I want to [action]  
+So that [benefit]
+
+**Acceptance Criteria:**
+- [ ] Criteria 1
+- [ ] Criteria 2
+- [ ] Criteria 3
+
+**Cross-References:**
+**Epic:** [Link to parent epic - e.g., DMT-456]
+**Related Questions:** [List any blocking questions]
+
+**Out of Scope:**
+- Item 1
+- Item 2
+
+**Assumptions:**
+- Assumption 1
+- Assumption 2
+```
+
+## Core Story Template
+```
+**Title Format:** [CORE] [Action] [specific functionality]
+
+**Related Requirement:** [MANDATORY - Link to requirement ticket - e.g., DMT-123]
+**Epic:** [MANDATORY - Link to parent epic - e.g., DMT-456]
+**Architecture Design:** [Link if applicable - e.g., DMT-789]
+**Feature Area:** [Select from dropdown]
+**Component:** [Feature]-Backend (e.g., Auth-Backend)
+
+**Technical Details:**
+[Implementation approach, key classes, services to be created/modified]
+
+**Acceptance Criteria:**
+- [ ] Business logic implemented
+- [ ] Unit tests added (min 80% coverage)
+- [ ] Integration tests added
+- [ ] Error handling implemented
+- [ ] Logging added
+
+**Dependencies:**
+[List any blocking stories or external dependencies]
+```
+
+## API Story Template  
+```
+**Title Format:** [API] [Action] [endpoint/integration]
+
+**Related Requirement:** [MANDATORY - Link to requirement ticket - e.g., DMT-123]
+**Epic:** [MANDATORY - Link to parent epic - e.g., DMT-456]
+**Related Core Story:** [Link to backend implementation]
+**Feature Area:** [Select from dropdown]
+**Component:** [Feature]-Backend (e.g., Auth-Backend)
+
+**Endpoint Details:**
+- **Method:** [GET/POST/PUT/DELETE]
+- **URL:** [/api/v1/...]
+- **Request Format:** [JSON schema]
+- **Response Format:** [JSON schema]
+- **Authentication:** [Required/Optional]
+
+**Acceptance Criteria:**
+- [ ] Endpoint implemented and functional
+- [ ] Request/response validation
+- [ ] Error handling (400, 401, 403, 404, 500)
+- [ ] API documentation updated
+- [ ] Integration tests added
+- [ ] Postman collection updated
+```
+
+## UI Story Template
+```
+**Title Format:** [UI] [Action] [component/page]
+
+**Related Requirement:** [MANDATORY - Link to requirement ticket - e.g., DMT-123]
+**Epic:** [MANDATORY - Link to parent epic - e.g., DMT-456]
+**Related API Story:** [Link to backend API if applicable]
+**Visual Design:** [Link to design ticket if applicable]
+**Feature Area:** [Select from dropdown]
+**Component:** [Feature]-Frontend (e.g., Auth-Frontend)
+
+**UI Requirements:**
+- **Screen/Component:** [Name and purpose]
+- **User Interactions:** [List all user actions]
+- **Responsive Behavior:** [Mobile, tablet, desktop requirements]
+- **Accessibility:** [WCAG compliance requirements]
+
+**Acceptance Criteria:**
+- [ ] UI component implemented per design
+- [ ] Responsive design working
+- [ ] Form validations working
+- [ ] Error messages displayed properly
+- [ ] Loading states implemented
+- [ ] Unit tests added for components
+- [ ] E2E tests added
+```
+
+## Bug Template
+```
+**Title Format:** [BUG-ENVIRONMENT] [Brief description]
+
+**Related Story:** [MANDATORY - Link to original story - e.g., DMT-123]
+**Epic:** [MANDATORY - Link to parent epic]
+**Test Case:** [Link to related test case if applicable]
+**Environment Found:** [Development/QA/UAT/Production]
+**Feature Area:** [Select from dropdown]
+**Severity:** [Critical/High/Medium/Low]
+
+**Steps to Reproduce:**
+1. Step 1
+2. Step 2  
+3. Step 3
+
+**Expected Result:**
+[What should happen]
+
+**Actual Result:**
+[What actually happens]
+
+**Additional Information:**
+- **Browser/Device:** 
+- **User Role:**
+- **Frequency:** [Always/Sometimes/Once]
+- **Workaround:** [If any]
+
+**Impact Assessment:**
+[Business impact and user experience effect]
+```
+
+## Question Template
+```
+**Title Format:** [Q] [Context]: [Specific Question]?
+
+**Blocking Issues:** [MANDATORY - List all issues this question blocks - e.g., DMT-123, DMT-456]
+**Related Epic:** [MANDATORY - Link to parent epic]
+**Question Category:** [Business/Technical/Integration/Security/UX/Performance]
+**Priority:** [Blocker/High/Medium/Low]
+**Decision Required By:** [Date]
+**Target Audience:** [Business/Architecture/Development/QA]
+
+**Background:**
+[Provide context for the question]
+
+**Specific Question:**
+[State the question clearly]
+
+**Options Considered:**
+1. **Option A:** [Description]
+   - Pros: 
+   - Cons:
+2. **Option B:** [Description]  
+   - Pros:
+   - Cons:
+
+**Recommendation:**
+[If applicable]
+
+---
+**DECISION:** [To be filled when answered]
+**Rationale:** [Explanation]
+```
+
+## Test Case Template
+```
+**Title Format:** [Feature]: [Test Scenario]
+
+**Tests Requirement:** [MANDATORY - Link to requirement - e.g., DMT-123]
+**Related Stories:** [MANDATORY - Link to implementing stories]
+**Epic:** [MANDATORY - Link to parent epic]
+**Automated Test:** [Link to automation ticket if exists]
+**Feature Area:** [Select from dropdown]
+
+**Preconditions:**
+[Setup required before test execution]
+
+**Test Steps:**
+1. Step 1
+2. Step 2
+3. Step 3
+
+**Expected Results:**
+[What should happen at each step and final outcome]
+
+**Test Data:**
+[Specific data requirements]
+
+**Priority:** [High/Medium/Low]
+**Test Type:** [Functional/Integration/E2E/Performance]
+```
+---
+description: Jira ticket templates and standardized formats for different issue types
+---
