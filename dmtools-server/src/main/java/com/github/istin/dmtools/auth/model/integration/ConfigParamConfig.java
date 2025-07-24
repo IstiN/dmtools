@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.auth.model.integration;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
 
 /**
  * Configuration for a single integration parameter.
@@ -18,6 +19,7 @@ public class ConfigParamConfig {
     private String inputType;
     private String defaultValue;
     private ValidationConfig validation;
+    private List<OptionConfig> options;
 
     public ConfigParamConfig() {
     }
@@ -114,5 +116,13 @@ public class ConfigParamConfig {
 
     public void setValidation(ValidationConfig validation) {
         this.validation = validation;
+    }
+
+    public List<OptionConfig> getOptions() {
+        return options;
+    }
+
+    public void setOptions(List<OptionConfig> options) {
+        this.options = options;
     }
 } 

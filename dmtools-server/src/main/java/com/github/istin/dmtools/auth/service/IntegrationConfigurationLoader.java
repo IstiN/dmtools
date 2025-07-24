@@ -275,8 +275,14 @@ public class IntegrationConfigurationLoader {
         def.setDefaultValue(config.getDefaultValue());
         def.setType(config.getInputType());
         
-        // Convert validation allowed values to options
-        if (config.getValidation() != null && config.getValidation().getAllowedValues() != null) {
+        // Convert options to simple list format
+        if (config.getOptions() != null && !config.getOptions().isEmpty()) {
+            // Use new options field if available
+            def.setOptions(config.getOptions().stream()
+                    .map(optionConfig -> optionConfig.getValue())
+                    .collect(Collectors.toList()));
+        } else if (config.getValidation() != null && config.getValidation().getAllowedValues() != null) {
+            // Fallback to validation allowed values for backward compatibility
             def.setOptions(new ArrayList<>(config.getValidation().getAllowedValues()));
         }
         
