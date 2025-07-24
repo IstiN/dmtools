@@ -57,6 +57,45 @@ jobs:
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
+      - name: Setup Cloud SQL database
+        run: |
+          # Check if Cloud SQL instance exists
+          if ! gcloud sql instances describe dmtools-db --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
+            echo "Creating Cloud SQL instance..."
+            gcloud sql instances create dmtools-db \
+              --database-version=POSTGRES_15 \
+              --tier=db-f1-micro \
+              --region=us-central1 \
+              --storage-type=SSD \
+              --storage-size=10GB \
+              --backup \
+              --backup-start-time=02:00 \
+              --maintenance-window-day=SUN \
+              --maintenance-window-hour=02 \
+              --project=${{ vars.GCP_PROJECT_ID }}
+          else
+            echo "Cloud SQL instance already exists"
+          fi
+          
+          # Check if database exists
+          if ! gcloud sql databases describe dmtools --instance=dmtools-db --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
+            echo "Creating database..."
+            gcloud sql databases create dmtools --instance=dmtools-db --project=${{ vars.GCP_PROJECT_ID }}
+          else
+            echo "Database already exists"
+          fi
+          
+          # Check if user exists
+          if ! gcloud sql users describe dmtools-user --instance=dmtools-db --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
+            echo "Creating database user..."
+            gcloud sql users create dmtools-user \
+              --instance=dmtools-db \
+              --password=${{ secrets.DB_PASSWORD }} \
+              --project=${{ vars.GCP_PROJECT_ID }}
+          else
+            echo "Database user already exists"
+          fi
+
       - name: Configure Docker to use gcloud as credential helper
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
@@ -87,7 +126,7 @@ jobs:
       - name: Create environment variables file
         run: |
           cat > env-vars.yaml << EOF
-          SPRING_PROFILES_ACTIVE: "prod"
+          SPRING_PROFILES_ACTIVE: "gcp"
           GEMINI_API_KEY: "${{ secrets.GEMINI_API_KEY }}"
           GEMINI_DEFAULT_MODEL: "${{ vars.GEMINI_DEFAULT_MODEL }}"
           JWT_SECRET: "${{ secrets.JWT_SECRET }}"
@@ -95,6 +134,10 @@ jobs:
           APP_BASE_URL: "https://dmtools-431977789017.us-central1.run.app"
           APP_HOST: "dmtools-431977789017.us-central1.run.app"
           APP_PORT: "443"
+          CLOUD_SQL_INSTANCE: "${{ vars.GCP_PROJECT_ID }}:us-central1:dmtools-db"
+          DB_NAME: "dmtools"
+          DB_USER: "dmtools-user"
+          DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
           GOOGLE_CLIENT_ID: "431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com"
           GOOGLE_CLIENT_SECRET: "${{ secrets.GOOGLE_CLIENT_SECRET }}"
           MICROSOFT_CLIENT_ID: "db21d069-3fca-4d78-a09f-b690e6473a09"
