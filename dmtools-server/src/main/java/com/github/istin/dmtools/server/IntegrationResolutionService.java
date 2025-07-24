@@ -136,6 +136,7 @@ public class IntegrationResolutionService {
         
         String confluenceUrl = propertyReader.getConfluenceBasePath();
         String confluenceToken = propertyReader.getConfluenceLoginPassToken();
+        String confluenceAuthType = propertyReader.getConfluenceAuthType();
         String confluenceSpace = propertyReader.getConfluenceDefaultSpace();
         
         if (confluenceUrl != null && !confluenceUrl.trim().isEmpty()) {
@@ -143,6 +144,9 @@ public class IntegrationResolutionService {
         }
         if (confluenceToken != null && !confluenceToken.trim().isEmpty()) {
             confluenceConfig.put("token", confluenceToken);
+        }
+        if (confluenceAuthType != null && !confluenceAuthType.trim().isEmpty()) {
+            confluenceConfig.put("authType", confluenceAuthType);
         }
         if (confluenceSpace != null && !confluenceSpace.trim().isEmpty()) {
             confluenceConfig.put("defaultSpace", confluenceSpace);

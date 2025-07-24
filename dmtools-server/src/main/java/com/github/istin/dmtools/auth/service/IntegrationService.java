@@ -7,6 +7,7 @@ import com.github.istin.dmtools.dto.*;
 import com.github.istin.dmtools.github.GitHub;
 import com.github.istin.dmtools.github.BasicGithub;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
+import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
@@ -922,90 +923,65 @@ public class IntegrationService {
                 return errorResult;
             }
             
-            // Create a basic HTTP client to test connection
-            HttpClient httpClient = HttpClient.newHttpClient();
+            // Use Confluence client (similar to Jira test) instead of hardcoded HTTP client
+            Confluence confluenceClient = new Confluence(basePath, token);
+            confluenceClient.setAuthType(authType);
+            // Disable caching for the test
+            confluenceClient.setClearCache(true);
+            confluenceClient.setCacheGetRequestsEnabled(false);
+            // Test connection by getting current user profile
+            String userProfileResponse = confluenceClient.profile();
             
-            // Determine the correct authorization header based on auth type
-            String authHeader;
-            if ("Bearer".equalsIgnoreCase(authType)) {
-                authHeader = "Bearer " + token;
-            } else {
-                // Default to Basic auth (for base64-encoded email:token)
-                authHeader = "Basic " + token;
-            }
+            // If we get here, the connection test was successful
+            Map<String, Object> successResult = new HashMap<>();
+            successResult.put("success", true);
+            successResult.put("message", "Confluence connection test successful");
             
-            // Test basic connectivity to Confluence
-            HttpRequest testRequest = HttpRequest.newBuilder()
-                .uri(URI.create(basePath + "/rest/api/user/current"))
-                .header("Authorization", authHeader)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
+            // Add user information (raw JSON response)
+            Map<String, Object> userDetails = new HashMap<>();
+            userDetails.put("response", userProfileResponse);
+            successResult.put("user", userDetails);
             
-            HttpResponse<String> response = httpClient.send(testRequest, HttpResponse.BodyHandlers.ofString());
+            // Add configuration info
+            Map<String, Object> configInfo = new HashMap<>();
+            configInfo.put("basePath", basePath);
+            successResult.put("configuration", configInfo);
             
-            if (response.statusCode() == 200) {
-                // Parse response to get user info
-                ObjectMapper objectMapper = new ObjectMapper();
-                JsonNode userInfo = objectMapper.readTree(response.body());
-                
-                Map<String, Object> successResult = new HashMap<>();
-                successResult.put("success", true);
-                successResult.put("message", "Confluence connection test successful");
-                
-                // Add user information
-                Map<String, Object> userDetails = new HashMap<>();
-                userDetails.put("displayName", userInfo.path("displayName").asText());
-                userDetails.put("accountId", userInfo.path("accountId").asText());
-                if (userInfo.has("emailAddress")) {
-                    userDetails.put("emailAddress", userInfo.path("emailAddress").asText());
-                }
-                successResult.put("user", userDetails);
-                
-                // Add configuration info
-                Map<String, Object> configInfo = new HashMap<>();
-                configInfo.put("basePath", basePath);
-                successResult.put("configuration", configInfo);
-                
-                return successResult;
-            } else {
-                Map<String, Object> errorResult = new HashMap<>();
-                errorResult.put("success", false);
-                
-                if (response.statusCode() == 401) {
-                    errorResult.put("message", "Confluence authentication failed - invalid token");
-                    errorResult.put("error", "authentication_failed");
-                } else if (response.statusCode() == 403) {
-                    errorResult.put("message", "Confluence access forbidden - insufficient permissions");
-                    errorResult.put("error", "access_forbidden");
-                } else if (response.statusCode() == 404) {
-                    errorResult.put("message", "Confluence instance not found - check base path");
-                    errorResult.put("error", "instance_not_found");
-                } else {
-                    errorResult.put("message", "Confluence connection failed with status: " + response.statusCode());
-                    errorResult.put("error", "connection_failed");
-                }
-                
-                return errorResult;
-            }
+            return successResult;
             
         } catch (IOException e) {
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("success", false);
-            errorResult.put("message", "Confluence connection failed: " + e.getMessage());
-            errorResult.put("error", "io_error");
-            return errorResult;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("success", false);
-            errorResult.put("message", "Confluence connection test was interrupted");
-            errorResult.put("error", "interrupted");
+            
+            String errorMessage = e.getMessage();
+            if (errorMessage != null) {
+                // Check for common error patterns
+                if (errorMessage.contains("401") || errorMessage.contains("Unauthorized")) {
+                    errorResult.put("message", "Confluence authentication failed - invalid token or credentials");
+                    errorResult.put("error", "authentication_failed");
+                } else if (errorMessage.contains("403") || errorMessage.contains("Forbidden")) {
+                    errorResult.put("message", "Confluence access forbidden - insufficient permissions");
+                    errorResult.put("error", "access_forbidden");
+                } else if (errorMessage.contains("404") || errorMessage.contains("Not Found")) {
+                    errorResult.put("message", "Confluence instance not found - check base path");
+                    errorResult.put("error", "instance_not_found");
+                } else if (errorMessage.contains("timeout") || errorMessage.contains("ConnectException")) {
+                    errorResult.put("message", "Connection timeout - Confluence instance may be unreachable");
+                    errorResult.put("error", "connection_timeout");
+                } else {
+                    errorResult.put("message", "Failed to connect to Confluence: " + errorMessage);
+                    errorResult.put("error", "connection_failed");
+                }
+            } else {
+                errorResult.put("message", "Failed to connect to Confluence with unknown error");
+                errorResult.put("error", "unknown_error");
+            }
+            
             return errorResult;
         } catch (Exception e) {
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("success", false);
-            errorResult.put("message", "Unexpected error during Confluence connection test: " + e.getMessage());
+            errorResult.put("message", "Failed to connect to Confluence: " + e.getMessage());
             errorResult.put("error", "unexpected_error");
             return errorResult;
         }
