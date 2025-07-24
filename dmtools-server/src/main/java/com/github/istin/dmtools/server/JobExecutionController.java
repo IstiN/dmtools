@@ -3,10 +3,19 @@ package com.github.istin.dmtools.server;
 import com.github.istin.dmtools.dto.JobTypeDto;
 import com.github.istin.dmtools.dto.ExecuteJobConfigurationRequest;
 import com.github.istin.dmtools.dto.ExecutionParametersDto;
+import com.github.istin.dmtools.dto.JobExecutionResponse;
+import com.github.istin.dmtools.dto.JobExecutionStatusResponse;
 import com.github.istin.dmtools.auth.service.UserService;
+import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.dto.IntegrationDto;
 import com.github.istin.dmtools.dto.IntegrationConfigDto;
 import com.github.istin.dmtools.server.service.JobConfigurationService;
+import com.github.istin.dmtools.server.model.JobExecution;
+import com.github.istin.dmtools.server.model.JobConfiguration;
+import com.github.istin.dmtools.server.model.ExecutionStatus;
+import com.github.istin.dmtools.server.repository.JobExecutionRepository;
+import com.github.istin.dmtools.auth.repository.UserRepository;
+import com.github.istin.dmtools.server.repository.JobConfigurationRepository;
 import com.github.istin.dmtools.job.ExecutionMode;
 import com.github.istin.dmtools.job.JobParams;
 import com.github.istin.dmtools.job.JobRunner;
@@ -58,6 +67,15 @@ public class JobExecutionController {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private JobExecutionRepository jobExecutionRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Autowired
+    private JobConfigurationRepository jobConfigurationRepository;
 
     private String getUserId(Authentication authentication) {
         // Handle PlaceholderAuthentication during OAuth flow
@@ -84,6 +102,101 @@ public class JobExecutionController {
             return principalStr;
         }
         return authentication.getName();
+    }
+
+    /**
+     * Creates a new JobExecution record and starts the job asynchronously.
+     * 
+     * @param jobName The name of the job to execute
+     * @param jobConfigurationId Optional job configuration ID
+     * @param executionParameters JSON string of execution parameters
+     * @param userId The user ID
+     * @return JobExecution record
+     */
+    private JobExecution createAndStartJobExecution(String jobName, String jobConfigurationId, 
+                                                   String executionParameters, String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        JobConfiguration jobConfig = null;
+        if (jobConfigurationId != null) {
+            jobConfig = jobConfigurationRepository.findByIdAndCreatedBy(jobConfigurationId, user)
+                    .orElse(null);
+        }
+        
+        JobExecution execution = new JobExecution();
+        execution.setUser(user);
+        execution.setJobConfiguration(jobConfig);
+        execution.setStatus(ExecutionStatus.PENDING);
+        execution.setExecutionParameters(executionParameters);
+        
+        return jobExecutionRepository.save(execution);
+    }
+    
+    /**
+     * Converts JobExecution to JobExecutionStatusResponse.
+     */
+    private JobExecutionStatusResponse toStatusResponse(JobExecution execution) {
+        JobExecutionStatusResponse response = new JobExecutionStatusResponse();
+        response.setExecutionId(execution.getId());
+        response.setStatus(execution.getStatus());
+        response.setStartedAt(execution.getStartedAt());
+        response.setCompletedAt(execution.getCompletedAt());
+        response.setThreadName(execution.getThreadName());
+        response.setDurationMillis(execution.getDurationMillis());
+        response.setResultSummary(execution.getResultSummary());
+        response.setErrorMessage(execution.getErrorMessage());
+        response.setExecutionParameters(execution.getExecutionParameters());
+        
+        if (execution.getJobConfiguration() != null) {
+            response.setJobConfigurationId(execution.getJobConfiguration().getId());
+            response.setJobConfigurationName(execution.getJobConfiguration().getName());
+            response.setJobName(execution.getJobConfiguration().getJobType());
+        }
+        
+        return response;
+    }
+    
+    /**
+     * Executes a job asynchronously and updates the JobExecution record.
+     */
+    private void executeJobAsync(JobParams jobParams, JobExecution execution) {
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                // Mark execution as running
+                execution.markAsRunning();
+                jobExecutionRepository.save(execution);
+                
+                logger.info("⚡ Starting async execution of job: {} (execution ID: {})", 
+                          jobParams.getName(), execution.getId());
+                long startTime = System.currentTimeMillis();
+                
+                Object result = new JobRunner().run(jobParams);
+                
+                long duration = System.currentTimeMillis() - startTime;
+                logger.info("✅ Successfully completed job execution: {} (took {} ms, execution ID: {})", 
+                          jobParams.getName(), duration, execution.getId());
+                
+                // Mark execution as completed
+                String resultSummary = result != null ? result.toString() : "Job completed successfully";
+                if (resultSummary.length() > 1000) {
+                    resultSummary = resultSummary.substring(0, 1000) + "... (truncated)";
+                }
+                execution.markAsCompleted(resultSummary);
+                jobExecutionRepository.save(execution);
+                
+                return result;
+            } catch (Exception e) {
+                logger.error("❌ Job execution failed for {}: {} (execution ID: {})", 
+                           jobParams.getName(), e.getMessage(), execution.getId(), e);
+                
+                // Mark execution as failed
+                execution.markAsFailed(e.getMessage());
+                jobExecutionRepository.save(execution);
+                
+                return null;
+            }
+        });
     }
 
     /**
@@ -396,17 +509,17 @@ public class JobExecutionController {
      * @return ResponseEntity containing the job execution result
      */
     @PostMapping("/execute")
-    @Operation(summary = "Execute a job in server-managed mode", 
-               description = "Executes a job with server-managed integration resolution and credential injection")
+    @Operation(summary = "Execute a job in server-managed mode (async)", 
+               description = "Starts asynchronous job execution with server-managed integration resolution and credential injection. Returns execution ID immediately.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Job executed successfully",
-                content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))),
+        @ApiResponse(responseCode = "202", description = "Job execution started successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = JobExecutionResponse.class))),
         @ApiResponse(responseCode = "400", description = "Invalid request parameters",
                 content = @Content(mediaType = "text/plain", schema = @Schema(type = "string"))),
-        @ApiResponse(responseCode = "500", description = "Job execution failed",
+        @ApiResponse(responseCode = "500", description = "Job execution failed to start",
                 content = @Content(mediaType = "text/plain", schema = @Schema(type = "string")))
     })
-    public ResponseEntity<Object> executeJob(
+    public ResponseEntity<JobExecutionResponse> executeJob(
             @Parameter(description = "Job execution request", required = true,
                     content = @Content(examples = @ExampleObject(value = 
                         "{\n" +
@@ -422,15 +535,16 @@ public class JobExecutionController {
             Authentication authentication) {
         
         try {
-            logger.info("Received job execution request for job: {}", request.getJobName());
+            String userId = getUserId(authentication);
+            logger.info("Received job execution request for job: {} by user: {}", request.getJobName(), userId);
             
             // Validate request
             if (request.getJobName() == null || request.getJobName().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("Job name is required");
+                return ResponseEntity.badRequest().body(JobExecutionResponse.error("Job name is required"));
             }
             
             if (request.getParams() == null) {
-                return ResponseEntity.badRequest().body("Job parameters are required");
+                return ResponseEntity.badRequest().body(JobExecutionResponse.error("Job parameters are required"));
             }
             
             // Determine required integrations if not provided
@@ -486,31 +600,29 @@ public class JobExecutionController {
             logger.info("🚀 Prepared JobParams for '{}' with execution mode: SERVER_MANAGED", request.getJobName());
             logger.info("📝 Job parameters: {}", request.getParams().toString());
             
-            // 3. Execute in managed thread context
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    logger.info("⚡ Starting server-managed execution of job: {}", request.getJobName());
-                    long startTime = System.currentTimeMillis();
-                    
-                    Object result = new JobRunner().run(jobParams);
-                    
-                    long duration = System.currentTimeMillis() - startTime;
-                    logger.info("✅ Successfully completed job execution: {} (took {} ms)", request.getJobName(), duration);
-                    return ResponseEntity.ok(result);
-                } catch (Exception e) {
-                    logger.error("❌ Job execution failed for {}: {}", request.getJobName(), e.getMessage(), e);
-                    
-                    // Log additional context for debugging
-                    logger.error("🔍 Job execution context - Name: {}, ExecutionMode: {}, IntegrationsCount: {}", 
-                        jobParams.getName(), jobParams.getExecutionMode(), resolvedIntegrations.length());
-                    
-                    return ResponseEntity.status(500).body((Object) ("Job execution failed: " + e.getMessage()));
-                }
-            }).join();
+            // 3. Create JobExecution record and start async execution
+            String executionParametersJson = new JSONObject()
+                    .put("jobName", request.getJobName())
+                    .put("params", request.getParams())
+                    .put("requiredIntegrations", requiredIntegrations)
+                    .toString();
+            
+            JobExecution execution = createAndStartJobExecution(
+                request.getJobName(), null, executionParametersJson, userId);
+            
+            // Start async execution
+            executeJobAsync(jobParams, execution);
+            
+            // Return immediate response with execution ID
+            JobExecutionResponse response = JobExecutionResponse.started(
+                execution.getId(), request.getJobName(), null);
+            
+            logger.info("🎯 Started async job execution with ID: {}", execution.getId());
+            return ResponseEntity.accepted().body(response);
             
         } catch (Exception e) {
             logger.error("Failed to process job execution request: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("Failed to process request: " + e.getMessage());
+            return ResponseEntity.status(500).body(JobExecutionResponse.error("Failed to process request: " + e.getMessage()));
         }
     }
     
@@ -633,19 +745,19 @@ public class JobExecutionController {
      * @return ResponseEntity containing the job execution result
      */
     @PostMapping("/configurations/{configId}/execute")
-    @Operation(summary = "Execute a saved job configuration", 
-               description = "Executes a saved job configuration by ID with optional parameter overrides")
+    @Operation(summary = "Execute a saved job configuration (async)", 
+               description = "Starts asynchronous execution of a saved job configuration by ID with optional parameter overrides. Returns execution ID immediately.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Job executed successfully",
-                content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))),
+        @ApiResponse(responseCode = "202", description = "Job execution started successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = JobExecutionResponse.class))),
         @ApiResponse(responseCode = "400", description = "Invalid request parameters",
                 content = @Content(mediaType = "text/plain", schema = @Schema(type = "string"))),
         @ApiResponse(responseCode = "404", description = "Job configuration not found",
                 content = @Content(mediaType = "text/plain", schema = @Schema(type = "string"))),
-        @ApiResponse(responseCode = "500", description = "Job execution failed",
+        @ApiResponse(responseCode = "500", description = "Job execution failed to start",
                 content = @Content(mediaType = "text/plain", schema = @Schema(type = "string")))
     })
-    public ResponseEntity<Object> executeSavedJobConfiguration(
+    public ResponseEntity<JobExecutionResponse> executeSavedJobConfiguration(
             @Parameter(description = "Job configuration ID", required = true)
             @PathVariable String configId,
             @Parameter(description = "Execution request with optional overrides", required = false,
@@ -675,7 +787,7 @@ public class JobExecutionController {
             var executionParamsOpt = jobConfigurationService.getExecutionParameters(configId, request, userId);
             if (executionParamsOpt.isEmpty()) {
                 logger.error("Job configuration not found or not accessible: {}", configId);
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.status(404).body(JobExecutionResponse.error("Job configuration not found"));
             }
             
             ExecutionParametersDto executionParams = executionParamsOpt.get();
@@ -742,30 +854,87 @@ public class JobExecutionController {
             jobParams.setExecutionMode(ExecutionMode.valueOf(executionParams.getExecutionMode()));
             jobParams.setResolvedIntegrations(resolvedIntegrations);
             
+            // Create JobExecution record and start async execution
+            String executionParametersJson = new JSONObject()
+                    .put("jobType", executionParams.getJobType())
+                    .put("jobParameters", executionParams.getJobParameters())
+                    .put("integrationMappings", executionParams.getIntegrationMappings())
+                    .put("executionMode", executionParams.getExecutionMode())
+                    .toString();
+            
+            JobExecution execution = createAndStartJobExecution(
+                executionParams.getJobType(), configId, executionParametersJson, userId);
+            
             // Record execution before starting
             jobConfigurationService.recordExecution(configId, userId);
             
-            // Execute in managed thread context
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    logger.info("Starting execution of saved job configuration: {}", configId);
-                    Object result = new JobRunner().run(jobParams);
-                    logger.info("Successfully completed execution of saved job configuration: {}", configId);
-                    return ResponseEntity.ok(result);
-                } catch (Exception e) {
-                    logger.error("Saved job execution failed for {}: {}", configId, e.getMessage(), e);
-                    return ResponseEntity.status(500).body((Object) ("Job execution failed: " + e.getMessage()));
-                }
-            }).join();
+            // Start async execution
+            executeJobAsync(jobParams, execution);
+            
+            // Return immediate response with execution ID
+            JobExecutionResponse response = JobExecutionResponse.started(
+                execution.getId(), executionParams.getJobType(), configId);
+            
+            logger.info("🎯 Started async job configuration execution with ID: {}", execution.getId());
+            return ResponseEntity.accepted().body(response);
             
         } catch (IllegalArgumentException e) {
             logger.error("Invalid request for saved job execution {}: {}", configId, e.getMessage());
-            return ResponseEntity.badRequest().body("Invalid request: " + e.getMessage());
+            return ResponseEntity.badRequest().body(JobExecutionResponse.error("Invalid request: " + e.getMessage()));
         } catch (Exception e) {
             logger.error("Failed to process saved job execution request for {}: {}", configId, e.getMessage(), e);
-            return ResponseEntity.status(500).body("Failed to process request: " + e.getMessage());
+            return ResponseEntity.status(500).body(JobExecutionResponse.error("Failed to process request: " + e.getMessage()));
         }
     }
     
+    /**
+     * Get the status of a job execution by execution ID.
+     * 
+     * @param executionId The execution ID
+     * @param authentication Authentication information
+     * @return ResponseEntity containing the job execution status
+     */
+    @GetMapping("/executions/{executionId}/status")
+    @Operation(summary = "Get job execution status", 
+               description = "Get the current status and details of a job execution by its execution ID")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Job execution status retrieved successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = JobExecutionStatusResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Job execution not found",
+                content = @Content(mediaType = "text/plain", schema = @Schema(type = "string"))),
+        @ApiResponse(responseCode = "403", description = "Access denied to job execution",
+                content = @Content(mediaType = "text/plain", schema = @Schema(type = "string")))
+    })
+    public ResponseEntity<JobExecutionStatusResponse> getJobExecutionStatus(
+            @Parameter(description = "Job execution ID", required = true)
+            @PathVariable String executionId,
+            Authentication authentication) {
+        
+        try {
+            String userId = getUserId(authentication);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            
+            // Find execution by ID and user (for security)
+            var executionOpt = jobExecutionRepository.findByIdAndUser(executionId, user);
+            if (executionOpt.isEmpty()) {
+                logger.warn("Job execution not found or not accessible: {} for user: {}", executionId, userId);
+                return ResponseEntity.notFound().build();
+            }
+            
+            JobExecution execution = executionOpt.get();
+            JobExecutionStatusResponse response = toStatusResponse(execution);
+            
+            logger.debug("Retrieved job execution status for ID: {} - Status: {}", executionId, execution.getStatus());
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid request for job execution status {}: {}", executionId, e.getMessage());
+            return ResponseEntity.status(403).build();
+        } catch (Exception e) {
+            logger.error("Failed to get job execution status for {}: {}", executionId, e.getMessage(), e);
+            return ResponseEntity.status(500).build();
+        }
+    }
 
 } 
