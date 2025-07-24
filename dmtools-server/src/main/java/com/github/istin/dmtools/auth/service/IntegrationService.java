@@ -73,6 +73,7 @@ public class IntegrationService {
      * @param userId The ID of the user
      * @return List of integration DTOs
      */
+    @Transactional(readOnly = true)
     public List<IntegrationDto> getIntegrationsForUser(String userId) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -112,6 +113,7 @@ public class IntegrationService {
      * @param workspaceId The ID of the workspace
      * @return List of integration DTOs
      */
+    @Transactional(readOnly = true)
     public List<IntegrationDto> getIntegrationsForWorkspace(String workspaceId) {
         Workspace workspace = workspaceRepo.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
