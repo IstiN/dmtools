@@ -62,8 +62,12 @@
       "instructionsKey": "jira.authType.instructions",
       "required": false,
       "sensitive": false,
-      "inputType": "string",
-      "defaultValue": null
+      "inputType": "select",
+      "defaultValue": "Basic",
+      "options": [
+        {"value": "Basic", "label": "Basic"},
+        {"value": "Bearer", "label": "Bearer"}
+      ]
     }
   ]
 } 
