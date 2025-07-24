@@ -124,8 +124,9 @@ public interface JobExecutionRepository extends JpaRepository<JobExecution, Stri
     
     /**
      * Calculate average execution duration for user in minutes.
+     * Uses a database-agnostic approach that works with both H2 and PostgreSQL.
      */
-    @Query("SELECT AVG(EXTRACT(EPOCH FROM (e.completedAt - e.startedAt)) / 60.0) FROM JobExecution e WHERE e.user = :user AND e.completedAt IS NOT NULL")
+    @Query("SELECT AVG(CAST(TIMESTAMPDIFF(SECOND, e.startedAt, e.completedAt) AS DOUBLE) / 60.0) FROM JobExecution e WHERE e.user = :user AND e.completedAt IS NOT NULL")
     Double getAverageExecutionDurationMinutesForUser(@Param("user") User user);
     
     /**
