@@ -12,6 +12,8 @@ import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import com.github.istin.dmtools.common.utils.MarkdownToJiraConverter;
 import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.networking.AbstractRestClient;
+import lombok.Getter;
+import lombok.Setter;
 import okhttp3.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,7 +36,6 @@ import java.util.stream.Collectors;
 public class Confluence extends AtlassianRestClient implements UriToObject {
     private final Logger logger;  // Changed from static to instance member
     private String graphQLPath;
-
     // Default constructor - backward compatibility
     public Confluence(String basePath, String authorization) throws IOException {
         this(basePath, authorization, LogManager.getLogger(Confluence.class));
