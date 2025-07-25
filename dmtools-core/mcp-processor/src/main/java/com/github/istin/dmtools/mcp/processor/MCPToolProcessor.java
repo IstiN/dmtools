@@ -4,11 +4,13 @@ import com.github.istin.dmtools.mcp.MCPParam;
 import com.github.istin.dmtools.mcp.MCPParameterDefinition;
 import com.github.istin.dmtools.mcp.MCPTool;
 import com.github.istin.dmtools.mcp.MCPToolDefinition;
+import com.google.auto.service.AutoService;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
@@ -34,6 +36,7 @@ import java.util.Set;
  * Annotation processor for @MCPTool annotations.
  * Generates static registry, executor, and schema generator classes at compile time.
  */
+@AutoService(Processor.class)
 @SupportedAnnotationTypes("com.github.istin.dmtools.mcp.MCPTool")
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class MCPToolProcessor extends AbstractProcessor {
