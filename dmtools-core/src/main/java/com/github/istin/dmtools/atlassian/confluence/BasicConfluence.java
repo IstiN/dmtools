@@ -7,6 +7,8 @@ import com.github.istin.dmtools.common.kb.KnowledgeBaseConfig;
 import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.report.ReportUtils;
 import com.github.istin.dmtools.report.freemarker.GenericReport;
+import com.github.istin.dmtools.mcp.MCPTool;
+import com.github.istin.dmtools.mcp.MCPParam;
 import freemarker.template.TemplateException;
 import org.apache.commons.io.FileUtils;
 
@@ -69,7 +71,16 @@ public class BasicConfluence extends Confluence {
         return defaultSpace;
     }
 
-    public Content findContent(String title) throws IOException {
+    @MCPTool(
+        name = "confluence_find_content",
+        description = "Find a Confluence page by title in the default space. Returns the page content if found.",
+        integration = "confluence",
+        category = "search"
+    )
+    public Content findContent(
+        @MCPParam(name = "title", description = "Title of the Confluence page to find", required = true, example = "Project Documentation")
+        String title
+    ) throws IOException {
         return findContent(title, defaultSpace);
     }
 

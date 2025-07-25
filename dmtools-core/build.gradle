@@ -111,6 +111,9 @@ dependencies {
     annotationProcessor 'com.google.dagger:dagger-compiler:2.53.1'
     compileOnly 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'
+    
+    // MCP Tools annotation processor (self-processing for @MCPTool annotations)
+    // This allows the module to process its own annotations during compilation
 
     // Basic Spring dependencies (NOT server dependencies - those go in dmtools-server)
     api 'com.google.code.gson:gson:2.10.1'

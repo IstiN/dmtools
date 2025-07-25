@@ -121,7 +121,7 @@ public class ServerManagedIntegrationsModule {
     
     @Provides
     @Singleton
-    TrackerClient<? extends ITicket> provideTrackerClient() {
+    public TrackerClient<? extends ITicket> provideTrackerClient() {
         try {
             // Create a custom JiraClient instance using resolved credentials
             if (resolvedIntegrations.has("jira")) {
@@ -221,7 +221,7 @@ public class ServerManagedIntegrationsModule {
     
     @Provides
     @Singleton
-    Confluence provideConfluence() {
+    public Confluence provideConfluence() {
         try {
             System.out.println("🔧 [ServerManagedIntegrationsModule] Providing Confluence integration...");
             
