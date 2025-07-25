@@ -42,6 +42,7 @@ public class JobConfigurationService {
      * @param userId The ID of the user
      * @return List of job configuration DTOs
      */
+    @Transactional(readOnly = true)
     public List<JobConfigurationDto> getJobConfigurationsForUser(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -58,6 +59,7 @@ public class JobConfigurationService {
      * @param userId The ID of the user
      * @return List of enabled job configuration DTOs
      */
+    @Transactional(readOnly = true)
     public List<JobConfigurationDto> getEnabledJobConfigurationsForUser(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
