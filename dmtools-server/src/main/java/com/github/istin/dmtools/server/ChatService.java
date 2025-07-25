@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.agent.ToolSelectorAgent;
+import com.github.istin.dmtools.auth.controller.DynamicMCPController;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.dto.ChatMessage;
 import com.github.istin.dmtools.dto.ChatRequest;
@@ -30,7 +31,7 @@ public class ChatService {
     private AI ai;
 
     @Autowired
-    private McpServerController mcpServerController;
+    private DynamicMCPController mcpController;
 
     @Autowired
     private ToolSelectorAgent toolSelectorAgent;
@@ -117,32 +118,29 @@ public class ChatService {
         try {
             logger.info("Processing chat request with MCP tools enabled");
             
-            // Get available MCP tools
-            Map<String, Object> toolsResult = getToolsListSafely();
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> availableTools = (List<Map<String, Object>>) toolsResult.get("tools");
+            // TODO: Uncomment this logic after the MCP generated classes are available
+            // Map<String, Object> toolsResult = getToolsListSafely();
+            // @SuppressWarnings("unchecked")
+            // List<Map<String, Object>> availableTools = (List<Map<String, Object>>) toolsResult.get("tools");
             
-            if (availableTools == null || availableTools.isEmpty()) {
-                logger.warn("No MCP tools available, falling back to regular chat");
-                return chatWithoutTools(messages, request);
-            }
+            // if (availableTools == null || availableTools.isEmpty()) {
+            //     logger.warn("No MCP tools available, falling back to regular chat");
+            //     return chatWithoutTools(messages, request);
+            // }
             
-            // Filter tools based on agent configuration
-            List<Map<String, Object>> filteredTools = filterToolsBasedOnConfig(availableTools, request.getAgentTools());
+            // List<Map<String, Object>> filteredTools = filterToolsBasedOnConfig(availableTools, request.getAgentTools());
             
-            // Use ToolSelectorAgent to decide which tool to use
-            String lastUserMessage = getLastUserMessage(messages);
-            String formattedTools = formatToolsToString(filteredTools);
-            ToolSelectorAgent.Params params = new ToolSelectorAgent.Params(lastUserMessage, formattedTools);
-            List<ToolCallRequest> toolCalls = toolSelectorAgent.run(params);
+            // String lastUserMessage = getLastUserMessage(messages);
+            // String formattedTools = formatToolsToString(filteredTools);
+            // ToolSelectorAgent.Params params = new ToolSelectorAgent.Params(lastUserMessage, formattedTools);
+            // List<ToolCallRequest> toolCalls = toolSelectorAgent.run(params);
 
-            if (toolCalls != null && !toolCalls.isEmpty()) {
-                // Execute detected tool calls and return results
-                return executeToolCallsAndRespond(toolCalls, messages, request);
-            } else {
-                // if no tool is selected, just continue chat
-                return chatWithoutTools(messages, request);
-            }
+            // if (toolCalls != null && !toolCalls.isEmpty()) {
+            //     return executeToolCallsAndRespond(toolCalls, messages, request);
+            // } else {
+            //     return chatWithoutTools(messages, request);
+            // }
+            return chatWithoutTools(messages, request); // Placeholder
         } catch (Exception e) {
             logger.error("Error in chat with MCP tools", e);
             // Fallback to regular chat if tool integration fails
@@ -158,10 +156,7 @@ public class ChatService {
 
     private Map<String, Object> getToolsListSafely() {
         try {
-            // Use reflection to call the private method since it's not public
-            java.lang.reflect.Method method = McpServerController.class.getDeclaredMethod("getToolsList");
-            method.setAccessible(true);
-            return (Map<String, Object>) method.invoke(mcpServerController);
+            return mcpController.handleToolsList(null); // Passing null for userId, adjust if needed
         } catch (Exception e) {
             logger.error("Error getting tools list: {}", e.getMessage(), e);
             return Map.of("tools", new ArrayList<>());
@@ -170,15 +165,10 @@ public class ChatService {
 
     private Map<String, Object> callMcpToolSafely(String toolName, Map<String, Object> arguments) {
         try {
-            // Prepare the MCP tool call parameters
             Map<String, Object> params = new HashMap<>();
             params.put("name", toolName);
             params.put("arguments", arguments);
-            
-            // Use reflection to call the private method since it's not public
-            java.lang.reflect.Method method = McpServerController.class.getDeclaredMethod("handleToolCall", Map.class);
-            method.setAccessible(true);
-            return (Map<String, Object>) method.invoke(mcpServerController, params);
+            return mcpController.handleToolCall(params, null); // Passing null for userId, adjust if needed
         } catch (Exception e) {
             logger.error("Error calling MCP tool {}: {}", toolName, e.getMessage(), e);
             return Map.of("content", List.of(Map.of("text", "Error executing tool " + toolName + ": " + e.getMessage())));

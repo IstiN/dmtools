@@ -73,7 +73,7 @@ public class DynamicMCPController {
         }
     }
 
-    private Map<String, Object> handleToolsList(String userId) {
+    public Map<String, Object> handleToolsList(String userId) {
         try {
             Set<String> userIntegrations = getUserIntegrationTypes(userId);
             
@@ -89,7 +89,7 @@ public class DynamicMCPController {
         }
     }
 
-    private Map<String, Object> handleToolCall(Map<String, Object> params, String userId) {
+    public Map<String, Object> handleToolCall(Map<String, Object> params, String userId) {
         try {
             if (params == null) {
                 return createErrorResponse("Missing tool call parameters");
