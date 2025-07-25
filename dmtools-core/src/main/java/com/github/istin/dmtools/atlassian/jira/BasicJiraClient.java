@@ -5,6 +5,8 @@ import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.PropertyReader;
+import com.github.istin.dmtools.mcp.MCPTool;
+import com.github.istin.dmtools.mcp.MCPParam;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -116,7 +118,16 @@ public class BasicJiraClient extends JiraClient<Ticket> {
 
 
     @Override
-    public String getTextFieldsOnly(ITicket ticket) {
+    @MCPTool(
+        name = "jira_get_text_fields",
+        description = "Extract all text fields from a Jira ticket for analysis or processing",
+        integration = "jira",
+        category = "data_extraction"
+    )
+    public String getTextFieldsOnly(
+        @MCPParam(name = "ticket", description = "The Jira ticket to extract text fields from", required = true)
+        ITicket ticket
+    ) {
         StringBuilder ticketDescription = null;
         try {
             ticketDescription = new StringBuilder(ticket.getTicketTitle());
