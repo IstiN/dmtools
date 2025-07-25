@@ -60,8 +60,9 @@ test.describe('Job Execution API', () => {
         console.log('Expert required integrations:', integrations);
         
         expect(Array.isArray(integrations)).toBeTruthy();
-        expect(integrations).toContain('jira');
-        expect(integrations).toContain('openai');
+        expect(integrations).toContain('tracker');
+        expect(integrations).toContain('ai');
+        expect(integrations).toContain('wiki');
       } else if (response.status() === 302) {
         console.log('Authentication required - endpoint is protected');
         expect(response.status()).toBe(302);
@@ -80,8 +81,9 @@ test.describe('Job Execution API', () => {
         console.log('TestCasesGenerator required integrations:', integrations);
         
         expect(Array.isArray(integrations)).toBeTruthy();
-        expect(integrations).toContain('jira');
-        expect(integrations).toContain('openai');
+        expect(integrations).toContain('tracker');
+        expect(integrations).toContain('ai');
+        expect(integrations).toContain('wiki');
       } else if (response.status() === 302) {
         console.log('Authentication required - endpoint is protected');
         expect(response.status()).toBe(302);
@@ -300,7 +302,7 @@ test.describe('Job Execution API', () => {
         if (response.status() === 500) {
           const errorText = await response.text();
           console.log('Invalid job error:', errorText);
-          expect(errorText).toContain('unknown job name');
+          expect(errorText).toContain('jobConfiguration');
         }
       }
     });
