@@ -85,4 +85,32 @@ public class ExpertParamsTest {
         assertEquals("JsonObjectProjectContext", params.getProjectContext());
         assertEquals("JsonObjectRequest", params.getRequest());
     }
+
+    @Test
+    public void testAttachResponseAsFileDefault() {
+        assertEquals(true, expertParams.isAttachResponseAsFile());
+    }
+
+    @Test
+    public void testGetAttachResponseAsFile() {
+        expertParams.setAttachResponseAsFile(false);
+        assertEquals(false, expertParams.isAttachResponseAsFile());
+    }
+
+    @Test
+    public void testSetAttachResponseAsFile() {
+        expertParams.setAttachResponseAsFile(false);
+        assertEquals(false, expertParams.isAttachResponseAsFile());
+        expertParams.setAttachResponseAsFile(true);
+        assertEquals(true, expertParams.isAttachResponseAsFile());
+    }
+
+    @Test
+    public void testAttachResponseAsFileFromJson() throws JSONException {
+        String jsonString = "{\"attachResponseAsFile\":false,\"request\":\"TestRequest\"}";
+        Gson gson = new Gson();
+        ExpertParams params = gson.fromJson(jsonString, ExpertParams.class);
+        assertEquals(false, params.isAttachResponseAsFile());
+        assertEquals("TestRequest", params.getRequest());
+    }
 }

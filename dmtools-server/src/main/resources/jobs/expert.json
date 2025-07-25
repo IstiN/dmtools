@@ -436,6 +436,22 @@
         {"value": "Replace", "labelKey": "expert.operationType.replace"},
         {"value": "Append", "labelKey": "expert.operationType.append"}
       ]
+    },
+    {
+      "key": "attachResponseAsFile",
+      "displayName": "Attach Response as File",
+      "description": "Whether to attach the AI response as a file to the ticket. If disabled, only comments will be posted.",
+      "displayNameKey": "expert.attachResponseAsFile.displayName",
+      "descriptionKey": "expert.attachResponseAsFile.description",
+      "instructionsKey": "expert.attachResponseAsFile.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "boolean",
+      "defaultValue": true,
+      "examples": [
+        "true",
+        "false"
+      ]
     }
   ]
 } 

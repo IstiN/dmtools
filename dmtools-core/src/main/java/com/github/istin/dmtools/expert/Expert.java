@@ -225,7 +225,9 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
 
             TeamAssistantAgent.Params params = new TeamAssistantAgent.Params(structuredRequest, null, chunksContext, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
             String response = teamAssistantAgent.run(params);
-            attachResponse(teamAssistantAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");
+            if (expertParams.isAttachResponseAsFile()) {
+                attachResponse(teamAssistantAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");
+            }
             if (outputType == Params.OutputType.field) {
                 String fieldCustomCode = ((JiraClient) trackerClient).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
                 String currentFieldValue = ticket.getFields().getString(fieldCustomCode);
@@ -311,7 +313,9 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
             String keywordsBlacklist = getKeywordsBlacklist(expertParams.getKeywordsBlacklist());
             int filesLimit = expertParams.getFilesLimit();
             List<ChunkPreparation.Chunk> newChunks = searchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, filesLimit, expertParams.getFilesIterations());
-            saveAndAttachStats(ticketKey, chunks, searchOrchestrator);
+            if (expertParams.isAttachResponseAsFile()) {
+                saveAndAttachStats(ticketKey, chunks, searchOrchestrator);
+            }
             chunks.addAll(newChunks);
         }
 
@@ -324,7 +328,9 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
         int confluenceLimit = expertParams.getConfluenceLimit();
         int confluenceIterations = expertParams.getConfluenceIterations();
         List<ChunkPreparation.Chunk> chunks = confluenceSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, confluenceLimit, confluenceIterations);
-        saveAndAttachStats(ticketKey, chunks, confluenceSearchOrchestrator);
+        if (expertParams.isAttachResponseAsFile()) {
+            saveAndAttachStats(ticketKey, chunks, confluenceSearchOrchestrator);
+        }
         return chunks;
     }
 
@@ -333,7 +339,9 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
         int trackerLimit = expertParams.getTrackerLimit();
         int trackerIterations = expertParams.getTrackerIterations();
         List<ChunkPreparation.Chunk> response = trackerSearchOrchestrator.run(structuredRequest.toString(), keywordsBlacklist, trackerLimit, trackerIterations);
-        saveAndAttachStats(ticketKey, response, trackerSearchOrchestrator);
+        if (expertParams.isAttachResponseAsFile()) {
+            saveAndAttachStats(ticketKey, response, trackerSearchOrchestrator);
+        }
         return response;
     }
 

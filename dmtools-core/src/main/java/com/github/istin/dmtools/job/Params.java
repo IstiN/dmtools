@@ -35,6 +35,7 @@ public class Params {
     public static final String OPERATION_TYPE = "operationType";
     public static final String OUTPUT_TYPE = "outputType";
     public static final String FIELD_NAME = "fieldName";
+    public static final String ATTACH_RESPONSE_AS_FILE = "attachResponseAsFile";
 
     @SerializedName(INPUT_JQL)
     private String inputJql;
@@ -91,6 +92,9 @@ public class Params {
 
     @SerializedName(AIPromptConfig._KEY)
     private AIPromptConfig aiPromptConfig;
+
+    @SerializedName(ATTACH_RESPONSE_AS_FILE)
+    private boolean attachResponseAsFile = true;
 
     public void setSourceCodeConfigs(SourceCodeConfig... sourceCodeConfig) {
         this.sourceCodeConfig = sourceCodeConfig;
