@@ -242,6 +242,9 @@ public class IntegrationConfigurationLoader {
         
         dto.setConfigParams(paramDefs);
         
+        // Set MCP support from configuration
+        dto.setSupportsMcp(config.isSupportsMcp());
+        
         return dto;
     }
     

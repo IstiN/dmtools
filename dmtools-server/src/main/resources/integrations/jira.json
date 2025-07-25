@@ -4,6 +4,7 @@
   "descriptionKey": "integration.jira.description",
   "iconUrl": "/img/integrations/jira-icon.svg",
   "categories": ["TrackerClient"],
+  "supportsMcp": true,
   "setupDocumentation": {
     "en": "/docs/integrations/jira_setup_en.md",
     "ru": "/docs/integrations/jira_setup_ru.md"

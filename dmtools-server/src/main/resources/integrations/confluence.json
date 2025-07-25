@@ -4,6 +4,7 @@
   "descriptionKey": "integration.confluence.description",
   "iconUrl": "/img/integrations/confluence-icon.svg",
   "categories": ["Documentation"],
+  "supportsMcp": true,
   "setupDocumentation": {
     "en": "/docs/integrations/confluence_setup_en.md",
     "ru": "/docs/integrations/confluence_setup_ru.md"

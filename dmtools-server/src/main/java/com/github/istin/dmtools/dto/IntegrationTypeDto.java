@@ -51,6 +51,11 @@ public class IntegrationTypeDto {
     private List<ConfigParamDefinition> configParams = new ArrayList<>();
     
     /**
+     * Whether this integration type supports MCP protocol.
+     */
+    private boolean supportsMcp = false;
+    
+    /**
      * Inner class representing a configuration parameter definition.
      */
     @Data
