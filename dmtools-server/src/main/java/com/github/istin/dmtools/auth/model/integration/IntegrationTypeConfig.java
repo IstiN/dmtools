@@ -21,6 +21,7 @@ public class IntegrationTypeConfig {
     private List<ConfigParamConfig> configParams;
     private Map<String, String> setupDocumentation;
     private boolean hidden = false; // Default to visible
+    private boolean supportsMcp = false; // Default to false
 
     public IntegrationTypeConfig() {
     }
@@ -113,5 +114,13 @@ public class IntegrationTypeConfig {
 
     public void setHidden(boolean hidden) {
         this.hidden = hidden;
+    }
+
+    public boolean isSupportsMcp() {
+        return supportsMcp;
+    }
+
+    public void setSupportsMcp(boolean supportsMcp) {
+        this.supportsMcp = supportsMcp;
     }
 } 
