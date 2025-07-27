@@ -478,12 +478,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     @MCPTool(
             name = "jira_post_comment_if_not_exists",
-            description = "Post a comment to a Jira ticket only if it doesn't already exist",
+            description = "Post a comment to a Jira ticket only if it doesn't already exist. Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists",
             integration = "jira",
             category = "comment_management"
     )
     public void postCommentIfNotExists(@MCPParam(name = "ticketKey", description = "The Jira ticket key to post comment to", required = true) String ticketKey, 
-                                     @MCPParam(name = "comment", description = "The comment text to post", required = true) String comment) throws IOException {
+                                     @MCPParam(name = "comment", description = "The comment text to post (supports Jira markup: h2. headings, *bold*, {code}code{code}, * lists)", required = true) String comment) throws IOException {
         if (getTextType() == TrackerClient.TextType.MARKDOWN) {
             comment = StringUtils.convertToMarkdown(comment);
         }
@@ -546,12 +546,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     @MCPTool(
             name = "jira_post_comment",
-            description = "Post a comment to a Jira ticket",
+            description = "Post a comment to a Jira ticket. Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists",
             integration = "jira",
             category = "comment_management"
     )
     public void postComment(@MCPParam(name = "ticketKey", description = "The Jira ticket key to post comment to", required = true) String ticketKey, 
-                          @MCPParam(name = "comment", description = "The comment text to post", required = true) String comment) throws IOException {
+                          @MCPParam(name = "comment", description = "The comment text to post (supports Jira markup: h2. headings, *bold*, {code}code{code}, * lists)", required = true) String comment) throws IOException {
         if (getTextType() == TrackerClient.TextType.MARKDOWN) {
             comment = StringUtils.convertToMarkdown(comment);
         }
@@ -802,12 +802,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     @MCPTool(
             name = "jira_update_description",
-            description = "Update the description of a Jira ticket",
+            description = "Update the description of a Jira ticket. Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists",
             integration = "jira",
             category = "ticket_management"
     )
     public String updateDescription(@MCPParam(name = "key", description = "The Jira ticket key to update", required = true) String key, 
-                                  @MCPParam(name = "description", description = "The new description text", required = true) String description) throws IOException {
+                                  @MCPParam(name = "description", description = "The new description text (supports Jira markup: h2. headings, *bold*, {code}code{code}, * lists)", required = true) String description) throws IOException {
         GenericRequest jiraRequest = getTicket(key);
         JSONObject body = new JSONObject();
         body.put("update", new JSONObject()
