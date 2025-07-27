@@ -156,7 +156,7 @@ public class ChatService {
 
     private Map<String, Object> getToolsListSafely() {
         try {
-            return mcpController.handleToolsList(null); // Passing null for userId, adjust if needed
+            return new HashMap<>();//mcpController.handleToolsList(null); // Passing null for userId, adjust if needed
         } catch (Exception e) {
             logger.error("Error getting tools list: {}", e.getMessage(), e);
             return Map.of("tools", new ArrayList<>());
@@ -168,7 +168,7 @@ public class ChatService {
             Map<String, Object> params = new HashMap<>();
             params.put("name", toolName);
             params.put("arguments", arguments);
-            return mcpController.handleToolCall(params, null); // Passing null for userId, adjust if needed
+            return new HashMap<>();//mcpController.handleToolCall(params, null); // Passing null for userId, adjust if needed
         } catch (Exception e) {
             logger.error("Error calling MCP tool {}: {}", toolName, e.getMessage(), e);
             return Map.of("content", List.of(Map.of("text", "Error executing tool " + toolName + ": " + e.getMessage())));

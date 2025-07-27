@@ -176,6 +176,8 @@ public class SecurityConfig {
                     .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/v1/chat/**").permitAll()
+                    .requestMatchers("/mcp/config/**").permitAll()  // Allow public access to MCP configurations
+                    .requestMatchers("/mcp/stream/**").permitAll()  // Allow public access to MCP SSE streams
                     .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
