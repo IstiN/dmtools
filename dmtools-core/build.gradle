@@ -211,6 +211,11 @@ task integrationTest(type: Test) {
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
     shouldRunAfter test
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        exceptionFormat "full"
+    }
 }
 
 check.dependsOn integrationTest

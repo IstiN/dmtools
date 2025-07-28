@@ -58,20 +58,6 @@ public class JiraClientTest {
                 return new Ticket(body);
             }
 
-            @Override
-            protected String getEpicNameCf() {
-                return "customfield_10011";
-            }
-
-            @Override
-            protected String getEpicName() {
-                return "Epic Name";
-            }
-
-            @Override
-            protected String getEpic() {
-                return "Epic Link";
-            }
         };
         mockRequest = mock(GenericRequest.class);
     }

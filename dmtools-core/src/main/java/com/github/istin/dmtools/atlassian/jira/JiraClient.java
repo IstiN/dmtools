@@ -15,7 +15,6 @@ import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.mcp.MCPParam;
 import com.github.istin.dmtools.mcp.MCPTool;
-import com.github.istin.dmtools.mcp.IntegrationType;
 import kotlin.Pair;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,7 +22,6 @@ import okhttp3.*;
 import okhttp3.OkHttpClient.Builder;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -44,6 +42,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,10 +68,18 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     private Long instanceCreationTime = System.currentTimeMillis();
 
     private boolean isLogEnabled = true;
+    
+    // Cache for Cloud/Server Jira detection to avoid repeated API calls
+    private Boolean isCloudJiraCached = null;
 
     public void setClearCache(boolean clearCache) throws IOException {
         isClearCache = clearCache;
         initCache();
+        
+        // Also clear the Cloud/Server detection cache when clearing cache
+        if (clearCache) {
+            isCloudJiraCached = null;
+        }
     }
     public static String parseJiraProject(String key) {
         return key.split("-")[0].toUpperCase();
@@ -136,6 +143,19 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     public void deleteIssueLink(String id) throws IOException {
         new GenericRequest(this, path("issueLink/" + id)).delete();
+    }
+
+    @MCPTool(
+            name = "jira_delete_ticket",
+            description = "Delete a Jira ticket by key",
+            integration = "jira",
+            category = "ticket_management"
+    )
+    public String deleteTicket(@MCPParam(name = "ticketKey", description = "The Jira ticket key to delete", required = true) String ticketKey) throws IOException {
+        GenericRequest deleteRequest = new GenericRequest(this, path("issue/" + ticketKey));
+        String response = deleteRequest.delete();
+        log("Ticket deleted: " + ticketKey);
+        return response;
     }
 
     @Override
@@ -444,20 +464,73 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             integration = "jira",
             category = "ticket_management"
     )
-    public List<T> performGettingSubtask(@MCPParam(name = "ticket", description = "The parent ticket key to get subtasks for", required = true) String ticket) throws IOException {
+    public List<T> performGettingSubtask(@MCPParam(name = "ticket", description = "The parent ticket key to get subtasks for", required = true) String ticket) throws Exception {
         if (subtasksCallIsNotSupported) {
             return Collections.emptyList();
         }
-        GenericRequest subtasks = getSubtasks(ticket);
-        try {
-            return JSONModel.convertToModels(getTicketClass(), new JSONArray(subtasks.execute()));
-        } catch (JSONException e) {
-            clearCache(subtasks);
-            throw e;
-        } catch (AtlassianRestClient.RestClientException e) {
+        
+        // Get subtask issue types for the project
+        List<IssueType> issueTypes = getIssueTypes(ticket.split("-")[0]);
+        List<String> subtaskTypeNames = issueTypes.stream()
+                .filter(new Predicate<IssueType>() {
+                    @Override
+                    public boolean test(IssueType issueType) {
+                        String lowerCase = issueType.getName().toLowerCase();
+                        return lowerCase.equalsIgnoreCase("subtask")
+                                || lowerCase.equalsIgnoreCase("sub task")
+                                || lowerCase.equalsIgnoreCase("sub-task");
+                    }
+                })
+                .map(IssueType::getName)
+                .toList();
+
+        if (subtaskTypeNames.isEmpty()) {
             subtasksCallIsNotSupported = true;
-            e.getMessage().contains("404");
+            log("No subtask types found for project " + ticket.split("-")[0] + ", returning empty list");
             return Collections.emptyList();
+        }
+
+        // Use different approach based on Jira type (Cloud vs Server)
+        if (isCloudJira()) {
+            // For Cloud Jira, use JQL parent query directly (more reliable)
+            log("Using JQL parent query for Cloud Jira instance");
+            try {
+                String[] quotedNames = subtaskTypeNames.stream()
+                    .map(name -> "'" + name + "'")
+                    .toArray(String[]::new);
+                String issueTypeList = StringUtils.concatenate(", ", quotedNames);
+                String jql = "parent = " + ticket + " and issueType in (" + issueTypeList + ")";
+                
+                return searchAndPerform(jql, getDefaultQueryFields());
+            } catch (Exception e) {
+                log("JQL parent query failed for Cloud Jira: " + e.getMessage());
+                subtasksCallIsNotSupported = true;
+                return Collections.emptyList();
+            }
+        } else {
+            // For Server Jira, try the dedicated subtasks API endpoint first
+            log("Using dedicated subtasks API endpoint for Server Jira instance");
+            GenericRequest subtasks = getSubtasks(ticket);
+            try {
+                return JSONModel.convertToModels(getTicketClass(), new JSONArray(subtasks.execute()));
+            } catch (Exception e) {
+                log("Dedicated subtasks API failed for Server Jira, falling back to JQL: " + e.getMessage());
+                clearCache(subtasks);
+                try {
+                    // Fallback to JQL query with the actual subtask type names from the project
+                    String[] quotedNames = subtaskTypeNames.stream()
+                        .map(name -> "'" + name + "'")
+                        .toArray(String[]::new);
+                    String issueTypeList = StringUtils.concatenate(", ", quotedNames);
+                    String jql = "parent = " + ticket + " and issueType in (" + issueTypeList + ")";
+                    
+                    return searchAndPerform(jql, getDefaultQueryFields());
+                } catch (Exception ex) {
+                    log("JQL fallback also failed for Server Jira: " + ex.getMessage());
+                    subtasksCallIsNotSupported = true;
+                    return Collections.emptyList();
+                }
+            }
         }
     }
 
@@ -639,6 +712,38 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return JSONModel.convertToModels(ProjectStatus.class, new JSONArray(new GenericRequest(this, path("project/" + project + "/statuses")).execute()));
     }
 
+    /**
+     * Create a Jira ticket with a parent relationship
+     * This method creates a ticket and sets it as a child of the specified parent ticket.
+     *
+     * @param project The Jira project key
+     * @param issueType The type of issue to create (e.g., "Bug", "Story", "Task")
+     * @param summary The ticket summary/title
+     * @param description The ticket description
+     * @param parentKey The key of the parent ticket
+     * @return JSON response from Jira API containing the created ticket information
+     * @throws IOException if there's an error communicating with Jira
+     */
+    @MCPTool(
+            name = "jira_create_ticket_with_parent",
+            description = "Create a new Jira ticket with a parent relationship",
+            integration = "jira",
+            category = "ticket_management"
+    )
+    public String createTicketInProjectWithParent(@MCPParam(name = "project", description = "The Jira project key to create the ticket in", required = true) String project,
+                                                 @MCPParam(name = "issueType", description = "The type of issue to create (e.g., Bug, Story, Task)", required = true) String issueType,
+                                                 @MCPParam(name = "summary", description = "The ticket summary/title", required = true) String summary,
+                                                 @MCPParam(name = "description", description = "The ticket description", required = true) String description,
+                                                 @MCPParam(name = "parentKey", description = "The key of the parent ticket", required = true) String parentKey) throws IOException {
+        T ticket = performTicket(parentKey, new String[]{Fields.SUMMARY});
+        return createTicketInProject(project, issueType, summary, description, new TrackerClient.FieldsInitializer() {
+            @Override
+            public void init(TrackerClient.TrackerTicketFields fields) {
+                fields.set("parent", ticket.getJSONObject());
+            }
+        });
+    }
+
     public ReportIteration findVersion(final String fixVersion, String project) throws IOException {
         List<? extends ReportIteration> fixVersions = getFixVersions(project);
         for (ReportIteration version : fixVersions) {
@@ -681,109 +786,93 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return post;
     }
 
+    /**
+     * Create a Jira ticket with basic fields (MCP-compatible version without FieldsInitializer)
+     * This method provides a simplified interface for MCP tools that don't need custom field initialization.
+     *
+     * @param project The Jira project key
+     * @param issueType The type of issue to create (e.g., "Bug", "Story", "Task")
+     * @param summary The ticket summary/title
+     * @param description The ticket description
+     * @return JSON response from Jira API containing the created ticket information
+     * @throws IOException if there's an error communicating with Jira
+     */
     @MCPTool(
-            name = "jira_create_epic_or_find",
-            description = "Create a new epic in Jira or find existing one by summary",
+            name = "jira_create_ticket_basic",
+            description = "Create a new Jira ticket with basic fields (project, issue type, summary, description)",
             integration = "jira",
             category = "ticket_management"
     )
-    public String createEpicOrFind(@MCPParam(name = "project", description = "The Jira project key to create epic in", required = true) String project, 
-                                 @MCPParam(name = "summary", description = "The epic summary/title", required = true) String summary, 
-                                 @MCPParam(name = "description", description = "The epic description", required = true) String description) throws IOException {
-        return createEpicOrFind(project, summary, description, null);
+    public String createTicketInProjectMcp(@MCPParam(name = "project", description = "The Jira project key to create the ticket in (e.g., PROJ)", required = true) String project,
+                                         @MCPParam(name = "issueType", description = "The type of issue to create (e.g., Bug, Story, Task)", required = true) String issueType,
+                                         @MCPParam(name = "summary", description = "The ticket summary/title (e.g., Fix login issue)", required = true) String summary,
+                                         @MCPParam(name = "description", description = "The ticket description (e.g., Users are unable to log in with valid credentials)", required = true) String description) throws IOException {
+        return createTicketInProject(project, issueType, summary, description, null);
     }
 
-    public String createTicketInEpic(String project, Ticket ticket, String issueType, FieldsInitializer fieldsInitializer) throws IOException {
-        String summary = ticket.getFields().getSummary();
-        String description = "<h3>Please, see <a class=\"external-link\" href=\"" + getTicketBrowseUrl(ticket.getKey()) + "\" rel=\"nofollow\">description in epic</a></h3>\n";
-        return createTicketInProject(project, issueType, summary, description, new FieldsInitializer() {
-
-            @Override
-            public void init(TrackerTicketFields fields) {
-                ((Fields)fields).set(getEpic(), ticket.getKey());
-                if (fieldsInitializer != null) {
-                    fieldsInitializer.init(fields);
-                }
-            }
-        });
-    }
-
-    public String createEpicOrFind(String project, String summary, String description, FieldsInitializer fieldsInitializer) throws IOException {
-        summary = summary.replaceAll("\\\\", "/").replaceAll("'", "");
-        SearchResult search = searchByEpicName(project, summary);
-        if (search.getTotal() > 0) {
-            return search.getIssues().get(0).getKey();
-        }
-
-        String finalSummary = summary;
-        return createTicketInProject(project, "Epic", summary, description, new FieldsInitializer() {
-            @Override
-            public void init(TrackerTicketFields fields) {
-                fields.set(getEpicName(), finalSummary);
-                if (fieldsInitializer != null) {
-                    fieldsInitializer.init(fields);
-                }
-            }
-        });
-    }
-
-    private SearchResult searchByEpicName(String project, String summary) throws IOException {
-        try {
-            return search("project = " + project + " and " + getEpicNameCf() + " = '" + StringEscapeUtils.escapeHtml4(summary) + "' and issueType = epic", 0, new String[]{Fields.SUMMARY});
-        } catch (IOException e) {
-            if (e.getMessage().equalsIgnoreCase(RestClientException.NO_SUCH_PARENT_EPICS)) {
-                return new SearchResult();
-            } else {
-                throw e;
-            }
-        }
-    }
-
-    protected String getEpicNameCf() {
-        throw new UnsupportedOperationException("please return epic field");
-    }
-
-    protected String getEpicName() {
-        throw new UnsupportedOperationException("please return epic name field");
-    }
-
-    protected String getEpic() {
-        throw new UnsupportedOperationException("please return epic field");
-    }
-
-    protected String getIssuesInEpicJql(String key, String projects) {
-        return getEpicNameCf() + "=" + key + " and project in (" + projects + ") and type not in (Test, \"Internal Defect\", \"Automation Task\", \"Integration Defect\")";
-    }
-
-    public void issuesInEpic(String key, String projects, Performer<T> performer, String... fields) throws Exception {
-        String jql = getIssuesInEpicJql(key, projects);
-        searchAndPerform(performer, jql, fields);
-    }
-
-    public Map<String, ITicket> issuesInEpicMap(String key, String projects, String... fields) throws Exception {
-        String jql = getIssuesInEpicJql(key, projects);
-        return getAllTicketsByJQL(jql, fields);
-    }
-
+    /**
+     * Create a Jira ticket with custom fields via JSONObject
+     * This method allows MCP tools to create tickets with custom field configurations using a JSON structure.
+     *
+     * @param project The Jira project key
+     * @param fieldsJson JSONObject containing the ticket fields in Jira format
+     * @return JSON response from Jira API containing the created ticket information
+     * @throws IOException if there's an error communicating with Jira
+     */
     @MCPTool(
-            name = "jira_get_issues_in_epic_by_type",
-            description = "Get all issues in an epic filtered by issue type",
+            name = "jira_create_ticket_with_json",
+            description = "Create a new Jira ticket with custom fields using JSON configuration",
             integration = "jira",
             category = "ticket_management"
     )
-    public List<Ticket> issuesInEpicByType(@MCPParam(name = "key", description = "The epic key to get issues from", required = true) String key, 
+    public String createTicketInProjectWithJson(@MCPParam(name = "project", description = "The Jira project key to create the ticket in (e.g., PROJ)", required = true) String project,
+                                              @MCPParam(name = "fieldsJson", description = "JSON object containing ticket fields in Jira format (e.g., {\"summary\": \"Ticket Summary\", \"description\": \"Ticket Description\", \"issuetype\": {\"name\": \"Task\"}, \"priority\": {\"name\": \"High\"}})", required = true) JSONObject fieldsJson) throws IOException {
+        GenericRequest jiraRequest = createTicket();
+
+        JSONObject jsonObject = new JSONObject();
+        
+        // Create the main fields object
+        JSONObject fields = new JSONObject();
+        
+        // Set required project field
+        fields.put("project", new JSONObject().put("key", project));
+        
+        // Copy all fields from the provided JSONObject
+        if (fieldsJson != null) {
+            for (String key : fieldsJson.keySet()) {
+                fields.put(key, fieldsJson.get(key));
+            }
+        }
+        
+        jsonObject.put("fields", fields);
+
+        jiraRequest.setBody(jsonObject.toString());
+        String post = jiraRequest.post();
+        String key = new JSONObject(post).getString("key");
+        log(getTicketBrowseUrl(key));
+        return post;
+    }
+
+
+    @MCPTool(
+            name = "jira_get_issues_in_parent_by_type",
+            description = "Get all issues in an parent filtered by issue type",
+            integration = "jira",
+            category = "ticket_management"
+    )
+    public List<Ticket> issuesInParentByType(@MCPParam(name = "key", description = "The parent key to get issues from", required = true) String key,
                                           @MCPParam(name = "type", description = "The issue type to filter by", required = true) String type, 
                                           @MCPParam(name = "fields", description = "Optional array of fields to include", required = false) String... fields) throws Exception {
         List<Ticket> tickets = new ArrayList<>();
-        issuesInEpicByType(key, ticket -> {
+        issuesInParentByType(key, ticket -> {
             tickets.add(ticket);
             return false;
         }, type, fields);
         return tickets;
     }
 
-    public void issuesInEpicByType(String key, Performer<T> performer, String type, String... fields) throws Exception {
-        String jql = getEpicNameCf() + "=" + key + " and type in (" + type + ")";
+    public void issuesInParentByType(String key, Performer<T> performer, String type, String... fields) throws Exception {
+        String jql = "parent = " + key + " and type in (" + type + ")";
         searchAndPerform(performer, jql, fields);
     }
 
@@ -840,6 +929,37 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return updateResult;
     }
 
+    /**
+     * Update the parent of a Jira ticket
+     * This method can be used for setting up epic relationships and parent-child relationships for subtasks.
+     * It allows updating the parent field of any ticket to establish hierarchical relationships.
+     *
+     * @param key The Jira ticket key to update
+     * @param parentKey The key of the new parent ticket
+     * @return JSON response from Jira API containing the update result
+     * @throws IOException if there's an error communicating with Jira
+     */
+    @MCPTool(
+            name = "jira_update_ticket_parent",
+            description = "Update the parent of a Jira ticket. Can be used for setting up epic relationships and parent-child relationships for subtasks",
+            integration = "jira",
+            category = "ticket_management"
+    )
+    public String updateTicketParent(@MCPParam(name = "key", description = "The Jira ticket key to update", required = true) String key,
+                                   @MCPParam(name = "parentKey", description = "The key of the new parent ticket", required = true) String parentKey) throws IOException {
+        // Create the JSON parameters following the standard Jira REST API format
+        JSONObject params = new JSONObject();
+        JSONObject fields = new JSONObject();
+        JSONObject parent = new JSONObject();
+        parent.put("key", parentKey);
+        fields.put("parent", parent);
+        params.put("fields", fields);
+
+        String response = updateTicket(key, params);
+        clearCache(getTicket(key));
+        return response;
+    }
+
     @Override
     public String updateTicket(String key, FieldsInitializer fieldsInitializer) throws IOException {
         GenericRequest jiraRequest = getTicket(key);
@@ -869,6 +989,30 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         jiraRequest.setBody(body.toString());
         String updateResult = jiraRequest.put();
         log(updateResult);
+        return updateResult;
+    }
+
+    /**
+     * Update a Jira ticket using JSON parameters following the standard Jira REST API format
+     * This method uses the PUT /rest/api/latest/issue/{issueIdOrKey} endpoint
+     * 
+     * @param ticketKey The ticket key to update
+     * @param params JSONObject containing the update parameters in Jira format
+     * @return The response from the update operation
+     * @throws IOException if the update fails
+     */
+    @MCPTool(
+            name = "jira_update_ticket",
+            description = "Update a Jira ticket using JSON parameters following the standard Jira REST API format",
+            integration = "jira",
+            category = "ticket_management"
+    )
+    public String updateTicket(@MCPParam(name = "ticketKey", description = "The Jira ticket key to update", required = true) String ticketKey,
+                             @MCPParam(name = "params", description = "JSON object containing update parameters in Jira format (e.g., {\"fields\": {\"summary\": \"New Summary\", \"parent\": {\"key\": \"PROJ-123\"}}})", required = true) JSONObject params) throws IOException {
+        GenericRequest jiraRequest = getTicket(ticketKey);
+        jiraRequest.setBody(params.toString());
+        String updateResult = jiraRequest.put();
+        log("Updated ticket " + ticketKey + " with params: " + params.toString());
         return updateResult;
     }
 
@@ -1001,7 +1145,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         try {
             timeMeasurement.put(url, System.currentTimeMillis());
 
-            if (!isIgnoreCache) {
+            if (!isIgnoreCache && isReadCacheGetRequestsEnabled) {
                 String value = DigestUtils.md5Hex(url);
                 File cache = new File(getCacheFolderName());
                 cache.mkdirs();
@@ -1025,11 +1169,13 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 try (Response response = client.newCall(request).execute()) {
                     if (response.isSuccessful()) {
                         String result = response.body() != null ? response.body().string() : null;
-                        String value = DigestUtils.md5Hex(url);
-                        File cache = new File(getCacheFolderName());
-                        cache.mkdirs();
-                        File cachedFile = new File(getCacheFolderName() + "/" + value);
-                        FileUtils.writeStringToFile(cachedFile, result);
+                        if (isReadCacheGetRequestsEnabled) {
+                            String value = DigestUtils.md5Hex(url);
+                            File cache = new File(getCacheFolderName());
+                            cache.mkdirs();
+                            File cachedFile = new File(getCacheFolderName() + "/" + value);
+                            FileUtils.writeStringToFile(cachedFile, result);
+                        }
                         return result;
                     } else {
                         throw AtlassianRestClient.printAndCreateException(request, response);
@@ -1570,6 +1716,151 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         }
     }
 
+    /**
+     * Clears the cached Cloud/Server Jira detection result
+     * This forces a new API call on the next detection request
+     */
+    public void clearCloudJiraDetectionCache() {
+        isCloudJiraCached = null;
+        log("Cleared Cloud/Server Jira detection cache");
+    }
+
+    /**
+     * Detects whether this Jira instance is Cloud or Server using the official REST API
+     * Results are cached to avoid repeated API calls
+     */
+    private boolean isCloudJira() {
+        // Return cached result if available
+        if (isCloudJiraCached != null) {
+            return isCloudJiraCached;
+        }
+        
+        try {
+            // Use the official REST API endpoint to determine deployment type
+            GenericRequest genericRequest = new GenericRequest(this, path("serverInfo"));
+            String response = genericRequest.execute();
+            
+            JSONObject serverInfo = new JSONObject(response);
+            
+            // Check for deploymentType field - Cloud instances have "Cloud" value
+            if (serverInfo.has("deploymentType")) {
+                String deploymentType = serverInfo.getString("deploymentType");
+                log("Detected Jira deployment type: " + deploymentType);
+                isCloudJiraCached = "Cloud".equalsIgnoreCase(deploymentType);
+                return isCloudJiraCached;
+            }
+            
+            // Fallback: Check URL pattern for atlassian.net (Cloud indicator)
+            boolean isAtlassianNet = getBasePath().contains("atlassian.net");
+            log("No deploymentType field found, using URL pattern. atlassian.net detected: " + isAtlassianNet);
+            isCloudJiraCached = isAtlassianNet;
+            return isCloudJiraCached;
+            
+        } catch (Exception e) {
+            log("Error detecting Jira type via serverInfo API: " + e.getMessage());
+            // Fallback: Check URL pattern for atlassian.net (Cloud indicator)
+            boolean isAtlassianNet = getBasePath().contains("atlassian.net");
+            log("Using URL pattern fallback. atlassian.net detected: " + isAtlassianNet);
+            isCloudJiraCached = isAtlassianNet;
+            return isCloudJiraCached;
+        }
+    }
+
+    @MCPTool(
+            name = "jira_get_issue_types",
+            description = "Get all available issue types for a specific Jira project",
+            integration = "jira",
+            category = "project_management"
+    )
+    public List<IssueType> getIssueTypes(@MCPParam(name = "project", description = "The Jira project key to get issue types for", required = true) String project) throws IOException {
+        try {
+            // Use the same endpoint as getFields but extract only issue types
+            GenericRequest genericRequest = new GenericRequest(this, path("issue/createmeta?projectKeys=" + project + "&expand=projects.issuetypes.fields"));
+            String response = genericRequest.execute();
+            
+            // Detect if this is Cloud or Server Jira and parse accordingly
+            if (isCloudJira()) {
+                log("Detected Cloud Jira instance for project " + project);
+                return parseCloudJiraIssueTypes(response);
+            } else {
+                log("Detected Server Jira instance for project " + project);
+                return parseServerJiraIssueTypes(response, project);
+            }
+        } catch (Exception e) {
+            log("Error getting issue types: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Parse issue types from Cloud Jira response format
+     */
+    private List<IssueType> parseCloudJiraIssueTypes(String response) {
+        List<IssueType> result = new ArrayList<>();
+        try {
+            JSONObject jsonResponse = new JSONObject(response);
+            JSONArray projects = jsonResponse.getJSONArray("projects");
+            
+            if (!projects.isEmpty()) {
+                JSONObject projectObj = projects.getJSONObject(0);
+                JSONArray issueTypes = projectObj.getJSONArray("issuetypes");
+                return JSONModel.convertToModels(IssueType.class, issueTypes);
+            }
+        } catch (Exception e) {
+            log("Error parsing Cloud Jira issue types: " + e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * Parse issue types from Server Jira response format
+     */
+    private List<IssueType> parseServerJiraIssueTypes(String response, String project) {
+        List<IssueType> result = new ArrayList<>();
+        try {
+            // First try to parse the response as if it contains issue types directly
+            JSONArray issueTypes = new JSONArray(response);
+            return JSONModel.convertToModels(IssueType.class, issueTypes);
+        } catch (Exception e) {
+            log("Direct parsing failed, trying alternative Server Jira endpoints");
+            // If direct parsing fails, try alternative Server Jira endpoints
+            try {
+                return getServerJiraIssueTypesAlternative(project);
+            } catch (Exception ex) {
+                log("Alternative Server Jira issue types endpoint also failed: " + ex.getMessage());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Alternative method to get issue types for Server Jira
+     */
+    private List<IssueType> getServerJiraIssueTypesAlternative(String project) throws IOException {
+        List<IssueType> result = new ArrayList<>();
+        try {
+            // Try the direct issue types endpoint for Server Jira
+            GenericRequest genericRequest = new GenericRequest(this, path("issuetype"));
+            String response = genericRequest.execute();
+            
+            JSONArray issueTypes = new JSONArray(response);
+            return JSONModel.convertToModels(IssueType.class, issueTypes);
+        } catch (Exception e) {
+            log("Error getting Server Jira issue types from alternative endpoint: " + e.getMessage());
+            // Final fallback: try project-specific endpoint
+            try {
+                GenericRequest genericRequest = new GenericRequest(this, path("project/" + project));
+                String response = genericRequest.execute();
+                JSONObject projectObj = new JSONObject(response);
+                JSONArray issueTypes = projectObj.getJSONArray("issueTypes");
+                return JSONModel.convertToModels(IssueType.class, issueTypes);
+            } catch (Exception fallbackException) {
+                log("Failed to get issue types for project " + project + ": " + fallbackException.getMessage());
+            }
+        }
+        return result;
+    }
+
     @MCPTool(
             name = "jira_get_field_custom_code",
             description = "Get the custom field code for a field name in a Jira project",
@@ -1579,9 +1870,18 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     public String getFieldCustomCode(@MCPParam(name = "project", description = "The Jira project key", required = true) String project, 
                                    @MCPParam(name = "fieldName", description = "The human-readable field name", required = true) String fieldName) throws IOException {
         String response = getFields(project);
-        try {
-            return parseCloudJiraResponse(fieldName, response);
-        } catch (JSONException e) {
+        
+        // Use the same detection logic as getIssueTypes for consistency
+        if (isCloudJira()) {
+            log("Using Cloud Jira parsing for field custom code");
+            try {
+                return parseCloudJiraResponse(fieldName, response);
+            } catch (JSONException e) {
+                log("Cloud Jira parsing failed, falling back to Server parsing: " + e.getMessage());
+                return parseServerJiraResponse(fieldName, response);
+            }
+        } else {
+            log("Using Server Jira parsing for field custom code");
             return parseServerJiraResponse(fieldName, response);
         }
     }
