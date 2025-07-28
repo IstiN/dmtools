@@ -28,11 +28,11 @@ public class ProductivityUtils {
         return listOfCustomMetrics;
     }
 
-    public static boolean isStory(ProductivityJobParams productivityReportParams, ITicket ticket) throws IOException {
+    public static boolean isStory(ProductivityJobParams productivityReportParams, ITicket ticket) throws Exception {
         return !IssueType.isBug(ticket.getIssueType()) && !IssueType.isSubTask(ticket.getFields().getIssueType().getName()) && thereIsNoSubtasks(productivityReportParams, ticket) || isSubTaskLinkedToStory(productivityReportParams, ticket);
     }
 
-    public static  boolean isBug(ProductivityJobParams productivityJobParams, ITicket ticket) throws IOException {
+    public static  boolean isBug(ProductivityJobParams productivityJobParams, ITicket ticket) throws Exception {
         return IssueType.isBug(ticket.getIssueType()) && thereIsNoSubtasks(productivityJobParams, ticket) || isSubTaskLinkedToBug(ticket);
     }
 
@@ -50,7 +50,7 @@ public class ProductivityUtils {
         return false;
     }
 
-    public static boolean thereIsNoSubtasks(ProductivityJobParams productivityReportParams, ITicket ticket) throws IOException {
+    public static boolean thereIsNoSubtasks(ProductivityJobParams productivityReportParams, ITicket ticket) throws Exception {
         List subTasks = ((JiraClient<Ticket>) BasicJiraClient.getInstance()).performGettingSubtask(ticket.getTicketKey());
         subTasks = (List) subTasks.stream().filter(new Predicate() {
             @Override
