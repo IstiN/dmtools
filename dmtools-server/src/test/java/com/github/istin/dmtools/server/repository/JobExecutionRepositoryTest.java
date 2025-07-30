@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
@@ -26,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests all query methods and business logic.
  */
 @DataJpaTest
+@Import(TestJpaConfiguration.class)
 public class JobExecutionRepositoryTest {
 
     @Autowired
