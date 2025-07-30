@@ -4,6 +4,7 @@ import com.github.istin.dmtools.auth.model.McpConfiguration;
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.repository.McpConfigurationRepository;
 import com.github.istin.dmtools.dto.CreateMcpConfigurationRequest;
+import com.github.istin.dmtools.dto.IntegrationDto;
 import com.github.istin.dmtools.dto.McpConfigurationDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -95,9 +96,19 @@ class McpConfigurationServiceTest {
         when(mcpConfigurationRepository.save(any(McpConfiguration.class)))
                 .thenReturn(testConfiguration);
 
-        // Mock integration validation
-        doNothing().when(integrationService).getIntegrationById("integration-1", "user-123", false);
-        doNothing().when(integrationService).getIntegrationById("integration-2", "user-123", false);
+        // Mock integration validation - create mock DTOs to return
+        IntegrationDto mockIntegration1 = new IntegrationDto();
+        mockIntegration1.setId("integration-1");
+        mockIntegration1.setName("Test Integration 1");
+        
+        IntegrationDto mockIntegration2 = new IntegrationDto();
+        mockIntegration2.setId("integration-2");
+        mockIntegration2.setName("Test Integration 2");
+        
+        when(integrationService.getIntegrationById("integration-1", "user-123", false))
+                .thenReturn(mockIntegration1);
+        when(integrationService.getIntegrationById("integration-2", "user-123", false))
+                .thenReturn(mockIntegration2);
 
         // When
         McpConfigurationDto result = mcpConfigurationService.createConfiguration(testRequest, "user-123");
@@ -149,9 +160,19 @@ class McpConfigurationServiceTest {
         when(mcpConfigurationRepository.save(any(McpConfiguration.class)))
                 .thenReturn(testConfiguration);
 
-        // Mock integration validation
-        doNothing().when(integrationService).getIntegrationById("integration-1", "user-123", false);
-        doNothing().when(integrationService).getIntegrationById("integration-2", "user-123", false);
+        // Mock integration validation - create mock DTOs to return
+        IntegrationDto mockIntegration1 = new IntegrationDto();
+        mockIntegration1.setId("integration-1");
+        mockIntegration1.setName("Test Integration 1");
+        
+        IntegrationDto mockIntegration2 = new IntegrationDto();
+        mockIntegration2.setId("integration-2");
+        mockIntegration2.setName("Test Integration 2");
+        
+        when(integrationService.getIntegrationById("integration-1", "user-123", false))
+                .thenReturn(mockIntegration1);
+        when(integrationService.getIntegrationById("integration-2", "user-123", false))
+                .thenReturn(mockIntegration2);
 
         // When
         McpConfigurationDto result = mcpConfigurationService.updateConfiguration(

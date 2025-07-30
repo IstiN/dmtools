@@ -28,14 +28,14 @@ public class HealthControllerTest {
 
     @Test
     void health_ShouldReturnOK() throws Exception {
-        mockMvc.perform(get("/health"))
+        mockMvc.perform(get("/api/health/health"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("OK"));
     }
 
     @Test
     void appEngineHealth_ShouldReturnOK() throws Exception {
-        mockMvc.perform(get("/_ah/health"))
+        mockMvc.perform(get("/api/health/_ah/health"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("OK"));
     }
