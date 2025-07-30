@@ -16,7 +16,7 @@ public class AtlassianRestClientTest {
 
     @Before
     public void setUp() throws IOException {
-        atlassianRestClient = spy(new AtlassianRestClient("http://example.com", "Bearer token") {
+        atlassianRestClient = spy(new AtlassianRestClient("http://example.com", "token") {
             @Override
             public String path(String path) {
                 return "";
@@ -30,7 +30,7 @@ public class AtlassianRestClientTest {
         Request.Builder signedBuilder = atlassianRestClient.sign(builder);
 
         assertNotNull(signedBuilder);
-        assertEquals("Bearer token", signedBuilder.build().header("Authorization"));
+        assertEquals("Basic token", signedBuilder.build().header("Authorization"));
         assertEquals("nocheck", signedBuilder.build().header("X-Atlassian-Token"));
         assertEquals("application/json", signedBuilder.build().header("Content-Type"));
     }
