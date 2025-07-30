@@ -89,6 +89,7 @@ public class JiraClientTest {
     public void testAddLabelIfNotExists() throws IOException {
         ITicket mockTicket = mock(ITicket.class);
         when(mockTicket.getTicketLabels()).thenReturn(new JSONArray());
+        when(mockTicket.getKey()).thenReturn("PROJECT-123");
 
         JiraClient<Ticket> spyClient = spy(jiraClient);
         doNothing().when(spyClient).log(anyString());
