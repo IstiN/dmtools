@@ -218,7 +218,8 @@ task integrationTest(type: Test) {
     }
 }
 
-check.dependsOn integrationTest
+// Removed check.dependsOn integrationTest to prevent integration tests from running during fat jar build
+// Integration tests can still be run explicitly with: ./gradlew :dmtools-core:integrationTest
 
 publishing {
     publications {
