@@ -11,6 +11,7 @@ import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
+import com.github.istin.dmtools.figma.FigmaClient;
 import com.github.istin.dmtools.server.util.IntegrationConfigMapper;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -21,6 +22,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.BufferedInputStream;
+import java.nio.file.Files;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -294,17 +300,23 @@ public class DynamicMCPController {
             // Execute tools with custom logic for server-managed integrations
             Object result = executeServerManagedTool(toolName, argumentsMap, clientInstances);
             
-            // Convert result to string for response
-            String resultText = (result != null) ? result.toString() : "Tool executed successfully but returned no result.";
+            // Process result based on type - handle File objects specially for MCP protocol
+            JSONObject response;
+            if (result instanceof File) {
+                response = handleFileResult(emitter, id, (File) result);
+            } else {
+                // Convert result to string for text response
+                String resultText = (result != null) ? result.toString() : "Tool executed successfully but returned no result.";
 
-            JSONObject response = new JSONObject()
-                    .put("jsonrpc", "2.0")
-                    .put("id", id)
-                    .put("result", new JSONObject()
-                            .put("content", new JSONArray()
-                                    .put(new JSONObject()
-                                            .put("type", "text")
-                                            .put("text", resultText))));
+                response = new JSONObject()
+                        .put("jsonrpc", "2.0")
+                        .put("id", id)
+                        .put("result", new JSONObject()
+                                .put("content", new JSONArray()
+                                        .put(new JSONObject()
+                                                .put("type", "text")
+                                                .put("text", resultText))));
+            }
 
             logger.info("Sending tool execution result for: {}", toolName);
             sendSseEvent(emitter, response.toString());
@@ -439,6 +451,17 @@ public class DynamicMCPController {
                 logger.error("Failed to create Confluence client: {}", e.getMessage());
             }
         }
+
+        // Create Figma client if available
+        if (resolvedIntegrations.has("figma")) {
+            try {
+                FigmaClient figmaClient = integrationsModule.provideFigmaClient();
+                clientInstances.put("figma", figmaClient);
+                logger.info("Created Figma client instance");
+            } catch (Exception e) {
+                logger.error("Failed to create Figma client: {}", e.getMessage());
+            }
+        }
         
         return clientInstances;
     }
@@ -505,6 +528,106 @@ public class DynamicMCPController {
             sendSseEvent(emitter, response.toString());
         } catch (Exception e) {
             logger.error("Failed to send error", e);
+        }
+    }
+
+    /**
+     * Handles File objects by converting them to base64 content for MCP protocol compliance.
+     * Uses memory-efficient streaming encoding for large files.
+     */
+    private JSONObject handleFileResult(SseEmitter emitter, Object id, File file) throws Exception {
+        logger.info("Processing File result: {} (size: {} bytes)", file.getName(), file.length());
+        
+        // Check file size limits (protect against very large files)
+        final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
+        if (file.length() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("File too large for MCP transmission: " + file.length() + " bytes (max: " + MAX_FILE_SIZE + ")");
+        }
+        
+        String base64Content;
+        String mimeType = determineMimeType(file);
+        
+        try {
+            // For small files (< 10MB), read directly
+            if (file.length() < 10 * 1024 * 1024) {
+                base64Content = Base64.getEncoder().encodeToString(Files.readAllBytes(file.toPath()));
+            } else {
+                // For large files, use streaming approach
+                base64Content = encodeFileToBase64Streaming(file);
+            }
+            
+            logger.info("Successfully encoded file {} to base64 (original: {} bytes, encoded length: {} chars)", 
+                file.getName(), file.length(), base64Content.length());
+            
+        } catch (Exception e) {
+            logger.error("Failed to encode file {} to base64: {}", file.getName(), e.getMessage(), e);
+            throw new RuntimeException("Failed to encode file to base64: " + e.getMessage(), e);
+        } finally {
+            // Clean up the temporary file immediately after encoding
+            try {
+                if (file.delete()) {
+                    logger.debug("Successfully deleted temporary file: {}", file.getName());
+                } else {
+                    logger.warn("Failed to delete temporary file: {}", file.getName());
+                }
+            } catch (Exception e) {
+                logger.warn("Error deleting temporary file {}: {}", file.getName(), e.getMessage());
+            }
+        }
+        
+        // Return MCP-compliant JSON response with embedded file content
+        return new JSONObject()
+                .put("jsonrpc", "2.0")
+                .put("id", id)
+                .put("result", new JSONObject()
+                        .put("content", new JSONArray()
+                                .put(new JSONObject()
+                                        .put("type", "file")
+                                        .put("content", base64Content)
+                                        .put("filename", file.getName())
+                                        .put("mimeType", mimeType))));
+    }
+    
+    /**
+     * Encodes a file to base64 using streaming approach for memory efficiency.
+     * Processes file in 8KB chunks to minimize memory usage.
+     */
+    private String encodeFileToBase64Streaming(File file) throws IOException {
+        final int BUFFER_SIZE = 8192; // 8KB chunks
+        StringBuilder base64Builder = new StringBuilder();
+        
+        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file), BUFFER_SIZE)) {
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int bytesRead;
+            
+            while ((bytesRead = bis.read(buffer)) != -1) {
+                // Encode each chunk separately
+                byte[] chunk = new byte[bytesRead];
+                System.arraycopy(buffer, 0, chunk, 0, bytesRead);
+                base64Builder.append(Base64.getEncoder().encodeToString(chunk));
+            }
+        }
+        
+        return base64Builder.toString();
+    }
+    
+    /**
+     * Determines MIME type for the file based on extension.
+     */
+    private String determineMimeType(File file) {
+        String fileName = file.getName().toLowerCase();
+        if (fileName.endsWith(".png")) {
+            return "image/png";
+        } else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
+            return "image/jpeg";
+        } else if (fileName.endsWith(".gif")) {
+            return "image/gif";
+        } else if (fileName.endsWith(".svg")) {
+            return "image/svg+xml";
+        } else if (fileName.endsWith(".pdf")) {
+            return "application/pdf";
+        } else {
+            return "application/octet-stream";
         }
     }
 } 
