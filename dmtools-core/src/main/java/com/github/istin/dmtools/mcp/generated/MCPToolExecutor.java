@@ -120,6 +120,10 @@ public class MCPToolExecutor {
                 return executeConfluenceFindOrCreate(arguments, clientInstances.get("confluence"));
             case "confluence_content_by_title":
                 return executeConfluenceContentByTitle(arguments, clientInstances.get("confluence"));
+            case "figma_download_image_file":
+                return executeFigmaDownloadImageFile(arguments, clientInstances.get("figma"));
+            case "figma_get_screen_source":
+                return executeFigmaGetScreenSource(arguments, clientInstances.get("figma"));
             default:
                 throw new IllegalArgumentException("Unknown tool: " + toolName);
         }
@@ -776,6 +780,24 @@ public class MCPToolExecutor {
             throw new IllegalArgumentException("Required parameter 'title' is missing");
         }
         return client.content(title);
+    }
+
+    private static Object executeFigmaDownloadImageFile(Map<String, Object> args, Object clientInstance) throws Exception {
+        com.github.istin.dmtools.figma.FigmaClient client = (com.github.istin.dmtools.figma.FigmaClient) clientInstance;
+        java.lang.String href = convertParameter(args.get("href"), "java.lang.String", "href");
+        if (href == null) {
+            throw new IllegalArgumentException("Required parameter 'href' is missing");
+        }
+        return client.convertUrlToFile(href);
+    }
+
+    private static Object executeFigmaGetScreenSource(Map<String, Object> args, Object clientInstance) throws Exception {
+        com.github.istin.dmtools.figma.FigmaClient client = (com.github.istin.dmtools.figma.FigmaClient) clientInstance;
+        java.lang.String url = convertParameter(args.get("url"), "java.lang.String", "url");
+        if (url == null) {
+            throw new IllegalArgumentException("Required parameter 'url' is missing");
+        }
+        return client.getImageOfSource(url);
     }
 
     @SuppressWarnings("unchecked")
