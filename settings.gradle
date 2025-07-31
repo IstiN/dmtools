@@ -1,5 +1,5 @@
 include 'dmtools-core', 'dmtools-server'
 
-// MCP submodules (for development mode - JitPack will use committed generated code)
-include ':dmtools-core:mcp-processor'
-include ':dmtools-core:mcp-annotations'
+// MCP submodules (commented out - classes now bundled in dmtools-core for JitPack)
+// include ':dmtools-core:mcp-processor'
+// include ':dmtools-core:mcp-annotations'
