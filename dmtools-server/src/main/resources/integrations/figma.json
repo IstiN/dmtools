@@ -4,6 +4,7 @@
   "descriptionKey": "integration.figma.description",
   "iconUrl": "/img/integrations/figma-icon.svg",
   "categories": ["Design"],
+  "supportsMcp": true,
   "setupDocumentation": {
     "en": "/docs/integrations/figma_setup_en.md",
     "ru": "/docs/integrations/figma_setup_ru.md"
