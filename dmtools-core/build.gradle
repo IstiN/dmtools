@@ -112,9 +112,8 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'
     
-    // MCP Tools annotation processor
-    annotationProcessor project(':dmtools-core:mcp-processor')
-    api project(':dmtools-core:mcp-annotations')
+    // MCP Tools dependencies (all classes now bundled in main source)
+    // No external dependencies needed - annotations and generated classes are included
     
     // Basic Spring dependencies (NOT server dependencies - those go in dmtools-server)
     api 'com.google.code.gson:gson:2.10.1'
