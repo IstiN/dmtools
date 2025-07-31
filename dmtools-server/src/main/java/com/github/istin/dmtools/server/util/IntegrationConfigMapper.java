@@ -58,6 +58,10 @@ public class IntegrationConfigMapper {
                 mapGeminiIntegration(config, params);
                 break;
                 
+            case "figma":
+                mapFigmaIntegration(config, params);
+                break;
+                
             default:
                 logger.warn("Unknown integration type: {}", integrationDto.getType());
                 break;
@@ -252,6 +256,43 @@ public class IntegrationConfigMapper {
         } else if (params.containsKey("GEMINI_BASE_PATH")) {
             config.put("basePath", params.get("GEMINI_BASE_PATH"));
             logger.info("  ✅ Mapped 'GEMINI_BASE_PATH' to 'basePath': {}", params.get("GEMINI_BASE_PATH"));
+        }
+    }
+
+    private static void mapFigmaIntegration(JSONObject config, Map<String, String> params) {
+        logger.info("🔍 Processing Figma integration mapping...");
+        
+        // Map Figma base path
+        if (params.containsKey("FIGMA_BASE_PATH")) {
+            config.put("FIGMA_BASE_PATH", params.get("FIGMA_BASE_PATH"));
+            logger.info("  ✅ Mapped 'FIGMA_BASE_PATH' parameter: {}", params.get("FIGMA_BASE_PATH"));
+        } else if (params.containsKey("basePath")) {
+            config.put("FIGMA_BASE_PATH", params.get("basePath"));
+            logger.info("  ✅ Mapped 'basePath' to 'FIGMA_BASE_PATH': {}", params.get("basePath"));
+        } else if (params.containsKey("url")) {
+            config.put("FIGMA_BASE_PATH", params.get("url"));
+            logger.info("  ✅ Mapped 'url' to 'FIGMA_BASE_PATH': {}", params.get("url"));
+        } else {
+            // Set default Figma API base path
+            config.put("FIGMA_BASE_PATH", "https://api.figma.com");
+            logger.info("  ✅ Set default 'FIGMA_BASE_PATH': https://api.figma.com");
+        }
+        
+        // Map Figma token
+        if (params.containsKey("FIGMA_TOKEN")) {
+            config.put("FIGMA_TOKEN", params.get("FIGMA_TOKEN"));
+            logger.info("  ✅ Mapped 'FIGMA_TOKEN' parameter: [SENSITIVE]");
+        } else if (params.containsKey("token")) {
+            config.put("FIGMA_TOKEN", params.get("token"));
+            logger.info("  ✅ Mapped 'token' to 'FIGMA_TOKEN': [SENSITIVE]");
+        } else if (params.containsKey("apiKey")) {
+            config.put("FIGMA_TOKEN", params.get("apiKey"));
+            logger.info("  ✅ Mapped 'apiKey' to 'FIGMA_TOKEN': [SENSITIVE]");
+        } else if (params.containsKey("FIGMA_API_KEY")) {
+            config.put("FIGMA_TOKEN", params.get("FIGMA_API_KEY"));
+            logger.info("  ✅ Mapped 'FIGMA_API_KEY' to 'FIGMA_TOKEN': [SENSITIVE]");
+        } else {
+            logger.warn("  ⚠️  No token parameter found for Figma integration");
         }
     }
 } 
