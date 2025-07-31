@@ -69,6 +69,11 @@ public class MCPSchemaGenerator {
             tools.add(createJiraLinkIssuesTool());
         }
 
+        if (userIntegrations.contains("figma")) {
+            tools.add(createFigmaDownloadImageFileTool());
+            tools.add(createFigmaGetScreenSourceTool());
+        }
+
         return Map.of("tools", tools);
     }
 
@@ -1280,6 +1285,44 @@ public class MCPSchemaGenerator {
         return Map.of(
             "name", "confluence_content_by_title",
             "description", "Get Confluence content by title in the default space. Returns content result with metadata and body information.",
+            "inputSchema", Map.of(
+                "type", "object",
+                "properties", properties,
+                "required", required
+            )
+        );
+    }
+
+    private static Map<String, Object> createFigmaDownloadImageFileTool() {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("href", Map.of(
+            "type", "string",
+            "description", "Figma design URL to download as image file"
+        ));
+        List<String> required = Arrays.asList(
+"href");
+        return Map.of(
+            "name", "figma_download_image_file",
+            "description", "Download image by URL as File type. Converts Figma design URL to downloadable image file.",
+            "inputSchema", Map.of(
+                "type", "object",
+                "properties", properties,
+                "required", required
+            )
+        );
+    }
+
+    private static Map<String, Object> createFigmaGetScreenSourceTool() {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("url", Map.of(
+            "type", "string",
+            "description", "Figma design URL with node-id parameter"
+        ));
+        List<String> required = Arrays.asList(
+"url");
+        return Map.of(
+            "name", "figma_get_screen_source",
+            "description", "Get screen source content by URL. Returns the image URL for the specified Figma design node.",
             "inputSchema", Map.of(
                 "type", "object",
                 "properties", properties,
