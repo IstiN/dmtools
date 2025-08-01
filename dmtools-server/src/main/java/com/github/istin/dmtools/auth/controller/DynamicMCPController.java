@@ -4,15 +4,13 @@ import com.github.istin.dmtools.auth.service.IntegrationService;
 import com.github.istin.dmtools.auth.service.McpConfigurationService;
 import com.github.istin.dmtools.auth.model.McpConfiguration;
 import com.github.istin.dmtools.dto.IntegrationDto;
-import com.github.istin.dmtools.dto.IntegrationConfigDto;
 import com.github.istin.dmtools.mcp.generated.MCPSchemaGenerator;
 import com.github.istin.dmtools.mcp.generated.MCPToolExecutor;
 import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
-import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
-import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.figma.FigmaClient;
 import com.github.istin.dmtools.server.util.IntegrationConfigMapper;
+import com.github.istin.dmtools.server.service.FileDownloadService;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -21,19 +19,16 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.io.IOException;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.BufferedInputStream;
-import java.nio.file.Files;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import java.util.ArrayList;
 
 @RestController
@@ -44,14 +39,16 @@ public class DynamicMCPController {
 
     private final McpConfigurationService mcpConfigurationService;
     private final IntegrationService integrationService;
+    private final FileDownloadService fileDownloadService;
 
-    public DynamicMCPController(McpConfigurationService mcpConfigurationService, IntegrationService integrationService) {
+    public DynamicMCPController(McpConfigurationService mcpConfigurationService, IntegrationService integrationService, FileDownloadService fileDownloadService) {
         this.mcpConfigurationService = mcpConfigurationService;
         this.integrationService = integrationService;
+        this.fileDownloadService = fileDownloadService;
     }
 
     @PostMapping(value = "/stream/{configId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter mcpStream(@PathVariable String configId, @RequestBody String body) {
+    public SseEmitter mcpStream(@PathVariable String configId, @RequestBody String body, HttpServletRequest request) {
         logger.info("===== MCP Request for configId: {} =====", configId);
         logger.info("Request body: {}", body);
 
@@ -92,16 +89,16 @@ public class DynamicMCPController {
         // Process request asynchronously with pre-loaded data
         CompletableFuture.runAsync(() -> {
             try {
-                JSONObject request = new JSONObject(body);
-                String method = request.getString("method");
-                Object id = request.opt("id");
+                JSONObject requestJson = new JSONObject(body);
+                String method = requestJson.getString("method");
+                Object id = requestJson.opt("id");
 
                 logger.info("Processing method: {} with id: {}", method, id);
 
                 // Handle different MCP methods
                 switch (method) {
                     case "initialize":
-                        handleInitialize(emitter, id, request.optJSONObject("params"));
+                        handleInitialize(emitter, id, requestJson.optJSONObject("params"));
                         break;
 
                     case "tools/list":
@@ -109,7 +106,7 @@ public class DynamicMCPController {
                         break;
 
                     case "tools/call":
-                        handleToolCall(emitter, id, request.optJSONObject("params"), configId, userId, integrationIds);
+                        handleToolCall(emitter, id, requestJson.optJSONObject("params"), configId, userId, integrationIds, request);
                         break;
 
                     case "notifications/initialized":
@@ -175,58 +172,43 @@ public class DynamicMCPController {
 
     private void handleToolsList(SseEmitter emitter, Object id, String configId, String userId, List<String> integrationIds) throws Exception {
         // Check if we have valid MCP configuration
-        if (userId == null || integrationIds == null) {
-            logger.warn("Could not find MCP configuration for configId: {}. Using hello world tool as fallback", configId);
-            // Fallback to hello world tool if no configuration found
-            JSONArray tools = getHelloWorldTool();
-            
-            JSONObject response = new JSONObject()
-                    .put("jsonrpc", "2.0")
-                    .put("id", id)
-                    .put("result", new JSONObject()
-                            .put("tools", tools));
-
-            logger.info("Sending tools/list response with {} fallback tools", tools.length());
-            sendSseEvent(emitter, response.toString());
+        if (userId == null || integrationIds == null || integrationIds.isEmpty()) {
+            logger.error("No valid MCP configuration found for configId: {}", configId);
+            sendError(emitter, id, -32602, "Invalid MCP configuration: No valid configuration found for configId " + configId);
             return;
         }
         
         logger.info("MCP Configuration {} has integration IDs: {} for user: {}", configId, integrationIds, userId);
 
         JSONArray tools;
-        if (integrationIds.isEmpty()) {
-            logger.warn("No integrations configured for MCP config {}, using hello world tool as fallback", configId);
-            // Fallback to hello world tool if no integrations configured
-            tools = getHelloWorldTool();
+        // Get integration types for the configured integration IDs
+        Set<String> configuredIntegrationTypes = new HashSet<>();
+        for (String integrationId : integrationIds) {
+            try {
+                IntegrationDto integrationDto = integrationService.getIntegrationById(integrationId, userId, false);
+                configuredIntegrationTypes.add(integrationDto.getType());
+                logger.debug("Resolved integration ID {} to type: {}", integrationId, integrationDto.getType());
+            } catch (Exception e) {
+                logger.error("Failed to resolve integration ID {}: {}", integrationId, e.getMessage());
+            }
+        }
+
+        logger.info("MCP Configuration {} has integration types: {}", configId, configuredIntegrationTypes);
+
+        if (configuredIntegrationTypes.isEmpty()) {
+            logger.error("No valid integrations found for MCP config {}", configId);
+            sendError(emitter, id, -32602, "Invalid MCP configuration: No valid integrations found for configId " + configId);
+            return;
         } else {
-            // Get integration types for the configured integration IDs
-            Set<String> configuredIntegrationTypes = new HashSet<>();
-            for (String integrationId : integrationIds) {
-                try {
-                    IntegrationDto integrationDto = integrationService.getIntegrationById(integrationId, userId, false);
-                    configuredIntegrationTypes.add(integrationDto.getType());
-                    logger.debug("Resolved integration ID {} to type: {}", integrationId, integrationDto.getType());
-                } catch (Exception e) {
-                    logger.error("Failed to resolve integration ID {}: {}", integrationId, e.getMessage());
-                }
-            }
+            // Generate actual tools based on configured integrations only
+            Map<String, Object> toolsList = MCPSchemaGenerator.generateToolsListResponse(configuredIntegrationTypes);
+            List<Map<String, Object>> toolsFromGenerator = (List<Map<String, Object>>) toolsList.get("tools");
 
-            logger.info("MCP Configuration {} has integration types: {}", configId, configuredIntegrationTypes);
-
-            if (configuredIntegrationTypes.isEmpty()) {
-                logger.warn("No valid integrations found for MCP config {}, using hello world tool as fallback", configId);
-                tools = getHelloWorldTool();
-            } else {
-                // Generate actual tools based on configured integrations only
-                Map<String, Object> toolsList = MCPSchemaGenerator.generateToolsListResponse(configuredIntegrationTypes);
-                List<Map<String, Object>> toolsFromGenerator = (List<Map<String, Object>>) toolsList.get("tools");
-                
-                tools = new JSONArray();
-                for (Map<String, Object> tool : toolsFromGenerator) {
-                    tools.put(new JSONObject(tool));
-                }
-                logger.info("Generated {} tools from MCP configuration integrations: {}", tools.length(), configuredIntegrationTypes);
+            tools = new JSONArray();
+            for (Map<String, Object> tool : toolsFromGenerator) {
+                tools.put(new JSONObject(tool));
             }
+            logger.info("Generated {} tools from MCP configuration integrations: {}", tools.length(), configuredIntegrationTypes);
         }
 
         JSONObject response = new JSONObject()
@@ -239,22 +221,7 @@ public class DynamicMCPController {
         sendSseEvent(emitter, response.toString());
     }
 
-    private JSONArray getHelloWorldTool() {
-        return new JSONArray()
-                .put(new JSONObject()
-                        .put("name", "hello_world")
-                        .put("description", "A simple hello world tool (fallback when no integrations available)")
-                        .put("inputSchema", new JSONObject()
-                                .put("type", "object")
-                                .put("properties", new JSONObject()
-                                        .put("name", new JSONObject()
-                                                .put("type", "string")
-                                                .put("description", "Your name")
-                                                .put("default", "World")))
-                                .put("required", new JSONArray())));
-    }
-
-    private void handleToolCall(SseEmitter emitter, Object id, JSONObject params, String configId, String userId, List<String> integrationIds) throws Exception {
+    private void handleToolCall(SseEmitter emitter, Object id, JSONObject params, String configId, String userId, List<String> integrationIds, HttpServletRequest request) throws Exception {
         String toolName = params.optString("name");
         JSONObject arguments = params.optJSONObject("arguments");
 
@@ -268,19 +235,8 @@ public class DynamicMCPController {
 
         // Check if we have valid MCP configuration
         if (userId == null || integrationIds == null || integrationIds.isEmpty()) {
-            logger.warn("No valid MCP configuration found for configId: {}. Falling back to hello world tool.", configId);
-            // Fall back to hello world tool with a message
-            String fallbackMessage = "No MCP configuration found. Please create an MCP configuration with integrations first.";
-            JSONObject response = new JSONObject()
-                    .put("jsonrpc", "2.0")
-                    .put("id", id)
-                    .put("result", new JSONObject()
-                            .put("content", new JSONArray()
-                                    .put(new JSONObject()
-                                            .put("type", "text")
-                                            .put("text", fallbackMessage))));
-            logger.info("Sending fallback response for missing MCP configuration");
-            sendSseEvent(emitter, response.toString());
+            logger.error("No valid MCP configuration found for configId: {}", configId);
+            sendError(emitter, id, -32602, "Invalid MCP configuration: No valid configuration found for configId " + configId);
             return;
         }
 
@@ -303,7 +259,7 @@ public class DynamicMCPController {
             // Process result based on type - handle File objects specially for MCP protocol
             JSONObject response;
             if (result instanceof File) {
-                response = handleFileResult(emitter, id, (File) result);
+                response = handleFileResult(emitter, id, (File) result, request);
             } else {
                 // Convert result to string for text response
                 String resultText = (result != null) ? result.toString() : "Tool executed successfully but returned no result.";
@@ -532,10 +488,10 @@ public class DynamicMCPController {
     }
 
     /**
-     * Handles File objects by converting them to base64 content for MCP protocol compliance.
-     * Uses memory-efficient streaming encoding for large files.
+     * Handles File objects by creating a secure one-time download URL.
+     * Returns a download URL that expires in 15 minutes and can only be used once.
      */
-    private JSONObject handleFileResult(SseEmitter emitter, Object id, File file) throws Exception {
+    private JSONObject handleFileResult(SseEmitter emitter, Object id, File file, HttpServletRequest request) throws Exception {
         logger.info("Processing File result: {} (size: {} bytes)", file.getName(), file.length());
         
         // Check file size limits (protect against very large files)
@@ -544,72 +500,51 @@ public class DynamicMCPController {
             throw new IllegalArgumentException("File too large for MCP transmission: " + file.length() + " bytes (max: " + MAX_FILE_SIZE + ")");
         }
         
-        String base64Content;
-        String mimeType = determineMimeType(file);
-        
         try {
-            // For small files (< 10MB), read directly
-            if (file.length() < 10 * 1024 * 1024) {
-                base64Content = Base64.getEncoder().encodeToString(Files.readAllBytes(file.toPath()));
+            // Create a secure one-time download token
+            String downloadToken = fileDownloadService.createDownloadToken(file);
+            
+            // Build full URL using request context
+            String scheme = request.getScheme();
+            String serverName = request.getServerName();
+            int serverPort = request.getServerPort();
+            String contextPath = request.getContextPath();
+            
+            String downloadUrl;
+            if ((scheme.equals("http") && serverPort == 80) || (scheme.equals("https") && serverPort == 443)) {
+                downloadUrl = String.format("%s://%s%s/api/files/download/%s", scheme, serverName, contextPath, downloadToken);
             } else {
-                // For large files, use streaming approach
-                base64Content = encodeFileToBase64Streaming(file);
+                downloadUrl = String.format("%s://%s:%d%s/api/files/download/%s", scheme, serverName, serverPort, contextPath, downloadToken);
             }
             
-            logger.info("Successfully encoded file {} to base64 (original: {} bytes, encoded length: {} chars)", 
-                file.getName(), file.length(), base64Content.length());
+            logger.info("Created secure download URL for file {}: {}", file.getName(), downloadUrl);
+            
+            // Create the file response JSON object
+            JSONObject fileResponse = new JSONObject()
+                    .put("type", "file")
+                    .put("downloadUrl", downloadUrl)
+                    .put("filename", file.getName())
+                    .put("mimeType", determineMimeType(file))
+                    .put("expiresIn", "15 minutes");
+            
+            // Return MCP-compliant JSON response with file response as text
+            return new JSONObject()
+                    .put("jsonrpc", "2.0")
+                    .put("id", id)
+                    .put("result", new JSONObject()
+                            .put("content", new JSONArray()
+                                    .put(new JSONObject()
+                                            .put("type", "text")
+                                            .put("text", fileResponse.toString()))));
             
         } catch (Exception e) {
-            logger.error("Failed to encode file {} to base64: {}", file.getName(), e.getMessage(), e);
-            throw new RuntimeException("Failed to encode file to base64: " + e.getMessage(), e);
-        } finally {
-            // Clean up the temporary file immediately after encoding
-            try {
-                if (file.delete()) {
-                    logger.debug("Successfully deleted temporary file: {}", file.getName());
-                } else {
-                    logger.warn("Failed to delete temporary file: {}", file.getName());
-                }
-            } catch (Exception e) {
-                logger.warn("Error deleting temporary file {}: {}", file.getName(), e.getMessage());
-            }
+            logger.error("Failed to create download URL for file {}: {}", file.getName(), e.getMessage(), e);
+            throw new RuntimeException("Failed to create download URL: " + e.getMessage(), e);
         }
-        
-        // Return MCP-compliant JSON response with embedded file content
-        return new JSONObject()
-                .put("jsonrpc", "2.0")
-                .put("id", id)
-                .put("result", new JSONObject()
-                        .put("content", new JSONArray()
-                                .put(new JSONObject()
-                                        .put("type", "file")
-                                        .put("content", base64Content)
-                                        .put("filename", file.getName())
-                                        .put("mimeType", mimeType))));
+        // Note: File will be cleaned up by FileDownloadService after download or expiration
     }
     
-    /**
-     * Encodes a file to base64 using streaming approach for memory efficiency.
-     * Processes file in 8KB chunks to minimize memory usage.
-     */
-    private String encodeFileToBase64Streaming(File file) throws IOException {
-        final int BUFFER_SIZE = 8192; // 8KB chunks
-        StringBuilder base64Builder = new StringBuilder();
-        
-        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file), BUFFER_SIZE)) {
-            byte[] buffer = new byte[BUFFER_SIZE];
-            int bytesRead;
-            
-            while ((bytesRead = bis.read(buffer)) != -1) {
-                // Encode each chunk separately
-                byte[] chunk = new byte[bytesRead];
-                System.arraycopy(buffer, 0, chunk, 0, bytesRead);
-                base64Builder.append(Base64.getEncoder().encodeToString(chunk));
-            }
-        }
-        
-        return base64Builder.toString();
-    }
+
     
     /**
      * Determines MIME type for the file based on extension.

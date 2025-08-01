@@ -178,6 +178,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/chat/**").permitAll()
                     .requestMatchers("/mcp/config/**").permitAll()  // Allow public access to MCP configurations
                     .requestMatchers("/mcp/stream/**").permitAll()  // Allow public access to MCP SSE streams
+                    .requestMatchers("/api/files/download/**").permitAll()  // Allow public access to file downloads
                     .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
