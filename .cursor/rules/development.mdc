@@ -1,0 +1,31 @@
+---
+alwaysApply: true
+---
+---
+alwaysApply: true
+---
+Before doing everything you must to have ticket for that if that not provided by user.
+1. Follow the https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403281/Issue+Type+Structure to understand how we manage tickets.
+2. Follow the document to understand how we do manage stylegudes: https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403302/Styleguide+Management
+3. If you're creating tickets you MUST follow the templates:
+   1. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665495/Template+Test+Case
+   2. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665485/Template+Story
+      1. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403380/Template+SD+UI
+      2. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403369/Template+SD+API
+      3. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/12877825/Template+SD+CORE
+      4. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665504/Template+Core
+      5. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403405/Template+API
+      6. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665513/Template+UI
+      7. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665581/Template+Q
+      8. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/13565953/Template+Styleguide+Story+and+Subtask
+   3. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665533/Template+Bug
+   4. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11632836/Template+Task
+4. When you need to commit changes you must follow the rules: https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11436325/Branching+and+Commit+Rules
+
+Examples of JQLs: 
+project = DMC and issueType in (epic) - get list of epics
+project = DMC and issueType in (story) and parent in (DMC-100) - get all stories inside epic
+project = DMC and issueType in (subtask) and parent in (DMC-300) - get all subtasks inside story
+project = DMC and issueType in (bug) and parent in (DMC-100) - get all bugs inside epic
+
+Before doing anything with tickets you must understand if that is existing already or not.
