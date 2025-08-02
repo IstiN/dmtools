@@ -41,7 +41,7 @@ public class JobConfiguration {
     
     @Column(nullable = false)
     @Lob
-    private String integrationMappings; // JSON string containing integration ID mappings
+    private String integrationMappings = "{}"; // JSON string containing integration ID mappings
     
     @Column(nullable = false)
     private boolean enabled = true;

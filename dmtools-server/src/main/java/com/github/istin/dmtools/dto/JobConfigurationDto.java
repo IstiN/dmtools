@@ -2,6 +2,7 @@ package com.github.istin.dmtools.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.server.model.JobConfiguration;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -61,13 +62,26 @@ public class JobConfigurationDto {
         
         // Parse JSON strings to JsonNode objects
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            dto.setJobParameters(mapper.readTree(jobConfig.getJobParameters()));
-            dto.setIntegrationMappings(mapper.readTree(jobConfig.getIntegrationMappings()));
+            ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            
+            // Handle jobParameters
+            if (jobConfig.getJobParameters() != null && !jobConfig.getJobParameters().trim().isEmpty()) {
+                dto.setJobParameters(mapper.readTree(jobConfig.getJobParameters()));
+            } else {
+                dto.setJobParameters(mapper.createObjectNode());
+            }
+            
+            // Handle integrationMappings
+            if (jobConfig.getIntegrationMappings() != null && !jobConfig.getIntegrationMappings().trim().isEmpty()) {
+                dto.setIntegrationMappings(mapper.readTree(jobConfig.getIntegrationMappings()));
+            } else {
+                dto.setIntegrationMappings(mapper.createObjectNode());
+            }
         } catch (Exception e) {
-            // If JSON parsing fails, set to null - this shouldn't happen in normal operation
-            dto.setJobParameters(null);
-            dto.setIntegrationMappings(null);
+            // If JSON parsing fails, create empty objects instead of null
+            ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            dto.setJobParameters(mapper.createObjectNode());
+            dto.setIntegrationMappings(mapper.createObjectNode());
         }
         
         return dto;
