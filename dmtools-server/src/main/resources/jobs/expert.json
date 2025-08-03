@@ -468,5 +468,19 @@
         "false"
       ]
     }
+  ],
+  "webhookExamples": [
+    {
+      "name": "jira automation",
+      "template": "## Jira Automation Webhook\n\nUse this webhook in Jira automation rules to trigger AI expert analysis:\n\n```json\n{\n  \"method\": \"POST\",\n  \"url\": \"{{webhook_url}}\",\n  \"headers\": {\n    \"X-API-Key\": \"{{api_key}}\",\n    \"Content-Type\": \"application/json\"\n  },\n  \"body\": {\n    \"jobParameters\": {\n      \"request\": \"Analyze this ticket for technical implementation approach\",\n      \"inputJql\": \"key = {{issue.key}}\",\n      \"initiator\": \"{{initiator.emailAddress}}\"\n    }\n  }\n}\n```"
+    },
+    {
+      "name": "github actions",
+      "template": "## GitHub Actions Workflow\n\nAdd this step to your GitHub Actions workflow:\n\n```yaml\n- name: Trigger Expert Analysis\n  uses: fjogeleit/http-request-action@v1\n  with:\n    url: '{{webhook_url}}'\n    method: 'POST'\n    customHeaders: '{\n      \"X-API-Key\": \"{{api_key}}\",\n      \"Content-Type\": \"application/json\"\n    }'\n    data: '{\n      \"jobParameters\": {\n        \"request\": \"Review code changes and provide recommendations\",\n        \"inputJql\": \"project = {{project.key}} AND created >= -1d\",\n        \"initiator\": \"${{ github.actor }}\"\n      }\n    }'\n```"
+    },
+    {
+      "name": "curl command",
+      "template": "## cURL Command\n\nExecute expert analysis from command line:\n\n```bash\ncurl -X POST \"{{webhook_url}}\" \\\n  -H \"X-API-Key: {{api_key}}\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"jobParameters\": {\n      \"request\": \"Analyze this ticket for security implications\",\n      \"inputJql\": \"key = {{issue.key}}\",\n      \"initiator\": \"{{userInputs.field}}\"\n    }\n  }'\n```"
+    }
   ]
 } 

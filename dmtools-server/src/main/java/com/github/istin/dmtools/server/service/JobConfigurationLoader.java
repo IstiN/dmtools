@@ -224,6 +224,16 @@ public class JobConfigurationLoader {
         return config.getRequiredIntegrations() != null ? config.getRequiredIntegrations() : new ArrayList<>();
     }
     
+    /**
+     * Get the raw job type configuration by type.
+     * 
+     * @param type The job type name
+     * @return The job type configuration or null if not found
+     */
+    public JobTypeConfig getConfigurationByType(String type) {
+        return configurations.get(type);
+    }
+    
     private JobTypeDto convertToDto(JobTypeConfig config, String locale) {
         JobTypeDto dto = new JobTypeDto();
         dto.setType(config.getType());
