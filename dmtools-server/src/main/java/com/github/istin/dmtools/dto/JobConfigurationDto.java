@@ -62,7 +62,8 @@ public class JobConfigurationDto {
         
         // Parse JSON strings to JsonNode objects
         try {
-            ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            // Use static ObjectMapper instance to avoid Spring context issues
+            ObjectMapper mapper = getObjectMapper();
             
             // Handle jobParameters
             if (jobConfig.getJobParameters() != null && !jobConfig.getJobParameters().trim().isEmpty()) {
@@ -79,11 +80,20 @@ public class JobConfigurationDto {
             }
         } catch (Exception e) {
             // If JSON parsing fails, create empty objects instead of null
-            ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            ObjectMapper mapper = getObjectMapper();
             dto.setJobParameters(mapper.createObjectNode());
             dto.setIntegrationMappings(mapper.createObjectNode());
         }
         
         return dto;
     }
+    
+    /**
+     * Get a static ObjectMapper instance to avoid Spring context issues
+     */
+    private static ObjectMapper getObjectMapper() {
+        return OBJECT_MAPPER_INSTANCE;
+    }
+    
+    private static final ObjectMapper OBJECT_MAPPER_INSTANCE = new com.fasterxml.jackson.databind.ObjectMapper();
 } 
