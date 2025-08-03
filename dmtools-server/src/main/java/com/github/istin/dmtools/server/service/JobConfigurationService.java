@@ -81,7 +81,7 @@ public class JobConfigurationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        return jobConfigRepository.findByIdAndCreatedBy(jobConfigId, user)
+        return jobConfigRepository.findByIdAndCreatedByWithUser(jobConfigId, user)
                 .map(JobConfigurationDto::fromEntity);
     }
 
