@@ -51,9 +51,22 @@ public class JobConfigurationDto {
         dto.setName(jobConfig.getName());
         dto.setDescription(jobConfig.getDescription());
         dto.setJobType(jobConfig.getJobType());
-        dto.setCreatedById(jobConfig.getCreatedBy().getId());
-        dto.setCreatedByName(jobConfig.getCreatedBy().getName());
-        dto.setCreatedByEmail(jobConfig.getCreatedBy().getEmail());
+        
+        // Handle User entity safely to avoid LazyInitializationException
+        try {
+            if (jobConfig.getCreatedBy() != null) {
+                dto.setCreatedById(jobConfig.getCreatedBy().getId());
+                dto.setCreatedByName(jobConfig.getCreatedBy().getName());
+                dto.setCreatedByEmail(jobConfig.getCreatedBy().getEmail());
+            }
+        } catch (Exception e) {
+            System.err.println("ERROR accessing User entity: " + e.getMessage());
+            // Set defaults if User entity cannot be accessed
+            dto.setCreatedById("unknown");
+            dto.setCreatedByName("Unknown User");
+            dto.setCreatedByEmail("unknown@example.com");
+        }
+        
         dto.setEnabled(jobConfig.isEnabled());
         dto.setExecutionCount(jobConfig.getExecutionCount());
         dto.setCreatedAt(jobConfig.getCreatedAt());
