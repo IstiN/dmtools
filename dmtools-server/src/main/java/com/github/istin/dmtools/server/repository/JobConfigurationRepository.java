@@ -44,6 +44,12 @@ public interface JobConfigurationRepository extends JpaRepository<JobConfigurati
     Optional<JobConfiguration> findByIdAndCreatedBy(String id, User user);
     
     /**
+     * Find job configuration by ID and creator with User entity eagerly loaded
+     */
+    @Query("SELECT jc FROM JobConfiguration jc JOIN FETCH jc.createdBy WHERE jc.id = :id AND jc.createdBy = :user")
+    Optional<JobConfiguration> findByIdAndCreatedByWithUser(@Param("id") String id, @Param("user") User user);
+    
+    /**
      * Find job configurations accessible to a user (created by user)
      * Note: Currently only creator has access, but this can be extended for sharing
      */

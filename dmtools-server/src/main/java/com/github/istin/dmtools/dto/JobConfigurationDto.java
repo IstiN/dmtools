@@ -52,19 +52,11 @@ public class JobConfigurationDto {
         dto.setDescription(jobConfig.getDescription());
         dto.setJobType(jobConfig.getJobType());
         
-        // Handle User entity safely to avoid LazyInitializationException
-        try {
-            if (jobConfig.getCreatedBy() != null) {
-                dto.setCreatedById(jobConfig.getCreatedBy().getId());
-                dto.setCreatedByName(jobConfig.getCreatedBy().getName());
-                dto.setCreatedByEmail(jobConfig.getCreatedBy().getEmail());
-            }
-        } catch (Exception e) {
-            System.err.println("ERROR accessing User entity: " + e.getMessage());
-            // Set defaults if User entity cannot be accessed
-            dto.setCreatedById("unknown");
-            dto.setCreatedByName("Unknown User");
-            dto.setCreatedByEmail("unknown@example.com");
+        // Set User entity fields (now eagerly loaded via JOIN FETCH)
+        if (jobConfig.getCreatedBy() != null) {
+            dto.setCreatedById(jobConfig.getCreatedBy().getId());
+            dto.setCreatedByName(jobConfig.getCreatedBy().getName());
+            dto.setCreatedByEmail(jobConfig.getCreatedBy().getEmail());
         }
         
         dto.setEnabled(jobConfig.isEnabled());
@@ -77,11 +69,6 @@ public class JobConfigurationDto {
         try {
             // Use static ObjectMapper instance to avoid Spring context issues
             ObjectMapper mapper = getObjectMapper();
-            
-            // Debug logging
-            System.err.println("DEBUG: Processing job config ID: " + jobConfig.getId());
-            System.err.println("DEBUG: jobParameters raw: " + jobConfig.getJobParameters());
-            System.err.println("DEBUG: integrationMappings raw: " + jobConfig.getIntegrationMappings());
             
             // Handle jobParameters
             if (jobConfig.getJobParameters() != null && !jobConfig.getJobParameters().trim().isEmpty()) {
@@ -98,9 +85,6 @@ public class JobConfigurationDto {
             }
         } catch (Exception e) {
             // If JSON parsing fails, create empty objects instead of null
-            // Log the error for debugging
-            System.err.println("ERROR in JobConfigurationDto.fromEntity: " + e.getMessage());
-            e.printStackTrace();
             ObjectMapper mapper = getObjectMapper();
             dto.setJobParameters(mapper.createObjectNode());
             dto.setIntegrationMappings(mapper.createObjectNode());
