@@ -24,6 +24,7 @@ public class JobTypeConfig {
     private List<ConfigParamConfig> configParams;
     private Map<String, String> setupDocumentation;
     private boolean hidden = false; // Default to visible
+    private List<WebhookExampleConfig> webhookExamples;
 
     public JobTypeConfig() {
     }
@@ -145,6 +146,14 @@ public class JobTypeConfig {
 
     public void setHidden(boolean hidden) {
         this.hidden = hidden;
+    }
+
+    public List<WebhookExampleConfig> getWebhookExamples() {
+        return webhookExamples;
+    }
+
+    public void setWebhookExamples(List<WebhookExampleConfig> webhookExamples) {
+        this.webhookExamples = webhookExamples;
     }
 
     /**
@@ -390,6 +399,39 @@ public class JobTypeConfig {
 
         public void setLabelKey(String labelKey) {
             this.labelKey = labelKey;
+        }
+    }
+
+    /**
+     * Configuration for webhook examples.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class WebhookExampleConfig {
+        private String name;
+        private String template;
+
+        public WebhookExampleConfig() {
+        }
+
+        public WebhookExampleConfig(String name, String template) {
+            this.name = name;
+            this.template = template;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getTemplate() {
+            return template;
+        }
+
+        public void setTemplate(String template) {
+            this.template = template;
         }
     }
 } 

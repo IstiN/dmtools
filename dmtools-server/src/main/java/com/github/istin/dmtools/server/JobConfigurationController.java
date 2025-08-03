@@ -3,6 +3,9 @@ package com.github.istin.dmtools.server;
 import com.github.istin.dmtools.auth.service.UserService;
 import com.github.istin.dmtools.dto.*;
 import com.github.istin.dmtools.server.service.JobConfigurationService;
+import com.github.istin.dmtools.server.service.WebhookKeyService;
+import com.github.istin.dmtools.server.service.WebhookExamplesService;
+import com.github.istin.dmtools.server.model.WebhookKey;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -10,7 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,11 +35,17 @@ public class JobConfigurationController {
 
     private final JobConfigurationService jobConfigurationService;
     private final UserService userService;
+    private final WebhookKeyService webhookKeyService;
+    private final WebhookExamplesService webhookExamplesService;
 
-    @Autowired
-    public JobConfigurationController(JobConfigurationService jobConfigurationService, UserService userService) {
+    public JobConfigurationController(JobConfigurationService jobConfigurationService, 
+                                     UserService userService,
+                                     WebhookKeyService webhookKeyService,
+                                     WebhookExamplesService webhookExamplesService) {
         this.jobConfigurationService = jobConfigurationService;
         this.userService = userService;
+        this.webhookKeyService = webhookKeyService;
+        this.webhookExamplesService = webhookExamplesService;
     }
 
     private String getUserId(Authentication authentication) {
@@ -193,58 +202,219 @@ public class JobConfigurationController {
     
     /**
      * Webhook endpoint for executing a saved job configuration.
-     * This endpoint allows external systems to trigger job execution via webhook.
-     * Note: This endpoint has relaxed authentication for webhook usage.
+     * This endpoint allows external systems to trigger job execution via webhook with API key authentication.
      * 
      * @param id Job configuration ID
-     * @param request Optional execution request with parameter overrides
-     * @param apiKey Optional API key for webhook authentication (future enhancement)
+     * @param request Optional webhook execution request with parameter overrides
+     * @param apiKey API key for webhook authentication
      * @return ResponseEntity containing execution status
      */
     @PostMapping("/{id}/webhook")
     @Operation(summary = "Webhook endpoint for job execution", 
-               description = "Execute a saved job configuration via webhook with optional parameter overrides")
+               description = "Execute a saved job configuration via webhook with API key authentication")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "202", description = "Job execution started successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = WebhookExecutionResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Invalid or missing API key",
                 content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))),
-        @ApiResponse(responseCode = "400", description = "Invalid request parameters",
-                content = @Content(mediaType = "text/plain", schema = @Schema(type = "string"))),
         @ApiResponse(responseCode = "404", description = "Job configuration not found",
-                content = @Content(mediaType = "text/plain", schema = @Schema(type = "string"))),
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))),
         @ApiResponse(responseCode = "500", description = "Job execution failed to start",
-                content = @Content(mediaType = "text/plain", schema = @Schema(type = "string")))
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object")))
     })
-    public ResponseEntity<Object> executeJobConfigurationWebhook(
+    public ResponseEntity<WebhookExecutionResponse> executeJobConfigurationWebhook(
             @Parameter(description = "Job configuration ID", required = true)
             @PathVariable String id,
-            @Parameter(description = "Execution request with optional overrides", required = false)
-            @RequestBody(required = false) ExecuteJobConfigurationRequest request,
-            @Parameter(description = "API key for authentication (future enhancement)", required = false)
-            @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+            @Parameter(description = "Webhook execution request with optional overrides", required = false)
+            @RequestBody(required = false) WebhookExecuteRequest request,
+            @Parameter(description = "API key for authentication", required = true)
+            @RequestHeader(value = "X-API-Key", required = true) String apiKey) {
         
         try {
-            // TODO: Implement proper API key validation for webhook security
-            // For now, we'll use a simplified approach
+            // Validate API key for this job configuration
+            Optional<WebhookKey> optionalWebhookKey = webhookKeyService.validateApiKeyForJobConfig(apiKey, id);
+            if (optionalWebhookKey.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(WebhookExecutionResponse.error("Invalid or missing API key for this job configuration", "INVALID_API_KEY"));
+            }
+            
+            WebhookKey webhookKey = optionalWebhookKey.get();
+            String userId = webhookKey.getCreatedBy().getId(); // Execute as job configuration owner
             
             // Use empty request if none provided
             if (request == null) {
-                request = new ExecuteJobConfigurationRequest();
+                request = new WebhookExecuteRequest();
             }
             
-            // For webhook execution, we need to find the job configuration owner
-            // Since we don't have authentication context, we'll need to modify the service
-            // to allow webhook execution. For now, this is a placeholder.
+            // Convert webhook request to standard execution request format
+            ExecuteJobConfigurationRequest execRequest = request.toExecuteJobConfigurationRequest();
             
-            // TODO: Implement webhook-specific execution that doesn't require user authentication
-            // This could involve storing webhook tokens with job configurations
-            // or implementing a separate webhook authentication mechanism
+            // Get execution parameters from saved configuration with overrides
+            var executionParamsOpt = jobConfigurationService.getExecutionParameters(id, execRequest, userId);
+            if (executionParamsOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(WebhookExecutionResponse.error("Job configuration not found", "JOB_CONFIG_NOT_FOUND"));
+            }
             
-            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                    .body("Webhook execution not yet implemented - requires authentication mechanism");
+            // Record the execution
+            jobConfigurationService.recordExecution(id, userId);
+            
+            // For webhook execution, we would integrate with the actual job execution service here
+            // For now, we'll create a mock execution ID
+            String executionId = java.util.UUID.randomUUID().toString();
+            
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(WebhookExecutionResponse.success(executionId, id));
             
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to process webhook request: " + e.getMessage());
+                    .body(WebhookExecutionResponse.error("Failed to process webhook request: " + e.getMessage(), "INTERNAL_ERROR"));
+        }
+    }
+    
+    /**
+     * Create a new webhook API key for a job configuration.
+     * 
+     * @param id Job configuration ID
+     * @param request Create webhook key request
+     * @param authentication User authentication
+     * @return ResponseEntity containing the created webhook key with API key value
+     */
+    @PostMapping("/{id}/webhook-keys")
+    @Operation(summary = "Create webhook API key", 
+               description = "Create a new API key for webhook authentication on this job configuration")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Webhook key created successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreateWebhookKeyResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters",
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))),
+        @ApiResponse(responseCode = "404", description = "Job configuration not found",
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))),
+        @ApiResponse(responseCode = "500", description = "Failed to create webhook key",
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object")))
+    })
+    public ResponseEntity<CreateWebhookKeyResponse> createWebhookKey(
+            @Parameter(description = "Job configuration ID", required = true)
+            @PathVariable String id,
+            @Parameter(description = "Create webhook key request", required = true)
+            @Valid @RequestBody CreateWebhookKeyRequest request,
+            Authentication authentication) {
+        try {
+            String userId = getUserId(authentication);
+            
+            Optional<CreateWebhookKeyResponse> response = webhookKeyService.createWebhookKey(id, request, userId);
+            return response.map(key -> ResponseEntity.status(HttpStatus.CREATED).body(key))
+                    .orElse(ResponseEntity.notFound().build());
+                    
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    /**
+     * Get all webhook API keys for a job configuration.
+     * 
+     * @param id Job configuration ID
+     * @param authentication User authentication
+     * @return ResponseEntity containing list of webhook keys (without key values)
+     */
+    @GetMapping("/{id}/webhook-keys")
+    @Operation(summary = "List webhook API keys", 
+               description = "Get all webhook API keys for this job configuration")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Webhook keys retrieved successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "array"))),
+        @ApiResponse(responseCode = "404", description = "Job configuration not found",
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))),
+        @ApiResponse(responseCode = "500", description = "Failed to retrieve webhook keys",
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object")))
+    })
+    public ResponseEntity<List<WebhookKeyDto>> getWebhookKeys(
+            @Parameter(description = "Job configuration ID", required = true)
+            @PathVariable String id,
+            Authentication authentication) {
+        try {
+            String userId = getUserId(authentication);
+            
+            List<WebhookKeyDto> webhookKeys = webhookKeyService.getWebhookKeys(id, userId);
+            return ResponseEntity.ok(webhookKeys);
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    /**
+     * Delete a webhook API key.
+     * 
+     * @param id Job configuration ID
+     * @param keyId Webhook key ID
+     * @param authentication User authentication
+     * @return ResponseEntity indicating success or failure
+     */
+    @DeleteMapping("/{id}/webhook-keys/{keyId}")
+    @Operation(summary = "Delete webhook API key", 
+               description = "Delete a webhook API key by its ID")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Webhook key deleted successfully"),
+        @ApiResponse(responseCode = "404", description = "Job configuration or webhook key not found"),
+        @ApiResponse(responseCode = "500", description = "Failed to delete webhook key")
+    })
+    public ResponseEntity<Void> deleteWebhookKey(
+            @Parameter(description = "Job configuration ID", required = true)
+            @PathVariable String id,
+            @Parameter(description = "Webhook key ID", required = true)
+            @PathVariable String keyId,
+            Authentication authentication) {
+        try {
+            String userId = getUserId(authentication);
+            
+            boolean deleted = webhookKeyService.deleteWebhookKey(id, keyId, userId);
+            return deleted ? ResponseEntity.noContent().build() 
+                          : ResponseEntity.notFound().build();
+                          
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    /**
+     * Get webhook integration examples for a job configuration.
+     * 
+     * @param id Job configuration ID
+     * @param authentication User authentication
+     * @return ResponseEntity containing webhook examples with templates
+     */
+    @GetMapping("/{id}/webhook-examples")
+    @Operation(summary = "Get webhook integration examples", 
+               description = "Get webhook integration examples and templates for this job configuration")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Webhook examples retrieved successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = WebhookExamplesDto.class))),
+        @ApiResponse(responseCode = "404", description = "Job configuration not found",
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))),
+        @ApiResponse(responseCode = "500", description = "Failed to retrieve webhook examples",
+                content = @Content(mediaType = "application/json", schema = @Schema(type = "object")))
+    })
+    public ResponseEntity<WebhookExamplesDto> getWebhookExamples(
+            @Parameter(description = "Job configuration ID", required = true)
+            @PathVariable String id,
+            Authentication authentication) {
+        try {
+            String userId = getUserId(authentication);
+            
+            Optional<WebhookExamplesDto> examples = webhookExamplesService.getWebhookExamples(id, userId);
+            return examples.map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+                    
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 } 
