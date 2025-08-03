@@ -77,11 +77,12 @@ public class JobConfigurationService {
      * @param userId The ID of the user requesting access
      * @return The job configuration DTO
      */
+    @Transactional(readOnly = true)
     public Optional<JobConfigurationDto> getJobConfiguration(String jobConfigId, String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        return jobConfigRepository.findByIdAndCreatedByWithUser(jobConfigId, user)
+        return jobConfigRepository.findByIdAndCreatedBy(jobConfigId, user)
                 .map(JobConfigurationDto::fromEntity);
     }
 
