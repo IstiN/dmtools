@@ -65,6 +65,11 @@ public class JobConfigurationDto {
             // Use static ObjectMapper instance to avoid Spring context issues
             ObjectMapper mapper = getObjectMapper();
             
+            // Debug logging
+            System.err.println("DEBUG: Processing job config ID: " + jobConfig.getId());
+            System.err.println("DEBUG: jobParameters raw: " + jobConfig.getJobParameters());
+            System.err.println("DEBUG: integrationMappings raw: " + jobConfig.getIntegrationMappings());
+            
             // Handle jobParameters
             if (jobConfig.getJobParameters() != null && !jobConfig.getJobParameters().trim().isEmpty()) {
                 dto.setJobParameters(mapper.readTree(jobConfig.getJobParameters()));
@@ -80,6 +85,9 @@ public class JobConfigurationDto {
             }
         } catch (Exception e) {
             // If JSON parsing fails, create empty objects instead of null
+            // Log the error for debugging
+            System.err.println("ERROR in JobConfigurationDto.fromEntity: " + e.getMessage());
+            e.printStackTrace();
             ObjectMapper mapper = getObjectMapper();
             dto.setJobParameters(mapper.createObjectNode());
             dto.setIntegrationMappings(mapper.createObjectNode());
