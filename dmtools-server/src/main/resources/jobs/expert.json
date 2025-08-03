@@ -16,7 +16,7 @@
   "configParams": [
     {
       "key": "request",
-      "displayName": "Analysis Request",
+      "displayName": "Request",
       "description": "Describe what kind of analysis or expert advice you need for the selected tickets",
       "displayNameKey": "expert.request.displayName",
       "descriptionKey": "expert.request.description",
@@ -57,21 +57,21 @@
     },
     {
       "key": "initiator",
-      "displayName": "Initiator Email",
-      "description": "Email address of the person requesting the analysis. Used for notifications and tracking.",
+      "displayName": "Initiator User ID",
+      "description": "User ID from tracker of the person requesting the analysis. Used for notifications and tracking.",
       "displayNameKey": "expert.initiator.displayName",
       "descriptionKey": "expert.initiator.description", 
       "instructionsKey": "expert.initiator.instructions",
       "required": true,
       "sensitive": false,
-      "inputType": "email",
+      "inputType": "text",
       "defaultValue": null,
       "validation": {
         "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
       },
       "examples": [
         "developer@company.com",
-        "analyst@company.com",
+        "712020:2a248756-40e8-49d6-8ddc-6852e518451f",
         "projectmanager@company.com"
       ]
     },
@@ -136,6 +136,7 @@
       "instructionsKey": "expert.requestDecompositionChunkProcessing.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "boolean",
       "defaultValue": "false",
       "validation": {
@@ -149,6 +150,7 @@
       "instructionsKey": "expert.keywordsBlacklist.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "textarea",
       "defaultValue": null,
       "validation": {
@@ -186,6 +188,7 @@
       "instructionsKey": "expert.isCodeAsSource.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "boolean",
       "defaultValue": "false",
       "validation": {
@@ -199,6 +202,7 @@
       "instructionsKey": "expert.isConfluenceAsSource.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "boolean",
       "defaultValue": "false",
       "validation": {
@@ -211,6 +215,7 @@
       "descriptionKey": "expert.isTrackerAsSource.description",
       "instructionsKey": "expert.isTrackerAsSource.instructions",
       "required": false,
+      "advanced": true,
       "sensitive": false,
       "inputType": "boolean",
       "defaultValue": "false",
@@ -225,6 +230,7 @@
       "instructionsKey": "expert.transformConfluencePagesToMarkdown.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "boolean",
       "defaultValue": "true",
       "validation": {
@@ -238,6 +244,7 @@
       "instructionsKey": "expert.ticketContextDepth.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "number",
       "defaultValue": "1",
       "validation": {
@@ -257,6 +264,7 @@
       "instructionsKey": "expert.chunksProcessingTimeoutInMinutes.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "number",
       "defaultValue": "0",
       "validation": {
@@ -277,6 +285,7 @@
       "instructionsKey": "expert.filesLimit.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "number",
       "defaultValue": "10",
       "validation": {
@@ -296,6 +305,7 @@
       "instructionsKey": "expert.confluenceLimit.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "number",
       "defaultValue": "10",
       "validation": {
@@ -317,6 +327,7 @@
       "sensitive": false,
       "inputType": "number",
       "defaultValue": "10",
+      "advanced": true,
       "validation": {
         "min": 1,
         "max": 100
@@ -336,6 +347,7 @@
       "sensitive": false,
       "inputType": "number",
       "defaultValue": "1",
+      "advanced": true,
       "validation": {
         "min": 1,
         "max": 10
@@ -355,6 +367,7 @@
       "sensitive": false,
       "inputType": "number",
       "defaultValue": "1",
+      "advanced": true,
       "validation": {
         "min": 1,
         "max": 10
@@ -372,6 +385,7 @@
       "instructionsKey": "expert.trackerIterations.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "number",
       "defaultValue": "1",
       "validation": {
@@ -397,7 +411,7 @@
         "pattern": "^[a-zA-Z0-9_\\s-]+$"
       },
       "examples": [
-        "Analysis Result",
+        "Description",
         "Technical Review",
         "Security Assessment"
       ]
@@ -446,6 +460,7 @@
       "instructionsKey": "expert.attachResponseAsFile.instructions",
       "required": false,
       "sensitive": false,
+      "advanced": true,
       "inputType": "boolean",
       "defaultValue": true,
       "examples": [
