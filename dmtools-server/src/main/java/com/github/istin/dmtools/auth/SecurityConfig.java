@@ -179,6 +179,7 @@ public class SecurityConfig {
                     .requestMatchers("/mcp/config/**").permitAll()  // Allow public access to MCP configurations
                     .requestMatchers("/mcp/stream/**").permitAll()  // Allow public access to MCP SSE streams
                     .requestMatchers("/api/files/download/**").permitAll()  // Allow public access to file downloads
+                    .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()  // Allow webhook endpoints to use API key authentication
                     .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
