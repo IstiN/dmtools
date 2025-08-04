@@ -20,8 +20,7 @@ public class UserSettings {
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "user_setting_values", joinColumns = @JoinColumn(name = "user_id"))
     @MapKeyColumn(name = "setting_key")
-    @Lob
-    @Column(name = "setting_value")
+    @Column(name = "setting_value", columnDefinition = "TEXT")
     private Map<String, String> settings;
 
     @Column(name = "theme")

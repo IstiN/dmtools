@@ -35,12 +35,10 @@ public class JobConfiguration {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
     
-    @Column(nullable = false)
-    @Lob
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String jobParameters; // JSON string containing job parameters
     
-    @Column(nullable = false)
-    @Lob
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String integrationMappings = "{}"; // JSON string containing integration ID mappings
     
     @Column(nullable = false)
