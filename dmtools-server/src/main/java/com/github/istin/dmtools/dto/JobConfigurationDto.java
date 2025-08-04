@@ -66,23 +66,16 @@ public class JobConfigurationDto {
         dto.setLastExecutedAt(jobConfig.getLastExecutedAt());
         
         // Parse JSON strings to JsonNode objects
+        // Handle both proper JSON strings and corrupted OID references from LOB migration
         try {
-            // Use static ObjectMapper instance to avoid Spring context issues
             ObjectMapper mapper = getObjectMapper();
             
             // Handle jobParameters
-            if (jobConfig.getJobParameters() != null && !jobConfig.getJobParameters().trim().isEmpty()) {
-                dto.setJobParameters(mapper.readTree(jobConfig.getJobParameters()));
-            } else {
-                dto.setJobParameters(mapper.createObjectNode());
-            }
+            dto.setJobParameters(parseJsonField(jobConfig.getJobParameters(), mapper));
             
             // Handle integrationMappings
-            if (jobConfig.getIntegrationMappings() != null && !jobConfig.getIntegrationMappings().trim().isEmpty()) {
-                dto.setIntegrationMappings(mapper.readTree(jobConfig.getIntegrationMappings()));
-            } else {
-                dto.setIntegrationMappings(mapper.createObjectNode());
-            }
+            dto.setIntegrationMappings(parseJsonField(jobConfig.getIntegrationMappings(), mapper));
+            
         } catch (Exception e) {
             // If JSON parsing fails, create empty objects instead of null
             ObjectMapper mapper = getObjectMapper();
@@ -101,4 +94,35 @@ public class JobConfigurationDto {
     }
     
     private static final ObjectMapper OBJECT_MAPPER_INSTANCE = new com.fasterxml.jackson.databind.ObjectMapper();
+    
+    /**
+     * Parse JSON field handling both proper JSON strings and corrupted OID references.
+     * This method fixes the issue where LOB to TEXT migration caused OID references
+     * instead of actual JSON content.
+     * 
+     * @param fieldValue The field value from database (could be JSON string or OID reference)
+     * @param mapper ObjectMapper instance
+     * @return JsonNode object
+     */
+    private static JsonNode parseJsonField(String fieldValue, ObjectMapper mapper) {
+        if (fieldValue == null || fieldValue.trim().isEmpty()) {
+            return mapper.createObjectNode();
+        }
+        
+        String trimmedValue = fieldValue.trim();
+        
+        // Check if the value is a numeric OID reference (corrupted data from LOB migration)
+        if (trimmedValue.matches("^[0-9]+$")) {
+            // This is a corrupted OID reference, return empty object
+            return mapper.createObjectNode();
+        }
+        
+        try {
+            // Try to parse as JSON
+            return mapper.readTree(trimmedValue);
+        } catch (Exception e) {
+            // If parsing fails, return empty object
+            return mapper.createObjectNode();
+        }
+    }
 } 
