@@ -6,7 +6,7 @@ alwaysApply: true
 ---
 Before doing everything you must to have ticket for that if that not provided by user.
 1. Follow the https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403281/Issue+Type+Structure to understand how we manage tickets.
-2. Follow the document to understand how we do manage stylegudes: https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403302/Styleguide+Management
+2. Follow the document to understand how we do manage styleguides: https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403302/Styleguide+Management
 3. If you're creating tickets you MUST follow the templates:
    1. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665495/Template+Test+Case
    2. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665485/Template+Story
