@@ -41,7 +41,6 @@ public class JobExecutionLog {
     private String message;
     
     @Column(columnDefinition = "TEXT")
-    @Lob
     private String context; // JSON string containing additional context information
     
     @Column(name = "thread_name", length = 100)

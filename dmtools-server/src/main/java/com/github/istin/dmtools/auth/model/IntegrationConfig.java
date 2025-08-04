@@ -26,8 +26,7 @@ public class IntegrationConfig {
     @Column(nullable = false)
     private String paramKey;
     
-    @Column(nullable = false)
-    @Lob
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String paramValue;
     
     @Column(nullable = false)

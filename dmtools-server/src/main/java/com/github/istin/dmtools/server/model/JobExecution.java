@@ -48,8 +48,7 @@ public class JobExecution {
     @Column(name = "thread_name", length = 100)
     private String threadName;
     
-    @Column(name = "execution_parameters", nullable = false)
-    @Lob
+    @Column(name = "execution_parameters", nullable = false, columnDefinition = "TEXT")
     private String executionParameters; // JSON string containing execution parameters
     
     @Column(name = "result_summary", columnDefinition = "TEXT")
