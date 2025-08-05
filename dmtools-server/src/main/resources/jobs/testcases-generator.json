@@ -11,7 +11,7 @@
     "ru": "/docs/jobs/testcases_generator_setup_ru.md"
   },
   "executionModes": ["STANDALONE", "SERVER_MANAGED"],
-  "requiredIntegrations": ["TrackerClient", "AI"],
+  "requiredIntegrations": ["TrackerClient", "AI", "Documentation"],
   "optionalIntegrations": ["Documentation", "SourceCode"],
   "configParams": [
     {
