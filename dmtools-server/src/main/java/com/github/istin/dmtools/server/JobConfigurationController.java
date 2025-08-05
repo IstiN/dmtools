@@ -6,6 +6,7 @@ import com.github.istin.dmtools.server.service.JobConfigurationService;
 import com.github.istin.dmtools.server.service.WebhookKeyService;
 import com.github.istin.dmtools.server.service.WebhookExamplesService;
 import com.github.istin.dmtools.server.model.WebhookKey;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -37,15 +38,18 @@ public class JobConfigurationController {
     private final UserService userService;
     private final WebhookKeyService webhookKeyService;
     private final WebhookExamplesService webhookExamplesService;
+    private final JobExecutionController jobExecutionController;
 
     public JobConfigurationController(JobConfigurationService jobConfigurationService, 
                                      UserService userService,
                                      WebhookKeyService webhookKeyService,
-                                     WebhookExamplesService webhookExamplesService) {
+                                     WebhookExamplesService webhookExamplesService,
+                                     JobExecutionController jobExecutionController) {
         this.jobConfigurationService = jobConfigurationService;
         this.userService = userService;
         this.webhookKeyService = webhookKeyService;
         this.webhookExamplesService = webhookExamplesService;
+        this.jobExecutionController = jobExecutionController;
     }
 
     private String getUserId(Authentication authentication) {
@@ -256,15 +260,25 @@ public class JobConfigurationController {
                         .body(WebhookExecutionResponse.error("Job configuration not found", "JOB_CONFIG_NOT_FOUND"));
             }
             
-            // Record the execution
-            jobConfigurationService.recordExecution(id, userId);
+            // Create authentication for the webhook user (job configuration owner)
+            Authentication webhookAuth = new UsernamePasswordAuthenticationToken(userId, null, null);
             
-            // For webhook execution, we would integrate with the actual job execution service here
-            // For now, we'll create a mock execution ID
-            String executionId = java.util.UUID.randomUUID().toString();
+            // Delegate to the existing job execution controller which has all the logic
+            ResponseEntity<JobExecutionResponse> executionResponse = 
+                jobExecutionController.executeSavedJobConfiguration(id, execRequest, webhookAuth);
             
-            return ResponseEntity.status(HttpStatus.ACCEPTED)
-                    .body(WebhookExecutionResponse.success(executionId, id));
+            // Convert JobExecutionResponse to WebhookExecutionResponse
+            if (executionResponse.getStatusCode().is2xxSuccessful() && executionResponse.getBody() != null) {
+                JobExecutionResponse jobResponse = executionResponse.getBody();
+                return ResponseEntity.status(HttpStatus.ACCEPTED)
+                        .body(WebhookExecutionResponse.success(jobResponse.getExecutionId(), id));
+            } else {
+                // Handle error cases
+                String errorMessage = executionResponse.getBody() != null ? 
+                    executionResponse.getBody().getMessage() : "Unknown error";
+                return ResponseEntity.status(executionResponse.getStatusCode())
+                        .body(WebhookExecutionResponse.error(errorMessage, "EXECUTION_ERROR"));
+            }
             
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -417,4 +431,5 @@ public class JobConfigurationController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
 } 
