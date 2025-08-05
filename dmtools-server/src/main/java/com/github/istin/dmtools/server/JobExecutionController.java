@@ -793,8 +793,8 @@ public class JobExecutionController {
             ExecutionParametersDto executionParams = executionParamsOpt.get();
             logger.info("Executing saved job configuration {} of type {}", configId, executionParams.getJobType());
             
-            // Convert integration mappings to JSONObject
-            JSONObject integrationMappings = new JSONObject(executionParams.getIntegrationMappings().toString());
+            // Convert integration mappings to JSONObject (handle corrupted OID references from LOB migration)
+            JSONObject integrationMappings = parseJsonFieldSafely(executionParams.getIntegrationMappings().toString());
             
             // Extract integration values (IDs or types) from the mappings
             List<String> integrationValues = new java.util.ArrayList<>();
@@ -850,7 +850,7 @@ public class JobExecutionController {
             // Prepare JobParams with pre-resolved integrations
             JobParams jobParams = new JobParams();
             jobParams.setName(executionParams.getJobType());
-            jobParams.set("params", new JSONObject(executionParams.getJobParameters().toString()));
+            jobParams.set("params", parseJsonFieldSafely(executionParams.getJobParameters().toString()));
             jobParams.setExecutionMode(ExecutionMode.valueOf(executionParams.getExecutionMode()));
             jobParams.setResolvedIntegrations(resolvedIntegrations);
             
@@ -934,6 +934,35 @@ public class JobExecutionController {
         } catch (Exception e) {
             logger.error("Failed to get job execution status for {}: {}", executionId, e.getMessage(), e);
             return ResponseEntity.status(500).build();
+        }
+    }
+    
+    /**
+     * Parse JSON field handling both proper JSON strings and corrupted OID references.
+     * This method fixes the issue where LOB to TEXT migration caused OID references
+     * instead of actual JSON content.
+     * 
+     * @param fieldValue The field value from database (could be JSON string or OID reference)
+     * @return JSONObject object
+     */
+    private static JSONObject parseJsonFieldSafely(String fieldValue) {
+        if (fieldValue == null || fieldValue.trim().isEmpty()) {
+            return new JSONObject();
+        }
+        
+        fieldValue = fieldValue.trim();
+        
+        // Check if it's a corrupted OID reference (just a number)
+        if (fieldValue.matches("^\\d+$")) {
+            logger.warn("Found corrupted OID reference '{}' in JSON field, using empty JSON object", fieldValue);
+            return new JSONObject();
+        }
+        
+        try {
+            return new JSONObject(fieldValue);
+        } catch (Exception e) {
+            logger.warn("Failed to parse JSON field '{}', using empty JSON object: {}", fieldValue, e.getMessage());
+            return new JSONObject();
         }
     }
 
