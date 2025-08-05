@@ -60,11 +60,11 @@ jobs:
       - name: Setup Cloud SQL database
         run: |
           # Check if Cloud SQL instance exists
-          if ! gcloud sql instances describe dmtools-db --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
+          if ! gcloud sql instances describe dmtools-sandbox --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
             echo "Creating Cloud SQL instance..."
-            gcloud sql instances create dmtools-db \
-              --database-version=POSTGRES_15 \
-              --tier=db-f1-micro \
+            gcloud sql instances create dmtools-sandbox \
+              --database-version=POSTGRES_17 \
+              --tier=db-custom-2-8192 \
               --region=us-central1 \
               --storage-type=SSD \
               --storage-size=10GB \
@@ -78,23 +78,15 @@ jobs:
           fi
           
           # Check if database exists
-          if ! gcloud sql databases describe dmtools --instance=dmtools-db --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
+          if ! gcloud sql databases describe ${{ secrets.DB_NAME }} --instance=dmtools-sandbox --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
             echo "Creating database..."
-            gcloud sql databases create dmtools --instance=dmtools-db --project=${{ vars.GCP_PROJECT_ID }}
+            gcloud sql databases create ${{ secrets.DB_NAME }} --instance=dmtools-sandbox --project=${{ vars.GCP_PROJECT_ID }}
           else
             echo "Database already exists"
           fi
           
-          # Check if user exists
-          if ! gcloud sql users describe dmtools-user --instance=dmtools-db --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
-            echo "Creating database user..."
-            gcloud sql users create dmtools-user \
-              --instance=dmtools-db \
-              --password=${{ secrets.DB_PASSWORD }} \
-              --project=${{ vars.GCP_PROJECT_ID }}
-          else
-            echo "Database user already exists"
-          fi
+          # Set up authorized networks for database access
+          gcloud sql instances patch dmtools-sandbox --authorized-networks=0.0.0.0/0 --project=${{ vars.GCP_PROJECT_ID }} || echo "Network authorization already configured"
 
       - name: Configure Docker to use gcloud as credential helper
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
@@ -134,9 +126,11 @@ jobs:
           APP_BASE_URL: "https://dmtools-431977789017.us-central1.run.app"
           APP_HOST: "dmtools-431977789017.us-central1.run.app"
           APP_PORT: "443"
-          CLOUD_SQL_INSTANCE: "${{ vars.GCP_PROJECT_ID }}:us-central1:dmtools-db"
-          DB_NAME: "dmtools"
-          DB_USER: "dmtools-user"
+          CLOUD_SQL_INSTANCE: "${{ vars.GCP_PROJECT_ID }}:us-central1:dmtools-sandbox"
+          DB_HOST: "${{ secrets.DB_HOST }}"
+          DB_PORT: "${{ secrets.DB_PORT }}"
+          DB_NAME: "${{ secrets.DB_NAME }}"
+          DB_USER: "${{ secrets.DB_USER }}"
           DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
           GOOGLE_CLIENT_ID: "431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com"
           GOOGLE_CLIENT_SECRET: "${{ secrets.GOOGLE_CLIENT_SECRET }}"
