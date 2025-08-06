@@ -6,6 +6,7 @@ import com.github.istin.dmtools.openai.utils.AIResponseParser;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -26,6 +27,7 @@ public class RequestDecompositionAgent extends AbstractSimpleAgent<RequestDecomp
 
     @AllArgsConstructor
     @Getter
+    @Setter
     public static class Result {
         private String aiRole;
         private String request;
@@ -41,9 +43,15 @@ public class RequestDecompositionAgent extends AbstractSimpleAgent<RequestDecomp
             JSONObject json = new JSONObject();
             json.put("aiRole", aiRole);
             json.put("request", request);
-            json.put("questions", new JSONArray(questions));
-            json.put("tasks", new JSONArray(tasks));
-            json.put("instructions", new JSONArray(instructions));
+            if (questions != null) {
+                json.put("questions", new JSONArray(questions));
+            }
+            if (tasks != null) {
+                json.put("tasks", new JSONArray(tasks));
+            }
+            if (instructions != null) {
+                json.put("instructions", new JSONArray(instructions));
+            }
             json.put("knownInfo", knownInfo);
             json.put("formattingRules", formattingRules);
             json.put("fewShots", fewShots);

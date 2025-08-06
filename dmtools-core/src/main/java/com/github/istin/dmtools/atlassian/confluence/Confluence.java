@@ -637,7 +637,7 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         try {
             Content content = contentByUrl(uri);
             if (content != null) {
-                return MarkdownToJiraConverter.convertToJiraMarkdown(HtmlCleaner.cleanOnlyStylesAndSizes(content.getStorage().getValue()));
+                return HtmlCleaner.cleanOnlyStylesAndSizes(content.getStorage().getValue());
             }
             return null;
         } catch (Exception ignored){

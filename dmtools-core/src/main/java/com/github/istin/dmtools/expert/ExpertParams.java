@@ -17,7 +17,6 @@ public class ExpertParams extends Params {
     public static final String REQUEST = "request";
     public static final String SYSTEM_REQUEST = "systemRequest";
     public static final String SYSTEM_REQUEST_COMMENT_ALIAS = "systemRequestCommentAlias";
-    public static final String REQUEST_DECOMPOSITION_CHUNK_PROCESSING = "requestDecompositionChunkProcessing";
     public static final String KEYWORDS_BLACKLIST = "keywordsBlacklist";
 
     @SerializedName(PROJECT_CONTEXT)

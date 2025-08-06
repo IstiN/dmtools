@@ -2,6 +2,7 @@ package com.github.istin.dmtools.ai;
 
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.utils.PropertyReader;
+import lombok.Data;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,6 +36,7 @@ public class ChunkPreparation {
     /**
      * Represents a chunk of content including both text and files
      */
+    @Data
     public static class Chunk {
         private final String text;
         private List<File> files;
