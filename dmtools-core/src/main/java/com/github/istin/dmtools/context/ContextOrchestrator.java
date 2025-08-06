@@ -149,4 +149,8 @@ public class ContextOrchestrator {
         return chunkPreparation.prepareChunks(entries);
     }
 
+    public void clear() {
+        contextMemory.clear();
+    }
+
 }

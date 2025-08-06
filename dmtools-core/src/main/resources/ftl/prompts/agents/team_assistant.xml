@@ -13,7 +13,7 @@
             ${global.request.aiRole}
         </ai_role>
         <request>
-            ${global.request.request}
+            ${global.request.request!""}
         </request>
         <questions>
             ${global.request.questions?join("\n-")}
@@ -247,7 +247,11 @@
                 *Rollback time: ~2 minutes if issues detected*
             </response>
         </example>
+        <improtant_example>
+            ${global.request.fewShots}
+        </improtant_example>
     </examples>
+    <#include "chunk_processing.xml">
     <context>
         <ticket_description>
             ${(global.ticket.description)!}

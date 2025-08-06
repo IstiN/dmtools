@@ -66,7 +66,7 @@ public class UriToObjectFactory {
 
         // Add tracker client (Jira)
         TrackerClient<? extends ITicket> jiraClient = getTrackerClient();
-        if (jiraClient != null && jiraClient instanceof UriToObject) {
+        if (jiraClient instanceof UriToObject) {
             result.add((UriToObject) jiraClient);
         }
 

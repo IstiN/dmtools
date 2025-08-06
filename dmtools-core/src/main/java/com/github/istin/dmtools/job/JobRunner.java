@@ -28,6 +28,8 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Properties;
+
+import com.github.istin.dmtools.teammate.Teammate;
 import org.json.JSONObject;
 
 public class JobRunner {
@@ -47,6 +49,7 @@ public class JobRunner {
             new QAProductivityReport(),
             new ScrumMasterDaily(),
             new Expert(),
+            new Teammate(),
             new SourceCodeTrackerSyncJob(),
             new SourceCodeCommitTrackerSyncJob(),
             new UserStoryGenerator(),
@@ -82,7 +85,12 @@ public class JobRunner {
         
         JobParams jobParams = new JobParams(new String(decodeBase64(args[0])));
         Object result = new JobRunner().run(jobParams);
-        System.err.println("Job '" + jobParams.getName() + "' not found.");
+        if (result == null) {
+            System.err.println("Execution result of '" + jobParams.getName() + "' is null.");
+        } else {
+            System.out.println(result);
+            return;
+        }
         System.exit(1);
     }
 

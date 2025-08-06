@@ -179,6 +179,7 @@ public class MarkdownToJiraConverter {
 
     private static boolean isBlockLevel(String tag) {
         switch (tag) {
+            case "ac:structured-macro":
             case "p":
             case "pre":
             case "ul":
@@ -234,6 +235,7 @@ public class MarkdownToJiraConverter {
             case "table":
                 return processTable(el);
             case "code":
+            case "ac:structured-macro":
                 return processCodeElement(el);
             default:
                 // fallback => treat as paragraph
