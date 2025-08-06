@@ -8,11 +8,12 @@ import com.github.istin.dmtools.auth.repository.UserRepository;
 import com.github.istin.dmtools.dto.*;
 import com.github.istin.dmtools.server.model.JobConfiguration;
 import com.github.istin.dmtools.server.repository.JobConfigurationRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.github.istin.dmtools.server.exception.ValidationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -25,15 +26,20 @@ public class JobConfigurationService {
     private final JobConfigurationRepository jobConfigRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final DotNotationTransformer dotNotationTransformer;
+    private final ParameterValidator parameterValidator;
 
-    @Autowired
     public JobConfigurationService(
             JobConfigurationRepository jobConfigRepository,
             UserRepository userRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            DotNotationTransformer dotNotationTransformer,
+            ParameterValidator parameterValidator) {
         this.jobConfigRepository = jobConfigRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
+        this.dotNotationTransformer = dotNotationTransformer;
+        this.parameterValidator = parameterValidator;
     }
 
     /**
@@ -49,7 +55,7 @@ public class JobConfigurationService {
         
         List<JobConfiguration> jobConfigs = jobConfigRepository.findAccessibleToUser(user);
         return jobConfigs.stream()
-                .map(JobConfigurationDto::fromEntity)
+                .map(this::transformJobConfigurationForUI)
                 .collect(Collectors.toList());
     }
 
@@ -66,7 +72,7 @@ public class JobConfigurationService {
         
         List<JobConfiguration> jobConfigs = jobConfigRepository.findEnabledAccessibleToUser(user);
         return jobConfigs.stream()
-                .map(JobConfigurationDto::fromEntity)
+                .map(this::transformJobConfigurationForUI)
                 .collect(Collectors.toList());
     }
 
@@ -83,7 +89,7 @@ public class JobConfigurationService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         return jobConfigRepository.findByIdAndCreatedBy(jobConfigId, user)
-                .map(JobConfigurationDto::fromEntity);
+                .map(this::transformJobConfigurationForUI);
     }
 
     /**
@@ -105,16 +111,19 @@ public class JobConfigurationService {
         jobConfig.setCreatedBy(user);
         jobConfig.setEnabled(request.getEnabled() != null ? request.getEnabled() : true);
         
-        // Convert JsonNode to string for storage
+        // Transform and validate job parameters
         try {
-            jobConfig.setJobParameters(objectMapper.writeValueAsString(request.getJobParameters()));
+            JsonNode transformedParameters = processJobParameters(request.getJobParameters(), request.getJobType());
+            jobConfig.setJobParameters(objectMapper.writeValueAsString(transformedParameters));
             jobConfig.setIntegrationMappings(objectMapper.writeValueAsString(request.getIntegrationMappings()));
+        } catch (ValidationException e) {
+            throw new IllegalArgumentException("Parameter validation failed: " + e.getMessage());
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid JSON in request: " + e.getMessage());
         }
         
         JobConfiguration savedJobConfig = jobConfigRepository.save(jobConfig);
-        return JobConfigurationDto.fromEntity(savedJobConfig);
+        return transformJobConfigurationForUI(savedJobConfig);
     }
 
     /**
@@ -155,17 +164,21 @@ public class JobConfigurationService {
         // Update JSON fields if provided
         try {
             if (request.getJobParameters() != null) {
-                jobConfig.setJobParameters(objectMapper.writeValueAsString(request.getJobParameters()));
+                JsonNode transformedParameters = processJobParameters(request.getJobParameters(), 
+                    request.getJobType() != null ? request.getJobType() : jobConfig.getJobType());
+                jobConfig.setJobParameters(objectMapper.writeValueAsString(transformedParameters));
             }
             if (request.getIntegrationMappings() != null) {
                 jobConfig.setIntegrationMappings(objectMapper.writeValueAsString(request.getIntegrationMappings()));
             }
+        } catch (ValidationException e) {
+            throw new IllegalArgumentException("Parameter validation failed: " + e.getMessage());
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid JSON in request: " + e.getMessage());
         }
         
         JobConfiguration savedJobConfig = jobConfigRepository.save(jobConfig);
-        return Optional.of(JobConfigurationDto.fromEntity(savedJobConfig));
+        return Optional.of(transformJobConfigurationForUI(savedJobConfig));
     }
 
     /**
@@ -276,5 +289,68 @@ public class JobConfigurationService {
         });
         
         return result;
+    }
+
+    /**
+     * Transforms a JobConfiguration entity to DTO with reverse dot notation transformation.
+     * This ensures that nested parameters are flattened back to dot notation for the UI.
+     * 
+     * @param jobConfig The job configuration entity
+     * @return JobConfigurationDto with dot notation parameters
+     */
+    private JobConfigurationDto transformJobConfigurationForUI(JobConfiguration jobConfig) {
+        JobConfigurationDto dto = JobConfigurationDto.fromEntity(jobConfig);
+        
+        // Apply reverse transformation to job parameters for UI compatibility
+        if (dto.getJobParameters() != null && !dto.getJobParameters().isNull()) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> nestedParams = objectMapper.convertValue(dto.getJobParameters(), Map.class);
+                Map<String, Object> flatParams = dotNotationTransformer.transformToFlat(nestedParams);
+                dto.setJobParameters(objectMapper.valueToTree(flatParams));
+            } catch (Exception e) {
+                // If transformation fails, keep original parameters
+                System.err.println("Failed to transform job parameters for UI: " + e.getMessage());
+            }
+        }
+        
+        return dto;
+    }
+
+    /**
+     * Processes job parameters by applying dot notation transformation and validation.
+     * 
+     * @param parametersNode The job parameters JsonNode
+     * @param jobType The type of job being configured
+     * @return Transformed JsonNode with nested structures
+     * @throws ValidationException if parameter validation fails
+     */
+    @SuppressWarnings("unchecked")
+    private JsonNode processJobParameters(JsonNode parametersNode, String jobType) throws ValidationException {
+        if (parametersNode == null || parametersNode.isNull()) {
+            return parametersNode;
+        }
+
+        try {
+            // Convert JsonNode to Map for processing
+            Map<String, Object> parametersMap = objectMapper.convertValue(parametersNode, Map.class);
+            
+            // Apply dot notation transformation
+            Map<String, Object> transformedParameters = dotNotationTransformer.transformToNested(parametersMap);
+            
+            // Apply validation for specific job types
+            if ("Teammate".equals(jobType)) {
+                // Validate teammate-specific parameters
+                parameterValidator.validateTeammateParameters(transformedParameters);
+            }
+            
+            // Convert back to JsonNode
+            return objectMapper.valueToTree(transformedParameters);
+            
+        } catch (ValidationException e) {
+            throw e; // Re-throw validation exceptions
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to process job parameters", e);
+        }
     }
 } 

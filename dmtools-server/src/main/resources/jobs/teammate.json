@@ -1,0 +1,297 @@
+{
+  "type": "Teammate",
+  "displayName": "AI Teammate Assistant",
+  "description": "Specialized AI assistant with pre-configured roles and instructions for focused task assistance without complex search orchestration.",
+  "displayNameKey": "job.teammate.displayName",
+  "descriptionKey": "job.teammate.description",
+  "iconUrl": "/img/jobs/teammate-icon.svg",
+  "categories": ["AI", "Assistant", "Automation"],
+  "setupDocumentation": {
+    "en": "/docs/jobs/teammate_setup_en.md",
+    "ru": "/docs/jobs/teammate_setup_ru.md"
+  },
+  "executionModes": ["STANDALONE", "SERVER_MANAGED"],
+  "requiredIntegrations": ["TrackerClient", "AI", "Documentation"],
+  "optionalIntegrations": [],
+  "configParams": [
+    {
+      "key": "inputJql",
+      "displayName": "Ticket Query (JQL)",
+      "description": "JQL query to select which tickets to process. Use Jira Query Language to filter tickets by project, type, status, etc.",
+      "displayNameKey": "teammate.inputJql.displayName",
+      "descriptionKey": "teammate.inputJql.description",
+      "instructionsKey": "teammate.inputJql.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^.+$"
+      },
+      "examples": [
+        "key = DMC-123",
+        "project = DMC AND assignee = currentUser()",
+        "status = 'In Progress' AND created >= -7d"
+      ]
+    },
+    {
+      "key": "initiator",
+      "displayName": "Initiator User ID",
+      "description": "User ID or email of the person requesting assistance. Used for notifications and tracking.",
+      "displayNameKey": "teammate.initiator.displayName",
+      "descriptionKey": "teammate.initiator.description",
+      "instructionsKey": "teammate.initiator.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      },
+      "examples": [
+        "developer@company.com",
+        "712020:2a248756-40e8-49d6-8ddc-6852e518451f",
+        "analyst@company.com"
+      ]
+    },
+    {
+      "key": "agentParams.aiRole",
+      "displayName": "AI Role",
+      "description": "Define the AI's role and expertise area. This sets the context for how the AI will approach and respond to tasks.",
+      "displayNameKey": "teammate.agentParams.aiRole.displayName",
+      "descriptionKey": "teammate.agentParams.aiRole.description",
+      "instructionsKey": "teammate.agentParams.aiRole.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "minLength": 10,
+        "maxLength": 1000
+      },
+      "examples": [
+        "Senior Code Reviewer with expertise in Java and security best practices",
+        "Technical Documentation Analyst specializing in API documentation",
+        "Quality Assurance Engineer focused on test case validation"
+      ]
+    },
+    {
+      "key": "agentParams.instructions",
+      "displayName": "Instructions",
+      "description": "Specific instructions for the AI assistant. Provide clear guidance on what the AI should focus on. Can include Confluence URLs for reusable instruction templates.",
+      "displayNameKey": "teammate.agentParams.instructions.displayName",
+      "descriptionKey": "teammate.agentParams.instructions.description",
+      "instructionsKey": "teammate.agentParams.instructions.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "array",
+      "defaultValue": null,
+      "validation": {
+        "minItems": 0,
+        "maxItems": 10
+      },
+      "examples": [
+        "Review code changes for security vulnerabilities",
+        "Check adherence to coding standards and best practices",
+        "Validate test coverage and quality",
+        "https://confluence.company.com/code-review-checklist"
+      ]
+    },
+    {
+      "key": "agentParams.formattingRules",
+      "displayName": "Formatting Rules",
+      "description": "Guidelines for how the AI should format its responses. Can be Confluence URL for standardized formatting templates.",
+      "displayNameKey": "teammate.agentParams.formattingRules.displayName",
+      "descriptionKey": "teammate.agentParams.formattingRules.description",
+      "instructionsKey": "teammate.agentParams.formattingRules.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 5000
+      },
+      "examples": [
+        "Use markdown format with clear sections and bullet points",
+        "Include severity levels for identified issues",
+        "Provide actionable recommendations with code examples",
+        "https://confluence.company.com/response-formatting-guide"
+      ]
+    },
+    {
+      "key": "agentParams.fewShots",
+      "displayName": "Examples",
+      "description": "Example responses to guide AI behavior and ensure consistent output quality. Can be Confluence URL for example library.",
+      "displayNameKey": "teammate.agentParams.fewShots.displayName",
+      "descriptionKey": "teammate.agentParams.fewShots.description",
+      "instructionsKey": "teammate.agentParams.fewShots.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 5000
+      },
+      "examples": [
+        "Example: Good code structure with proper error handling and logging",
+        "Example: Security issue found - SQL injection vulnerability in line 45",
+        "https://confluence.company.com/ai-response-examples"
+      ]
+    },
+    {
+      "key": "agentParams.knownInfo",
+      "displayName": "Known Information",
+      "description": "Context and background information that the AI should be aware of. Can be Confluence URL for project documentation.",
+      "displayNameKey": "teammate.agentParams.knownInfo.displayName",
+      "descriptionKey": "teammate.agentParams.knownInfo.description",
+      "instructionsKey": "teammate.agentParams.knownInfo.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 5000
+      },
+      "examples": [
+        "This is a Java Spring Boot microservice handling user authentication",
+        "The project follows clean architecture principles with strict security requirements",
+        "https://confluence.company.com/project-context"
+      ]
+    },
+    {
+      "key": "ticketContextDepth",
+      "displayName": "Ticket Context Depth",
+      "description": "How deep to traverse ticket relationships for context gathering",
+      "displayNameKey": "teammate.ticketContextDepth.displayName",
+      "descriptionKey": "teammate.ticketContextDepth.description",
+      "instructionsKey": "teammate.ticketContextDepth.instructions",
+      "required": false,
+      "sensitive": false,
+      "advanced": true,
+      "inputType": "number",
+      "defaultValue": "1",
+      "validation": {
+        "min": 1,
+        "max": 10
+      },
+      "examples": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "chunkProcessingTimeoutInMinutes",
+      "displayName": "Processing Timeout (Minutes)",
+      "description": "Maximum time to spend processing context chunks. 0 means no timeout.",
+      "displayNameKey": "teammate.chunkProcessingTimeoutInMinutes.displayName",
+      "descriptionKey": "teammate.chunkProcessingTimeoutInMinutes.description",
+      "instructionsKey": "teammate.chunkProcessingTimeoutInMinutes.instructions",
+      "required": false,
+      "sensitive": false,
+      "advanced": true,
+      "inputType": "number",
+      "defaultValue": "0",
+      "validation": {
+        "min": 0,
+        "max": 120
+      },
+      "examples": [
+        "0",
+        "5",
+        "10",
+        "30"
+      ]
+    },
+    {
+      "key": "fieldName",
+      "displayName": "Custom Field Name",
+      "description": "Name of the custom field to update with AI response (if using field output mode)",
+      "displayNameKey": "teammate.fieldName.displayName",
+      "descriptionKey": "teammate.fieldName.description",
+      "instructionsKey": "teammate.fieldName.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9_\\s-]+$"
+      },
+      "examples": [
+        "Technical Review",
+        "AI Analysis",
+        "Code Assessment"
+      ]
+    },
+    {
+      "key": "outputType",
+      "displayName": "Output Type",
+      "description": "Where to place the AI response",
+      "displayNameKey": "teammate.outputType.displayName",
+      "descriptionKey": "teammate.outputType.description",
+      "instructionsKey": "teammate.outputType.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "select",
+      "defaultValue": "comment",
+      "validation": {
+        "enum": ["comment", "field", "creation"]
+      },
+      "options": [
+        {"value": "comment", "labelKey": "teammate.outputType.comment"},
+        {"value": "field", "labelKey": "teammate.outputType.field"},
+        {"value": "creation", "labelKey": "teammate.outputType.creation"}
+      ]
+    },
+    {
+      "key": "operationType",
+      "displayName": "Operation Type",
+      "description": "How to handle existing content when updating fields",
+      "displayNameKey": "teammate.operationType.displayName",
+      "descriptionKey": "teammate.operationType.description",
+      "instructionsKey": "teammate.operationType.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "select",
+      "defaultValue": "Append",
+      "validation": {
+        "enum": ["Replace", "Append"]
+      },
+      "options": [
+        {"value": "Replace", "labelKey": "teammate.operationType.replace"},
+        {"value": "Append", "labelKey": "teammate.operationType.append"}
+      ]
+    },
+    {
+      "key": "attachResponseAsFile",
+      "displayName": "Attach Response as File",
+      "description": "Whether to attach the AI response as a file to the ticket in addition to comments",
+      "displayNameKey": "teammate.attachResponseAsFile.displayName",
+      "descriptionKey": "teammate.attachResponseAsFile.description",
+      "instructionsKey": "teammate.attachResponseAsFile.instructions",
+      "required": false,
+      "sensitive": false,
+      "advanced": true,
+      "inputType": "boolean",
+      "defaultValue": true,
+      "examples": [
+        "true",
+        "false"
+      ]
+    }
+  ],
+  "webhookExamples": [
+    {
+      "name": "jira automation",
+      "template": "## Jira Automation Webhook\n\nUse this webhook in Jira automation rules to trigger AI teammate assistance:\n\n```json\n{\n  \"method\": \"POST\",\n  \"url\": \"{{webhook_url}}\",\n  \"headers\": {\n    \"X-API-Key\": \"{{api_key}}\",\n    \"Content-Type\": \"application/json\"\n  },\n  \"body\": {\n    \"jobParameters\": {\n      \"inputJql\": \"key = {{issue.key}}\",\n      \"initiator\": \"{{initiator.emailAddress}}\",\n      \"agentParams.aiRole\": \"Code Reviewer\",\n      \"agentParams.instructions\": [\"Review for bugs\", \"Check security\"]\n    }\n  }\n}\n```"
+    },
+    {
+      "name": "github actions",
+      "template": "## GitHub Actions Workflow\n\nAdd this step to your GitHub Actions workflow:\n\n```yaml\n- name: Trigger Teammate Assistant\n  uses: fjogeleit/http-request-action@v1\n  with:\n    url: '{{webhook_url}}'\n    method: 'POST'\n    customHeaders: '{\n      \"X-API-Key\": \"{{api_key}}\",\n      \"Content-Type\": \"application/json\"\n    }'\n    data: '{\n      \"jobParameters\": {\n        \"inputJql\": \"project = {{project.key}} AND created >= -1d\",\n        \"initiator\": \"${{ github.actor }}\",\n        \"agentParams.aiRole\": \"Technical Reviewer\",\n        \"agentParams.instructions\": [\"Review code changes\"]\n      }\n    }'\n```"
+    },
+    {
+      "name": "curl command",
+      "template": "## cURL Command\n\nExecute teammate assistance from command line:\n\n```bash\ncurl -X POST \"{{webhook_url}}\" \\\n  -H \"X-API-Key: {{api_key}}\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"jobParameters\": {\n      \"inputJql\": \"key = {{issue.key}}\",\n      \"initiator\": \"{{userInputs.field}}\",\n      \"agentParams.aiRole\": \"Quality Analyst\",\n      \"agentParams.instructions\": [\"Validate requirements\"]\n    }\n  }'\n```"
+    }
+  ]
+}
