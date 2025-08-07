@@ -92,7 +92,7 @@ public class IntegrationService {
     /**
      * Get categories for a specific integration type.
      * 
-     * @param integrationType The integration type (e.g., "jira", "openai")
+     * @param integrationType The integration type (e.g., "jira", "dial")
      * @return List of categories for this integration type
      */
     private List<String> getCategoriesForIntegrationType(String integrationType) {

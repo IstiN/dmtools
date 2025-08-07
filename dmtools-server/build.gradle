@@ -85,8 +85,16 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     
     // Test dependencies
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+        exclude group: 'ch.qos.logback', module: 'logback-core'
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+    }
+    testImplementation('org.springframework.security:spring-security-test') {
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+        exclude group: 'ch.qos.logback', module: 'logback-core'
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+    }
     testImplementation 'org.junit.jupiter:junit-jupiter-api'
     testImplementation 'org.junit.jupiter:junit-jupiter-engine'
     testImplementation 'org.mockito:mockito-core'

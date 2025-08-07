@@ -11,9 +11,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -27,7 +28,14 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests all query methods and business logic.
  */
 @DataJpaTest
-@Import(TestJpaConfiguration.class)
+@ContextConfiguration(classes = TestJpaRepositoryConfiguration.class)
+@TestPropertySource(properties = {
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.datasource.url=jdbc:h2:mem:testdb",
+    "spring.datasource.driver-class-name=org.h2.Driver",
+    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+    "spring.jpa.show-sql=false"
+})
 public class JobExecutionRepositoryTest {
 
     @Autowired
@@ -54,6 +62,7 @@ public class JobExecutionRepositoryTest {
     void setUp() {
         // Create test users
         testUser = new User();
+        testUser.setId("test-user-123"); // Set ID manually for test
         testUser.setEmail("test@example.com");
         testUser.setName("Test User");
         testUser.setProvider(AuthProvider.GOOGLE);
@@ -61,6 +70,7 @@ public class JobExecutionRepositoryTest {
         testUser = userRepository.save(testUser);
 
         anotherUser = new User();
+        anotherUser.setId("another-user-456"); // Set ID manually for test
         anotherUser.setEmail("another@example.com");
         anotherUser.setName("Another User");
         anotherUser.setProvider(AuthProvider.GOOGLE);

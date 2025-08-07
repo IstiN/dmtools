@@ -11,13 +11,22 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled
 @DataJpaTest
+@ContextConfiguration(classes = TestAuthRepositoryConfiguration.class)
+@TestPropertySource(properties = {
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.datasource.url=jdbc:h2:mem:testdb",
+    "spring.datasource.driver-class-name=org.h2.Driver",
+    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+    "spring.jpa.show-sql=false"
+})
 public class WorkspaceUserRepositoryTest {
 
     @Autowired
@@ -35,6 +44,7 @@ public class WorkspaceUserRepositoryTest {
     void setUp() {
         // Create test users
         owner = new User();
+        owner.setId("owner-123"); // Set ID manually for test
         owner.setEmail("owner@example.com");
         owner.setName("Owner User");
         owner.setProvider(AuthProvider.GOOGLE);
@@ -42,6 +52,7 @@ public class WorkspaceUserRepositoryTest {
         entityManager.persist(owner);
 
         collaborator = new User();
+        collaborator.setId("collaborator-456"); // Set ID manually for test
         collaborator.setEmail("collaborator@example.com");
         collaborator.setName("Collaborator User");
         collaborator.setProvider(AuthProvider.GOOGLE);
@@ -82,6 +93,7 @@ public class WorkspaceUserRepositoryTest {
     void findByWorkspaceAndUser_NotFound() {
         // Create a new user not associated with the workspace
         User newUser = new User();
+        newUser.setId("newuser-789"); // Set ID manually for test
         newUser.setEmail("newuser@example.com");
         newUser.setName("New User");
         newUser.setProvider(AuthProvider.GOOGLE);

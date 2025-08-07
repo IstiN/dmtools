@@ -414,13 +414,13 @@ public class JobExecutionController {
                 break;
                 
             case "ai":
-            case "openai":
-                logger.info("🔍 Processing OpenAI integration mapping...");
+            case "dial":
+                logger.info("🔍 Processing Dial integration mapping...");
                 if (params.containsKey("apiKey")) {
                     config.put("apiKey", params.get("apiKey"));
                     logger.info("  ✅ Mapped 'apiKey' parameter: [SENSITIVE]");
                 } else {
-                    logger.warn("  ⚠️  No apiKey parameter found for OpenAI integration");
+                    logger.warn("  ⚠️  No apiKey parameter found for Dial integration");
                 }
                 
                 if (params.containsKey("model")) {
@@ -557,7 +557,7 @@ public class JobExecutionController {
             // 1. Resolve integrations with credentials based on whether they are IDs or types
             logger.info("🔄 Resolving integrations for job '{}' with values: {}", request.getJobName(), requiredIntegrations);
             
-            // Check if we have integration IDs (UUIDs) or integration types (strings like "jira", "openai")
+            // Check if we have integration IDs (UUIDs) or integration types (strings like "jira", "dial")
             boolean hasIntegrationIds = requiredIntegrations.stream()
                 .anyMatch(id -> id.contains("-") && id.length() > 30); // UUIDs contain dashes and are ~36 chars
             

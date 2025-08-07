@@ -27,7 +27,7 @@ public class IntegrationResolutionService {
      * This method retrieves and decrypts credentials for the requested integrations.
      * 
      * @param jobName The name of the job requiring integrations
-     * @param requiredIntegrations List of integration types needed (e.g., "jira", "confluence", "openai")
+     * @param requiredIntegrations List of integration types needed (e.g., "jira", "confluence", "dial")
      * @return JSONObject containing resolved integration configurations
      */
     public JSONObject resolveIntegrationsForJob(String jobName, List<String> requiredIntegrations) {
@@ -38,7 +38,7 @@ public class IntegrationResolutionService {
             .anyMatch(id -> id.contains("-") && id.length() > 10); // UUIDs contain dashes and are longer
         
         if (hasIntegrationIds) {
-            logger.warn("⚠️ [IntegrationResolutionService] Detected integration IDs instead of types: {}. This service only handles integration types (jira, openai, etc.), not database IDs!", requiredIntegrations);
+            logger.warn("⚠️ [IntegrationResolutionService] Detected integration IDs instead of types: {}. This service only handles integration types (jira, ai, etc.), not database IDs!", requiredIntegrations);
         }
         
         JSONObject resolved = new JSONObject();
@@ -68,7 +68,7 @@ public class IntegrationResolutionService {
     /**
      * Resolves a specific integration type.
      * 
-     * @param integrationType The type of integration to resolve (jira, confluence, openai, etc.)
+     * @param integrationType The type of integration to resolve (jira, confluence, dial, etc.)
      * @return JSONObject containing the integration configuration
      */
     private JSONObject resolveIntegration(String integrationType) {
@@ -83,8 +83,8 @@ public class IntegrationResolutionService {
             case "confluence":
                 return resolveConfluenceIntegration();
             case "ai":
-            case "openai":
-                return resolveOpenAIIntegration();
+            case "dial":
+                return resolveDialIntegration();
             case "github":
                 return resolveGitHubIntegration();
                 
@@ -156,26 +156,26 @@ public class IntegrationResolutionService {
     }
     
     /**
-     * Resolves OpenAI integration credentials.
+     * Resolves Dial integration credentials.
      */
-    private JSONObject resolveOpenAIIntegration() {
-        JSONObject openaiConfig = new JSONObject();
+    private JSONObject resolveDialIntegration() {
+        JSONObject dialConfig = new JSONObject();
         
-        String apiKey = propertyReader.getOpenAIApiKey();
-        String model = propertyReader.getOpenAIModel();
-        String basePath = propertyReader.getOpenAIBathPath();
+        String apiKey = propertyReader.getDialIApiKey();
+        String model = propertyReader.getDialModel();
+        String basePath = propertyReader.getDialBathPath();
         
         if (apiKey != null && !apiKey.trim().isEmpty()) {
-            openaiConfig.put("apiKey", apiKey);
+            dialConfig.put("apiKey", apiKey);
         }
         if (model != null && !model.trim().isEmpty()) {
-            openaiConfig.put("model", model);
+            dialConfig.put("model", model);
         }
         if (basePath != null && !basePath.trim().isEmpty()) {
-            openaiConfig.put("basePath", basePath);
+            dialConfig.put("basePath", basePath);
         }
         
-        return openaiConfig;
+        return dialConfig;
     }
     
     /**

@@ -1,0 +1,69 @@
+{
+  "type": "dial",
+  "displayNameKey": "integration.dial.displayName",
+  "descriptionKey": "integration.dial.description",
+  "iconUrl": "/img/integrations/dial-icon.svg",
+  "categories": ["AI"],
+  "setupDocumentation": {
+    "en": "/docs/integrations/dial_setup_en.md",
+    "ru": "/docs/integrations/dial_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "DIAL_AI_API_KEY",
+      "displayNameKey": "dial.apiKey.displayName",
+      "descriptionKey": "dial.apiKey.description",
+      "instructionsKey": "dial.apiKey.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^sk-[a-zA-Z0-9]{48}$"
+      }
+    },
+    {
+      "key": "DIAL_AI_BATH_PATH",
+      "displayNameKey": "dial.basePath.displayName",
+      "descriptionKey": "dial.basePath.description",
+      "instructionsKey": "dial.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "https://api.dial.com/v1",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "DIAL_AI_MODEL",
+      "displayNameKey": "dial.model.displayName",
+      "descriptionKey": "dial.model.description",
+      "instructionsKey": "dial.model.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": "gpt-4"
+    },
+    {
+      "key": "CODE_AI_MODEL",
+      "displayNameKey": "dial.codeModel.displayName",
+      "descriptionKey": "dial.codeModel.description",
+      "instructionsKey": "dial.codeModel.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "TEST_AI_MODEL",
+      "displayNameKey": "dial.testModel.displayName",
+      "descriptionKey": "dial.testModel.description",
+      "instructionsKey": "dial.testModel.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    }
+  ]
+} 

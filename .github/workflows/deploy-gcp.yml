@@ -39,6 +39,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Run tests
+        run: |
+          echo "Running server tests to ensure code quality before deployment..."
+          ./gradlew :dmtools-server:test --info
+          echo "✅ All server tests passed successfully!"
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build application JAR
         run: |
           ./gradlew clean :dmtools-server:bootJar -x test -x integrationTest

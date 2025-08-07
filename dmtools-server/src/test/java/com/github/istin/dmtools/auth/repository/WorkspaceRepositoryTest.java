@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.HashSet;
 import java.util.List;
@@ -19,8 +21,15 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled
 @DataJpaTest
+@ContextConfiguration(classes = TestAuthRepositoryConfiguration.class)
+@TestPropertySource(properties = {
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.datasource.url=jdbc:h2:mem:testdb",
+    "spring.datasource.driver-class-name=org.h2.Driver",
+    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+    "spring.jpa.show-sql=false"
+})
 public class WorkspaceRepositoryTest {
 
     @Autowired
@@ -44,6 +53,7 @@ public class WorkspaceRepositoryTest {
     void setUp() {
         // Create test users
         owner = new User();
+        owner.setId("owner-123"); // Set ID manually for test
         owner.setEmail("owner@example.com");
         owner.setName("Owner User");
         owner.setProvider(AuthProvider.GOOGLE);
@@ -51,6 +61,7 @@ public class WorkspaceRepositoryTest {
         owner = userRepository.save(owner);
 
         collaborator = new User();
+        collaborator.setId("collaborator-456"); // Set ID manually for test
         collaborator.setEmail("collaborator@example.com");
         collaborator.setName("Collaborator User");
         collaborator.setProvider(AuthProvider.GOOGLE);
@@ -144,8 +155,17 @@ public class WorkspaceRepositoryTest {
 
     @Test
     void findByIdAndOwnerOrUsers_User_NoAccess() {
-        // Act
-        Optional<Workspace> foundWorkspace = workspaceRepository.findByIdAndOwnerOrUsers_User(workspace2.getId(), collaborator, collaborator);
+        // Create a user with no workspace access
+        User noAccessUser = new User();
+        noAccessUser.setId("no-access-456"); // Set ID manually for test
+        noAccessUser.setEmail("noaccess@example.com");
+        noAccessUser.setName("No Access User");
+        noAccessUser.setProvider(AuthProvider.GOOGLE);
+        noAccessUser.setProviderId("noaccess123");
+        noAccessUser = userRepository.save(noAccessUser);
+        
+        // Act - try to access workspace2 with a user who has no associations
+        Optional<Workspace> foundWorkspace = workspaceRepository.findByIdAndOwnerOrUsers_User(workspace2.getId(), noAccessUser, noAccessUser);
         
         // Assert
         assertFalse(foundWorkspace.isPresent());

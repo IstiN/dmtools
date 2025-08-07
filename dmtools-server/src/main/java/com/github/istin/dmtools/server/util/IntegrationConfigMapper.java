@@ -50,8 +50,8 @@ public class IntegrationConfigMapper {
                 break;
                 
             case "ai":
-            case "openai":
-                mapOpenAIIntegration(config, params);
+            case "dial":
+                mapDialIntegration(config, params);
                 break;
                 
             case "gemini":
@@ -208,8 +208,8 @@ public class IntegrationConfigMapper {
         }
     }
     
-    private static void mapOpenAIIntegration(JSONObject config, Map<String, String> params) {
-        logger.info("🔍 Processing OpenAI integration mapping...");
+    private static void mapDialIntegration(JSONObject config, Map<String, String> params) {
+        logger.info("🔍 Processing Dial integration mapping...");
         
         if (params.containsKey("apiKey")) {
             config.put("apiKey", params.get("apiKey"));

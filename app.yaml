@@ -23,7 +23,7 @@ env_variables:
   # GEMINI_API_KEY: "set-via-github-actions-or-gcloud-deploy"
   # GEMINI_DEFAULT_MODEL: "gemini-2.5-flash-preview-05-20"
   # Add other production environment variables as needed:
-  # OPEN_AI_API_KEY: "your-openai-key-here"
+  # DIAL_API_KEY: "your-dial-key-here"
   # JIRA_BASE_PATH: "https://your-jira.atlassian.net"
   # JIRA_LOGIN_PASS_TOKEN: "your-jira-token-here"
   # MS_APPLICATION_ID: "your-ms-app-id"
