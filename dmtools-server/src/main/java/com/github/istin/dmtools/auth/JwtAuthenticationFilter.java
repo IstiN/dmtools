@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -20,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Optional;
 
 @Component
@@ -60,10 +62,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (userOpt.isPresent()) {
                     User user = userOpt.get();
                     
+                    // Get user roles and convert to authorities
+                    Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                    if (user.getRoles() != null) {
+                        for (String role : user.getRoles()) {
+                            authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+                        }
+                    }
+                    if (authorities.isEmpty()) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_REGULAR_USER"));
+                    }
+                    
                     UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                         .username(user.getEmail())
                         .password("") // Password is not needed as we use JWT
-                        .authorities(new ArrayList<>()) // Add roles/authorities here if you have them
+                        .authorities(authorities)
                         .build();
 
                     // Create authentication token

@@ -173,6 +173,10 @@ public class AuthController {
                 userMap.put("picture", user.getPictureUrl()); // For backward compatibility
             }
             if (user.getProvider() != null) userMap.put("provider", user.getProvider());
+            
+            // Add role information
+            String userRole = userService.getUserRole(user);
+            userMap.put("role", userRole);
 
             return ResponseEntity.ok(userMap);
         }
@@ -247,6 +251,7 @@ public class AuthController {
                     "email", email, 
                     "name", localUsername, 
                     "provider", "LOCAL",
+                    "role", userService.getUserRole(user),
                     "authenticated", true
                 )
             ));

@@ -9,6 +9,6 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface WorkspaceUserRepository extends JpaRepository<WorkspaceUser, Long> {
+public interface WorkspaceUserRepository extends JpaRepository<WorkspaceUser, String> {
     Optional<WorkspaceUser> findByWorkspaceAndUser(Workspace workspace, User user);
 } 

@@ -5,19 +5,54 @@ import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
+    
+    @Value("${admin.emails:}")
+    private String adminEmailsList;
+    
+    private Set<String> adminEmails;
 
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
+    }
+    
+    /**
+     * Initialize admin emails from configuration
+     */
+    public void initializeAdminEmails() {
+        if (adminEmailsList != null && !adminEmailsList.trim().isEmpty()) {
+            adminEmails = Arrays.stream(adminEmailsList.split(","))
+                    .map(String::trim)
+                    .filter(email -> !email.isEmpty())
+                    .collect(Collectors.toSet());
+            logger.info("Initialized {} admin emails from configuration", adminEmails.size());
+        } else {
+            adminEmails = new HashSet<>();
+            logger.warn("No admin emails configured in application.properties");
+        }
+    }
+    
+    /**
+     * Check if user email is configured as admin
+     */
+    public boolean isAdminEmail(String email) {
+        if (adminEmails == null) {
+            initializeAdminEmails();
+        }
+        return adminEmails != null && adminEmails.contains(email);
     }
 
     public Optional<User> findByEmail(String email) {
@@ -98,6 +133,17 @@ public class UserService {
         newUser.setPictureUrl(pictureUrl);
         newUser.setLocale(locale);
         newUser.setProvider(provider);
+        
+        // Set initial role based on admin email configuration
+        Set<String> roles = new HashSet<>();
+        if (isAdminEmail(email)) {
+            roles.add("ADMIN");
+            logger.info("User {} assigned ADMIN role based on admin email configuration", email);
+        } else {
+            roles.add("REGULAR_USER");
+            logger.info("User {} assigned REGULAR_USER role", email);
+        }
+        newUser.setRoles(roles);
         
         return userRepository.save(newUser);
     }
@@ -230,6 +276,94 @@ public class UserService {
                 return id != null ? id.toString() : null;
             default:
                 return user.getAttribute("id");
+        }
+    }
+    
+    /**
+     * Get paginated list of users with optional search functionality
+     */
+    public Page<User> getUsers(Pageable pageable, String search) {
+        if (search != null && !search.trim().isEmpty()) {
+            return userRepository.findByEmailContainingIgnoreCaseOrNameContainingIgnoreCase(
+                search.trim(), search.trim(), pageable);
+        }
+        return userRepository.findAll(pageable);
+    }
+    
+    /**
+     * Update user role
+     */
+    @Transactional
+    public User updateUserRole(String userId, String role) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("User not found with ID: " + userId);
+        }
+        
+        User user = userOpt.get();
+        
+        // Validate role
+        if (!"ADMIN".equals(role) && !"REGULAR_USER".equals(role)) {
+            throw new IllegalArgumentException("Invalid role: " + role + ". Must be ADMIN or REGULAR_USER");
+        }
+        
+        // Update role
+        Set<String> roles = new HashSet<>();
+        roles.add(role);
+        user.setRoles(roles);
+        
+        User savedUser = userRepository.save(user);
+        logger.info("User {} role updated to {}", user.getEmail(), role);
+        
+        return savedUser;
+    }
+    
+    /**
+     * Get user role - returns primary role from roles set
+     */
+    public String getUserRole(User user) {
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            return "REGULAR_USER";
+        }
+        
+        // If user has ADMIN role, return that as primary
+        if (user.getRoles().contains("ADMIN")) {
+            return "ADMIN";
+        }
+        
+        // Otherwise return the first role or default to REGULAR_USER
+        return user.getRoles().iterator().next();
+    }
+    
+    /**
+     * Check if user has admin role
+     */
+    public boolean hasAdminRole(User user) {
+        return user.getRoles() != null && user.getRoles().contains("ADMIN");
+    }
+    
+    /**
+     * Ensure existing users have roles assigned
+     */
+    @Transactional
+    public void ensureUserRoles() {
+        List<User> usersWithoutRoles = userRepository.findAll().stream()
+                .filter(user -> user.getRoles() == null || user.getRoles().isEmpty())
+                .collect(Collectors.toList());
+                
+        logger.info("Found {} users without roles, assigning default roles", usersWithoutRoles.size());
+        
+        for (User user : usersWithoutRoles) {
+            Set<String> roles = new HashSet<>();
+            if (isAdminEmail(user.getEmail())) {
+                roles.add("ADMIN");
+                logger.info("Assigning ADMIN role to existing user: {}", user.getEmail());
+            } else {
+                roles.add("REGULAR_USER");
+                logger.info("Assigning REGULAR_USER role to existing user: {}", user.getEmail());
+            }
+            user.setRoles(roles);
+            userRepository.save(user);
         }
     }
 } 
