@@ -27,7 +27,7 @@ public class WebhookExecuteRequestTest {
         
         JsonNode integrationMappings = objectMapper.createObjectNode()
                 .put("TrackerClient", "jira-integration-id")
-                .put("AI", "openai-integration-id");
+                .put("AI", "dial-integration-id");
 
         request.setJobParameters(jobParams);
         request.setIntegrationMappings(integrationMappings);

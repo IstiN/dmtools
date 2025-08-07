@@ -60,7 +60,7 @@ Set these in `app.yaml` for production deployment:
 ```yaml
 env_variables:
   GEMINI_API_KEY: "your-production-gemini-key"
-  OPEN_AI_API_KEY: "your-production-openai-key"  
+  DIAL_API_KEY: "your-production-dial-key"  
   JIRA_BASE_PATH: "https://your-company.atlassian.net"
   JIRA_LOGIN_PASS_TOKEN: "your-production-jira-token"
   MS_APPLICATION_ID: "your-microsoft-app-id"

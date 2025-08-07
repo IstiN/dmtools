@@ -2,7 +2,6 @@ package com.github.istin.dmtools.server.config;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
-import com.github.istin.dmtools.openai.PromptManager;
 import com.github.istin.dmtools.di.AIComponent;
 import com.github.istin.dmtools.di.DaggerAIComponent;
 import org.springframework.context.annotation.Bean;

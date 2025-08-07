@@ -57,10 +57,10 @@ public class IntegrationConfigurationLoaderTest {
     }
 
     @Test
-    public void testGetIntegrationType_OpenAI_ShouldNotThrowNullPointerException() {
+    public void testGetIntegrationType_Dial_ShouldNotThrowNullPointerException() {
         assertDoesNotThrow(() -> {
             try {
-                IntegrationTypeDto openai = configurationLoader.getIntegrationType("openai");
+                IntegrationTypeDto dial = configurationLoader.getIntegrationType("dial");
             } catch (IllegalStateException | IllegalArgumentException e) {
                 assertTrue(true);
             }
@@ -103,7 +103,7 @@ public class IntegrationConfigurationLoaderTest {
         assertDoesNotThrow(() -> {
             configurationLoader.hasIntegrationType("github");
             configurationLoader.hasIntegrationType("jira");
-            configurationLoader.hasIntegrationType("openai");
+            configurationLoader.hasIntegrationType("dial");
             configurationLoader.hasIntegrationType("nonexistent");
             configurationLoader.hasIntegrationType("");
             configurationLoader.hasIntegrationType(null);

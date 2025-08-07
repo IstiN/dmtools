@@ -2,7 +2,6 @@ package com.github.istin.dmtools.auth.service;
 
 import com.github.istin.dmtools.auth.model.*;
 import com.github.istin.dmtools.auth.repository.*;
-import com.github.istin.dmtools.auth.service.IntegrationConfigurationLoader;
 import com.github.istin.dmtools.auth.util.EncryptionUtils;
 import com.github.istin.dmtools.dto.CreateIntegrationRequest;
 import com.github.istin.dmtools.dto.IntegrationDto;
@@ -257,10 +256,10 @@ class IntegrationServiceTest {
         // Arrange
         IntegrationTypeDto github = createMockGitHubIntegrationTypeDto();
         IntegrationTypeDto jira = createMockJiraIntegrationTypeDto();
-        IntegrationTypeDto openai = createMockOpenAIIntegrationTypeDto();
+        IntegrationTypeDto dial = createMockDialIntegrationTypeDto();
         
         when(configurationLoader.getAllIntegrationTypes())
-                .thenReturn(List.of(github, jira, openai));
+                .thenReturn(List.of(github, jira, dial));
         
         // When
         List<IntegrationTypeDto> result = integrationService.getAvailableIntegrationTypes();
@@ -289,7 +288,7 @@ class IntegrationServiceTest {
         
         // Should contain other integration types
         assertTrue(result.stream().anyMatch(type -> "jira".equals(type.getType())));
-        assertTrue(result.stream().anyMatch(type -> "openai".equals(type.getType())));
+        assertTrue(result.stream().anyMatch(type -> "dial".equals(type.getType())));
         
         verify(configurationLoader, times(1)).getAllIntegrationTypes();
     }
@@ -372,14 +371,14 @@ class IntegrationServiceTest {
         return jira;
     }
     
-    private IntegrationTypeDto createMockOpenAIIntegrationTypeDto() {
-        IntegrationTypeDto openai = new IntegrationTypeDto();
-        openai.setType("openai");
-        openai.setDisplayName("OpenAI");
-        openai.setDescription("Integration with OpenAI API for AI capabilities");
-        openai.setIconUrl("/img/integrations/openai-icon.svg");
-        openai.setCategories(List.of("AI"));
-        openai.setConfigParams(new ArrayList<>());
-        return openai;
+    private IntegrationTypeDto createMockDialIntegrationTypeDto() {
+        IntegrationTypeDto dial = new IntegrationTypeDto();
+        dial.setType("dial");
+        dial.setDisplayName("Dial");
+        dial.setDescription("Integration with Dial API for AI capabilities");
+        dial.setIconUrl("/img/integrations/dial-icon.svg");
+        dial.setCategories(List.of("AI"));
+        dial.setConfigParams(new ArrayList<>());
+        return dial;
     }
 } 

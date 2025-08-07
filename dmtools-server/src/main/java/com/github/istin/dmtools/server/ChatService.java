@@ -1,26 +1,20 @@
 package com.github.istin.dmtools.server;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.agent.ToolSelectorAgent;
 import com.github.istin.dmtools.auth.controller.DynamicMCPController;
-import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.dto.ChatMessage;
 import com.github.istin.dmtools.dto.ChatRequest;
 import com.github.istin.dmtools.dto.ChatResponse;
 import com.github.istin.dmtools.dto.ToolCallRequest;
-import com.github.istin.dmtools.openai.model.Choice;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class ChatService {

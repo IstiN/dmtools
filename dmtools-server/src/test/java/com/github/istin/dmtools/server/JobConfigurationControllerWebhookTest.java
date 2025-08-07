@@ -3,6 +3,7 @@ package com.github.istin.dmtools.server;
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.service.UserService;
 import com.github.istin.dmtools.dto.*;
+import com.github.istin.dmtools.server.model.ExecutionStatus;
 import com.github.istin.dmtools.server.model.WebhookKey;
 import com.github.istin.dmtools.server.service.JobConfigurationService;
 import com.github.istin.dmtools.server.service.WebhookExamplesService;
@@ -45,6 +46,9 @@ public class JobConfigurationControllerWebhookTest {
     private WebhookExamplesService webhookExamplesService;
 
     @Mock
+    private JobExecutionController jobExecutionController;
+
+    @Mock
     private Authentication authentication;
 
     @Mock
@@ -84,15 +88,25 @@ public class JobConfigurationControllerWebhookTest {
         // Arrange
         String jobConfigId = "job-config-123";
         String apiKey = "wk_testkey123456789012345678901234567890";
+        String executionId = "exec-456";
         
         WebhookExecuteRequest request = new WebhookExecuteRequest();
         JsonNode jobParams = objectMapper.createObjectNode();
         request.setJobParameters(jobParams);
 
+        // Mock successful job execution response
+        JobExecutionResponse jobExecResponse = new JobExecutionResponse();
+        jobExecResponse.setExecutionId(executionId);
+        jobExecResponse.setStatus(ExecutionStatus.RUNNING);
+        jobExecResponse.setJobConfigurationId(jobConfigId);
+        jobExecResponse.setMessage("Job started successfully");
+
         when(webhookKeyService.validateApiKeyForJobConfig(apiKey, jobConfigId))
                 .thenReturn(Optional.of(testWebhookKey));
         when(jobConfigurationService.getExecutionParameters(eq(jobConfigId), any(), anyString()))
                 .thenReturn(Optional.of(testExecutionParams));
+        when(jobExecutionController.executeSavedJobConfiguration(eq(jobConfigId), any(), any()))
+                .thenReturn(ResponseEntity.ok(jobExecResponse));
 
         // Act
         ResponseEntity<WebhookExecutionResponse> response = controller.executeJobConfigurationWebhook(
@@ -104,11 +118,11 @@ public class JobConfigurationControllerWebhookTest {
         assertEquals("PENDING", response.getBody().getStatus());
         assertEquals("Job execution started successfully", response.getBody().getMessage());
         assertEquals(jobConfigId, response.getBody().getJobConfigurationId());
-        assertNotNull(response.getBody().getExecutionId());
+        assertEquals(executionId, response.getBody().getExecutionId());
 
         verify(webhookKeyService).validateApiKeyForJobConfig(apiKey, jobConfigId);
         verify(jobConfigurationService).getExecutionParameters(eq(jobConfigId), any(), anyString());
-        verify(jobConfigurationService).recordExecution(eq(jobConfigId), anyString());
+        verify(jobExecutionController).executeSavedJobConfiguration(eq(jobConfigId), any(), any());
     }
 
     @Test
@@ -170,11 +184,21 @@ public class JobConfigurationControllerWebhookTest {
         // Arrange
         String jobConfigId = "job-config-123";
         String apiKey = "wk_testkey123456789012345678901234567890";
+        String executionId = "exec-789";
+
+        // Mock successful job execution response
+        JobExecutionResponse jobExecResponse = new JobExecutionResponse();
+        jobExecResponse.setExecutionId(executionId);
+        jobExecResponse.setStatus(ExecutionStatus.RUNNING);
+        jobExecResponse.setJobConfigurationId(jobConfigId);
+        jobExecResponse.setMessage("Job started successfully");
 
         when(webhookKeyService.validateApiKeyForJobConfig(apiKey, jobConfigId))
                 .thenReturn(Optional.of(testWebhookKey));
         when(jobConfigurationService.getExecutionParameters(eq(jobConfigId), any(), anyString()))
                 .thenReturn(Optional.of(testExecutionParams));
+        when(jobExecutionController.executeSavedJobConfiguration(eq(jobConfigId), any(), any()))
+                .thenReturn(ResponseEntity.ok(jobExecResponse));
 
         // Act
         ResponseEntity<WebhookExecutionResponse> response = controller.executeJobConfigurationWebhook(
@@ -182,8 +206,14 @@ public class JobConfigurationControllerWebhookTest {
 
         // Assert
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("PENDING", response.getBody().getStatus());
+        assertEquals("Job execution started successfully", response.getBody().getMessage());
+        assertEquals(jobConfigId, response.getBody().getJobConfigurationId());
+        assertEquals(executionId, response.getBody().getExecutionId());
+
         verify(jobConfigurationService).getExecutionParameters(eq(jobConfigId), any(), anyString());
-        verify(jobConfigurationService).recordExecution(eq(jobConfigId), anyString());
+        verify(jobExecutionController).executeSavedJobConfiguration(eq(jobConfigId), any(), any());
     }
 
     @Test

@@ -31,7 +31,7 @@ env_variables:
   SPRING_PROFILES_ACTIVE: "prod"
   GEMINI_API_KEY: "your-actual-gemini-api-key"
   # Uncomment and set other variables as needed:
-  # OPEN_AI_API_KEY: "your-openai-key"
+  # DIAL_API_KEY: "your-dial-key"
   # JIRA_BASE_PATH: "https://your-company.atlassian.net"
   # JIRA_LOGIN_PASS_TOKEN: "your-jira-token"
   # MS_APPLICATION_ID: "your-microsoft-app-id"
