@@ -244,6 +244,9 @@ public class AuthController {
             
             logger.info("✅ LOCAL AUTH - Login successful for user: {}", localUsername);
             
+            // Get user role with fallback protection
+            String userRole = userService.getUserRole(user);
+            
             return ResponseEntity.ok(Map.of(
                 "token", jwt,
                 "user", Map.of(
@@ -251,7 +254,7 @@ public class AuthController {
                     "email", email, 
                     "name", localUsername, 
                     "provider", "LOCAL",
-                    "role", userService.getUserRole(user),
+                    "role", userRole != null ? userRole : "REGULAR_USER",
                     "authenticated", true
                 )
             ));

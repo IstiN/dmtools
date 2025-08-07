@@ -21,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 
@@ -200,6 +201,8 @@ public class AuthControllerTest {
         user.setId("user-id");
         user.setEmail("testuser@local.test");
         user.setName("testuser");
+        // Initialize roles to simulate a new user with default role
+        user.setRoles(new HashSet<>());
         
         MockHttpServletResponse response = new MockHttpServletResponse();
         

@@ -11,6 +11,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.annotation.PostConstruct;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,6 +34,7 @@ public class UserService {
     /**
      * Initialize admin emails from configuration
      */
+    @PostConstruct
     public void initializeAdminEmails() {
         if (adminEmailsList != null && !adminEmailsList.trim().isEmpty()) {
             adminEmails = Arrays.stream(adminEmailsList.split(","))
@@ -322,6 +325,10 @@ public class UserService {
      * Get user role - returns primary role from roles set
      */
     public String getUserRole(User user) {
+        if (user == null) {
+            return "REGULAR_USER";
+        }
+        
         if (user.getRoles() == null || user.getRoles().isEmpty()) {
             return "REGULAR_USER";
         }
@@ -332,7 +339,8 @@ public class UserService {
         }
         
         // Otherwise return the first role or default to REGULAR_USER
-        return user.getRoles().iterator().next();
+        String firstRole = user.getRoles().iterator().next();
+        return firstRole != null ? firstRole : "REGULAR_USER";
     }
     
     /**
