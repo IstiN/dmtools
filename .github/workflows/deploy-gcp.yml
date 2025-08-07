@@ -117,12 +117,14 @@ jobs:
           echo "GOOGLE_CLIENT_SECRET length: ${#GOOGLE_CLIENT_SECRET}"
           echo "MICROSOFT_CLIENT_SECRET length: ${#MICROSOFT_CLIENT_SECRET}"
           echo "OAUTH_GITHUB_CLIENT_SECRET length: ${#OAUTH_GITHUB_CLIENT_SECRET}"
+          echo "ADMIN_EMAILS configured: $([ -n "$ADMIN_EMAILS" ] && echo "YES" || echo "NO")"
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
           OAUTH_GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
 
       - name: Create environment variables file
         run: |
@@ -170,6 +172,7 @@ jobs:
           SERVER_FORWARD_HEADERS_STRATEGY: "FRAMEWORK"
           SERVER_USE_FORWARD_HEADERS: "true"
           MANAGEMENT_SERVER_PORT: "8080"
+          ADMIN_EMAILS: "${{ secrets.ADMIN_EMAILS }}"
           EOF
 
       - name: Deploy to Cloud Run
