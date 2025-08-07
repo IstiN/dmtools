@@ -157,10 +157,13 @@ public class WebhookKeyServiceTest {
         when(webhookKeyRepository.existsByJobConfigurationAndNameIgnoreCase(testJobConfig, "Test API Key"))
                 .thenReturn(true);
 
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
+        // Act & Assert - Verify that attempting to create a duplicate webhook key throws IllegalArgumentException
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             webhookKeyService.createWebhookKey("job-config-123", createRequest, "user-123");
         });
+        
+        // Verify the exception message contains expected text
+        assertTrue(exception.getMessage().contains("Webhook key with name 'Test API Key' already exists"));
 
         verify(webhookKeyRepository, never()).save(any());
     }
