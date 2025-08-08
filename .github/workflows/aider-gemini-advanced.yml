@@ -180,9 +180,9 @@ jobs:
         du -sh . | awk '{print "Total size: " $1}' >> aider-outputs/repo_analysis.md
         echo "" >> aider-outputs/repo_analysis.md
         
-        # Write user input to file to prevent shell injection
-        printf '%s\n' '${{ inputs.user_request }}' > aider-outputs/user_request.txt
-        echo "💾 Stored user request safely"
+        # Write user input to file using base64 encoding to prevent ALL shell interpretation
+        echo '${{ inputs.user_request }}' | base64 > aider-outputs/user_request_b64.txt
+        echo "💾 Stored user request safely (base64 encoded)"
 
     - name: Run Aider with enhanced Gemini configuration
       env:
@@ -261,8 +261,8 @@ jobs:
         # Prepare the message (safely handle special characters)
         echo "=== PREPARING AIDER MESSAGE ===" | tee -a "$OUTPUT_FILE"
         
-        # Read user request from file and create safe message using printf to escape everything
-        USER_REQUEST=$(cat aider-outputs/user_request.txt)
+        # Read and decode user request from base64 to handle ANY characters safely
+        USER_REQUEST=$(base64 -d < aider-outputs/user_request_b64.txt)
         
         # Build the message using printf to safely handle all special characters  
         printf -v SAFE_MESSAGE 'Repository: %s (large codebase). Request: %s. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on core architecture and main modules. Provide clear, comprehensive response.' "${{ github.repository }}" "$USER_REQUEST"
