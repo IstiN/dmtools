@@ -40,7 +40,7 @@ stream: false
 pretty: false
 show-diffs: true
 auto-commits: false
-yes: true
+yes-always: true
 ```
 
 #### GitHub Actions Workflows
@@ -293,6 +293,10 @@ This method installs Aider in its own isolated Python environment, preventing de
 - `actions/setup-python@v5` - Python environment setup
 - `actions/cache@v4` - Caching for pip and Aider
 - `actions/upload-artifact@v4` - Artifact upload (replaces deprecated v3)
+
+**Configuration Updates**:
+- Fixed `yes:` → `yes-always:` for latest Aider compatibility
+- Updated configuration parameter names for v0.85.0+
 
 ## 🎉 Getting Started
 

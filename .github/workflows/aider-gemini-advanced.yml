@@ -133,7 +133,7 @@ jobs:
         pretty: false
         show-diffs: true
         auto-commits: ${{ inputs.auto_commit }}
-        yes: true
+        yes-always: true
         EOF
 
     - name: Create output directory

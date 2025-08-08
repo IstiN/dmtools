@@ -10,4 +10,4 @@ pretty: false  # Disable pretty output for CI logs
 # Additional settings for better responses
 show-diffs: true
 auto-commits: false  # Disable auto commits in CI
-yes: true  # Auto-accept all suggestions
+yes-always: true  # Auto-accept all suggestions
