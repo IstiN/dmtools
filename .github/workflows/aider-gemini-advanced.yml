@@ -253,8 +253,8 @@ jobs:
           fi
         fi
         
-        # Enhanced request with explicit file output instruction
-        ENHANCED_REQUEST="Repository: ${{ github.repository }} (large codebase). Request: ${{ inputs.user_request }}. CRITICAL INSTRUCTION: You MUST write your COMPLETE response to the file 'aider/response.md' using proper markdown format. This should be a single, comprehensive file containing all diagrams, explanations, and code examples. Do NOT create multiple files or partial responses. Ensure the file contains the FULL answer to the request. Focus on core architecture and main modules. Provide clear, comprehensive response."
+        # Enhanced request with response tag instruction (no file creation)
+        ENHANCED_REQUEST="Repository: ${{ github.repository }} (large codebase). Request: ${{ inputs.user_request }}. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on core architecture and main modules. Provide clear, comprehensive response."
         AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
         
         # Execute with comprehensive logging
@@ -282,39 +282,34 @@ jobs:
           echo "✅ === AIDER EXECUTION END ==="
         } | tee "$OUTPUT_FILE"
         
-        # Wait a moment for any final file writes to complete
-        sleep 3
+        # Extract response from output using tags
+        echo "🔍 Extracting response from Aider output..." | tee -a "$OUTPUT_FILE"
         
-        # Copy the response file if it exists
-        if [ -f "aider/response.md" ]; then
-          echo "✅ Response file created by Aider" | tee -a "$OUTPUT_FILE"
+        # Parse response between tags
+        if grep -q "<AIDER_RESPONSE_START>" "$OUTPUT_FILE" && grep -q "<AIDER_RESPONSE_END>" "$OUTPUT_FILE"; then
+          echo "✅ Response tags found in output" | tee -a "$OUTPUT_FILE"
           
-          # Show file size for verification
-          RESPONSE_SIZE=$(wc -c < "aider/response.md")
-          echo "📄 Response file size: $RESPONSE_SIZE bytes" | tee -a "$OUTPUT_FILE"
+          # Extract content between tags
+          sed -n '/<AIDER_RESPONSE_START>/,/<AIDER_RESPONSE_END>/p' "$OUTPUT_FILE" | \
+            sed '1d;$d' > "aider-outputs/aider-response.md"
           
-          # Copy with verification
-          cp "aider/response.md" "aider-outputs/aider-response.md"
-          
-          # Verify the copy
-          if [ -f "aider-outputs/aider-response.md" ]; then
-            COPIED_SIZE=$(wc -c < "aider-outputs/aider-response.md")
-            echo "✅ Response copied to artifacts (size: $COPIED_SIZE bytes)" | tee -a "$OUTPUT_FILE"
+          # Verify extraction
+          if [ -f "aider-outputs/aider-response.md" ] && [ -s "aider-outputs/aider-response.md" ]; then
+            RESPONSE_SIZE=$(wc -c < "aider-outputs/aider-response.md")
+            echo "✅ Response extracted successfully (size: $RESPONSE_SIZE bytes)" | tee -a "$OUTPUT_FILE"
             
             # Show first and last few lines for verification
-            echo "🔍 First 5 lines of response:" | tee -a "$OUTPUT_FILE"
+            echo "🔍 First 5 lines of extracted response:" | tee -a "$OUTPUT_FILE"
             head -5 "aider-outputs/aider-response.md" | tee -a "$OUTPUT_FILE"
-            echo "🔍 Last 5 lines of response:" | tee -a "$OUTPUT_FILE"
+            echo "🔍 Last 5 lines of extracted response:" | tee -a "$OUTPUT_FILE"
             tail -5 "aider-outputs/aider-response.md" | tee -a "$OUTPUT_FILE"
           else
-            echo "❌ Failed to copy response file" | tee -a "$OUTPUT_FILE"
+            echo "❌ Failed to extract response content" | tee -a "$OUTPUT_FILE"
           fi
         else
-          echo "⚠️ No response file created by Aider" | tee -a "$OUTPUT_FILE"
-          
-          # Check if any files were created in aider directory
-          echo "🔍 Checking aider directory contents:" | tee -a "$OUTPUT_FILE"
-          ls -la aider/ | tee -a "$OUTPUT_FILE" || echo "aider/ directory not found" | tee -a "$OUTPUT_FILE"
+          echo "⚠️ Response tags not found in output" | tee -a "$OUTPUT_FILE"
+          echo "🔍 Searching for partial tags..." | tee -a "$OUTPUT_FILE"
+          grep -n "AIDER_RESPONSE" "$OUTPUT_FILE" | tee -a "$OUTPUT_FILE" || echo "No AIDER_RESPONSE tags found at all" | tee -a "$OUTPUT_FILE"
         fi
         
         # Save output file paths
@@ -435,15 +430,16 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
         fi
         
-        # Check if response file was created
-        if [ -f "aider-outputs/aider-response.md" ]; then
-          echo "## 📄 Response File Created" >> $GITHUB_STEP_SUMMARY
-          echo "Aider successfully created a response file with the requested content." >> $GITHUB_STEP_SUMMARY
+        # Check if response was extracted
+        if [ -f "aider-outputs/aider-response.md" ] && [ -s "aider-outputs/aider-response.md" ]; then
+          RESPONSE_SIZE=$(wc -c < "aider-outputs/aider-response.md")
+          echo "## 📄 Response Extracted Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "Aider response was successfully extracted from output ($RESPONSE_SIZE bytes)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "## 📎 Artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "- 📄 **Aider Response** (aider-response.md) - Main response file" >> $GITHUB_STEP_SUMMARY
+        echo "- 📄 **Aider Response** (aider-response.md) - Extracted from output tags" >> $GITHUB_STEP_SUMMARY
         echo "- 📄 **Full execution logs** available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
         echo "- 📊 **Execution metrics** included in artifacts" >> $GITHUB_STEP_SUMMARY
         echo "- 🔍 **Repository analysis** included in artifacts" >> $GITHUB_STEP_SUMMARY

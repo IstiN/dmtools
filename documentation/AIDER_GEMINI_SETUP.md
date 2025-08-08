@@ -148,12 +148,19 @@ target_files: ""  # Advanced workflow will auto-include relevant files
 - 🔄 **Reusable**: Can be copied/shared easily
 - ⏱️ **Complete Content**: Enhanced timing logic ensures full response is captured
 
-#### Response File Generation Process:
-1. **Aider receives** explicit instruction to write to `aider/response.md`
-2. **Critical instruction** ensures complete response in single file
-3. **Wait period** (2-3 seconds) allows Aider to finish all edits
-4. **Verification** checks file size and content before copying
-5. **Artifact creation** includes both response file and full logs
+#### Response Extraction Process:
+1. **Aider receives** instruction to wrap response in special tags
+2. **No file creation** - Aider outputs response directly to console with tags
+3. **Tag parsing** - Workflow extracts content between `<AIDER_RESPONSE_START>` and `<AIDER_RESPONSE_END>`
+4. **Response creation** - Extracted content saved as `aider-response.md`
+5. **Verification** checks extraction success and content integrity
+6. **Artifact creation** includes both response file and full logs
+
+#### Why This Approach:
+- **Avoids file creation errors** that can truncate responses
+- **Prevents Mermaid syntax issues** from breaking file operations
+- **Ensures complete responses** regardless of diagram complexity
+- **More reliable** than file-based approach with complex content
 
 ### Pull Request Features (Advanced Workflow)
 - Automatic PR creation with detailed description
