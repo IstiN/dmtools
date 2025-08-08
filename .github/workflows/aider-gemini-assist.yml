@@ -46,12 +46,12 @@ jobs:
         fetch-depth: 0  # Full history for better context
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
     - name: Cache pip packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-aider-gemini-${{ hashFiles('**/requirements.txt') }}
@@ -60,7 +60,7 @@ jobs:
           ${{ runner.os }}-pip-
 
     - name: Cache Aider installation
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.local/bin/aider
@@ -159,7 +159,7 @@ jobs:
         echo "OUTPUT_FILE=$OUTPUT_FILE" >> $GITHUB_ENV
 
     - name: Upload Aider response as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: aider-gemini-response-${{ github.run_number }}
         path: aider-outputs/
