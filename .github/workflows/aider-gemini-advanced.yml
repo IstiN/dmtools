@@ -183,7 +183,7 @@ jobs:
         echo "" >> aider-outputs/repo_analysis.md
         
         # Write user input to file using base64 encoding to prevent ALL shell interpretation
-        echo "$USER_REQUEST_RAW" | base64 > aider-outputs/user_request_b64.txt
+        printf '%s' "$USER_REQUEST_RAW" | base64 -w 0 > aider-outputs/user_request_b64.txt
         echo "💾 Stored user request safely (base64 encoded)"
 
     - name: Run Aider with enhanced Gemini configuration
@@ -219,7 +219,7 @@ jobs:
         AIDER_CMD="aider"
         AIDER_CMD="$AIDER_CMD --model ${{ inputs.model }}"
         AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
-        AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands"
+        AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands --yes-always --auto-commits --no-stream --read"
         
         # Add target files if specified
         if [ -n "${{ inputs.target_files }}" ]; then
@@ -267,7 +267,7 @@ jobs:
         USER_REQUEST=$(base64 -d < aider-outputs/user_request_b64.txt)
         
         # Build the message using printf to safely handle all special characters  
-        printf -v SAFE_MESSAGE 'Repository: %s (large codebase). Request: %s. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on core architecture and main modules. Provide clear, comprehensive response.' "${{ github.repository }}" "$USER_REQUEST"
+        printf -v SAFE_MESSAGE 'Repository: %s (large codebase). Request: %s. CRITICAL INSTRUCTION: Work autonomously without asking for files. Read any files you need automatically. DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Analyze the entire codebase and provide comprehensive solution design.' "${{ github.repository }}" "$USER_REQUEST"
         
         # Execute with comprehensive logging
         {
