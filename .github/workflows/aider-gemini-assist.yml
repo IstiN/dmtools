@@ -113,10 +113,14 @@ jobs:
         # Install additional dependencies for Gemini models
         pip install google-generativeai
 
-    - name: Create output directories
+    - name: Create output directories and safe user input file
       run: |
         mkdir -p aider-outputs
         mkdir -p aider
+        
+        # Write user input to file to prevent shell injection
+        printf '%s\n' '${{ inputs.user_request }}' > aider-outputs/user_request.txt
+        echo "💾 Stored user request safely"
 
     - name: Validate Gemini API Key
       run: |
@@ -155,11 +159,14 @@ jobs:
           done
         fi
         
-        # Prepare the message (safely handle special characters)
+        # Prepare the message safely to avoid shell injection
         echo "=== PREPARING AIDER MESSAGE ===" | tee -a "$OUTPUT_FILE"
         
-        # Use printf to safely format the command and arguments
-        printf -v SAFE_MESSAGE 'Repository: %s. Request: %s. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on the core architecture and provide comprehensive details.' "${{ github.repository }}" "${{ inputs.user_request }}"
+        # Read user request from file and create safe message using printf to escape everything
+        USER_REQUEST=$(cat aider-outputs/user_request.txt)
+        
+        # Build the message using printf to safely handle all special characters
+        printf -v SAFE_MESSAGE 'Repository: %s. Request: %s. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on the core architecture and provide comprehensive details.' "${{ github.repository }}" "$USER_REQUEST"
         
         # Execute and capture output
         echo "=== AIDER EXECUTION START ===" | tee -a "$OUTPUT_FILE"
