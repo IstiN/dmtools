@@ -1,0 +1,182 @@
+name: Aider Code Assistant (Gemini)
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_request:
+        description: 'Your request for Aider'
+        required: true
+        type: string
+      target_files:
+        description: 'Files to include in context (comma-separated, optional)'
+        required: false
+        type: string
+        default: ''
+      model:
+        description: 'Google Gemini model to use'
+        required: false
+        type: choice
+        default: 'gemini/gemini-2.5-flash-preview-05-20'
+        options:
+          - gemini/gemini-2.5-flash-preview-05-20
+          - gemini/gemini-1.5-pro-latest
+          - gemini/gemini-1.5-pro-002
+          - gemini/gemini-1.5-flash-latest
+          - gemini/gemini-1.5-flash-002
+          - gemini/gemini-1.0-pro-latest
+      gemini_api_key_secret:
+        description: 'GitHub secret name containing Gemini API key'
+        required: false
+        type: string
+        default: 'GEMINI_API_KEY'
+      max_tokens:
+        description: 'Maximum tokens for context (Gemini 1.5 Pro supports up to 1M+)'
+        required: false
+        type: number
+        default: 1000000
+
+jobs:
+  run-aider:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better context
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-aider-gemini-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-aider-gemini-
+          ${{ runner.os }}-pip-
+
+    - name: Cache Aider installation
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.local/bin/aider
+          ~/.local/lib/python*/site-packages/aider*
+          ~/.aider
+        key: ${{ runner.os }}-aider-v085-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-aider-v085-
+          ${{ runner.os }}-aider-
+
+    - name: Install Aider and dependencies
+      run: |
+        pip install --upgrade pip
+        
+        # Check if aider is already cached and working
+        if command -v aider >/dev/null 2>&1; then
+          echo "✅ Aider found in cache, verifying installation..."
+          aider --version || INSTALL_AIDER=true
+        else
+          echo "📦 Aider not found in cache, installing..."
+          INSTALL_AIDER=true
+        fi
+        
+        # Install Aider if needed
+        if [ "$INSTALL_AIDER" = "true" ]; then
+          echo "🔧 Installing Aider using recommended method..."
+          pip install aider-install
+          aider-install
+        fi
+        
+        # Install additional dependencies for Gemini models
+        pip install google-generativeai
+        
+        # Verify installation
+        echo "🔍 Verifying Aider installation..."
+        aider --version
+        echo "✅ Aider installation verified"
+
+    - name: Create output directory
+      run: mkdir -p aider-outputs
+
+    - name: Validate Gemini API Key
+      run: |
+        # Check if the API key secret exists (indirect check)
+        if [ -z "${{ secrets[inputs.gemini_api_key_secret] }}" ] && [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then
+          echo "ERROR: No Gemini API key found. Please set up GEMINI_API_KEY secret or specify custom secret name."
+          exit 1
+        fi
+        echo "Gemini API key validation passed"
+
+    - name: Run Aider with Gemini model
+      env:
+        # Try custom secret name first, fallback to default
+        GEMINI_API_KEY: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
+        GOOGLE_API_KEY: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
+      run: |
+        # Set timestamp for unique output file
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        OUTPUT_FILE="aider-outputs/response_${TIMESTAMP}.txt"
+        
+        # Prepare the command
+        AIDER_CMD="aider --model ${{ inputs.model }}"
+        AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
+        
+        # Add target files if specified
+        if [ -n "${{ inputs.target_files }}" ]; then
+          IFS=',' read -ra FILES <<< "${{ inputs.target_files }}"
+          for file in "${FILES[@]}"; do
+            file=$(echo "$file" | xargs)  # Trim whitespace
+            if [ -f "$file" ]; then
+              AIDER_CMD="$AIDER_CMD $file"
+            else
+              echo "Warning: File '$file' not found" | tee -a "$OUTPUT_FILE"
+            fi
+          done
+        fi
+        
+        # Add the message
+        AIDER_CMD="$AIDER_CMD --message \"${{ inputs.user_request }}\""
+        
+        # Execute and capture output
+        echo "=== AIDER EXECUTION START ===" | tee -a "$OUTPUT_FILE"
+        echo "Model: ${{ inputs.model }}" | tee -a "$OUTPUT_FILE"
+        echo "Max Tokens: ${{ inputs.max_tokens }}" | tee -a "$OUTPUT_FILE"
+        echo "Request: ${{ inputs.user_request }}" | tee -a "$OUTPUT_FILE"
+        echo "Target Files: ${{ inputs.target_files || 'All files' }}" | tee -a "$OUTPUT_FILE"
+        echo "Timestamp: $TIMESTAMP" | tee -a "$OUTPUT_FILE"
+        echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
+        
+        # Run aider and capture output
+        eval $AIDER_CMD 2>&1 | tee -a "$OUTPUT_FILE"
+        
+        echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
+        
+        # Save output file path for artifact upload
+        echo "OUTPUT_FILE=$OUTPUT_FILE" >> $GITHUB_ENV
+
+    - name: Upload Aider response as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: aider-gemini-response-${{ github.run_number }}
+        path: aider-outputs/
+        retention-days: 30
+
+    - name: Create summary
+      run: |
+        echo "## 🤖 Aider Gemini Execution Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Model:** ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Max Tokens:** ${{ inputs.max_tokens }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Request:** ${{ inputs.user_request }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Target Files:** ${{ inputs.target_files || 'All files' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 💬 Response Preview (last 50 lines)" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        tail -n 50 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📎 **Full response available in artifacts**" >> $GITHUB_STEP_SUMMARY

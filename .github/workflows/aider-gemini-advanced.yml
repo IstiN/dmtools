@@ -1,0 +1,393 @@
+name: Aider Code Assistant (Gemini Advanced)
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_request:
+        description: 'Your request for Aider'
+        required: true
+        type: string
+      target_files:
+        description: 'Files to include in context (comma-separated, optional)'
+        required: false
+        type: string
+        default: ''
+      model:
+        description: 'Google Gemini model to use'
+        required: false
+        type: choice
+        default: 'gemini/gemini-2.5-flash-preview-05-20'
+        options:
+          - gemini/gemini-2.5-flash-preview-05-20
+          - gemini/gemini-1.5-pro-latest
+          - gemini/gemini-1.5-pro-002
+          - gemini/gemini-1.5-flash-latest
+          - gemini/gemini-1.5-flash-002
+          - gemini/gemini-1.0-pro-latest
+      gemini_api_key_secret:
+        description: 'GitHub secret name containing Gemini API key'
+        required: false
+        type: string
+        default: 'GEMINI_API_KEY'
+      max_tokens:
+        description: 'Maximum tokens for context (Gemini 1.5 Pro supports up to 1M+)'
+        required: false
+        type: number
+        default: 1000000
+      create_pr:
+        description: 'Create a pull request with changes'
+        required: false
+        type: boolean
+        default: false
+      auto_commit:
+        description: 'Auto-commit changes without creating PR'
+        required: false
+        type: boolean
+        default: false
+      include_tests:
+        description: 'Include test files in context'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  run-aider:
+    runs-on: ubuntu-latest
+    
+    outputs:
+      changes_detected: ${{ steps.check_changes.outputs.changes }}
+      pr_number: ${{ steps.create_pr.outputs.pull-request-number }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-aider-gemini-advanced-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-aider-gemini-advanced-
+          ${{ runner.os }}-pip-aider-
+
+    - name: Cache Aider installation
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.local/bin/aider
+          ~/.local/lib/python*/site-packages/aider*
+          ~/.aider
+        key: ${{ runner.os }}-aider-advanced-v085-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-aider-advanced-v085-
+          ${{ runner.os }}-aider-advanced-
+          ${{ runner.os }}-aider-
+
+    - name: Install Aider and dependencies
+      run: |
+        pip install --upgrade pip
+        
+        # Check if aider is already cached and working
+        if command -v aider >/dev/null 2>&1; then
+          echo "✅ Aider found in cache, verifying installation..."
+          aider --version || INSTALL_AIDER=true
+        else
+          echo "📦 Aider not found in cache, installing..."
+          INSTALL_AIDER=true
+        fi
+        
+        # Install Aider if needed
+        if [ "$INSTALL_AIDER" = "true" ]; then
+          echo "🔧 Installing Aider using recommended method..."
+          pip install aider-install
+          aider-install
+        fi
+        
+        # Install additional dependencies
+        pip install google-generativeai
+        pip install PyYAML
+        pip install gitpython
+        
+        # Verify installation
+        echo "🔍 Verifying Aider installation..."
+        aider --version
+        echo "✅ Aider installation verified"
+
+    - name: Create custom Gemini configuration
+      run: |
+        cat > .aider.conf.yml << EOF
+        model: ${{ inputs.model }}
+        edit-format: whole
+        max-chat-history-tokens: ${{ inputs.max_tokens }}
+        cache-prompts: true
+        stream: false
+        pretty: false
+        show-diffs: true
+        auto-commits: ${{ inputs.auto_commit }}
+        yes: true
+        EOF
+
+    - name: Create output directory
+      run: mkdir -p aider-outputs
+
+    - name: Validate Gemini API Key
+      run: |
+        # Check if the API key secret exists (indirect check)
+        if [ -z "${{ secrets[inputs.gemini_api_key_secret] }}" ] && [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then
+          echo "ERROR: No Gemini API key found. Please set up GEMINI_API_KEY secret or specify custom secret name."
+          exit 1
+        fi
+        echo "✅ Gemini API key validation passed"
+
+    - name: Analyze repository structure
+      run: |
+        echo "📊 Repository Analysis" > aider-outputs/repo_analysis.md
+        echo "===================" >> aider-outputs/repo_analysis.md
+        echo "" >> aider-outputs/repo_analysis.md
+        echo "### File Count by Type" >> aider-outputs/repo_analysis.md
+        find . -type f -name "*.java" | wc -l | xargs echo "Java files:" >> aider-outputs/repo_analysis.md
+        find . -type f -name "*.js" | wc -l | xargs echo "JavaScript files:" >> aider-outputs/repo_analysis.md
+        find . -type f -name "*.yml" -o -name "*.yaml" | wc -l | xargs echo "YAML files:" >> aider-outputs/repo_analysis.md
+        find . -type f -name "*.md" | wc -l | xargs echo "Markdown files:" >> aider-outputs/repo_analysis.md
+        echo "" >> aider-outputs/repo_analysis.md
+        echo "### Repository Size" >> aider-outputs/repo_analysis.md
+        du -sh . | awk '{print "Total size: " $1}' >> aider-outputs/repo_analysis.md
+        echo "" >> aider-outputs/repo_analysis.md
+
+    - name: Run Aider with enhanced Gemini configuration
+      env:
+        # Support multiple API key configurations
+        GEMINI_API_KEY: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
+        GOOGLE_API_KEY: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
+        GOOGLE_GEMINI_API_KEY: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
+      run: |
+        # Set timestamp and create output files
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        OUTPUT_FILE="aider-outputs/response_${TIMESTAMP}.txt"
+        METRICS_FILE="aider-outputs/metrics_${TIMESTAMP}.json"
+        
+        # Create metrics file
+        cat > "$METRICS_FILE" << EOF
+        {
+          "timestamp": "$TIMESTAMP",
+          "model": "${{ inputs.model }}",
+          "max_tokens": ${{ inputs.max_tokens }},
+          "request": "${{ inputs.user_request }}",
+          "target_files": "${{ inputs.target_files }}",
+          "include_tests": ${{ inputs.include_tests }},
+          "create_pr": ${{ inputs.create_pr }},
+          "auto_commit": ${{ inputs.auto_commit }},
+          "github_run_id": "${{ github.run_id }}",
+          "github_run_number": "${{ github.run_number }}",
+          "repository": "${{ github.repository }}"
+        }
+        EOF
+        
+        # Prepare the enhanced command
+        AIDER_CMD="aider"
+        AIDER_CMD="$AIDER_CMD --model ${{ inputs.model }}"
+        AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
+        
+        # Add target files if specified
+        if [ -n "${{ inputs.target_files }}" ]; then
+          IFS=',' read -ra FILES <<< "${{ inputs.target_files }}"
+          for file in "${FILES[@]}"; do
+            file=$(echo "$file" | xargs)  # Trim whitespace
+            if [ -f "$file" ]; then
+              AIDER_CMD="$AIDER_CMD \"$file\""
+              echo "✅ Including file: $file"
+            else
+              echo "⚠️  Warning: File '$file' not found" | tee -a "$OUTPUT_FILE"
+            fi
+          done
+        else
+          # Auto-include relevant files based on project type
+          echo "🔍 Auto-detecting project files..."
+          
+          # Include main source files
+          if [ -d "src" ]; then
+            AIDER_CMD="$AIDER_CMD src/"
+          fi
+          
+          # Include configuration files
+          for config_file in "build.gradle" "package.json" "requirements.txt" "pom.xml" ".aider.conf.yml"; do
+            if [ -f "$config_file" ]; then
+              AIDER_CMD="$AIDER_CMD \"$config_file\""
+            fi
+          done
+          
+          # Include test files if requested
+          if [ "${{ inputs.include_tests }}" == "true" ]; then
+            for test_dir in "tests" "test" "spec"; do
+              if [ -d "$test_dir" ]; then
+                AIDER_CMD="$AIDER_CMD $test_dir/"
+              fi
+            done
+          fi
+        fi
+        
+        # Enhanced request with context
+        ENHANCED_REQUEST="Context: This is a ${{ github.repository }} repository. Current request: ${{ inputs.user_request }}"
+        AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
+        
+        # Execute with comprehensive logging
+        {
+          echo "🚀 === AIDER GEMINI EXECUTION START ==="
+          echo "🕐 Timestamp: $TIMESTAMP"
+          echo "🤖 Model: ${{ inputs.model }}"
+          echo "🧠 Max Tokens: ${{ inputs.max_tokens }}"
+          echo "📝 Request: ${{ inputs.user_request }}"
+          echo "📁 Target Files: ${{ inputs.target_files || 'Auto-detected' }}"
+          echo "🧪 Include Tests: ${{ inputs.include_tests }}"
+          echo "🔀 Create PR: ${{ inputs.create_pr }}"
+          echo "💾 Auto Commit: ${{ inputs.auto_commit }}"
+          echo "⚙️  Command: $AIDER_CMD"
+          echo ""
+          echo "📋 === CONFIGURATION ==="
+          cat .aider.conf.yml
+          echo ""
+          echo "💬 === AIDER RESPONSE ==="
+          
+          # Run aider and capture both stdout and stderr
+          eval $AIDER_CMD 2>&1
+          
+          echo ""
+          echo "✅ === AIDER EXECUTION END ==="
+        } | tee "$OUTPUT_FILE"
+        
+        # Save output file paths
+        echo "OUTPUT_FILE=$OUTPUT_FILE" >> $GITHUB_ENV
+        echo "METRICS_FILE=$METRICS_FILE" >> $GITHUB_ENV
+
+    - name: Check for code changes
+      id: check_changes
+      run: |
+        if [[ -n $(git status --porcelain) ]]; then
+          echo "changes=true" >> $GITHUB_OUTPUT
+          echo "✅ Code changes detected"
+          
+          # Show what changed
+          echo "📝 Changed files:" >> aider-outputs/changes_summary.txt
+          git status --porcelain >> aider-outputs/changes_summary.txt
+          echo "" >> aider-outputs/changes_summary.txt
+          echo "📊 Diff summary:" >> aider-outputs/changes_summary.txt
+          git diff --stat >> aider-outputs/changes_summary.txt
+        else
+          echo "changes=false" >> $GITHUB_OUTPUT
+          echo "ℹ️  No code changes detected"
+        fi
+
+    - name: Auto-commit changes
+      if: inputs.auto_commit && steps.check_changes.outputs.changes == 'true' && !inputs.create_pr
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action (Aider)"
+        git add .
+        git commit -m "🤖 Aider: ${{ inputs.user_request }}
+
+        Executed by: ${{ github.actor }}
+        Workflow: ${{ github.workflow }}
+        Run: ${{ github.run_number }}
+        Model: ${{ inputs.model }}"
+        git push
+
+    - name: Create Pull Request
+      id: create_pr
+      if: inputs.create_pr && steps.check_changes.outputs.changes == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "🤖 Aider: ${{ inputs.user_request }}"
+        title: "🤖 Aider Gemini: ${{ inputs.user_request }}"
+        body: |
+          ## 🤖 Aider Code Assistant Changes (Gemini)
+          
+          **🎯 Request:** ${{ inputs.user_request }}  
+          **🤖 Model:** ${{ inputs.model }}  
+          **🧠 Max Tokens:** ${{ inputs.max_tokens }}  
+          **📁 Target Files:** ${{ inputs.target_files || 'Auto-detected' }}  
+          **🧪 Include Tests:** ${{ inputs.include_tests }}  
+          **👤 Executed by:** @${{ github.actor }}  
+          
+          ### 📊 Execution Details
+          - **Workflow Run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - **Repository:** ${{ github.repository }}
+          - **Branch:** ${{ github.ref_name }}
+          
+          ### 🔄 Changes Made
+          This PR contains changes automatically generated by Aider using Google Gemini models in response to the above request.
+          
+          Please review the changes carefully before merging.
+          
+          ---
+          *Generated by [Aider Gemini Advanced Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+        branch: aider-gemini/request-${{ github.run_number }}
+        delete-branch: true
+        labels: |
+          aider
+          ai-generated
+          gemini
+
+    - name: Upload comprehensive artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: aider-gemini-advanced-${{ github.run_number }}
+        path: aider-outputs/
+        retention-days: 30
+
+    - name: Create detailed execution summary
+      run: |
+        echo "# 🤖 Aider Gemini Advanced Execution Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 📋 Request Details" >> $GITHUB_STEP_SUMMARY
+        echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **🤖 Model** | \`${{ inputs.model }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **🧠 Max Tokens** | ${{ inputs.max_tokens }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **📝 Request** | ${{ inputs.user_request }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **📁 Target Files** | ${{ inputs.target_files || 'Auto-detected' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **🧪 Include Tests** | ${{ inputs.include_tests }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **🔄 Changes Detected** | ${{ steps.check_changes.outputs.changes }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **🔀 Create PR** | ${{ inputs.create_pr }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **💾 Auto Commit** | ${{ inputs.auto_commit }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.check_changes.outputs.changes }}" == "true" ]; then
+          echo "## 📝 Changes Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f "aider-outputs/changes_summary.txt" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat aider-outputs/changes_summary.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ inputs.create_pr }}" == "true" ] && [ -n "${{ steps.create_pr.outputs.pull-request-number }}" ]; then
+            echo "## 🔀 Pull Request Created" >> $GITHUB_STEP_SUMMARY
+            echo "**PR #${{ steps.create_pr.outputs.pull-request-number }}** has been created with the changes." >> $GITHUB_STEP_SUMMARY
+            echo "[View Pull Request](${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.create_pr.outputs.pull-request-number }})" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "## ℹ️ No Changes" >> $GITHUB_STEP_SUMMARY
+          echo "Aider completed successfully but no code changes were made." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "## 💬 Response Preview (last 100 lines)" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        tail -n 100 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 📎 Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- 📄 **Full response** available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        echo "- 📊 **Execution metrics** included in artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔍 **Repository analysis** included in artifacts" >> $GITHUB_STEP_SUMMARY
