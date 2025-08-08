@@ -277,13 +277,15 @@ This method installs Aider in its own isolated Python environment, preventing de
 1. **Pip Package Caching**: Caches Python packages for faster dependency installation
 2. **Aider Installation Caching**: Caches the complete Aider installation including:
    - Aider binary (`~/.local/bin/aider`)
-   - Python packages (`~/.local/lib/python*/site-packages/aider*`)
-   - Aider configuration (`~/.aider`)
+   - Aider data (`~/.local/share/aider`)
+   - Aider cache (`~/.cache/aider`)
+   - User configuration (`~/.aider`)
 
 **Smart Installation Logic**: 
-- Detects if Aider is already cached and functional
-- Skips reinstallation if cached version works
+- Detects if Aider is already cached and functional (`command -v aider && aider --version`)
+- Skips reinstallation if cached version works properly
 - Only installs when needed, significantly reducing workflow execution time
+- Improved cache detection for `aider-install` method
 
 **Cache Benefits**:
 - ⚡ **3-5x faster** subsequent workflow runs

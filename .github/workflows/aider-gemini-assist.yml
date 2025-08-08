@@ -64,11 +64,13 @@ jobs:
       with:
         path: |
           ~/.local/bin/aider
-          ~/.local/lib/python*/site-packages/aider*
+          ~/.local/share/aider
+          ~/.cache/aider
           ~/.aider
-        key: ${{ runner.os }}-aider-v085-${{ hashFiles('requirements.txt') }}
+        key: ${{ runner.os }}-aider-install-v085-${{ hashFiles('requirements.txt') }}
         restore-keys: |
-          ${{ runner.os }}-aider-v085-
+          ${{ runner.os }}-aider-install-v085-
+          ${{ runner.os }}-aider-install-
           ${{ runner.os }}-aider-
 
     - name: Install Aider and dependencies
@@ -76,11 +78,12 @@ jobs:
         pip install --upgrade pip
         
         # Check if aider is already cached and working
-        if command -v aider >/dev/null 2>&1; then
-          echo "✅ Aider found in cache, verifying installation..."
-          aider --version || INSTALL_AIDER=true
+        if command -v aider >/dev/null 2>&1 && aider --version >/dev/null 2>&1; then
+          echo "✅ Aider found in cache and working, skipping installation"
+          aider --version
+          INSTALL_AIDER=false
         else
-          echo "📦 Aider not found in cache, installing..."
+          echo "📦 Aider not found in cache or not working, installing..."
           INSTALL_AIDER=true
         fi
         
@@ -89,15 +92,15 @@ jobs:
           echo "🔧 Installing Aider using recommended method..."
           pip install aider-install
           aider-install
+          
+          # Verify new installation
+          echo "🔍 Verifying new Aider installation..."
+          aider --version
+          echo "✅ Aider installation verified"
         fi
         
         # Install additional dependencies for Gemini models
         pip install google-generativeai
-        
-        # Verify installation
-        echo "🔍 Verifying Aider installation..."
-        aider --version
-        echo "✅ Aider installation verified"
 
     - name: Create output directory
       run: mkdir -p aider-outputs
