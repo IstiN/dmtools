@@ -221,6 +221,37 @@ public class AdminUserController {
     }
 
     /**
+     * Re-evaluate and update all users' roles based on current admin email configuration (Admin only)
+     */
+    @PostMapping("/users/roles/reevaluate")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "Re-evaluate all user roles",
+        description = "Re-evaluate and update all users' roles based on the current admin email configuration. This will promote users to admin if their email is in the admin list, or demote them if they're no longer admin. Admin access required.",
+        security = @SecurityRequirement(name = "bearer_jwt")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "User roles re-evaluated successfully"),
+        @ApiResponse(responseCode = "403", description = "Admin access required"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<?> reevaluateUserRoles() {
+        logger.info("Admin requested user roles re-evaluation");
+        try {
+            userService.updateAllUserRoles();
+            return ResponseEntity.ok(Map.of(
+                "success", true, 
+                "message", "All user roles have been re-evaluated and updated successfully"
+            ));
+        } catch (Exception e) {
+            logger.error("Error re-evaluating user roles: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(
+                Map.of("error", "Failed to re-evaluate user roles", "code", "INTERNAL_ERROR")
+            );
+        }
+    }
+
+    /**
      * Convert User entity to response format
      */
     private Map<String, Object> convertUserToResponse(User user) {

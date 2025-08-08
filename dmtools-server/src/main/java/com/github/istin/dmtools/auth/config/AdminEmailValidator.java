@@ -70,16 +70,24 @@ public class AdminEmailValidator implements CommandLineRunner {
         
         // Initialize admin emails in UserService
         userService.initializeAdminEmails();
+        
+        // Re-evaluate all user roles based on current admin email configuration
+        initializeUserRoles();
     }
     
     /**
-     * Initialize roles for existing users
+     * Initialize roles for existing users and re-evaluate admin assignments
      */
     private void initializeUserRoles() {
-        logger.info("🔍 STARTUP - Initializing user roles...");
+        logger.info("🔍 STARTUP - Initializing and re-evaluating user roles...");
         try {
+            // First ensure users without roles get default roles
             userService.ensureUserRoles();
-            logger.info("✅ STARTUP - User roles initialized successfully");
+            
+            // Then re-evaluate all users to update admin assignments based on current config
+            userService.updateAllUserRoles();
+            
+            logger.info("✅ STARTUP - User roles initialized and re-evaluated successfully");
         } catch (Exception e) {
             logger.error("❌ STARTUP - Error initializing user roles: {}", e.getMessage(), e);
         }

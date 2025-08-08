@@ -253,8 +253,8 @@ jobs:
           fi
         fi
         
-        # Enhanced request with file output instruction
-        ENHANCED_REQUEST="Repository: ${{ github.repository }} (large codebase). Request: ${{ inputs.user_request }}. IMPORTANT: Please write your complete response to the file 'aider/response.md' using proper markdown format. Include all diagrams, explanations, and code examples in this file. Focus on core architecture and main modules. Provide clear, comprehensive response."
+        # Enhanced request with explicit file output instruction
+        ENHANCED_REQUEST="Repository: ${{ github.repository }} (large codebase). Request: ${{ inputs.user_request }}. CRITICAL INSTRUCTION: You MUST write your COMPLETE response to the file 'aider/response.md' using proper markdown format. This should be a single, comprehensive file containing all diagrams, explanations, and code examples. Do NOT create multiple files or partial responses. Ensure the file contains the FULL answer to the request. Focus on core architecture and main modules. Provide clear, comprehensive response."
         AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
         
         # Execute with comprehensive logging
@@ -282,13 +282,39 @@ jobs:
           echo "✅ === AIDER EXECUTION END ==="
         } | tee "$OUTPUT_FILE"
         
+        # Wait a moment for any final file writes to complete
+        sleep 3
+        
         # Copy the response file if it exists
         if [ -f "aider/response.md" ]; then
           echo "✅ Response file created by Aider" | tee -a "$OUTPUT_FILE"
+          
+          # Show file size for verification
+          RESPONSE_SIZE=$(wc -c < "aider/response.md")
+          echo "📄 Response file size: $RESPONSE_SIZE bytes" | tee -a "$OUTPUT_FILE"
+          
+          # Copy with verification
           cp "aider/response.md" "aider-outputs/aider-response.md"
-          echo "📄 Response copied to artifacts" | tee -a "$OUTPUT_FILE"
+          
+          # Verify the copy
+          if [ -f "aider-outputs/aider-response.md" ]; then
+            COPIED_SIZE=$(wc -c < "aider-outputs/aider-response.md")
+            echo "✅ Response copied to artifacts (size: $COPIED_SIZE bytes)" | tee -a "$OUTPUT_FILE"
+            
+            # Show first and last few lines for verification
+            echo "🔍 First 5 lines of response:" | tee -a "$OUTPUT_FILE"
+            head -5 "aider-outputs/aider-response.md" | tee -a "$OUTPUT_FILE"
+            echo "🔍 Last 5 lines of response:" | tee -a "$OUTPUT_FILE"
+            tail -5 "aider-outputs/aider-response.md" | tee -a "$OUTPUT_FILE"
+          else
+            echo "❌ Failed to copy response file" | tee -a "$OUTPUT_FILE"
+          fi
         else
           echo "⚠️ No response file created by Aider" | tee -a "$OUTPUT_FILE"
+          
+          # Check if any files were created in aider directory
+          echo "🔍 Checking aider directory contents:" | tee -a "$OUTPUT_FILE"
+          ls -la aider/ | tee -a "$OUTPUT_FILE" || echo "aider/ directory not found" | tee -a "$OUTPUT_FILE"
         fi
         
         # Save output file paths
