@@ -124,12 +124,28 @@ target_files: ""  # Advanced workflow will auto-include relevant files
 ## 📊 Workflow Outputs
 
 ### Artifacts Generated
-- **Full response log**: Complete Aider output (no preview in summary)
-- **Execution metrics**: JSON with run details
-- **Repository analysis**: Project structure overview
-- **Changes summary**: Git diff information
+- **📄 Aider Response File** (`aider-response.md`): Clean, formatted response with diagrams and explanations
+- **📄 Full execution logs**: Complete Aider output and console logs
+- **📊 Execution metrics**: JSON with run details
+- **🔍 Repository analysis**: Project structure overview
+- **📝 Changes summary**: Git diff information
 
-**Clean Summary**: GitHub Actions summary shows only execution details and artifact links - full Aider responses are available only in downloadable artifacts for privacy and clean presentation.
+**Structured Output**: Aider writes responses to `aider/response.md` for clean, readable output separate from console logs. GitHub Actions summary shows execution status and links to both the response file and full logs.
+
+#### How to Access Aider Response:
+
+1. **Go to the workflow run** in GitHub Actions
+2. **Scroll to "Artifacts" section** at the bottom  
+3. **Download** the artifact archive
+4. **Extract and find**:
+   - **`aider-response.md`**: 📄 Clean, formatted response with your requested content
+   - **`response_[timestamp].txt`**: 📄 Full execution logs with all Aider output
+
+#### Response File Benefits:
+- 📄 **Clean Format**: Properly formatted markdown with diagrams
+- 🎯 **Focused Content**: Only the requested response, no console noise  
+- 📋 **Easy Reading**: Can be viewed directly in GitHub or any markdown viewer
+- 🔄 **Reusable**: Can be copied/shared easily
 
 ### Pull Request Features (Advanced Workflow)
 - Automatic PR creation with detailed description

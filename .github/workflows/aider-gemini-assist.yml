@@ -113,8 +113,10 @@ jobs:
         # Install additional dependencies for Gemini models
         pip install google-generativeai
 
-    - name: Create output directory
-      run: mkdir -p aider-outputs
+    - name: Create output directories
+      run: |
+        mkdir -p aider-outputs
+        mkdir -p aider
 
     - name: Validate Gemini API Key
       run: |
@@ -153,8 +155,8 @@ jobs:
           done
         fi
         
-        # Add the message with context optimization
-        ENHANCED_REQUEST="Repository: ${{ github.repository }}. Request: ${{ inputs.user_request }}. Please provide a comprehensive response focusing on the core architecture."
+        # Add the message with file output instruction
+        ENHANCED_REQUEST="Repository: ${{ github.repository }}. Request: ${{ inputs.user_request }}. IMPORTANT: Please write your complete response to the file 'aider/response.md' using proper markdown format. Include all diagrams, explanations, and code examples in this file. Focus on the core architecture and provide comprehensive details."
         AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
         
         # Execute and capture output
@@ -171,7 +173,16 @@ jobs:
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
         
-        # Save output file path for artifact upload
+        # Copy the response file if it exists
+        if [ -f "aider/response.md" ]; then
+          echo "✅ Response file created by Aider" | tee -a "$OUTPUT_FILE"
+          cp "aider/response.md" "aider-outputs/aider-response.md"
+          echo "📄 Response copied to artifacts" | tee -a "$OUTPUT_FILE"
+        else
+          echo "⚠️ No response file created by Aider" | tee -a "$OUTPUT_FILE"
+        fi
+        
+        # Save output file paths for artifact upload
         echo "OUTPUT_FILE=$OUTPUT_FILE" >> $GITHUB_ENV
 
     - name: Upload Aider response as artifact
@@ -189,6 +200,15 @@ jobs:
         echo "**Max Tokens:** ${{ inputs.max_tokens }}" >> $GITHUB_STEP_SUMMARY
         echo "**Request:** ${{ inputs.user_request }}" >> $GITHUB_STEP_SUMMARY
         echo "**Target Files:** ${{ inputs.target_files || 'All files' }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Status:** ✅ Execution completed successfully" >> $GITHUB_STEP_SUMMARY
+        
+        # Check if response file was created
+        if [ -f "aider-outputs/aider-response.md" ]; then
+          echo "**Status:** ✅ Execution completed successfully with response file" >> $GITHUB_STEP_SUMMARY
+          echo "**Response File:** 📄 aider-response.md created" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**Status:** ✅ Execution completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "**Response File:** ⚠️ No response file created" >> $GITHUB_STEP_SUMMARY
+        fi
+        
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "📎 **Full response available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**" >> $GITHUB_STEP_SUMMARY
+        echo "📎 **Full logs and response available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**" >> $GITHUB_STEP_SUMMARY
