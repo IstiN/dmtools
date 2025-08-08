@@ -114,12 +114,14 @@ jobs:
         pip install google-generativeai
 
     - name: Create output directories and safe user input file
+      env:
+        USER_REQUEST_RAW: ${{ inputs.user_request }}
       run: |
         mkdir -p aider-outputs
         mkdir -p aider
         
         # Write user input to file using base64 encoding to prevent ALL shell interpretation
-        echo '${{ inputs.user_request }}' | base64 > aider-outputs/user_request_b64.txt
+        echo "$USER_REQUEST_RAW" | base64 > aider-outputs/user_request_b64.txt
         echo "💾 Stored user request safely (base64 encoded)"
 
     - name: Validate Gemini API Key
