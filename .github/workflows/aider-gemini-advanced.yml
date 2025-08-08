@@ -382,12 +382,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
         fi
         
-        echo "## 💬 Response Preview (last 100 lines)" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        tail -n 100 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
         echo "## 📎 Artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "- 📄 **Full response** available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        echo "- 📄 **Full Aider response** available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
         echo "- 📊 **Execution metrics** included in artifacts" >> $GITHUB_STEP_SUMMARY
         echo "- 🔍 **Repository analysis** included in artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- 📝 **Complete logs** with all Aider output" >> $GITHUB_STEP_SUMMARY

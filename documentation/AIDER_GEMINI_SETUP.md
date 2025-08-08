@@ -124,10 +124,12 @@ target_files: ""  # Advanced workflow will auto-include relevant files
 ## 📊 Workflow Outputs
 
 ### Artifacts Generated
-- **Full response log**: Complete Aider output
+- **Full response log**: Complete Aider output (no preview in summary)
 - **Execution metrics**: JSON with run details
 - **Repository analysis**: Project structure overview
 - **Changes summary**: Git diff information
+
+**Clean Summary**: GitHub Actions summary shows only execution details and artifact links - full Aider responses are available only in downloadable artifacts for privacy and clean presentation.
 
 ### Pull Request Features (Advanced Workflow)
 - Automatic PR creation with detailed description
