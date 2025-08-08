@@ -173,10 +173,6 @@ jobs:
         echo "**Max Tokens:** ${{ inputs.max_tokens }}" >> $GITHUB_STEP_SUMMARY
         echo "**Request:** ${{ inputs.user_request }}" >> $GITHUB_STEP_SUMMARY
         echo "**Target Files:** ${{ inputs.target_files || 'All files' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Status:** ✅ Execution completed successfully" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 💬 Response Preview (last 50 lines)" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        tail -n 50 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "📎 **Full response available in artifacts**" >> $GITHUB_STEP_SUMMARY
+        echo "📎 **Full response available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**" >> $GITHUB_STEP_SUMMARY
