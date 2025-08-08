@@ -123,23 +123,29 @@ target_files: ""  # Advanced workflow will auto-include relevant files
 
 ## 📊 Workflow Outputs
 
-### Artifacts Generated
-- **📄 Aider Response File** (`aider-response.md`): Clean, formatted response with diagrams and explanations
+### Response Display Methods
+- **📺 GitHub Actions Summary**: Response displayed directly in workflow summary (primary)
+- **📄 Aider Response File** (`aider-response.md`): Backup file in artifacts
 - **📄 Full execution logs**: Complete Aider output and console logs
 - **📊 Execution metrics**: JSON with run details
 - **🔍 Repository analysis**: Project structure overview
 - **📝 Changes summary**: Git diff information
 
-**Structured Output**: Aider writes responses to `aider/response.md` for clean, readable output separate from console logs. GitHub Actions summary shows execution status and links to both the response file and full logs.
+**Immediate Visibility**: Aider responses are displayed directly in the GitHub Actions summary for instant viewing without downloading artifacts. Response is also saved as a file for backup and sharing purposes.
 
 #### How to Access Aider Response:
 
+**Primary Method (Instant)**:
 1. **Go to the workflow run** in GitHub Actions
-2. **Scroll to "Artifacts" section** at the bottom  
-3. **Download** the artifact archive
-4. **Extract and find**:
-   - **`aider-response.md`**: 📄 Clean, formatted response with your requested content
-   - **`response_[timestamp].txt`**: 📄 Full execution logs with all Aider output
+2. **View the summary** - Response is displayed directly in the "Aider Response" section
+3. **See formatted output** with Mermaid diagrams and explanations
+
+**Backup Method (Download)**:
+1. **Scroll to "Artifacts" section** at the bottom of the workflow run
+2. **Download** the artifact archive  
+3. **Extract and find**:
+   - **`aider-response.md`**: 📄 Clean, formatted response file
+   - **`response_[timestamp].txt`**: 📄 Full execution logs
 
 #### Response File Benefits:
 - 📄 **Clean Format**: Properly formatted markdown with diagrams

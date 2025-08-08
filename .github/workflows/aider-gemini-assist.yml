@@ -180,27 +180,35 @@ jobs:
         if grep -q "<AIDER_RESPONSE_START>" "$OUTPUT_FILE" && grep -q "<AIDER_RESPONSE_END>" "$OUTPUT_FILE"; then
           echo "✅ Response tags found in output" | tee -a "$OUTPUT_FILE"
           
-          # Extract content between tags
-          sed -n '/<AIDER_RESPONSE_START>/,/<AIDER_RESPONSE_END>/p' "$OUTPUT_FILE" | \
-            sed '1d;$d' > "aider-outputs/aider-response.md"
+          # Extract content between tags to variable and file
+          EXTRACTED_RESPONSE=$(sed -n '/<AIDER_RESPONSE_START>/,/<AIDER_RESPONSE_END>/p' "$OUTPUT_FILE" | sed '1d;$d')
+          echo "$EXTRACTED_RESPONSE" > "aider-outputs/aider-response.md"
           
           # Verify extraction
           if [ -f "aider-outputs/aider-response.md" ] && [ -s "aider-outputs/aider-response.md" ]; then
             RESPONSE_SIZE=$(wc -c < "aider-outputs/aider-response.md")
             echo "✅ Response extracted successfully (size: $RESPONSE_SIZE bytes)" | tee -a "$OUTPUT_FILE"
             
-            # Show first and last few lines for verification
-            echo "🔍 First 5 lines of extracted response:" | tee -a "$OUTPUT_FILE"
-            head -5 "aider-outputs/aider-response.md" | tee -a "$OUTPUT_FILE"
-            echo "🔍 Last 5 lines of extracted response:" | tee -a "$OUTPUT_FILE"
-            tail -5 "aider-outputs/aider-response.md" | tee -a "$OUTPUT_FILE"
+            # Store response for summary (escape for GitHub Actions)
+            echo "AIDER_RESPONSE<<EOF" >> $GITHUB_ENV
+            echo "$EXTRACTED_RESPONSE" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            echo "RESPONSE_FOUND=true" >> $GITHUB_ENV
+            
+            # Show first and last few lines for verification in logs
+            echo "🔍 First 3 lines of extracted response:" | tee -a "$OUTPUT_FILE"
+            echo "$EXTRACTED_RESPONSE" | head -3 | tee -a "$OUTPUT_FILE"
+            echo "🔍 Last 3 lines of extracted response:" | tee -a "$OUTPUT_FILE"
+            echo "$EXTRACTED_RESPONSE" | tail -3 | tee -a "$OUTPUT_FILE"
           else
             echo "❌ Failed to extract response content" | tee -a "$OUTPUT_FILE"
+            echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
           fi
         else
           echo "⚠️ Response tags not found in output" | tee -a "$OUTPUT_FILE"
           echo "🔍 Searching for partial tags..." | tee -a "$OUTPUT_FILE"
           grep -n "AIDER_RESPONSE" "$OUTPUT_FILE" | tee -a "$OUTPUT_FILE" || echo "No AIDER_RESPONSE tags found at all" | tee -a "$OUTPUT_FILE"
+          echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
         fi
         
         # Save output file paths for artifact upload
@@ -213,7 +221,7 @@ jobs:
         path: aider-outputs/
         retention-days: 30
 
-    - name: Create summary
+    - name: Create summary with response
       run: |
         echo "## 🤖 Aider Gemini Execution Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -222,15 +230,24 @@ jobs:
         echo "**Request:** ${{ inputs.user_request }}" >> $GITHUB_STEP_SUMMARY
         echo "**Target Files:** ${{ inputs.target_files || 'All files' }}" >> $GITHUB_STEP_SUMMARY
         
-        # Check if response was extracted
-        if [ -f "aider-outputs/aider-response.md" ] && [ -s "aider-outputs/aider-response.md" ]; then
+        # Check if response was extracted and display it
+        if [ "$RESPONSE_FOUND" = "true" ] && [ -f "aider-outputs/aider-response.md" ]; then
           RESPONSE_SIZE=$(wc -c < "aider-outputs/aider-response.md")
-          echo "**Status:** ✅ Execution completed successfully with response extracted" >> $GITHUB_STEP_SUMMARY
-          echo "**Response File:** 📄 aider-response.md extracted ($RESPONSE_SIZE bytes)" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Execution completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "**Response Size:** $RESPONSE_SIZE bytes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Display the actual response in the summary
+          echo "## 📄 Aider Response" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
         else
           echo "**Status:** ✅ Execution completed but response extraction failed" >> $GITHUB_STEP_SUMMARY
-          echo "**Response File:** ⚠️ No response extracted (check logs for tags)" >> $GITHUB_STEP_SUMMARY
+          echo "**Issue:** Response tags not found or extraction failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
         fi
         
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "📎 **Full logs and response available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "📎 **Full execution logs available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**" >> $GITHUB_STEP_SUMMARY
