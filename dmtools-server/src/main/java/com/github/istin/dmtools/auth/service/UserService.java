@@ -374,4 +374,44 @@ public class UserService {
             userRepository.save(user);
         }
     }
+    
+    /**
+     * Re-evaluate and update all users' roles based on current admin email configuration
+     */
+    @Transactional
+    public void updateAllUserRoles() {
+        List<User> allUsers = userRepository.findAll();
+        logger.info("Re-evaluating roles for {} users based on current admin email configuration", allUsers.size());
+        
+        for (User user : allUsers) {
+            boolean shouldBeAdmin = isAdminEmail(user.getEmail());
+            boolean isCurrentlyAdmin = hasAdminRole(user);
+            
+            if (shouldBeAdmin && !isCurrentlyAdmin) {
+                // Promote to admin
+                Set<String> roles = new HashSet<>();
+                roles.add("ADMIN");
+                user.setRoles(roles);
+                userRepository.save(user);
+                logger.info("✅ PROMOTED to ADMIN: {} (was: {})", user.getEmail(), 
+                    user.getRoles() != null ? user.getRoles() : "no roles");
+            } else if (!shouldBeAdmin && isCurrentlyAdmin) {
+                // Demote from admin
+                Set<String> roles = new HashSet<>();
+                roles.add("REGULAR_USER");
+                user.setRoles(roles);
+                userRepository.save(user);
+                logger.info("⬇️ DEMOTED to REGULAR_USER: {} (was: ADMIN)", user.getEmail());
+            } else if (user.getRoles() == null || user.getRoles().isEmpty()) {
+                // Assign default role
+                Set<String> roles = new HashSet<>();
+                roles.add(shouldBeAdmin ? "ADMIN" : "REGULAR_USER");
+                user.setRoles(roles);
+                userRepository.save(user);
+                logger.info("🔧 ASSIGNED role {} to: {}", roles.iterator().next(), user.getEmail());
+            } else {
+                logger.debug("✓ Role unchanged for: {} (current: {})", user.getEmail(), getUserRole(user));
+            }
+        }
+    }
 } 
