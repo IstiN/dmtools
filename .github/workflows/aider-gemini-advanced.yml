@@ -166,6 +166,8 @@ jobs:
         echo "✅ Gemini API key validation passed"
 
     - name: Analyze repository structure
+      env:
+        USER_REQUEST_RAW: ${{ inputs.user_request }}
       run: |
         echo "📊 Repository Analysis" > aider-outputs/repo_analysis.md
         echo "===================" >> aider-outputs/repo_analysis.md
@@ -181,7 +183,7 @@ jobs:
         echo "" >> aider-outputs/repo_analysis.md
         
         # Write user input to file using base64 encoding to prevent ALL shell interpretation
-        echo '${{ inputs.user_request }}' | base64 > aider-outputs/user_request_b64.txt
+        echo "$USER_REQUEST_RAW" | base64 > aider-outputs/user_request_b64.txt
         echo "💾 Stored user request safely (base64 encoded)"
 
     - name: Run Aider with enhanced Gemini configuration
