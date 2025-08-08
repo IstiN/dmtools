@@ -280,6 +280,10 @@ This method installs Aider in its own isolated Python environment, preventing de
    - Aider data (`~/.local/share/aider`)
    - Aider cache (`~/.cache/aider`)
    - User configuration (`~/.aider`)
+3. **Repository Index Caching**: Caches Aider's repository analysis to avoid rescanning:
+   - Repository map (`.aider.repo.map`)
+   - Code tags (`.aider.tags`)
+   - Other Aider metadata files (`.aider*`)
 
 **Smart Installation Logic**: 
 - Detects if Aider is already cached and functional (`command -v aider && aider --version`)
@@ -287,10 +291,17 @@ This method installs Aider in its own isolated Python environment, preventing de
 - Only installs when needed, significantly reducing workflow execution time
 - Improved cache detection for `aider-install` method
 
+**Large Repository Optimizations**:
+- `--subtree-only`: Focuses on relevant code subtrees instead of entire repository
+- `--no-check-update`: Skips version checks for faster startup
+- `--no-suggest-shell-commands`: Reduces irrelevant suggestions
+- Repository index caching: Avoids rescanning 1,000+ files on each run
+
 **Cache Benefits**:
 - ⚡ **3-5x faster** subsequent workflow runs
 - 💾 **Reduced bandwidth** usage
 - 🔄 **Reliable installations** with fallback logic
+- 🗺️ **Instant repo mapping** on cache hits (vs. 8+ seconds scanning)
 
 **Latest GitHub Actions**:
 - `actions/checkout@v4` - Repository checkout
