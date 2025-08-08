@@ -254,8 +254,11 @@ jobs:
         fi
         
         # Enhanced request with response tag instruction (no file creation)
-        ENHANCED_REQUEST="Repository: ${{ github.repository }} (large codebase). Request: ${{ inputs.user_request }}. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on core architecture and main modules. Provide clear, comprehensive response."
-        AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
+        # Prepare the message (safely handle special characters)
+        echo "=== PREPARING AIDER MESSAGE ===" | tee -a "$OUTPUT_FILE"
+        
+        # Use printf to safely format the command and arguments
+        printf -v SAFE_MESSAGE 'Repository: %s (large codebase). Request: %s. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on core architecture and main modules. Provide clear, comprehensive response.' "${{ github.repository }}" "${{ inputs.user_request }}"
         
         # Execute with comprehensive logging
         {
@@ -276,7 +279,7 @@ jobs:
           echo "💬 === AIDER RESPONSE ==="
           
           # Run aider and capture both stdout and stderr
-          eval $AIDER_CMD 2>&1
+          eval "$AIDER_CMD --message \"\$SAFE_MESSAGE\"" 2>&1
           
           echo ""
           echo "✅ === AIDER EXECUTION END ==="

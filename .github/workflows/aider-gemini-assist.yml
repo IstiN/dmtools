@@ -155,9 +155,11 @@ jobs:
           done
         fi
         
-        # Add the message with response tag instruction (no file creation)
-        ENHANCED_REQUEST="Repository: ${{ github.repository }}. Request: ${{ inputs.user_request }}. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on the core architecture and provide comprehensive details."
-        AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
+        # Prepare the message (safely handle special characters)
+        echo "=== PREPARING AIDER MESSAGE ===" | tee -a "$OUTPUT_FILE"
+        
+        # Use printf to safely format the command and arguments
+        printf -v SAFE_MESSAGE 'Repository: %s. Request: %s. CRITICAL INSTRUCTION: DO NOT create any files. Instead, provide your COMPLETE response directly in your output, wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. Your response should be in markdown format and include all diagrams, explanations, and code examples. Make sure to include the complete answer between these tags. Focus on the core architecture and provide comprehensive details.' "${{ github.repository }}" "${{ inputs.user_request }}"
         
         # Execute and capture output
         echo "=== AIDER EXECUTION START ===" | tee -a "$OUTPUT_FILE"
@@ -168,8 +170,8 @@ jobs:
         echo "Timestamp: $TIMESTAMP" | tee -a "$OUTPUT_FILE"
         echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
         
-        # Run aider and capture output
-        eval $AIDER_CMD 2>&1 | tee -a "$OUTPUT_FILE"
+        # Run aider with safe message and capture output
+        eval "$AIDER_CMD --message \"\$SAFE_MESSAGE\"" 2>&1 | tee -a "$OUTPUT_FILE"
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
         
