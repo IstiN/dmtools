@@ -151,8 +151,10 @@ jobs:
         yes-always: true
         EOF
 
-    - name: Create output directory
-      run: mkdir -p aider-outputs
+    - name: Create output directories
+      run: |
+        mkdir -p aider-outputs
+        mkdir -p aider
 
     - name: Validate Gemini API Key
       run: |
@@ -251,8 +253,8 @@ jobs:
           fi
         fi
         
-        # Enhanced request with context and optimization
-        ENHANCED_REQUEST="Repository: ${{ github.repository }} (large codebase). Request: ${{ inputs.user_request }}. Focus on core architecture and main modules. Provide clear, comprehensive response."
+        # Enhanced request with file output instruction
+        ENHANCED_REQUEST="Repository: ${{ github.repository }} (large codebase). Request: ${{ inputs.user_request }}. IMPORTANT: Please write your complete response to the file 'aider/response.md' using proper markdown format. Include all diagrams, explanations, and code examples in this file. Focus on core architecture and main modules. Provide clear, comprehensive response."
         AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
         
         # Execute with comprehensive logging
@@ -279,6 +281,15 @@ jobs:
           echo ""
           echo "✅ === AIDER EXECUTION END ==="
         } | tee "$OUTPUT_FILE"
+        
+        # Copy the response file if it exists
+        if [ -f "aider/response.md" ]; then
+          echo "✅ Response file created by Aider" | tee -a "$OUTPUT_FILE"
+          cp "aider/response.md" "aider-outputs/aider-response.md"
+          echo "📄 Response copied to artifacts" | tee -a "$OUTPUT_FILE"
+        else
+          echo "⚠️ No response file created by Aider" | tee -a "$OUTPUT_FILE"
+        fi
         
         # Save output file paths
         echo "OUTPUT_FILE=$OUTPUT_FILE" >> $GITHUB_ENV
@@ -398,8 +409,15 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
         fi
         
+        # Check if response file was created
+        if [ -f "aider-outputs/aider-response.md" ]; then
+          echo "## 📄 Response File Created" >> $GITHUB_STEP_SUMMARY
+          echo "Aider successfully created a response file with the requested content." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
         echo "## 📎 Artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "- 📄 **Full Aider response** available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        echo "- 📄 **Aider Response** (aider-response.md) - Main response file" >> $GITHUB_STEP_SUMMARY
+        echo "- 📄 **Full execution logs** available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
         echo "- 📊 **Execution metrics** included in artifacts" >> $GITHUB_STEP_SUMMARY
         echo "- 🔍 **Repository analysis** included in artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "- 📝 **Complete logs** with all Aider output" >> $GITHUB_STEP_SUMMARY
