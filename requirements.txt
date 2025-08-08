@@ -1,0 +1,6 @@
+# Aider and Gemini dependencies for GitHub Actions
+# Latest Aider version as of v0.85.0 (June 2025)
+aider-chat>=0.79.0
+google-generativeai>=0.3.0
+PyYAML>=6.0
+gitpython>=3.1.0

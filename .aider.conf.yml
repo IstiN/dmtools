@@ -1,0 +1,13 @@
+# .aider.conf.yml
+# Aider configuration optimized for Google Gemini models
+model: gemini/gemini-2.5-flash-preview-05-20  # Default Gemini model
+edit-format: whole  # Uses more tokens but gives better results
+max-chat-history-tokens: 1000000  # Gemini 1.5 Pro has 1M+ context window
+cache-prompts: true
+stream: false  # Disable streaming for GitHub Actions
+pretty: false  # Disable pretty output for CI logs
+
+# Additional settings for better responses
+show-diffs: true
+auto-commits: false  # Disable auto commits in CI
+yes: true  # Auto-accept all suggestions
