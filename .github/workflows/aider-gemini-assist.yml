@@ -73,6 +73,17 @@ jobs:
           ${{ runner.os }}-aider-install-
           ${{ runner.os }}-aider-
 
+    - name: Cache Aider repo index
+      uses: actions/cache@v4
+      with:
+        path: |
+          .aider*
+          .aider.repo.map
+          .aider.tags
+        key: ${{ runner.os }}-aider-repo-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-aider-repo-
+
     - name: Install Aider and dependencies
       run: |
         pip install --upgrade pip
@@ -124,9 +135,10 @@ jobs:
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
         OUTPUT_FILE="aider-outputs/response_${TIMESTAMP}.txt"
         
-        # Prepare the command
+        # Prepare the command with optimization flags for large repos
         AIDER_CMD="aider --model ${{ inputs.model }}"
         AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
+        AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands"
         
         # Add target files if specified
         if [ -n "${{ inputs.target_files }}" ]; then
@@ -141,8 +153,9 @@ jobs:
           done
         fi
         
-        # Add the message
-        AIDER_CMD="$AIDER_CMD --message \"${{ inputs.user_request }}\""
+        # Add the message with context optimization
+        ENHANCED_REQUEST="Repository: ${{ github.repository }}. Request: ${{ inputs.user_request }}. Please provide a comprehensive response focusing on the core architecture."
+        AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
         
         # Execute and capture output
         echo "=== AIDER EXECUTION START ===" | tee -a "$OUTPUT_FILE"

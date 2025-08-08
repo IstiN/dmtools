@@ -94,6 +94,18 @@ jobs:
           ${{ runner.os }}-aider-install-
           ${{ runner.os }}-aider-
 
+    - name: Cache Aider repo index
+      uses: actions/cache@v4
+      with:
+        path: |
+          .aider*
+          .aider.repo.map
+          .aider.tags
+        key: ${{ runner.os }}-aider-repo-advanced-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-aider-repo-advanced-
+          ${{ runner.os }}-aider-repo-
+
     - name: Install Aider and dependencies
       run: |
         pip install --upgrade pip
@@ -195,10 +207,11 @@ jobs:
         }
         EOF
         
-        # Prepare the enhanced command
+        # Prepare the enhanced command with optimization flags
         AIDER_CMD="aider"
         AIDER_CMD="$AIDER_CMD --model ${{ inputs.model }}"
         AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
+        AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands"
         
         # Add target files if specified
         if [ -n "${{ inputs.target_files }}" ]; then
@@ -238,8 +251,8 @@ jobs:
           fi
         fi
         
-        # Enhanced request with context
-        ENHANCED_REQUEST="Context: This is a ${{ github.repository }} repository. Current request: ${{ inputs.user_request }}"
+        # Enhanced request with context and optimization
+        ENHANCED_REQUEST="Repository: ${{ github.repository }} (large codebase). Request: ${{ inputs.user_request }}. Focus on core architecture and main modules. Provide clear, comprehensive response."
         AIDER_CMD="$AIDER_CMD --message \"$ENHANCED_REQUEST\""
         
         # Execute with comprehensive logging
