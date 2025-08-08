@@ -401,9 +401,9 @@ jobs:
           aider-outputs/response_*.txt
         retention-days: 7
 
-    - name: Create detailed execution summary
+    - name: Display Aider response
       run: |
-        # Display the Aider response first
+        # Display the raw Aider response first (no headers) - v2
         if [ "$RESPONSE_FOUND" = "true" ] && [ -f "aider-outputs/aider-response.md" ]; then
           echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

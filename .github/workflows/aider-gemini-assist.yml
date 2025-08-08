@@ -224,7 +224,7 @@ jobs:
 
     - name: Display Aider response
       run: |
-        # Display only the Aider response content
+        # Display only the raw Aider response content (no headers) - v2
         if [ "$RESPONSE_FOUND" = "true" ] && [ -f "aider-outputs/aider-response.md" ]; then
           echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
         else
