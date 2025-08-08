@@ -222,31 +222,11 @@ jobs:
           aider-outputs/response_*.txt
         retention-days: 7
 
-    - name: Create summary with response
+    - name: Display Aider response
       run: |
-        echo "## 🤖 Aider Gemini Execution Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Model:** ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Max Tokens:** ${{ inputs.max_tokens }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Request:** ${{ inputs.user_request }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Target Files:** ${{ inputs.target_files || 'All files' }}" >> $GITHUB_STEP_SUMMARY
-        
-        # Check if response was extracted and display it
+        # Display only the Aider response content
         if [ "$RESPONSE_FOUND" = "true" ] && [ -f "aider-outputs/aider-response.md" ]; then
-          RESPONSE_SIZE=$(wc -c < "aider-outputs/aider-response.md")
-          echo "**Status:** ✅ Execution completed successfully" >> $GITHUB_STEP_SUMMARY
-          echo "**Response Size:** $RESPONSE_SIZE bytes" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Display the actual response directly without header
           echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
         else
-          echo "**Status:** ✅ Execution completed but response extraction failed" >> $GITHUB_STEP_SUMMARY
-          echo "**Issue:** Response tags not found or extraction failed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Response extraction failed - check execution logs in artifacts" >> $GITHUB_STEP_SUMMARY
         fi
-        
-        echo "---" >> $GITHUB_STEP_SUMMARY
-        echo "📎 **Full execution logs available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**" >> $GITHUB_STEP_SUMMARY
