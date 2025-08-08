@@ -288,6 +288,12 @@ This method installs Aider in its own isolated Python environment, preventing de
 - 💾 **Reduced bandwidth** usage
 - 🔄 **Reliable installations** with fallback logic
 
+**Latest GitHub Actions**:
+- `actions/checkout@v4` - Repository checkout
+- `actions/setup-python@v5` - Python environment setup
+- `actions/cache@v4` - Caching for pip and Aider
+- `actions/upload-artifact@v4` - Artifact upload (replaces deprecated v3)
+
 ## 🎉 Getting Started
 
 1. **Set up your API key** in GitHub Secrets

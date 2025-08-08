@@ -66,12 +66,12 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
     - name: Cache pip packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-aider-gemini-advanced-${{ hashFiles('**/requirements.txt') }}
@@ -80,7 +80,7 @@ jobs:
           ${{ runner.os }}-pip-aider-
 
     - name: Cache Aider installation
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.local/bin/aider
@@ -338,7 +338,7 @@ jobs:
           gemini
 
     - name: Upload comprehensive artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: aider-gemini-advanced-${{ github.run_number }}
         path: aider-outputs/
