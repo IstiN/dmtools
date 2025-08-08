@@ -214,12 +214,13 @@ jobs:
         # Save output file paths for artifact upload
         echo "OUTPUT_FILE=$OUTPUT_FILE" >> $GITHUB_ENV
 
-    - name: Upload Aider response as artifact
+    - name: Upload execution logs as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: aider-gemini-response-${{ github.run_number }}
-        path: aider-outputs/
-        retention-days: 30
+        name: aider-execution-logs-${{ github.run_number }}
+        path: |
+          aider-outputs/response_*.txt
+        retention-days: 7
 
     - name: Create summary with response
       run: |
@@ -237,9 +238,7 @@ jobs:
           echo "**Response Size:** $RESPONSE_SIZE bytes" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Display the actual response in the summary
-          echo "## 📄 Aider Response" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          # Display the actual response directly without header
           echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           

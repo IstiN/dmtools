@@ -393,12 +393,13 @@ jobs:
           ai-generated
           gemini
 
-    - name: Upload comprehensive artifacts
+    - name: Upload execution logs
       uses: actions/upload-artifact@v4
       with:
-        name: aider-gemini-advanced-${{ github.run_number }}
-        path: aider-outputs/
-        retention-days: 30
+        name: aider-execution-logs-${{ github.run_number }}
+        path: |
+          aider-outputs/response_*.txt
+        retention-days: 7
 
     - name: Create detailed execution summary
       run: |
@@ -441,7 +442,7 @@ jobs:
         # Display the response in the summary if extracted
         if [ "$RESPONSE_FOUND" = "true" ] && [ -f "aider-outputs/aider-response.md" ]; then
           RESPONSE_SIZE=$(wc -c < "aider-outputs/aider-response.md")
-          echo "## 📄 Aider Response ($RESPONSE_SIZE bytes)" >> $GITHUB_STEP_SUMMARY
+          echo "**Response Size:** $RESPONSE_SIZE bytes" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -449,7 +450,4 @@ jobs:
         
         echo "---" >> $GITHUB_STEP_SUMMARY
         echo "## 📎 Additional Resources" >> $GITHUB_STEP_SUMMARY
-        echo "- 📄 **Response file** (aider-response.md) available in artifacts" >> $GITHUB_STEP_SUMMARY
         echo "- 📄 **Full execution logs** available in [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
-        echo "- 📊 **Execution metrics** included in artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "- 🔍 **Repository analysis** included in artifacts" >> $GITHUB_STEP_SUMMARY
