@@ -167,8 +167,25 @@ jobs:
         # Read and decode user request from base64 to handle ANY characters safely
         USER_REQUEST=$(base64 -d < aider-outputs/user_request_b64.txt)
         
-        # Build the message using printf to safely handle all special characters
-        printf -v SAFE_MESSAGE 'Repository: %s. Request: %s. CRITICAL INSTRUCTIONS: 1) You are doing ANALYSIS ONLY - NO CODE GENERATION OR CHANGES. 2) DO NOT modify, create, or edit any files except ONE: create a file called "aider-outputs/analysis-response.md" with your complete response. 3) ONLY READ and analyze existing code. 4) Work autonomously - read any files you need without asking. 5) Write your COMPLETE analysis response to "aider-outputs/analysis-response.md" AND also output it wrapped between these exact tags: <AIDER_RESPONSE_START> and <AIDER_RESPONSE_END>. 6) Your response must be in markdown format with all diagrams and explanations. 7) Focus on solution design based on existing codebase analysis. 8) Use the exact response format template provided in the request.' "${{ github.repository }}" "$USER_REQUEST"
+        # Build the message using the template file and safely handle all special characters
+        # Use the template file and do simple replacements
+        cp aider/assist-prompt.md aider-outputs/temp-prompt.md
+        
+        # Replace placeholders safely using temp files to avoid shell injection
+        sed -i "s|{{REPOSITORY}}|${{ github.repository }}|g" aider-outputs/temp-prompt.md
+        
+        # For USER_REQUEST, use a more careful approach to avoid sed issues
+        echo "$USER_REQUEST" > aider-outputs/temp_user_request.txt
+        
+        # Create the final message by combining the template with user request
+        {
+          sed 's|{{USER_REQUEST}}|'"$(cat aider-outputs/temp_user_request.txt | sed 's/\\/\\\\/g' | sed 's/|/\\|/g')"'|g' aider-outputs/temp-prompt.md
+        } > aider-outputs/message.txt
+        
+        # Clean up temp files and create final message
+        rm -f aider-outputs/temp-prompt.md aider-outputs/temp_user_request.txt
+        
+        echo "Message file created successfully" | tee -a "$OUTPUT_FILE"
         
         # Execute and capture output
         echo "=== AIDER EXECUTION START ===" | tee -a "$OUTPUT_FILE"
@@ -178,9 +195,6 @@ jobs:
         echo "Target Files: ${{ inputs.target_files || 'All files' }}" | tee -a "$OUTPUT_FILE"
         echo "Timestamp: $TIMESTAMP" | tee -a "$OUTPUT_FILE"
         echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
-        
-        # Create message file to avoid any shell injection issues
-        echo "$SAFE_MESSAGE" > aider-outputs/message.txt
         
         # Run aider with message file and capture output
         eval "$AIDER_CMD --message-file aider-outputs/message.txt" 2>&1 | tee -a "$OUTPUT_FILE"
