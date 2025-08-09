@@ -164,26 +164,8 @@ jobs:
         # Prepare the message safely to avoid shell injection
         echo "=== PREPARING AIDER MESSAGE ===" | tee -a "$OUTPUT_FILE"
         
-        # Read and decode user request from base64 to handle ANY characters safely
-        USER_REQUEST=$(base64 -d < aider-outputs/user_request_b64.txt)
-        
-        # Build the message using the template file and safely handle all special characters
-        # Use the template file and do simple replacements
-        cp aider/assist-prompt.md aider-outputs/temp-prompt.md
-        
-        # Replace placeholders safely using temp files to avoid shell injection
-        sed -i "s|{{REPOSITORY}}|${{ github.repository }}|g" aider-outputs/temp-prompt.md
-        
-        # For USER_REQUEST, use a more careful approach to avoid sed issues
-        echo "$USER_REQUEST" > aider-outputs/temp_user_request.txt
-        
-        # Create the final message by combining the template with user request
-        {
-          sed 's|{{USER_REQUEST}}|'"$(cat aider-outputs/temp_user_request.txt | sed 's/\\/\\\\/g' | sed 's/|/\\|/g')"'|g' aider-outputs/temp-prompt.md
-        } > aider-outputs/message.txt
-        
-        # Clean up temp files and create final message
-        rm -f aider-outputs/temp-prompt.md aider-outputs/temp_user_request.txt
+        # Build the message using Python to safely handle all special characters
+        python3 -c 'import base64; template=open("aider/assist-prompt.md","r",encoding="utf-8").read(); user_request=base64.b64decode(open("aider-outputs/user_request_b64.txt","r").read()).decode("utf-8"); message=template.replace("{{REPOSITORY}}","${{ github.repository }}").replace("{{USER_REQUEST}}",user_request); open("aider-outputs/message.txt","w",encoding="utf-8").write(message); print("Message file created successfully")'
         
         echo "Message file created successfully" | tee -a "$OUTPUT_FILE"
         
@@ -201,7 +183,7 @@ jobs:
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
         
-        # Extract response from Aider's analysis file
+        # Extract response from Aider's analysis file or console output
         echo "🔍 Extracting response from Aider output..." | tee -a "$OUTPUT_FILE"
         
         # Check if Aider created the analysis response file
@@ -219,15 +201,57 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           echo "RESPONSE_FOUND=true" >> $GITHUB_ENV
           
-          # Show preview for verification in logs
+        else
+          echo "⚠️ Analysis response file not found, trying to extract from console output..." | tee -a "$OUTPUT_FILE"
+          
+          # Try to extract the substantial response from the console output
+          # Look for content after "=== AIDER RESPONSE ===" that looks like actual analysis
+          if grep -q "=== AIDER RESPONSE ===" "$OUTPUT_FILE"; then
+            # Extract everything after the AIDER RESPONSE marker, excluding Aider system messages
+            EXTRACTED_RESPONSE=$(sed -n '/=== AIDER RESPONSE ===/,$p' "$OUTPUT_FILE" | tail -n +2 | \
+              grep -v "Warning: Input is not a terminal" | \
+              grep -v "Update git name with:" | \
+              grep -v "Update git email with:" | \
+              grep -v "You can skip this check with" | \
+              grep -v "Added .aider\* to .gitignore" | \
+              grep -v "Aider v[0-9]" | \
+              grep -v "Model: gemini" | \
+              grep -v "Git repo:" | \
+              grep -v "Warning: For large repos" | \
+              grep -v "Repo-map:" | \
+              grep -v "Tokens:" | \
+              grep -v "The files in your repository" | \
+              grep -v "Applied edit to" | \
+              sed '/^$/N;/^\n$/d' | \
+              head -n -5)  # Remove last few lines which are usually system messages
+            
+            if [ ! -z "$EXTRACTED_RESPONSE" ] && [ ${#EXTRACTED_RESPONSE} -gt 100 ]; then
+              echo "✅ Response extracted from console output" | tee -a "$OUTPUT_FILE"
+              
+              # Save to file for artifacts
+              echo "$EXTRACTED_RESPONSE" > "aider-outputs/analysis-response.md"
+              
+              # Store response for summary
+              echo "AIDER_RESPONSE<<EOF" >> $GITHUB_ENV
+              echo "$EXTRACTED_RESPONSE" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              echo "RESPONSE_FOUND=true" >> $GITHUB_ENV
+            else
+              echo "⚠️ No substantial response found in console output" | tee -a "$OUTPUT_FILE"
+              echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
+            fi
+          else
+            echo "⚠️ No AIDER RESPONSE marker found" | tee -a "$OUTPUT_FILE"
+            echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
+          fi
+        fi
+        
+        # Show preview for verification in logs if response was found
+        if [ "$RESPONSE_FOUND" = "true" ]; then
           echo "🔍 First 5 lines of analysis response:" | tee -a "$OUTPUT_FILE"
           echo "$EXTRACTED_RESPONSE" | head -5 | tee -a "$OUTPUT_FILE"
           echo "🔍 Last 3 lines of analysis response:" | tee -a "$OUTPUT_FILE"
           echo "$EXTRACTED_RESPONSE" | tail -3 | tee -a "$OUTPUT_FILE"
-          
-        else
-          echo "⚠️ Analysis response file not found or empty" | tee -a "$OUTPUT_FILE"
-          echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
         fi
         
         # Save output file paths for artifact upload
