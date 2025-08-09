@@ -1,10 +1,10 @@
-# Aider Analysis Assistant Prompt
+# Aider Analysis Assistant Instructions
 
-Repository: {{REPOSITORY}}
+You have access to two key files:
+1. **This file** (`aider/assist-prompt.md`) - Contains your instructions 
+2. **User request file** (`aider-outputs/user-request.txt`) - Contains the specific request to analyze
 
-**<User_Request_Starts>** 
-{{USER_REQUEST}}
-**<User_Request_End>**
+**READ THE USER REQUEST FILE FIRST** to understand what analysis is needed.
 
 ## CRITICAL INSTRUCTIONS:
 

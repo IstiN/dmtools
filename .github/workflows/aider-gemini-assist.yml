@@ -143,12 +143,15 @@ jobs:
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
         OUTPUT_FILE="aider-outputs/response_${TIMESTAMP}.txt"
         
-        # Prepare the command with optimization flags for large repos
+        # Prepare the command with optimization flags for large repos and context files
         AIDER_CMD="aider --model ${{ inputs.model }}"
         AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
         AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands --yes-always --no-stream --no-pretty"
         
-        # Add target files if specified
+        # Add the prompt template and user request files to context
+        AIDER_CMD="$AIDER_CMD aider/assist-prompt.md aider-outputs/user-request.txt"
+        
+        # Add additional target files if specified
         if [ -n "${{ inputs.target_files }}" ]; then
           IFS=',' read -ra FILES <<< "${{ inputs.target_files }}"
           for file in "${FILES[@]}"; do
@@ -164,10 +167,9 @@ jobs:
         # Prepare the message safely to avoid shell injection
         echo "=== PREPARING AIDER MESSAGE ===" | tee -a "$OUTPUT_FILE"
         
-        # Build the message using Python to safely handle all special characters
-        python3 -c 'import base64; template=open("aider/assist-prompt.md","r",encoding="utf-8").read(); user_request=base64.b64decode(open("aider-outputs/user_request_b64.txt","r").read()).decode("utf-8"); message=template.replace("{{REPOSITORY}}","${{ github.repository }}").replace("{{USER_REQUEST}}",user_request); open("aider-outputs/message.txt","w",encoding="utf-8").write(message); print("Message file created successfully")'
-        
-        echo "Message file created successfully" | tee -a "$OUTPUT_FILE"
+        # Decode user request and save as plain text file
+        base64 -d < aider-outputs/user_request_b64.txt > aider-outputs/user-request.txt
+        echo "User request saved to aider-outputs/user-request.txt" | tee -a "$OUTPUT_FILE"
         
         # Execute and capture output
         echo "=== AIDER EXECUTION START ===" | tee -a "$OUTPUT_FILE"
@@ -178,7 +180,10 @@ jobs:
         echo "Timestamp: $TIMESTAMP" | tee -a "$OUTPUT_FILE"
         echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
         
-        # Run aider with message file and capture output
+        # Create simple message for Aider
+        echo "Repository: ${{ github.repository }}. Please read the assist-prompt.md file for instructions and the user-request.txt file for the specific request. Follow all instructions from the prompt file to complete the analysis." > aider-outputs/message.txt
+        
+        # Run aider with simple message and context files
         eval "$AIDER_CMD --message-file aider-outputs/message.txt" 2>&1 | tee -a "$OUTPUT_FILE"
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
@@ -264,6 +269,8 @@ jobs:
         path: |
           aider-outputs/response_*.txt
           aider-outputs/analysis-response.md
+          aider-outputs/user-request.txt
+          aider-outputs/message.txt
         retention-days: 7
 
     - name: Display Aider response
