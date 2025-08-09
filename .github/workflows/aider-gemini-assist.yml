@@ -250,9 +250,42 @@ jobs:
           aider-outputs/user-request.txt
         retention-days: 7
 
+    - name: Create dedicated response artifact
+      run: |
+        # Create dedicated response file for API consumption
+        mkdir -p aider-outputs/api-response
+        
+        if [ "$RESPONSE_FOUND" = "true" ] && [ ! -z "$AIDER_RESPONSE" ]; then
+          echo "✅ Creating dedicated Aider response artifact for API consumption"
+          
+          # Create structured response file
+          echo "# Aider Analysis Response" > aider-outputs/api-response/aider-response.md
+          echo "" >> aider-outputs/api-response/aider-response.md
+          echo "$AIDER_RESPONSE" >> aider-outputs/api-response/aider-response.md
+          
+          # Create simple text file version
+          echo "$AIDER_RESPONSE" > aider-outputs/api-response/aider-response.txt
+          
+          echo "📝 Response artifact created successfully"
+          echo "Response size: $(wc -c < aider-outputs/api-response/aider-response.txt) bytes"
+          
+        else
+          echo "❌ No Aider response found, creating error artifact"
+          echo "ERROR: Analysis Response Not Available" > aider-outputs/api-response/aider-response.txt
+          echo "Could not find AIDER_RESPONSE tags in console output." >> aider-outputs/api-response/aider-response.txt
+          echo "Please check the execution logs in artifacts for details." >> aider-outputs/api-response/aider-response.txt
+        fi
+
+    - name: Upload dedicated response artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: aider-response-${{ github.run_number }}
+        path: aider-outputs/api-response/
+        retention-days: 7
+
     - name: Display Aider response
       run: |
-        # Display response or error information
+        # Display response or error information in step summary
         if [ "$RESPONSE_FOUND" = "true" ] && [ ! -z "$AIDER_RESPONSE" ]; then
           echo "## 🎯 Aider Analysis Response" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
