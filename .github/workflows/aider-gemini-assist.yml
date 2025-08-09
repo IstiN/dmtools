@@ -180,7 +180,7 @@ jobs:
         echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
         
         # Create simple message for Aider
-        echo "Repository: ${{ github.repository }}. Read assist-prompt.md for instructions and user-request.txt for the specific request. IMPORTANT: You must create aider-outputs/analysis-response.md with your complete analysis. Follow all instructions from the prompt file." > aider-outputs/message.txt
+        echo "Repository: ${{ github.repository }}. CRITICAL: You are in ANALYSIS-ONLY mode. DO NOT modify any existing files. DO NOT implement code. ONLY create the file aider-outputs/analysis-response.md with your analysis. Read assist-prompt.md for full instructions and user-request.txt for the request." > aider-outputs/message.txt
         
         # Run aider with simple message and context files
         eval "$AIDER_CMD --message-file aider-outputs/message.txt" 2>&1 | tee -a "$OUTPUT_FILE"

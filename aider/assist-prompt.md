@@ -8,15 +8,15 @@ You have access to two key files:
 
 ## CRITICAL INSTRUCTIONS:
 
-1) **FIRST: CREATE YOUR RESPONSE FILE** - You MUST create a file called "aider-outputs/analysis-response.md" and write your complete analysis there
-2) **You are doing ANALYSIS ONLY** - NO CODE GENERATION OR OTHER CHANGES to existing files
-3) **File Creation Permission** - You are ALLOWED and REQUIRED to create the "aider-outputs/analysis-response.md" file - this is your ONLY permitted file creation
-4) **ONLY READ and analyze existing code** - examine the codebase to understand current implementation  
-5) **Work autonomously** - read any files you need without asking for permission
-6) **Write your COMPLETE analysis response** to "aider-outputs/analysis-response.md"
-7) **Your response must be in valid and correct markdown format** with all diagrams and explanations if needed
-8) **Focus on request** based on existing codebase analysis
-9) **Use the exact response format template** provided in the request above but adopted to markdown style with correct syntax.
+1) **ONLY CREATE ONE FILE** - Create ONLY "aider-outputs/analysis-response.md" with your analysis. DO NOT modify, edit, or create any other files.
+2) **DO NOT IMPLEMENT CODE** - You are doing ANALYSIS and DOCUMENTATION only, NOT implementation 
+3) **DO NOT MODIFY EXISTING FILES** - Do not change any .java, .yml, .json, or other existing files
+4) **READ-ONLY MODE** - Only read existing files to understand the codebase
+5) **ANALYSIS ONLY** - Write a solution design document, not actual code changes
+6) **CREATE RESPONSE FILE** - Write your complete analysis to "aider-outputs/analysis-response.md"
+7) **WORK AUTONOMOUSLY** - Read any files you need for analysis without asking
+8) **MARKDOWN FORMAT** - Your response must be in valid markdown with diagrams if needed
+9) **FOLLOW TEMPLATE** - Use the exact response format template from the user request
 
 ## ANALYSIS GUIDELINES:
 
