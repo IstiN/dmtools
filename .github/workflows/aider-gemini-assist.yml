@@ -236,9 +236,35 @@ jobs:
 
     - name: Display Aider response
       run: |
-        # Display only the raw Aider response content (no headers) - v3
-        if [ "$RESPONSE_FOUND" = "true" ]; then
+        # Debug environment variables and file status
+        echo "🔍 Debug Information:" >> $GITHUB_STEP_SUMMARY
+        echo "- RESPONSE_FOUND: $RESPONSE_FOUND" >> $GITHUB_STEP_SUMMARY
+        echo "- Files in aider-outputs/:" >> $GITHUB_STEP_SUMMARY
+        ls -la aider-outputs/ >> $GITHUB_STEP_SUMMARY || echo "aider-outputs directory not found" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Display response or error information
+        if [ "$RESPONSE_FOUND" = "true" ] && [ ! -z "$AIDER_RESPONSE" ]; then
+          echo "## 🎯 Aider Analysis Response" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
+        elif [ -f "aider-outputs/analysis-response.md" ]; then
+          echo "## 🎯 Aider Analysis Response (Direct File Read)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat "aider-outputs/analysis-response.md" >> $GITHUB_STEP_SUMMARY
         else
-          echo "Response extraction failed - check execution logs in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "## ❌ Response Extraction Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Issue**: Could not find or read the analysis response file." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Debug Info**:" >> $GITHUB_STEP_SUMMARY
+          echo "- RESPONSE_FOUND: $RESPONSE_FOUND" >> $GITHUB_STEP_SUMMARY
+          echo "- Files in aider-outputs/:" >> $GITHUB_STEP_SUMMARY
+          if [ -d "aider-outputs" ]; then
+            ls -la aider-outputs/ >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  Directory aider-outputs/ does not exist" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action**: Check execution logs in artifacts for details." >> $GITHUB_STEP_SUMMARY
         fi
