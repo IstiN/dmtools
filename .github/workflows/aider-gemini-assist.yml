@@ -187,8 +187,8 @@ jobs:
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
         
-        # Extract response from Aider's analysis file or console output
-        echo "🔍 Extracting response from Aider output..." | tee -a "$OUTPUT_FILE"
+        # Extract response from Aider's analysis file (FILE ONLY - no console fallback)
+        echo "🔍 Extracting response from analysis file..." | tee -a "$OUTPUT_FILE"
         
         # Check if Aider created the analysis response file
         if [ -f "aider-outputs/analysis-response.md" ] && [ -s "aider-outputs/analysis-response.md" ]; then
@@ -205,57 +205,19 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           echo "RESPONSE_FOUND=true" >> $GITHUB_ENV
           
-        else
-          echo "⚠️ Analysis response file not found, trying to extract from console output..." | tee -a "$OUTPUT_FILE"
-          
-          # Try to extract the substantial response from the console output
-          # Look for content after "=== AIDER RESPONSE ===" that looks like actual analysis
-          if grep -q "=== AIDER RESPONSE ===" "$OUTPUT_FILE"; then
-            # Extract everything after the AIDER RESPONSE marker, excluding Aider system messages
-            EXTRACTED_RESPONSE=$(sed -n '/=== AIDER RESPONSE ===/,$p' "$OUTPUT_FILE" | tail -n +2 | \
-              grep -v "Warning: Input is not a terminal" | \
-              grep -v "Update git name with:" | \
-              grep -v "Update git email with:" | \
-              grep -v "You can skip this check with" | \
-              grep -v "Added .aider\* to .gitignore" | \
-              grep -v "Aider v[0-9]" | \
-              grep -v "Model: gemini" | \
-              grep -v "Git repo:" | \
-              grep -v "Warning: For large repos" | \
-              grep -v "Repo-map:" | \
-              grep -v "Tokens:" | \
-              grep -v "The files in your repository" | \
-              grep -v "Applied edit to" | \
-              sed '/^$/N;/^\n$/d' | \
-              head -n -5)  # Remove last few lines which are usually system messages
-            
-            if [ ! -z "$EXTRACTED_RESPONSE" ] && [ ${#EXTRACTED_RESPONSE} -gt 100 ]; then
-              echo "✅ Response extracted from console output" | tee -a "$OUTPUT_FILE"
-              
-              # Save to file for artifacts
-              echo "$EXTRACTED_RESPONSE" > "aider-outputs/analysis-response.md"
-              
-              # Store response for summary
-              echo "AIDER_RESPONSE<<EOF" >> $GITHUB_ENV
-              echo "$EXTRACTED_RESPONSE" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              echo "RESPONSE_FOUND=true" >> $GITHUB_ENV
-            else
-              echo "⚠️ No substantial response found in console output" | tee -a "$OUTPUT_FILE"
-              echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
-            fi
-          else
-            echo "⚠️ No AIDER RESPONSE marker found" | tee -a "$OUTPUT_FILE"
-            echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
-          fi
-        fi
-        
-        # Show preview for verification in logs if response was found
-        if [ "$RESPONSE_FOUND" = "true" ]; then
+          # Show preview for verification in logs
           echo "🔍 First 5 lines of analysis response:" | tee -a "$OUTPUT_FILE"
           echo "$EXTRACTED_RESPONSE" | head -5 | tee -a "$OUTPUT_FILE"
           echo "🔍 Last 3 lines of analysis response:" | tee -a "$OUTPUT_FILE"
           echo "$EXTRACTED_RESPONSE" | tail -3 | tee -a "$OUTPUT_FILE"
+          
+        else
+          echo "❌ Analysis response file not found or empty" | tee -a "$OUTPUT_FILE"
+          echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
+          
+          # List what files were actually created for debugging
+          echo "📁 Files in aider-outputs directory:" | tee -a "$OUTPUT_FILE"
+          ls -la aider-outputs/ | tee -a "$OUTPUT_FILE"
         fi
         
         # Save output file paths for artifact upload
