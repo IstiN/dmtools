@@ -201,12 +201,14 @@ jobs:
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
         
-        # Extract response from output using tags OR from analysis file
+        # Extract response from Aider's analysis file
         echo "🔍 Extracting response from Aider output..." | tee -a "$OUTPUT_FILE"
         
-        # First check if Aider created the analysis response file
+        # Check if Aider created the analysis response file
         if [ -f "aider-outputs/analysis-response.md" ] && [ -s "aider-outputs/analysis-response.md" ]; then
           echo "✅ Found analysis response file created by Aider" | tee -a "$OUTPUT_FILE"
+          
+          # Read the complete file content
           EXTRACTED_RESPONSE=$(cat "aider-outputs/analysis-response.md")
           RESPONSE_SIZE=$(wc -c < "aider-outputs/analysis-response.md")
           echo "✅ Response extracted from file (size: $RESPONSE_SIZE bytes)" | tee -a "$OUTPUT_FILE"
@@ -217,27 +219,14 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           echo "RESPONSE_FOUND=true" >> $GITHUB_ENV
           
-        # Fallback: Parse response between tags from console output
-        elif grep -q "<AIDER_RESPONSE_START>" "$OUTPUT_FILE" && grep -q "<AIDER_RESPONSE_END>" "$OUTPUT_FILE"; then
-          echo "✅ Response tags found in console output" | tee -a "$OUTPUT_FILE"
-          
-          # Extract content between tags
-          EXTRACTED_RESPONSE=$(sed -n '/<AIDER_RESPONSE_START>/,/<AIDER_RESPONSE_END>/p' "$OUTPUT_FILE" | sed '1d;$d')
-          echo "$EXTRACTED_RESPONSE" > "aider-outputs/aider-response.md"
-          
-          RESPONSE_SIZE=$(echo "$EXTRACTED_RESPONSE" | wc -c)
-          echo "✅ Response extracted from console output (size: $RESPONSE_SIZE bytes)" | tee -a "$OUTPUT_FILE"
-          
-          # Store response for summary
-          echo "AIDER_RESPONSE<<EOF" >> $GITHUB_ENV
-          echo "$EXTRACTED_RESPONSE" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          echo "RESPONSE_FOUND=true" >> $GITHUB_ENV
+          # Show preview for verification in logs
+          echo "🔍 First 5 lines of analysis response:" | tee -a "$OUTPUT_FILE"
+          echo "$EXTRACTED_RESPONSE" | head -5 | tee -a "$OUTPUT_FILE"
+          echo "🔍 Last 3 lines of analysis response:" | tee -a "$OUTPUT_FILE"
+          echo "$EXTRACTED_RESPONSE" | tail -3 | tee -a "$OUTPUT_FILE"
           
         else
-          echo "⚠️ No response found in file or console output tags" | tee -a "$OUTPUT_FILE"
-          echo "🔍 Searching for partial tags..." | tee -a "$OUTPUT_FILE"
-          grep -n "AIDER_RESPONSE" "$OUTPUT_FILE" | tee -a "$OUTPUT_FILE" || echo "No AIDER_RESPONSE tags found at all" | tee -a "$OUTPUT_FILE"
+          echo "⚠️ Analysis response file not found or empty" | tee -a "$OUTPUT_FILE"
           echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
         fi
         
@@ -251,7 +240,6 @@ jobs:
         path: |
           aider-outputs/response_*.txt
           aider-outputs/analysis-response.md
-          aider-outputs/aider-response.md
         retention-days: 7
 
     - name: Display Aider response
