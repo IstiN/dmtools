@@ -129,9 +129,7 @@ jobs:
         cat aider-outputs/user-request.txt
         echo "🔍 END USER REQUEST"
         
-        # Create empty analysis response file that Aider must fill
-        touch aider-outputs/analysis-response.md
-        echo "📄 Created empty analysis-response.md file for Aider to fill"
+        # No need to create analysis response file - we'll parse from logs
 
     - name: Validate Gemini API Key
       run: |
@@ -157,8 +155,8 @@ jobs:
         AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
         AIDER_CMD="$AIDER_CMD --no-check-update --yes-always --no-stream"
         
-        # Add the user request and response file to context (proven working approach)  
-        AIDER_CMD="$AIDER_CMD aider-outputs/user-request.txt aider-outputs/analysis-response.md"
+        # Add only the user request file to context
+        AIDER_CMD="$AIDER_CMD aider-outputs/user-request.txt"
         
         # Add additional target files if specified
         if [ -n "${{ inputs.target_files }}" ]; then
@@ -209,24 +207,17 @@ jobs:
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
         
-        # Check if file was actually modified
-        echo "🔍 Checking if analysis file was modified..." | tee -a "$OUTPUT_FILE"
-        echo "File size after Aider:" | tee -a "$OUTPUT_FILE"
-        wc -c aider-outputs/analysis-response.md | tee -a "$OUTPUT_FILE"
-        echo "File content preview:" | tee -a "$OUTPUT_FILE"
-        head -10 aider-outputs/analysis-response.md | tee -a "$OUTPUT_FILE"
+        # Parse AIDER_RESPONSE tags from console output
+        echo "🔍 Parsing AIDER_RESPONSE from console output..." | tee -a "$OUTPUT_FILE"
         
-        # Extract response from Aider's analysis file (FILE ONLY - no console fallback)
-        echo "🔍 Extracting response from analysis file..." | tee -a "$OUTPUT_FILE"
-        
-        # Check if Aider created the analysis response file
-        if [ -f "aider-outputs/analysis-response.md" ] && [ -s "aider-outputs/analysis-response.md" ]; then
-          echo "✅ Found analysis response file created by Aider" | tee -a "$OUTPUT_FILE"
+        # Extract content between <AIDER_RESPONSE> and </AIDER_RESPONSE> tags
+        if grep -q "<AIDER_RESPONSE>" "$OUTPUT_FILE"; then
+          echo "✅ Found AIDER_RESPONSE tags in console output" | tee -a "$OUTPUT_FILE"
           
-          # Read the complete file content
-          EXTRACTED_RESPONSE=$(cat "aider-outputs/analysis-response.md")
-          RESPONSE_SIZE=$(wc -c < "aider-outputs/analysis-response.md")
-          echo "✅ Response extracted from file (size: $RESPONSE_SIZE bytes)" | tee -a "$OUTPUT_FILE"
+          # Extract the content between the tags
+          EXTRACTED_RESPONSE=$(sed -n '/<AIDER_RESPONSE>/,/<\/AIDER_RESPONSE>/p' "$OUTPUT_FILE" | sed '1d;$d')
+          RESPONSE_SIZE=$(echo "$EXTRACTED_RESPONSE" | wc -c)
+          echo "✅ Response extracted from console (size: $RESPONSE_SIZE bytes)" | tee -a "$OUTPUT_FILE"
           
           # Store response for summary
           echo "AIDER_RESPONSE<<EOF" >> $GITHUB_ENV
@@ -241,12 +232,12 @@ jobs:
           echo "$EXTRACTED_RESPONSE" | tail -3 | tee -a "$OUTPUT_FILE"
           
         else
-          echo "❌ Analysis response file not found or empty" | tee -a "$OUTPUT_FILE"
+          echo "❌ AIDER_RESPONSE tags not found in console output" | tee -a "$OUTPUT_FILE"
           echo "RESPONSE_FOUND=false" >> $GITHUB_ENV
           
-          # List what files were actually created for debugging
-          echo "📁 Files in aider-outputs directory:" | tee -a "$OUTPUT_FILE"
-          ls -la aider-outputs/ | tee -a "$OUTPUT_FILE"
+          # Show what we have for debugging
+          echo "📁 Console output search results:" | tee -a "$OUTPUT_FILE"
+          grep -n "AIDER" "$OUTPUT_FILE" || echo "No AIDER tags found" | tee -a "$OUTPUT_FILE"
         fi
         
         # Save output file paths for artifact upload
@@ -258,9 +249,7 @@ jobs:
         name: aider-execution-logs-${{ github.run_number }}
         path: |
           aider-outputs/response_*.txt
-          aider-outputs/analysis-response.md
           aider-outputs/user-request.txt
-          aider-outputs/message.txt
         retention-days: 7
 
     - name: Display Aider response
@@ -270,13 +259,9 @@ jobs:
           echo "## 🎯 Aider Analysis Response" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
-        elif [ -f "aider-outputs/analysis-response.md" ]; then
-          echo "## 🎯 Aider Analysis Response" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat "aider-outputs/analysis-response.md" >> $GITHUB_STEP_SUMMARY
         else
           echo "## ❌ Analysis Response Not Available" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Could not find or read the analysis response file." >> $GITHUB_STEP_SUMMARY
+          echo "Could not find AIDER_RESPONSE tags in console output." >> $GITHUB_STEP_SUMMARY
           echo "Please check the execution logs in artifacts for details." >> $GITHUB_STEP_SUMMARY
         fi
