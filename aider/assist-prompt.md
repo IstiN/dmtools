@@ -8,14 +8,15 @@ You have access to two key files:
 
 ## CRITICAL INSTRUCTIONS:
 
-1) **You are doing ANALYSIS ONLY** - NO CODE GENERATION OR CHANGES
-2) **DO NOT modify, create, or edit any files** except ONE: create a file called "aider-outputs/analysis-response.md" with your complete response
-3) **ONLY READ and analyze existing code** - examine the codebase to understand current implementation
-4) **Work autonomously** - read any files you need without asking for permission
-5) **Write your COMPLETE analysis response** to "aider-outputs/analysis-response.md"
-6) **Your response must be in valid and correct markdown format** with all diagrams and explanations if needed
-7) **Focus on request** based on existing codebase analysis
-8) **Use the exact response format template** provided in the request above but adopted to markdown style with correct syntax.
+1) **FIRST: CREATE YOUR RESPONSE FILE** - You MUST create a file called "aider-outputs/analysis-response.md" and write your complete analysis there
+2) **You are doing ANALYSIS ONLY** - NO CODE GENERATION OR OTHER CHANGES to existing files
+3) **File Creation Permission** - You are ALLOWED and REQUIRED to create the "aider-outputs/analysis-response.md" file - this is your ONLY permitted file creation
+4) **ONLY READ and analyze existing code** - examine the codebase to understand current implementation  
+5) **Work autonomously** - read any files you need without asking for permission
+6) **Write your COMPLETE analysis response** to "aider-outputs/analysis-response.md"
+7) **Your response must be in valid and correct markdown format** with all diagrams and explanations if needed
+8) **Focus on request** based on existing codebase analysis
+9) **Use the exact response format template** provided in the request above but adopted to markdown style with correct syntax.
 
 ## ANALYSIS GUIDELINES:
 

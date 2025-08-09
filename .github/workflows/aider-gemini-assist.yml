@@ -120,9 +120,9 @@ jobs:
         mkdir -p aider-outputs
         mkdir -p aider
         
-        # Write user input to file using base64 encoding to prevent ALL shell interpretation
-        printf '%s' "$USER_REQUEST_RAW" | base64 -w 0 > aider-outputs/user_request_b64.txt
-        echo "💾 Stored user request safely (base64 encoded)"
+        # User request is already base64 encoded, decode it directly to file
+        echo "$USER_REQUEST_RAW" | base64 -d > aider-outputs/user-request.txt
+        echo "💾 User request decoded and saved to aider-outputs/user-request.txt"
 
     - name: Validate Gemini API Key
       run: |
@@ -146,7 +146,7 @@ jobs:
         # Prepare the command with optimization flags for large repos and context files
         AIDER_CMD="aider --model ${{ inputs.model }}"
         AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
-        AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands --yes-always --no-stream --no-pretty"
+        AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands --yes-always --auto-commits --no-stream --no-pretty"
         
         # Add the prompt template and user request files to context
         AIDER_CMD="$AIDER_CMD aider/assist-prompt.md aider-outputs/user-request.txt"
@@ -167,9 +167,8 @@ jobs:
         # Prepare the message safely to avoid shell injection
         echo "=== PREPARING AIDER MESSAGE ===" | tee -a "$OUTPUT_FILE"
         
-        # Decode user request and save as plain text file
-        base64 -d < aider-outputs/user_request_b64.txt > aider-outputs/user-request.txt
-        echo "User request saved to aider-outputs/user-request.txt" | tee -a "$OUTPUT_FILE"
+        # User request is already decoded above, just log it
+        echo "User request already saved to aider-outputs/user-request.txt" | tee -a "$OUTPUT_FILE"
         
         # Execute and capture output
         echo "=== AIDER EXECUTION START ===" | tee -a "$OUTPUT_FILE"
@@ -181,7 +180,7 @@ jobs:
         echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
         
         # Create simple message for Aider
-        echo "Repository: ${{ github.repository }}. Please read the assist-prompt.md file for instructions and the user-request.txt file for the specific request. Follow all instructions from the prompt file to complete the analysis." > aider-outputs/message.txt
+        echo "Repository: ${{ github.repository }}. Read assist-prompt.md for instructions and user-request.txt for the specific request. IMPORTANT: You must create aider-outputs/analysis-response.md with your complete analysis. Follow all instructions from the prompt file." > aider-outputs/message.txt
         
         # Run aider with simple message and context files
         eval "$AIDER_CMD --message-file aider-outputs/message.txt" 2>&1 | tee -a "$OUTPUT_FILE"
