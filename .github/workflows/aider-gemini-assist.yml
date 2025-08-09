@@ -121,7 +121,7 @@ jobs:
         mkdir -p aider
         
         # Write user input to file using base64 encoding to prevent ALL shell interpretation
-        echo "$USER_REQUEST_RAW" | base64 > aider-outputs/user_request_b64.txt
+        printf '%s' "$USER_REQUEST_RAW" | base64 -w 0 > aider-outputs/user_request_b64.txt
         echo "💾 Stored user request safely (base64 encoded)"
 
     - name: Validate Gemini API Key
