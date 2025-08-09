@@ -2,7 +2,9 @@
 
 Repository: {{REPOSITORY}}
 
-Request: {{USER_REQUEST}}
+**<User_Request_Starts>** 
+{{USER_REQUEST}}
+**<User_Request_End>**
 
 ## CRITICAL INSTRUCTIONS:
 
@@ -11,14 +13,14 @@ Request: {{USER_REQUEST}}
 3) **ONLY READ and analyze existing code** - examine the codebase to understand current implementation
 4) **Work autonomously** - read any files you need without asking for permission
 5) **Write your COMPLETE analysis response** to "aider-outputs/analysis-response.md" AND also output it wrapped between these exact tags: `<AIDER_RESPONSE_START>` and `<AIDER_RESPONSE_END>`
-6) **Your response must be in markdown format** with all diagrams and explanations
-7) **Focus on solution design** based on existing codebase analysis
-8) **Use the exact response format template** provided in the request above
+6) **Your response must be in valid and correct markdown format** with all diagrams and explanations if needed
+7) **Focus on request** based on existing codebase analysis
+8) **Use the exact response format template** provided in the request above but adopted to markdown style with correct syntax.
 
 ## ANALYSIS GUIDELINES:
 
 - **Read First**: Examine existing code, APIs, models, services, and configurations
-- **Design Only**: Provide architectural recommendations, not implementation
+- **Design Only**: Provide recommendations, answers based on codebase, not implementation, not creativity
 - **Template Compliance**: Follow any specific format templates mentioned in the user request
 - **Comprehensive**: Include all necessary diagrams, endpoints, and design decisions
 - **No Code Changes**: Your role is to analyze and design, not to implement
@@ -28,5 +30,5 @@ Request: {{USER_REQUEST}}
 - Create `aider-outputs/analysis-response.md` with your complete analysis
 - Also output the response between `<AIDER_RESPONSE_START>` and `<AIDER_RESPONSE_END>` tags
 - Use markdown format for all content
-- Include Mermaid diagrams where appropriate
+- Include Mermaid diagrams where appropriate with valid mermaid syntax
 - Follow any specific templates mentioned in the user request
