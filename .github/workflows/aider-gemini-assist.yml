@@ -124,6 +124,11 @@ jobs:
         echo "$USER_REQUEST_RAW" | base64 -d > aider-outputs/user-request.txt
         echo "💾 User request decoded and saved to aider-outputs/user-request.txt"
         
+        # Print the actual user request content for debugging  
+        echo "🔍 USER REQUEST CONTENT:"
+        cat aider-outputs/user-request.txt
+        echo "🔍 END USER REQUEST"
+        
         # Create empty analysis response file that Aider must fill
         touch aider-outputs/analysis-response.md
         echo "📄 Created empty analysis-response.md file for Aider to fill"
@@ -178,9 +183,11 @@ jobs:
         echo "=== AIDER EXECUTION START ===" | tee -a "$OUTPUT_FILE"
         echo "Model: ${{ inputs.model }}" | tee -a "$OUTPUT_FILE"
         echo "Max Tokens: ${{ inputs.max_tokens }}" | tee -a "$OUTPUT_FILE"
-        echo "Request: ${{ inputs.user_request }}" | tee -a "$OUTPUT_FILE"
         echo "Target Files: ${{ inputs.target_files || 'All files' }}" | tee -a "$OUTPUT_FILE"
         echo "Timestamp: $TIMESTAMP" | tee -a "$OUTPUT_FILE"
+        echo "=== USER REQUEST CONTENT ===" | tee -a "$OUTPUT_FILE"
+        cat aider-outputs/user-request.txt | tee -a "$OUTPUT_FILE"
+        echo "=== END USER REQUEST ===" | tee -a "$OUTPUT_FILE"
         echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
         
         # Create simple message for Aider - PROVEN WORKING APPROACH
@@ -240,35 +247,18 @@ jobs:
 
     - name: Display Aider response
       run: |
-        # Debug environment variables and file status
-        echo "🔍 Debug Information:" >> $GITHUB_STEP_SUMMARY
-        echo "- RESPONSE_FOUND: $RESPONSE_FOUND" >> $GITHUB_STEP_SUMMARY
-        echo "- Files in aider-outputs/:" >> $GITHUB_STEP_SUMMARY
-        ls -la aider-outputs/ >> $GITHUB_STEP_SUMMARY || echo "aider-outputs directory not found" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
         # Display response or error information
         if [ "$RESPONSE_FOUND" = "true" ] && [ ! -z "$AIDER_RESPONSE" ]; then
           echo "## 🎯 Aider Analysis Response" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
         elif [ -f "aider-outputs/analysis-response.md" ]; then
-          echo "## 🎯 Aider Analysis Response (Direct File Read)" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Aider Analysis Response" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           cat "aider-outputs/analysis-response.md" >> $GITHUB_STEP_SUMMARY
         else
-          echo "## ❌ Response Extraction Failed" >> $GITHUB_STEP_SUMMARY
+          echo "## ❌ Analysis Response Not Available" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Issue**: Could not find or read the analysis response file." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Debug Info**:" >> $GITHUB_STEP_SUMMARY
-          echo "- RESPONSE_FOUND: $RESPONSE_FOUND" >> $GITHUB_STEP_SUMMARY
-          echo "- Files in aider-outputs/:" >> $GITHUB_STEP_SUMMARY
-          if [ -d "aider-outputs" ]; then
-            ls -la aider-outputs/ >> $GITHUB_STEP_SUMMARY
-          else
-            echo "  Directory aider-outputs/ does not exist" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Action**: Check execution logs in artifacts for details." >> $GITHUB_STEP_SUMMARY
+          echo "Could not find or read the analysis response file." >> $GITHUB_STEP_SUMMARY
+          echo "Please check the execution logs in artifacts for details." >> $GITHUB_STEP_SUMMARY
         fi
