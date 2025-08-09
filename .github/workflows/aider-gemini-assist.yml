@@ -152,8 +152,8 @@ jobs:
         AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
         AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands --yes-always --no-auto-commits --dirty-commits --no-stream --no-pretty"
         
-        # Add the prompt template, user request, and empty response file to context
-        AIDER_CMD="$AIDER_CMD aider/assist-prompt.md aider-outputs/user-request.txt aider-outputs/analysis-response.md"
+        # DEBUGGING: Only add analysis file to context, skip complex user request for now
+        AIDER_CMD="$AIDER_CMD aider-outputs/analysis-response.md"
         
         # Add additional target files if specified
         if [ -n "${{ inputs.target_files }}" ]; then
@@ -183,8 +183,8 @@ jobs:
         echo "Timestamp: $TIMESTAMP" | tee -a "$OUTPUT_FILE"
         echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
         
-        # Create simple message for Aider
-        echo "Repository: ${{ github.repository }}. CRITICAL: The file aider-outputs/analysis-response.md already exists and is EMPTY. Your job is to FILL IT with your analysis. DO NOT implement code. DO NOT modify other files. ONLY write your complete analysis to the existing analysis-response.md file. Read assist-prompt.md for instructions and user-request.txt for the request." > aider-outputs/message.txt
+        # Create simple message for Aider - DEBUGGING: Simple structure request
+        echo "Repository: ${{ github.repository }}. DEBUGGING MODE: Ignore user-request.txt for now. ONLY task: Write a high-level project structure overview to aider-outputs/analysis-response.md. DO NOT modify any other files. DO NOT implement code. ONLY fill the analysis-response.md file with the project structure." > aider-outputs/message.txt
         
         # Run aider with simple message and context files
         eval "$AIDER_CMD --message-file aider-outputs/message.txt" 2>&1 | tee -a "$OUTPUT_FILE"
