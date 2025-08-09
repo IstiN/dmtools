@@ -1,4 +1,4 @@
-/ask
+/clear /ask
 
 # Aider Analysis Assistant Instructions
 
