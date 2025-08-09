@@ -146,7 +146,7 @@ jobs:
         # Prepare the command with optimization flags for large repos and context files
         AIDER_CMD="aider --model ${{ inputs.model }}"
         AIDER_CMD="$AIDER_CMD --max-chat-history-tokens ${{ inputs.max_tokens }}"
-        AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands --yes-always --auto-commits --no-stream --no-pretty"
+        AIDER_CMD="$AIDER_CMD --subtree-only --no-check-update --no-suggest-shell-commands --yes-always --no-auto-commits --dirty-commits --no-stream --no-pretty"
         
         # Add the prompt template and user request files to context
         AIDER_CMD="$AIDER_CMD aider/assist-prompt.md aider-outputs/user-request.txt"
