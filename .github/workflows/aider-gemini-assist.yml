@@ -193,8 +193,19 @@ jobs:
         # Use the detailed assist-prompt.md as the message file
         echo "Using detailed assist-prompt.md as message file for better instructions" | tee -a "$OUTPUT_FILE"
         
+        # Show the complete command that will be executed
+        FINAL_CMD="$AIDER_CMD --message-file aider/assist-prompt.md"
+        echo "=== AIDER COMMAND TO BE EXECUTED ===" | tee -a "$OUTPUT_FILE"
+        echo "$FINAL_CMD" | tee -a "$OUTPUT_FILE"
+        echo "=== END AIDER COMMAND ===" | tee -a "$OUTPUT_FILE"
+        
+        # Show the message file content that Aider will receive
+        echo "=== MESSAGE FILE CONTENT (aider/assist-prompt.md) ===" | tee -a "$OUTPUT_FILE"
+        cat aider/assist-prompt.md | tee -a "$OUTPUT_FILE"
+        echo "=== END MESSAGE FILE CONTENT ===" | tee -a "$OUTPUT_FILE"
+        
         # Run aider with detailed prompt file and context files
-        eval "$AIDER_CMD --message-file aider/assist-prompt.md" 2>&1 | tee -a "$OUTPUT_FILE"
+        eval "$FINAL_CMD" 2>&1 | tee -a "$OUTPUT_FILE"
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
         
