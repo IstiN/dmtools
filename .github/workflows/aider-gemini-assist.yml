@@ -190,11 +190,11 @@ jobs:
         echo "=== END USER REQUEST ===" | tee -a "$OUTPUT_FILE"
         echo "=== AIDER RESPONSE ===" | tee -a "$OUTPUT_FILE"
         
-        # Create simple message for Aider - PROVEN WORKING APPROACH
-        echo "Repository: ${{ github.repository }}. TASK: Write your complete analysis to aider-outputs/analysis-response.md based on the user request. DO NOT modify any other files. DO NOT implement code. ONLY fill the analysis-response.md file with your analysis." > aider-outputs/message.txt
+        # Use the detailed assist-prompt.md as the message file
+        echo "Using detailed assist-prompt.md as message file for better instructions" | tee -a "$OUTPUT_FILE"
         
-        # Run aider with simple message and context files
-        eval "$AIDER_CMD --message-file aider-outputs/message.txt" 2>&1 | tee -a "$OUTPUT_FILE"
+        # Run aider with detailed prompt file and context files
+        eval "$AIDER_CMD --message-file aider/assist-prompt.md" 2>&1 | tee -a "$OUTPUT_FILE"
         
         echo "=== AIDER EXECUTION END ===" | tee -a "$OUTPUT_FILE"
         
