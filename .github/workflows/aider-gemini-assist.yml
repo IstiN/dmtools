@@ -197,10 +197,7 @@ jobs:
         echo "$FINAL_CMD" | tee -a "$OUTPUT_FILE"
         echo "=== END AIDER COMMAND ===" | tee -a "$OUTPUT_FILE"
         
-        # Show the message file content that Aider will receive
-        echo "=== MESSAGE FILE CONTENT (aider/assist-prompt.md) ===" | tee -a "$OUTPUT_FILE"
-        cat aider/assist-prompt.md | tee -a "$OUTPUT_FILE"
-        echo "=== END MESSAGE FILE CONTENT ===" | tee -a "$OUTPUT_FILE"
+        # Note: Not printing message file content to avoid extracting example tags
         
         # Run aider with detailed prompt file and context files
         eval "$FINAL_CMD" 2>&1 | tee -a "$OUTPUT_FILE"
@@ -210,12 +207,13 @@ jobs:
         # Parse AIDER_RESPONSE tags from console output
         echo "🔍 Parsing AIDER_RESPONSE from console output..." | tee -a "$OUTPUT_FILE"
         
-        # Extract content between <AIDER_RESPONSE> and </AIDER_RESPONSE> tags
+        # Extract content between <AIDER_RESPONSE> and </AIDER_RESPONSE> tags (excluding the tags)
         if grep -q "<AIDER_RESPONSE>" "$OUTPUT_FILE"; then
           echo "✅ Found AIDER_RESPONSE tags in console output" | tee -a "$OUTPUT_FILE"
           
-          # Extract the content between the tags
-          EXTRACTED_RESPONSE=$(sed -n '/<AIDER_RESPONSE>/,/<\/AIDER_RESPONSE>/p' "$OUTPUT_FILE" | sed '1d;$d')
+          # Extract only the content inside the tags, excluding the tags themselves
+          # Look for the LAST occurrence to avoid example tags from prompt file
+          EXTRACTED_RESPONSE=$(tac "$OUTPUT_FILE" | sed -n '/<\/AIDER_RESPONSE>/,/<AIDER_RESPONSE>/p' | tac | sed '1d;$d')
           RESPONSE_SIZE=$(echo "$EXTRACTED_RESPONSE" | wc -c)
           echo "✅ Response extracted from console (size: $RESPONSE_SIZE bytes)" | tee -a "$OUTPUT_FILE"
           
