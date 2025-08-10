@@ -213,7 +213,27 @@ jobs:
           
           # Extract only the content inside the tags, excluding the tags themselves
           # Look for the LAST occurrence to avoid example tags from prompt file
-          EXTRACTED_RESPONSE=$(tac "$OUTPUT_FILE" | sed -n '/<\/AIDER_RESPONSE>/,/<AIDER_RESPONSE>/p' | tac | sed '1d;$d')
+          # Use awk to extract only the LAST AIDER_RESPONSE block to avoid duplicates
+          EXTRACTED_RESPONSE=$(awk '
+            /<AIDER_RESPONSE>/ { 
+              in_response = 1; 
+              response = ""; 
+              next 
+            }
+            /<\/AIDER_RESPONSE>/ { 
+              in_response = 0; 
+              final_response = response; 
+              next 
+            }
+            in_response { 
+              response = response $0 "\n" 
+            }
+            END { 
+              if (final_response != "") print final_response; 
+              else print response 
+            }
+          ' "$OUTPUT_FILE")
+          
           RESPONSE_SIZE=$(echo "$EXTRACTED_RESPONSE" | wc -c)
           echo "✅ Response extracted from console (size: $RESPONSE_SIZE bytes)" | tee -a "$OUTPUT_FILE"
           
