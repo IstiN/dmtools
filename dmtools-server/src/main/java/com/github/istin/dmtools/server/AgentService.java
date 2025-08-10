@@ -45,6 +45,9 @@ public class AgentService {
     
     @Autowired(required = false)
     private TeamAssistantAgent teamAssistantAgent;
+
+    @Autowired(required = false)
+    private GenericRequestAgent genericRequestAgent;
     
     @Autowired(required = false)
     private KeywordGeneratorAgent keywordGeneratorAgent;

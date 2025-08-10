@@ -11,6 +11,7 @@ import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
 import dagger.Module;
 import dagger.Provides;
+
 import java.io.IOException;
 
 @Module
@@ -59,6 +60,11 @@ public class AIAgentsModule {
     @Provides
     TeamAssistantAgent provideTeamAssistantAgent(AI ai, IPromptTemplateReader promptTemplateReader) {
         return new TeamAssistantAgent(ai, promptTemplateReader);
+    }
+
+    @Provides
+    GenericRequestAgent provideGenericRequestAgent(AI ai, IPromptTemplateReader promptTemplateReader) {
+        return new GenericRequestAgent(ai, promptTemplateReader);
     }
 
     @Provides

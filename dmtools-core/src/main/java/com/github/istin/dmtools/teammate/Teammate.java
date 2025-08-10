@@ -3,9 +3,9 @@ package com.github.istin.dmtools.teammate;
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ChunkPreparation;
 import com.github.istin.dmtools.ai.TicketContext;
+import com.github.istin.dmtools.ai.agent.GenericRequestAgent;
 import com.github.istin.dmtools.ai.agent.RequestDecompositionAgent;
 import com.github.istin.dmtools.ai.agent.SourceImpactAssessmentAgent;
-import com.github.istin.dmtools.ai.agent.TeamAssistantAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
@@ -14,13 +14,14 @@ import com.github.istin.dmtools.common.config.ApplicationConfiguration;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.common.utils.HtmlCleaner;
-import com.github.istin.dmtools.common.utils.MarkdownToJiraConverter;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.context.ContextOrchestrator;
 import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.context.UriToObjectFactory;
-import com.github.istin.dmtools.di.*;
+import com.github.istin.dmtools.di.AIAgentsModule;
+import com.github.istin.dmtools.di.DaggerTeammateComponent;
+import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
+import com.github.istin.dmtools.di.TeammateComponent;
 import com.github.istin.dmtools.expert.ExpertParams;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.job.JobTrackerParams;
@@ -78,7 +79,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
     RequestDecompositionAgent requestDecompositionAgent;
 
     @Inject
-    TeamAssistantAgent teamAssistantAgent;
+    GenericRequestAgent genericRequestAgent;
 
     @Inject
     ApplicationConfiguration configuration;
@@ -172,10 +173,8 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         inputParams.setInstructions(new String[] {extractIfNeeded(inputParams.getInstructions())});
         inputParams.setFormattingRules(extractIfNeeded(inputParams.getFormattingRules()));
         inputParams.setFewShots(extractIfNeeded(inputParams.getFewShots()));
-        inputParams.setQuestions(new String[]{});
-        inputParams.setTasks(new String[]{});
-
-
+        inputParams.setQuestions(new String[] {extractIfNeeded(inputParams.getQuestions())});
+        inputParams.setTasks(new String[] {extractIfNeeded(inputParams.getTasks())});
 
         contextOrchestrator.processUrisInContent(inputParams.getKnownInfo(), uriProcessingSources, 2);
         String processedKnownInfo = contextOrchestrator.summarize().toString();
@@ -204,7 +203,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                         try {
                             String response = sourceCode.callHookAndWaitResponse(hook, inputParams.toString());
                             if (response != null) {
-                                globalHooksResponses.append("Hook Response (").append(hook).append("):\n");
+                                globalHooksResponses.append("Tools Information (").append(hook).append("):\n");
                                 globalHooksResponses.append(response).append("\n\n");
                             }
                         } catch (Exception e) {
@@ -217,24 +216,28 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
 
             // Append hooks responses to knownInfo
             if (!globalHooksResponses.isEmpty()) {
-                inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n\nAdditional Context from Hooks:\n" + globalHooksResponses);
+                inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n\nAdditional Context:\n" + globalHooksResponses);
             }
 
-            TeamAssistantAgent.Params teamAssistantParams = new TeamAssistantAgent.Params(inputParams, null, null, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
-            String response = teamAssistantAgent.run(teamAssistantParams);
+            GenericRequestAgent.Params genericRequesAgentParams = new GenericRequestAgent.Params(inputParams, null, null, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
+            String response = genericRequestAgent.run(genericRequesAgentParams);
             if (expertParams.isAttachResponseAsFile()) {
-                attachResponse(teamAssistantAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");
+                attachResponse(genericRequestAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");
             }
             if (outputType == Params.OutputType.field) {
-                String fieldCustomCode = ((JiraClient) trackerClient).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
-                String currentFieldValue = ticket.getFields().getString(fieldCustomCode);
-                if (expertParams.getOperationType() == Params.OperationType.Append) {
-                    trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, currentFieldValue + "\n\n" + StringUtils.convertToMarkdown(response)));
-                } else if (expertParams.getOperationType() == Params.OperationType.Replace) {
-                    trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, StringUtils.convertToMarkdown(response)));
-                }
-                if (initiator != null && initiator.isEmpty()) {
-                    trackerClient.postComment(ticket.getTicketKey(), trackerClient.tag(initiator) + ", \n\n AI response in '" + fieldName + "' on your request.");
+                if (trackerClient instanceof JiraClient) {
+                    String fieldCustomCode = ((JiraClient) trackerClient).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
+                    String currentFieldValue = ticket.getFields().getString(fieldCustomCode);
+                    if (expertParams.getOperationType() == Params.OperationType.Append) {
+                        trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, currentFieldValue + "\n\n" + response));
+                    } else if (expertParams.getOperationType() == Params.OperationType.Replace) {
+                        trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, response));
+                    }
+                    if (initiator != null && initiator.isEmpty()) {
+                        trackerClient.postComment(ticket.getTicketKey(), trackerClient.tag(initiator) + ", \n\n AI response in '" + fieldName + "' on your request.");
+                    }
+                } else {
+                    throw new UnsupportedOperationException("the operation to set value to field was tested only with jira client");
                 }
             } else {
                 trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", \n\nAI Response is: \n" + response);
@@ -246,15 +249,20 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
     }
 
     private String extractIfNeeded(String... inputArray) throws IOException {
+        if (inputArray == null) {
+            return "";
+        }
         StringBuilder result = new StringBuilder();
         for (String input : inputArray) {
+            if (!result.isEmpty()) {
+                result.append("\n");
+            }
             if (input != null && input.startsWith("https://")) {
                 String value = confluence.contentByUrl(input).getStorage().getValue();
                 if (StringUtils.isConfluenceYamlFormat(value)) {
                     input = StringUtils.extractYamlContentFromConfluence(value);
                 } else {
-                    input = HtmlCleaner.cleanOnlyStylesAndSizes(value);
-                    input = MarkdownToJiraConverter.convertToJiraMarkdown(input);
+                    input = value;
                 }
             }
             result.append(input);
