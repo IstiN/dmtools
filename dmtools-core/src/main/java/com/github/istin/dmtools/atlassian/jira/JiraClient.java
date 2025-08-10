@@ -45,6 +45,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -2026,13 +2027,20 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             category = "project_management"
     )
     public String getFields(@MCPParam(name = "project", description = "The Jira project key to get fields for", required = true) String project) throws IOException {
-        try {
-            GenericRequest genericRequest = new GenericRequest(this, path("issue/createmeta?projectKeys=" + project + "&expand=projects.issuetypes.fields"));
-            return genericRequest.execute();
-        } catch (RestClientException e) {
-            GenericRequest genericRequest = new GenericRequest(this, path("field"));
-            return genericRequest.execute();
-        }
+        RestClient client = this;
+        return cacheManager.getOrComputeSimple("getFields_" + project, () -> {
+            try {
+                GenericRequest genericRequest = new GenericRequest(client, path("issue/createmeta?projectKeys=" + project + "&expand=projects.issuetypes.fields"));
+                return genericRequest.execute();
+            } catch (Exception e) {
+                GenericRequest genericRequest = new GenericRequest(client, path("field"));
+                try {
+                    return  genericRequest.execute();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        });
     }
 
     /**

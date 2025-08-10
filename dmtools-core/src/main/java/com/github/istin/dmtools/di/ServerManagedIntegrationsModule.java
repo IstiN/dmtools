@@ -5,7 +5,11 @@ import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.google.BasicGeminiAI;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
+import com.github.istin.dmtools.common.code.SourceCode;
+import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.github.istin.dmtools.common.config.ApplicationConfiguration;
+import com.github.istin.dmtools.github.BasicGithub;
+import com.github.istin.dmtools.github.GitHub;
 import com.github.istin.dmtools.common.config.InMemoryConfiguration;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
@@ -23,6 +27,8 @@ import org.json.JSONObject;
 
 import javax.inject.Singleton;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Dagger module for server-managed job execution with pre-resolved integrations.
@@ -124,8 +130,62 @@ public class ServerManagedIntegrationsModule {
                 config.setProperty("FIGMA_BASE_PATH", figmaConfig.getString("basePath"));
             }
         }
+
+        if (resolvedIntegrations.has("github")) {
+            JSONObject githubConfig = resolvedIntegrations.getJSONObject("github");
+            if (githubConfig.has("url")) {
+                config.setProperty("GITHUB_BASE_PATH", githubConfig.getString("url"));
+            }
+            if (githubConfig.has("token")) {
+                config.setProperty("GITHUB_TOKEN", githubConfig.getString("token"));
+            }
+            if (githubConfig.has("workspace")) {
+                config.setProperty("GITHUB_WORKSPACE", githubConfig.getString("workspace"));
+            }
+            if (githubConfig.has("repository")) {
+                config.setProperty("GITHUB_REPOSITORY", githubConfig.getString("repository"));
+            }
+        }
         
         return config;
+    }
+
+    @Provides
+    @Singleton
+    public SourceCodeFactory provideSourceCodeFactory() {
+        return new SourceCodeFactory();
+    }
+
+    @Provides
+    @Singleton
+    public List<SourceCode> provideSourceCodes() {
+        try {
+            System.out.println("🔧 [ServerManagedIntegrationsModule] Providing SourceCode integrations...");
+            List<SourceCode> sourceCodes = new ArrayList<>();
+            
+            // Check if GitHub is configured and add it
+            if (resolvedIntegrations.has("github")) {
+                JSONObject githubConfig = resolvedIntegrations.getJSONObject("github");
+                String url = githubConfig.optString("url", null);
+                String token = githubConfig.optString("token", null);
+                String workspace = githubConfig.optString("workspace", null);
+                String repository = githubConfig.optString("repository", null);
+                
+                if (url != null && token != null) {
+                    System.out.println("✅ [ServerManagedIntegrationsModule] Creating CustomServerManagedGitHub with resolved credentials");
+                    SourceCode githubSourceCode = new CustomServerManagedGitHub(url, token, workspace, repository);
+                    sourceCodes.add(githubSourceCode);
+                } else {
+                    System.err.println("❌ [ServerManagedIntegrationsModule] GitHub configuration missing required parameters (url=" + 
+                        (url != null ? url : "null") + ", token=" + (token != null ? "[SENSITIVE]" : "null") + ")");
+                }
+            }
+            
+            return sourceCodes;
+        } catch (IOException e) {
+            System.err.println("❌ [ServerManagedIntegrationsModule] Failed to create SourceCode instances: " + e.getMessage());
+            throw new RuntimeException("Failed to create SourceCode instances", e);
+        }
     }
     
     @Provides
@@ -228,13 +288,13 @@ public class ServerManagedIntegrationsModule {
         }
         
         @Override
-        public java.util.List<? extends com.github.istin.dmtools.common.model.ITicket> getTestCases(com.github.istin.dmtools.common.model.ITicket ticket) throws IOException {
+        public java.util.List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
             return java.util.Collections.emptyList();
         }
         
         @Override
-        public com.github.istin.dmtools.common.tracker.TrackerClient.TextType getTextType() {
-            return com.github.istin.dmtools.common.tracker.TrackerClient.TextType.MARKDOWN;
+        public TrackerClient.TextType getTextType() {
+            return TrackerClient.TextType.MARKDOWN;
         }
     }
     
@@ -436,6 +496,53 @@ public class ServerManagedIntegrationsModule {
             System.err.println("❌ [ServerManagedIntegrationsModule] Failed to provide Figma integration: " + e.getMessage());
             e.printStackTrace();
             return null;
+        }
+    }
+    
+    /**
+     * Custom GitHub implementation that replicates BasicGithub functionality
+     * but uses resolved credentials instead of static properties from PropertyReader
+     */
+    private static class CustomServerManagedGitHub extends GitHub {
+        private final SourceCodeConfig config;
+        
+        public CustomServerManagedGitHub(String basePath, String token, String workspace, String repository) throws IOException {
+            super(basePath, token);
+            setClearCache(true);
+            setCacheGetRequestsEnabled(false);
+            this.config = SourceCodeConfig.builder()
+                    .path(basePath)
+                    .auth(token)
+                    .workspaceName(workspace)
+                    .repoName(repository)
+                    .branchName("main") // Default branch
+                    .type(SourceCodeConfig.Type.GITHUB)
+                    .build();
+        }
+        
+        @Override
+        public String getDefaultRepository() {
+            return config.getRepoName();
+        }
+        
+        @Override
+        public String getDefaultBranch() {
+            return config.getBranchName();
+        }
+        
+        @Override
+        public String getDefaultWorkspace() {
+            return config.getWorkspaceName();
+        }
+        
+        @Override
+        public boolean isConfigured() {
+            return config.isConfigured();
+        }
+        
+        @Override
+        public SourceCodeConfig getDefaultConfig() {
+            return config;
         }
     }
 } 

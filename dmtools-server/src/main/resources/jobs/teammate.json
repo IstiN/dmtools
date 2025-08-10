@@ -12,7 +12,7 @@
   },
   "executionModes": ["STANDALONE", "SERVER_MANAGED"],
   "requiredIntegrations": ["TrackerClient", "AI", "Documentation"],
-  "optionalIntegrations": [],
+  "optionalIntegrations": ["SourceCode"],
   "configParams": [
     {
       "key": "inputJql",
@@ -201,6 +201,25 @@
         "5",
         "10",
         "30"
+      ]
+    },
+    {
+      "key": "hooksAsContext",
+      "displayName": "Hooks as Context",
+      "description": "TODO prepare right description and right keys below my notes: specific hooks which can e runned synchornizaly and prepare summary response. For instance to call research in code base",
+      "displayNameKey": "teammate.agentParams.instructions.displayName",
+      "descriptionKey": "teammate.agentParams.instructions.description",
+      "instructionsKey": "teammate.agentParams.instructions.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "array",
+      "defaultValue": null,
+      "validation": {
+        "minItems": 0,
+        "maxItems": 10
+      },
+      "examples": [
+        "http://hookurl"
       ]
     },
     {

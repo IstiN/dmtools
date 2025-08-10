@@ -76,4 +76,9 @@ public class BasicBitbucket extends Bitbucket {
         return config;
     }
 
+    @Override
+    public String callHookAndWaitResponse(String hookUrl, String string) throws Exception {
+        throw  new UnsupportedOperationException("Implement Me!");
+    }
+
 }
