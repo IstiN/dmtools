@@ -8,6 +8,17 @@ You have access to these files:
 
 **READ THE USER REQUEST FILE** to understand what code changes are needed.
 
+## MANDATORY TICKET REQUIREMENT:
+
+**IMPORTANT**: Every implementation MUST be linked to a Jira ticket (DMC-XXX format).
+
+1. **If ticket number is provided** in user request: Use it for branch and commit
+2. **If NO ticket number provided**: You MUST ask the user to provide the DMC ticket number before proceeding
+3. **Never proceed without a valid DMC-XXX ticket number**
+
+Example: If user request doesn't include DMC-XXX, respond with:
+"I need a DMC ticket number to proceed with this implementation. Please provide the ticket number (format: DMC-XXX) for this work."
+
 ## CRITICAL INSTRUCTIONS:
 
 1) **IMPLEMENT CODE** - You are doing ACTUAL IMPLEMENTATION, not just analysis
@@ -74,33 +85,64 @@ Any important notes, considerations, or follow-up tasks.
 
 ## GIT WORKFLOW INTEGRATION:
 
-After completing the implementation, you MUST create a feature branch and commit your changes using Aider's built-in commands:
+After completing the implementation, you MUST create a feature branch and commit your changes using Aider's built-in commands following DMTools conventions:
 
-1. **Create Feature Branch**: Use `/git checkout -b feature/your-branch-name` to create a new branch
-2. **Commit Changes**: Use `/commit "Your commit message describing the implementation"`
+1. **Create Feature Branch**: Use `/git checkout -b [prefix]/DMC-XXX` format
+2. **Commit Changes**: Use `/commit "DMC-XXX - [ticket summary]\n[Short description of the change]"`
 
-### Branch Naming Convention:
-- Use descriptive names like: `feature/add-user-auth`, `feature/api-endpoint`, `fix/login-bug`
-- Keep it short but clear about what was implemented
+### Branch Naming Convention (DMTools Standard):
+Based on sub-task prefix structure:
 
-### Commit Message Format:
+| Sub-task Prefix | Branch Format | Example |
+|----------------|---------------|---------|
+| **[CORE]** | core/DMC-XXX | core/DMC-46 |
+| **[API]** | api/DMC-XXX | api/DMC-46 |
+| **[UI]** | ui/DMC-XXX | ui/DMC-46 |
+| **[UI-COMP]** | ui-comp/DMC-XXX | ui-comp/DMC-46 |
+
+### Commit Message Format (DMTools Standard):
 ```
-Implement [brief description]
-
-[Detailed description of changes made]
-
-Features added:
-- Feature 1
-- Feature 2
-
-Files modified:
-- file1.ext: purpose
-- file2.ext: purpose
+DMC-XXX - [ticket summary]
+[Short description of the change]
 ```
+
+### Examples:
+
+**UI Implementation:**
+```
+Branch: ui/DMC-46
+Commit: DMC-46 - Add human-readable display names to job configurations
+Updated job configuration forms to include displayName and description fields for better UX
+```
+
+**API Implementation:**
+```
+Branch: api/DMC-46
+Commit: DMC-46 - Fix JSON deserialization errors in job configurations
+Removed nested arrays from examples fields and updated validation logic
+```
+
+**Core Implementation:**
+```
+Branch: core/DMC-46
+Commit: DMC-46 - Implement job configuration validation service
+Added centralized validation logic for job configuration parameters
+```
+
+## QUALITY CHECKLIST (DMTools Standards):
+
+Before completing implementation, verify:
+- ✅ Branch name follows prefix/DMC-XXX format
+- ✅ Commit message starts with DMC-XXX
+- ✅ Commit includes ticket summary
+- ✅ Commit has short description of changes
+- ✅ No trailing whitespace in commit message
+- ✅ Implementation follows DMTools coding standards
 
 ## WORKFLOW INTEGRATION:
 
 - The summary above will be extracted and included in the Pull Request description
-- Aider will handle branch creation and commits automatically
+- Aider will handle branch creation and commits automatically following DMTools standards
 - The GitHub workflow will detect the new branch and create the PR
 - Include any special deployment or setup instructions in the summary
+- Link the created PR to the corresponding Jira ticket (DMC-XXX)

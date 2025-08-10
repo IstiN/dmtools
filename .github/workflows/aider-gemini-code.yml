@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       user_request:
-        description: 'Your coding request for Aider (what to implement)'
+        description: 'Your coding request for Aider (must include DMC-XXX ticket number)'
         required: true
         type: string
       target_files:
