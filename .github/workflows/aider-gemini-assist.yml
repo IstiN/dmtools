@@ -256,30 +256,30 @@ jobs:
         mkdir -p aider-outputs/api-response
         
         if [ "$RESPONSE_FOUND" = "true" ] && [ ! -z "$AIDER_RESPONSE" ]; then
-          echo "✅ Creating dedicated Aider response artifact for API consumption"
+          echo "✅ Creating dedicated analysis response artifact for API consumption"
           
-          # Create structured response file
-          echo "# Aider Analysis Response" > aider-outputs/api-response/aider-response.md
-          echo "" >> aider-outputs/api-response/aider-response.md
-          echo "$AIDER_RESPONSE" >> aider-outputs/api-response/aider-response.md
-          
-          # Create simple text file version
-          echo "$AIDER_RESPONSE" > aider-outputs/api-response/aider-response.txt
+          # Create single markdown response file
+          echo "# Analysis Response" > aider-outputs/api-response/response.md
+          echo "" >> aider-outputs/api-response/response.md
+          echo "$AIDER_RESPONSE" >> aider-outputs/api-response/response.md
           
           echo "📝 Response artifact created successfully"
-          echo "Response size: $(wc -c < aider-outputs/api-response/aider-response.txt) bytes"
+          echo "Response size: $(wc -c < aider-outputs/api-response/response.md) bytes"
           
         else
-          echo "❌ No Aider response found, creating error artifact"
-          echo "ERROR: Analysis Response Not Available" > aider-outputs/api-response/aider-response.txt
-          echo "Could not find AIDER_RESPONSE tags in console output." >> aider-outputs/api-response/aider-response.txt
-          echo "Please check the execution logs in artifacts for details." >> aider-outputs/api-response/aider-response.txt
+          echo "❌ No analysis response found, creating error artifact"
+          echo "# Analysis Response" > aider-outputs/api-response/response.md
+          echo "" >> aider-outputs/api-response/response.md
+          echo "**ERROR: Analysis Response Not Available**" >> aider-outputs/api-response/response.md
+          echo "" >> aider-outputs/api-response/response.md
+          echo "Could not find AIDER_RESPONSE tags in console output." >> aider-outputs/api-response/response.md
+          echo "Please check the execution logs in artifacts for details." >> aider-outputs/api-response/response.md
         fi
 
     - name: Upload dedicated response artifact
       uses: actions/upload-artifact@v4
       with:
-        name: aider-response-${{ github.run_number }}
+        name: response-${{ github.run_number }}
         path: aider-outputs/api-response/
         retention-days: 7
 
