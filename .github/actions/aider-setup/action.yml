@@ -158,10 +158,12 @@ runs:
         
         # For coding mode, allow commits and modifications
         if [ "${{ inputs.mode }}" = "coding" ]; then
-          AIDER_CMD="$AIDER_CMD --no-auto-commits --dirty-commits"
-          echo "🔧 Coding mode: allowing file modifications"
+          # Allow Aider to make commits and work with git
+          AIDER_CMD="$AIDER_CMD --dirty-commits"
+          echo "🔧 Coding mode: allowing file modifications and git operations"
         else
           # Analysis mode - more restrictive
+          AIDER_CMD="$AIDER_CMD --no-auto-commits"
           echo "📊 Analysis mode: read-only analysis"
         fi
         

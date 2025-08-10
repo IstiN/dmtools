@@ -34,11 +34,7 @@ on:
         required: false
         type: number
         default: 1000000
-      branch_name:
-        description: 'Branch name for the pull request (auto-generated if empty)'
-        required: false
-        type: string
-        default: ''
+
       pr_title:
         description: 'Pull request title (auto-generated if empty)'
         required: false
@@ -113,42 +109,58 @@ jobs:
         path: aider-outputs/pr-summary/
         retention-days: 7
 
-    - name: Check for code changes
-      id: check_changes
+    - name: Configure Git for Aider operations
       run: |
-        # Check if there are any changes to commit
-        if git diff --quiet && git diff --cached --quiet; then
-          echo "No changes detected after Aider execution"
-          echo "has_changes=false" >> $GITHUB_OUTPUT
-          echo "CHANGES_STATUS=no_changes" >> $GITHUB_ENV
+        # Configure git user for Aider's commits
+        git config user.name "aider[bot]"
+        git config user.email "aider-bot@ai-assistant.local"
+        echo "✅ Git configured for Aider operations"
+
+    - name: Check for new branches created by Aider
+      id: check_branches
+      run: |
+        # Check if Aider created any new branches
+        CURRENT_BRANCH=$(git branch --show-current)
+        echo "Current branch: $CURRENT_BRANCH"
+        
+        if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "${{ inputs.pr_base_branch }}" ]; then
+          echo "✅ Aider created a new branch: $CURRENT_BRANCH"
+          echo "new_branch=$CURRENT_BRANCH" >> $GITHUB_OUTPUT
+          echo "has_new_branch=true" >> $GITHUB_OUTPUT
+          echo "BRANCH_NAME=$CURRENT_BRANCH" >> $GITHUB_ENV
+          
+          # Check if there are commits on this branch
+          COMMIT_COUNT=$(git rev-list --count HEAD ^origin/${{ inputs.pr_base_branch }} 2>/dev/null || echo "0")
+          echo "Commits on new branch: $COMMIT_COUNT"
+          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$COMMIT_COUNT" -gt 0 ]; then
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "CHANGES_STATUS=has_changes" >> $GITHUB_ENV
+          else
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            echo "CHANGES_STATUS=no_changes" >> $GITHUB_ENV
+          fi
         else
-          echo "Changes detected after Aider execution"
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-          echo "CHANGES_STATUS=has_changes" >> $GITHUB_ENV
-          
-          # Show what changed
-          echo "📋 Files changed:"
-          git diff --name-only
-          git diff --cached --name-only
-          
-          echo "📊 Change summary:"
-          git diff --stat
-          git diff --cached --stat
+          echo "ℹ️ No new branch created by Aider"
+          echo "has_new_branch=false" >> $GITHUB_OUTPUT
+          echo "has_commits=false" >> $GITHUB_OUTPUT
+          echo "CHANGES_STATUS=no_changes" >> $GITHUB_ENV
         fi
 
-    - name: Generate branch and PR names
-      id: generate_names
-      if: steps.check_changes.outputs.has_changes == 'true'
+    - name: Push feature branch created by Aider
+      if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
       run: |
-        # Generate branch name if not provided
-        if [ -n "${{ inputs.branch_name }}" ]; then
-          BRANCH_NAME="${{ inputs.branch_name }}"
-        else
-          # Create branch name from first few words of user request
-          USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
-          BRANCH_NAME="aider/$(echo "$USER_REQUEST_DECODED" | head -c 50 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')-$(date +%Y%m%d)"
-        fi
+        BRANCH_NAME="${{ steps.check_branches.outputs.new_branch }}"
         
+        # Push the branch created by Aider
+        git push origin "$BRANCH_NAME"
+        echo "✅ Aider's feature branch pushed successfully: $BRANCH_NAME"
+
+    - name: Generate PR title
+      id: generate_pr_title
+      if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
+      run: |
         # Generate PR title if not provided
         if [ -n "${{ inputs.pr_title }}" ]; then
           PR_TITLE="${{ inputs.pr_title }}"
@@ -157,60 +169,16 @@ jobs:
           PR_TITLE="Aider: $(echo "$USER_REQUEST_DECODED" | head -c 80)"
         fi
         
-        echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
         echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
-        
-        echo "📋 Generated branch name: $BRANCH_NAME"
         echo "📋 Generated PR title: $PR_TITLE"
 
-    - name: Create and switch to feature branch
-      if: steps.check_changes.outputs.has_changes == 'true'
-      run: |
-        BRANCH_NAME="${{ steps.generate_names.outputs.branch_name }}"
-        
-        # Configure git user (required for commits)
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        
-        # Create and switch to new branch
-        git checkout -b "$BRANCH_NAME"
-        echo "✅ Created and switched to branch: $BRANCH_NAME"
-
-    - name: Commit changes
-      if: steps.check_changes.outputs.has_changes == 'true'
-      run: |
-        # Add all changes (Aider should have made the appropriate modifications)
-        git add .
-        
-        # Get user request for commit message
-        USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
-        
-        # Create detailed commit message
-        COMMIT_MSG="Aider implementation: $(echo "$USER_REQUEST_DECODED" | head -c 60)
-
-Implemented via Aider AI assistant using ${{ inputs.model }}
-
-Request: $USER_REQUEST_DECODED
-
-Co-authored-by: Aider <aider@ai-assistant>"
-        
-        git commit -m "$COMMIT_MSG"
-        echo "✅ Changes committed successfully"
-
-    - name: Push feature branch
-      if: steps.check_changes.outputs.has_changes == 'true'
-      run: |
-        BRANCH_NAME="${{ steps.generate_names.outputs.branch_name }}"
-        git push origin "$BRANCH_NAME"
-        echo "✅ Feature branch pushed successfully"
-
     - name: Create Pull Request
-      if: steps.check_changes.outputs.has_changes == 'true'
+      if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        BRANCH_NAME="${{ steps.generate_names.outputs.branch_name }}"
-        PR_TITLE="${{ steps.generate_names.outputs.pr_title }}"
+        BRANCH_NAME="${{ steps.check_branches.outputs.new_branch }}"
+        PR_TITLE="${{ steps.generate_pr_title.outputs.pr_title }}"
         BASE_BRANCH="${{ inputs.pr_base_branch }}"
         
         # Get the implementation summary for PR body
@@ -277,7 +245,7 @@ Co-authored-by: Aider <aider@ai-assistant>"
         if [ "$CHANGES_STATUS" = "has_changes" ]; then
           echo "### ✅ Implementation Results" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: Implementation completed with changes" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: ${{ steps.generate_names.outputs.branch_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: $BRANCH_NAME" >> $GITHUB_STEP_SUMMARY
           echo "- **Pull Request**: [#$PR_NUMBER]($PR_URL)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
