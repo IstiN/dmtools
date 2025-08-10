@@ -1,0 +1,303 @@
+name: Aider Code Implementation (Gemini)
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_request:
+        description: 'Your coding request for Aider (what to implement)'
+        required: true
+        type: string
+      target_files:
+        description: 'Files to include in context (comma-separated, optional)'
+        required: false
+        type: string
+        default: ''
+      model:
+        description: 'Google Gemini model to use'
+        required: false
+        type: choice
+        default: 'gemini/gemini-2.5-flash-preview-05-20'
+        options:
+          - gemini/gemini-2.5-flash-preview-05-20
+          - gemini/gemini-1.5-pro-latest
+          - gemini/gemini-1.5-pro-002
+          - gemini/gemini-1.5-flash-latest
+          - gemini/gemini-1.5-flash-002
+          - gemini/gemini-1.0-pro-latest
+      gemini_api_key_secret:
+        description: 'GitHub secret name containing Gemini API key'
+        required: false
+        type: string
+        default: 'GEMINI_API_KEY'
+      max_tokens:
+        description: 'Maximum tokens for context (Gemini 1.5 Pro supports up to 1M+)'
+        required: false
+        type: number
+        default: 1000000
+      branch_name:
+        description: 'Branch name for the pull request (auto-generated if empty)'
+        required: false
+        type: string
+        default: ''
+      pr_title:
+        description: 'Pull request title (auto-generated if empty)'
+        required: false
+        type: string
+        default: ''
+      pr_base_branch:
+        description: 'Base branch for the pull request'
+        required: false
+        type: string
+        default: 'main'
+
+jobs:
+  implement-code:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better context
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Aider and run implementation
+      id: aider_run
+      uses: ./.github/actions/aider-setup
+      with:
+        user_request: ${{ inputs.user_request }}
+        target_files: ${{ inputs.target_files }}
+        model: ${{ inputs.model }}
+        gemini_api_key: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
+        max_tokens: ${{ inputs.max_tokens }}
+        prompt_file: 'aider/coding-prompt.md'
+        mode: 'coding'
+
+    - name: Upload execution logs as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: aider-coding-logs-${{ github.run_number }}
+        path: |
+          aider-outputs/response_*.txt
+          aider-outputs/user-request.txt
+        retention-days: 7
+
+    - name: Create implementation summary artifact
+      run: |
+        # Create dedicated summary file for PR description
+        mkdir -p aider-outputs/pr-summary
+        
+        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.aider_response }}" ]; then
+          echo "✅ Creating implementation summary for PR"
+          
+          # Save the implementation summary
+          echo "${{ steps.aider_run.outputs.aider_response }}" > aider-outputs/pr-summary/implementation-summary.md
+          
+          echo "📝 Implementation summary created successfully"
+          echo "Summary size: $(wc -c < aider-outputs/pr-summary/implementation-summary.md) bytes"
+          
+        else
+          echo "❌ No implementation summary found, creating error summary"
+          echo "# Implementation Summary" > aider-outputs/pr-summary/implementation-summary.md
+          echo "" >> aider-outputs/pr-summary/implementation-summary.md
+          echo "**ERROR: Implementation Not Completed**" >> aider-outputs/pr-summary/implementation-summary.md
+          echo "" >> aider-outputs/pr-summary/implementation-summary.md
+          echo "Aider did not complete the implementation successfully." >> aider-outputs/pr-summary/implementation-summary.md
+          echo "Please check the execution logs for details." >> aider-outputs/pr-summary/implementation-summary.md
+        fi
+
+    - name: Upload implementation summary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: implementation-summary-${{ github.run_number }}
+        path: aider-outputs/pr-summary/
+        retention-days: 7
+
+    - name: Check for code changes
+      id: check_changes
+      run: |
+        # Check if there are any changes to commit
+        if git diff --quiet && git diff --cached --quiet; then
+          echo "No changes detected after Aider execution"
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "CHANGES_STATUS=no_changes" >> $GITHUB_ENV
+        else
+          echo "Changes detected after Aider execution"
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "CHANGES_STATUS=has_changes" >> $GITHUB_ENV
+          
+          # Show what changed
+          echo "📋 Files changed:"
+          git diff --name-only
+          git diff --cached --name-only
+          
+          echo "📊 Change summary:"
+          git diff --stat
+          git diff --cached --stat
+        fi
+
+    - name: Generate branch and PR names
+      id: generate_names
+      if: steps.check_changes.outputs.has_changes == 'true'
+      run: |
+        # Generate branch name if not provided
+        if [ -n "${{ inputs.branch_name }}" ]; then
+          BRANCH_NAME="${{ inputs.branch_name }}"
+        else
+          # Create branch name from first few words of user request
+          USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
+          BRANCH_NAME="aider/$(echo "$USER_REQUEST_DECODED" | head -c 50 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')-$(date +%Y%m%d)"
+        fi
+        
+        # Generate PR title if not provided
+        if [ -n "${{ inputs.pr_title }}" ]; then
+          PR_TITLE="${{ inputs.pr_title }}"
+        else
+          USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
+          PR_TITLE="Aider: $(echo "$USER_REQUEST_DECODED" | head -c 80)"
+        fi
+        
+        echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+        
+        echo "📋 Generated branch name: $BRANCH_NAME"
+        echo "📋 Generated PR title: $PR_TITLE"
+
+    - name: Create and switch to feature branch
+      if: steps.check_changes.outputs.has_changes == 'true'
+      run: |
+        BRANCH_NAME="${{ steps.generate_names.outputs.branch_name }}"
+        
+        # Configure git user (required for commits)
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        
+        # Create and switch to new branch
+        git checkout -b "$BRANCH_NAME"
+        echo "✅ Created and switched to branch: $BRANCH_NAME"
+
+    - name: Commit changes
+      if: steps.check_changes.outputs.has_changes == 'true'
+      run: |
+        # Add all changes (Aider should have made the appropriate modifications)
+        git add .
+        
+        # Get user request for commit message
+        USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
+        
+        # Create detailed commit message
+        COMMIT_MSG="Aider implementation: $(echo "$USER_REQUEST_DECODED" | head -c 60)
+
+Implemented via Aider AI assistant using ${{ inputs.model }}
+
+Request: $USER_REQUEST_DECODED
+
+Co-authored-by: Aider <aider@ai-assistant>"
+        
+        git commit -m "$COMMIT_MSG"
+        echo "✅ Changes committed successfully"
+
+    - name: Push feature branch
+      if: steps.check_changes.outputs.has_changes == 'true'
+      run: |
+        BRANCH_NAME="${{ steps.generate_names.outputs.branch_name }}"
+        git push origin "$BRANCH_NAME"
+        echo "✅ Feature branch pushed successfully"
+
+    - name: Create Pull Request
+      if: steps.check_changes.outputs.has_changes == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        BRANCH_NAME="${{ steps.generate_names.outputs.branch_name }}"
+        PR_TITLE="${{ steps.generate_names.outputs.pr_title }}"
+        BASE_BRANCH="${{ inputs.pr_base_branch }}"
+        
+        # Get the implementation summary for PR body
+        if [ -f "aider-outputs/pr-summary/implementation-summary.md" ]; then
+          PR_BODY_FILE="aider-outputs/pr-summary/implementation-summary.md"
+        else
+          # Fallback to basic description
+          echo "# Aider Implementation" > /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "This PR was created automatically by Aider AI assistant." >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "## Original Request" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "${{ inputs.user_request }}" | base64 -d >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "## Implementation Details" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "Changes were implemented using ${{ inputs.model }} model." >> /tmp/pr-body.md
+          PR_BODY_FILE="/tmp/pr-body.md"
+        fi
+        
+        # Create the pull request using GitHub CLI
+        gh pr create \
+          --title "$PR_TITLE" \
+          --body-file "$PR_BODY_FILE" \
+          --base "$BASE_BRANCH" \
+          --head "$BRANCH_NAME" \
+          --label "aider-generated" \
+          --label "automated-pr"
+        
+        # Get the PR URL and number
+        PR_URL=$(gh pr view "$BRANCH_NAME" --json url --jq '.url')
+        PR_NUMBER=$(gh pr view "$BRANCH_NAME" --json number --jq '.number')
+        
+        echo "✅ Pull Request created successfully!"
+        echo "🔗 PR URL: $PR_URL"
+        echo "📋 PR Number: #$PR_NUMBER"
+        
+        # Store for summary
+        echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+        echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+
+    - name: Display execution summary
+      run: |
+        # Display comprehensive summary
+        echo "## 🚀 Aider Implementation Workflow Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show request details
+        echo "### 📋 Request Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Model**: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Max Tokens**: ${{ inputs.max_tokens }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Target Files**: ${{ inputs.target_files || 'All files' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show original request
+        echo "### 📝 Original Request" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "${{ inputs.user_request }}" | base64 -d >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show implementation results
+        if [ "$CHANGES_STATUS" = "has_changes" ]; then
+          echo "### ✅ Implementation Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Implementation completed with changes" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ steps.generate_names.outputs.branch_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pull Request**: [#$PR_NUMBER]($PR_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Include Aider's summary if available
+          if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ]; then
+            echo "### 📊 Implementation Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.aider_run.outputs.aider_response }}" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "### ℹ️ No Changes Made" >> $GITHUB_STEP_SUMMARY
+          echo "Aider completed execution but no code changes were necessary or made." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ]; then
+            echo "### 📝 Aider Response" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.aider_run.outputs.aider_response }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Implementation Error" >> $GITHUB_STEP_SUMMARY
+            echo "No valid response received from Aider. Check execution logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
