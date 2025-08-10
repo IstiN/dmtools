@@ -146,3 +146,5 @@ Before completing implementation, verify:
 - The GitHub workflow will detect the new branch and create the PR
 - Include any special deployment or setup instructions in the summary
 - Link the created PR to the corresponding Jira ticket (DMC-XXX)
+
+/commit /run /git
