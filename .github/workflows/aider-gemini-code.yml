@@ -1,3 +1,4 @@
+# Aider Code Implementation with PR Creation
 name: Aider Code Implementation (Gemini)
 
 on:
@@ -45,6 +46,11 @@ on:
         required: false
         type: string
         default: 'main'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
   implement-code:
