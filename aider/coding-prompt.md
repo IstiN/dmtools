@@ -147,4 +147,12 @@ Before completing implementation, verify:
 - Include any special deployment or setup instructions in the summary
 - Link the created PR to the corresponding Jira ticket (DMC-XXX)
 
-/commit /run /git
+## FINAL COMMANDS SEQUENCE:
+
+After completing all implementation work, execute these commands in sequence:
+
+1. **Run final command**: `/run git status` to show what files were modified
+2. **Create commit**: `/commit "DMC-XXX - [your implementation summary]"`
+3. **Add this prompt file**: `/add aider/coding-prompt.md` to include in context for future reference
+
+These commands ensure proper Git tracking and documentation of the implementation process.
