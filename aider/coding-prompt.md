@@ -72,8 +72,35 @@ Description of how the implemented solution should work.
 Any important notes, considerations, or follow-up tasks.
 </AIDER_RESPONSE>
 
+## GIT WORKFLOW INTEGRATION:
+
+After completing the implementation, you MUST create a feature branch and commit your changes using Aider's built-in commands:
+
+1. **Create Feature Branch**: Use `/git checkout -b feature/your-branch-name` to create a new branch
+2. **Commit Changes**: Use `/commit "Your commit message describing the implementation"`
+
+### Branch Naming Convention:
+- Use descriptive names like: `feature/add-user-auth`, `feature/api-endpoint`, `fix/login-bug`
+- Keep it short but clear about what was implemented
+
+### Commit Message Format:
+```
+Implement [brief description]
+
+[Detailed description of changes made]
+
+Features added:
+- Feature 1
+- Feature 2
+
+Files modified:
+- file1.ext: purpose
+- file2.ext: purpose
+```
+
 ## WORKFLOW INTEGRATION:
 
 - The summary above will be extracted and included in the Pull Request description
-- Make sure all changes are committed and ready for PR creation
+- Aider will handle branch creation and commits automatically
+- The GitHub workflow will detect the new branch and create the PR
 - Include any special deployment or setup instructions in the summary
