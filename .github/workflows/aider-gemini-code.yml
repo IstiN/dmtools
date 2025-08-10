@@ -123,6 +123,20 @@ jobs:
         CURRENT_BRANCH=$(git branch --show-current)
         echo "Current branch: $CURRENT_BRANCH"
         
+        # Log what Aider modified
+        echo "=== CHECKING WHAT AIDER MODIFIED ==="
+        echo "📋 Git status after Aider execution:"
+        git status --porcelain || echo "No changes detected"
+        
+        echo "📋 Modified files:"
+        git diff --name-only || echo "No modified files"
+        
+        echo "📋 Staged files:"
+        git diff --cached --name-only || echo "No staged files"
+        
+        echo "📋 Untracked files:"
+        git ls-files --others --exclude-standard || echo "No untracked files"
+        
         if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "${{ inputs.pr_base_branch }}" ]; then
           echo "✅ Aider created a new branch: $CURRENT_BRANCH"
           echo "new_branch=$CURRENT_BRANCH" >> $GITHUB_OUTPUT
@@ -142,11 +156,63 @@ jobs:
             echo "CHANGES_STATUS=no_changes" >> $GITHUB_ENV
           fi
         else
-          echo "ℹ️ No new branch created by Aider"
+          echo "ℹ️ No new branch created by Aider, checking for changes on current branch"
           echo "has_new_branch=false" >> $GITHUB_OUTPUT
-          echo "has_commits=false" >> $GITHUB_OUTPUT
-          echo "CHANGES_STATUS=no_changes" >> $GITHUB_ENV
+          
+          # Check if there are uncommitted changes that we need to handle
+          if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            echo "📋 Found uncommitted changes, will create fallback branch"
+            echo "has_uncommitted_changes=true" >> $GITHUB_OUTPUT
+            echo "CHANGES_STATUS=has_changes" >> $GITHUB_ENV
+          else
+            echo "has_uncommitted_changes=false" >> $GITHUB_OUTPUT
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            echo "CHANGES_STATUS=no_changes" >> $GITHUB_ENV
+          fi
         fi
+
+    - name: Create fallback branch and commit if Aider didn't
+      if: steps.check_branches.outputs.has_new_branch == 'false' && steps.check_branches.outputs.has_uncommitted_changes == 'true'
+      id: fallback_branch
+      run: |
+        echo "🔄 Creating fallback branch since Aider didn't create one"
+        
+        # Generate PR title for branch name
+        if [ -n "${{ inputs.pr_title }}" ]; then
+          PR_TITLE="${{ inputs.pr_title }}"
+        else
+          USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
+          PR_TITLE="$(echo "$USER_REQUEST_DECODED" | head -c 80)"
+        fi
+        
+        # Generate branch name from PR title (fallback naming)
+        BRANCH_NAME="aider/$(echo "$PR_TITLE" | head -c 50 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')-$(date +%Y%m%d)"
+        
+        echo "📋 Creating fallback branch: $BRANCH_NAME"
+        
+        # Create and switch to new branch
+        git checkout -b "$BRANCH_NAME"
+        
+        # Add all changes
+        git add .
+        
+        # Create commit with user request info
+        USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
+        COMMIT_MSG="Aider implementation: $(echo "$USER_REQUEST_DECODED" | head -c 60)
+
+Implemented via Aider AI assistant using ${{ inputs.model }}
+(Fallback commit created by workflow)
+
+Request: $USER_REQUEST_DECODED
+
+Co-authored-by: Aider <aider@ai-assistant>"
+        
+        git commit -m "$COMMIT_MSG"
+        echo "✅ Fallback branch and commit created successfully"
+        
+        # Set outputs for next steps
+        echo "new_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
     - name: Push feature branch created by Aider
       if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
@@ -157,9 +223,18 @@ jobs:
         git push origin "$BRANCH_NAME"
         echo "✅ Aider's feature branch pushed successfully: $BRANCH_NAME"
 
+    - name: Push fallback branch
+      if: steps.check_branches.outputs.has_new_branch == 'false' && steps.check_branches.outputs.has_uncommitted_changes == 'true'
+      run: |
+        BRANCH_NAME="${{ steps.fallback_branch.outputs.new_branch }}"
+        
+        # Push the fallback branch
+        git push origin "$BRANCH_NAME"
+        echo "✅ Fallback feature branch pushed successfully: $BRANCH_NAME"
+
     - name: Generate PR title
       id: generate_pr_title
-      if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
+      if: env.CHANGES_STATUS == 'has_changes'
       run: |
         # Generate PR title if not provided
         if [ -n "${{ inputs.pr_title }}" ]; then
@@ -173,11 +248,19 @@ jobs:
         echo "📋 Generated PR title: $PR_TITLE"
 
     - name: Create Pull Request
-      if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
+      if: env.CHANGES_STATUS == 'has_changes'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        BRANCH_NAME="${{ steps.check_branches.outputs.new_branch }}"
+        # Determine which branch to use
+        if [ "${{ steps.check_branches.outputs.has_new_branch }}" = "true" ]; then
+          BRANCH_NAME="${{ steps.check_branches.outputs.new_branch }}"
+          echo "📋 Using Aider-created branch: $BRANCH_NAME"
+        else
+          BRANCH_NAME="${{ steps.fallback_branch.outputs.new_branch }}"
+          echo "📋 Using fallback branch: $BRANCH_NAME"
+        fi
+        
         PR_TITLE="${{ steps.generate_pr_title.outputs.pr_title }}"
         BASE_BRANCH="${{ inputs.pr_base_branch }}"
         
