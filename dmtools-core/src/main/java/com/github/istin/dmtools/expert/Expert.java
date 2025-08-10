@@ -101,7 +101,7 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
      * Includes ServerManagedIntegrationsModule for integrations and AIAgentsModule for agents
      */
     @Singleton
-    @Component(modules = {ServerManagedIntegrationsModule.class, SourceCodeModule.class, AIAgentsModule.class})
+    @Component(modules = {ServerManagedIntegrationsModule.class, AIAgentsModule.class})
     public interface ServerManagedExpertComponent {
         void inject(Expert expert);
     }
@@ -302,7 +302,7 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
 
     private List<ChunkPreparation.Chunk> extendContextWithCode(String ticketKey, ExpertParams expertParams, RequestDecompositionAgent.Result structuredRequest) throws Exception {
         SourceCodeConfig[] sourceCodeConfig = expertParams.getSourceCodeConfig();
-        List<SourceCode> sourceCodeList = new SourceCodeFactory().createSourceCodes(sourceCodeConfig);
+        List<SourceCode> sourceCodeList = sourceCodeFactory.createSourceCodes(sourceCodeConfig);
         List<ChunkPreparation.Chunk> chunks = new ArrayList<>();
         for (SourceCode sourceCode : sourceCodeList) {
             CodebaseSearchOrchestrator searchOrchestrator = new CodebaseSearchOrchestrator(sourceCode);

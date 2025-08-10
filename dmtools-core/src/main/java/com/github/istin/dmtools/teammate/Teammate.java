@@ -9,6 +9,7 @@ import com.github.istin.dmtools.ai.agent.TeamAssistantAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
+import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.config.ApplicationConfiguration;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -29,8 +30,10 @@ import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.search.CodebaseSearchOrchestrator;
 import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
+import com.google.gson.annotations.SerializedName;
 import dagger.Component;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONObject;
 
@@ -43,7 +46,12 @@ import java.util.List;
 
 public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultItem>> {
 
+    @Getter
+    @Setter
     public static class TeammateParams extends JobTrackerParams<RequestDecompositionAgent.Result> {
+
+        @SerializedName("hooksAsContext")
+        private String[] hooksAsContext;
 
     }
 
@@ -61,7 +69,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
     IPromptTemplateReader promptTemplateReader;
 
     @Inject
-    SourceCodeFactory sourceCodeFactory;
+    List<SourceCode> sourceCodes;
 
     @Inject
     SourceImpactAssessmentAgent sourceImpactAssessmentAgent;
@@ -96,7 +104,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
      * Includes ServerManagedIntegrationsModule for integrations and AIAgentsModule for agents
      */
     @Singleton
-    @Component(modules = {ServerManagedIntegrationsModule.class, SourceCodeModule.class, AIAgentsModule.class})
+    @Component(modules = {ServerManagedIntegrationsModule.class, AIAgentsModule.class})
     public interface ServerManagedExpertComponent {
         void inject(Teammate expert);
     }
@@ -167,8 +175,11 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         inputParams.setQuestions(new String[]{});
         inputParams.setTasks(new String[]{});
 
+
+
         contextOrchestrator.processUrisInContent(inputParams.getKnownInfo(), uriProcessingSources, 2);
-        inputParams.setKnownInfo(contextOrchestrator.summarize().toString());
+        String processedKnownInfo = contextOrchestrator.summarize().toString();
+        inputParams.setKnownInfo(processedKnownInfo);
         contextOrchestrator.clear();
 
         List<ResultItem> results = new ArrayList<>();
@@ -181,8 +192,35 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
             contextOrchestrator.processUrisInContent(textFieldsOnly, uriProcessingSources, 1);
             contextOrchestrator.processUrisInContent(attachments, uriProcessingSources, 1);
             List<ChunkPreparation.Chunk> chunksContext = contextOrchestrator.summarize();
+            inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n" + chunksContext.toString());
+            contextOrchestrator.clear();
 
-            TeamAssistantAgent.Params teamAssistantParams = new TeamAssistantAgent.Params(inputParams, null, chunksContext, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
+            // Process hooks as context first
+            String[] hooksAsContext = expertParams.getHooksAsContext();
+            StringBuilder globalHooksResponses = new StringBuilder();
+            if (hooksAsContext != null && sourceCodes != null) {
+                for (String hook : hooksAsContext) {
+                    for (SourceCode sourceCode : sourceCodes) {
+                        try {
+                            String response = sourceCode.callHookAndWaitResponse(hook, inputParams.toString());
+                            if (response != null) {
+                                globalHooksResponses.append("Hook Response (").append(hook).append("):\n");
+                                globalHooksResponses.append(response).append("\n\n");
+                            }
+                        } catch (Exception e) {
+                            // Log but don't fail the workflow
+                            System.err.println("Failed to call hook: " + hook + ", error: " + e.getMessage());
+                        }
+                    }
+                }
+            }
+
+            // Append hooks responses to knownInfo
+            if (!globalHooksResponses.isEmpty()) {
+                inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n\nAdditional Context from Hooks:\n" + globalHooksResponses);
+            }
+
+            TeamAssistantAgent.Params teamAssistantParams = new TeamAssistantAgent.Params(inputParams, null, null, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
             String response = teamAssistantAgent.run(teamAssistantParams);
             if (expertParams.isAttachResponseAsFile()) {
                 attachResponse(teamAssistantAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");

@@ -69,4 +69,9 @@ public class BasicGitLab extends GitLab {
     public SourceCodeConfig getDefaultConfig() {
         return config;
     }
+
+    @Override
+    public String callHookAndWaitResponse(String hookUrl, String string) throws Exception {
+        throw  new UnsupportedOperationException("Implement Me!");
+    }
 }

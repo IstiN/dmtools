@@ -79,6 +79,8 @@ public interface SourceCode {
 
     SourceCodeConfig getDefaultConfig();
 
+    String callHookAndWaitResponse(String hookUrl, String request) throws Exception;
+
     class Impl {
 
         public static List<SourceCode> getConfiguredSourceCodes(JSONArray sources) throws IOException {

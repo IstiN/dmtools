@@ -463,6 +463,65 @@ public class JobExecutionController {
                 }
                 break;
                 
+            case "github":
+                logger.info("🔍 Processing GitHub integration mapping...");
+                
+                // Map GitHub URL
+                if (params.containsKey("url")) {
+                    config.put("url", params.get("url"));
+                    logger.info("  ✅ Mapped 'url' parameter: {}", params.get("url"));
+                } else if (params.containsKey("GITHUB_BASE_PATH")) {
+                    config.put("url", params.get("GITHUB_BASE_PATH"));
+                    logger.info("  ✅ Mapped 'GITHUB_BASE_PATH' to 'url': {}", params.get("GITHUB_BASE_PATH"));
+                } else {
+                    // Default GitHub API URL
+                    config.put("url", "https://api.github.com");
+                    logger.info("  ✅ Using default GitHub API URL: https://api.github.com");
+                }
+                
+                // Map GitHub token
+                if (params.containsKey("token")) {
+                    config.put("token", params.get("token"));
+                    logger.info("  ✅ Mapped 'token' parameter: [SENSITIVE]");
+                } else if (params.containsKey("GITHUB_TOKEN")) {
+                    config.put("token", params.get("GITHUB_TOKEN"));
+                    logger.info("  ✅ Mapped 'GITHUB_TOKEN' to 'token': [SENSITIVE]");
+                } else if (params.containsKey("SOURCE_GITHUB_TOKEN")) {
+                    config.put("token", params.get("SOURCE_GITHUB_TOKEN"));
+                    logger.info("  ✅ Mapped 'SOURCE_GITHUB_TOKEN' to 'token': [SENSITIVE]");
+                } else {
+                    logger.warn("  ⚠️  No token parameter found for GitHub integration");
+                }
+                
+                // Map GitHub workspace (owner/organization)
+                if (params.containsKey("workspace")) {
+                    config.put("workspace", params.get("workspace"));
+                    logger.info("  ✅ Mapped 'workspace' parameter: {}", params.get("workspace"));
+                } else if (params.containsKey("GITHUB_WORKSPACE")) {
+                    config.put("workspace", params.get("GITHUB_WORKSPACE"));
+                    logger.info("  ✅ Mapped 'GITHUB_WORKSPACE' to 'workspace': {}", params.get("GITHUB_WORKSPACE"));
+                } else if (params.containsKey("SOURCE_GITHUB_WORKSPACE")) {
+                    config.put("workspace", params.get("SOURCE_GITHUB_WORKSPACE"));
+                    logger.info("  ✅ Mapped 'SOURCE_GITHUB_WORKSPACE' to 'workspace': {}", params.get("SOURCE_GITHUB_WORKSPACE"));
+                } else {
+                    logger.warn("  ⚠️  No workspace parameter found for GitHub integration");
+                }
+                
+                // Map GitHub repository
+                if (params.containsKey("repository")) {
+                    config.put("repository", params.get("repository"));
+                    logger.info("  ✅ Mapped 'repository' parameter: {}", params.get("repository"));
+                } else if (params.containsKey("GITHUB_REPOSITORY")) {
+                    config.put("repository", params.get("GITHUB_REPOSITORY"));
+                    logger.info("  ✅ Mapped 'GITHUB_REPOSITORY' to 'repository': {}", params.get("GITHUB_REPOSITORY"));
+                } else if (params.containsKey("SOURCE_GITHUB_REPOSITORY")) {
+                    config.put("repository", params.get("SOURCE_GITHUB_REPOSITORY"));
+                    logger.info("  ✅ Mapped 'SOURCE_GITHUB_REPOSITORY' to 'repository': {}", params.get("SOURCE_GITHUB_REPOSITORY"));
+                } else {
+                    logger.warn("  ⚠️  No repository parameter found for GitHub integration");
+                }
+                break;
+                
             default:
                 logger.info("🔍 Processing unknown integration type '{}' - copying all parameters as-is", integrationDto.getType());
                 // For unknown types, copy all parameters as-is
