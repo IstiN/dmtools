@@ -149,10 +149,13 @@ Before completing implementation, verify:
 
 ## FINAL COMMANDS SEQUENCE:
 
-After completing all implementation work, execute these commands in sequence:
+After completing all implementation work, you MUST execute these commands in sequence:
 
-1. **Run final command**: `/run git status` to show what files were modified
-2. **Create commit**: `/commit "DMC-XXX - [your implementation summary]"`
-3. **Add this prompt file**: `/add aider/coding-prompt.md` to include in context for future reference
+1. **Check what was modified**: `/run git status` to show what files were changed
+2. **Create feature branch**: `/git checkout -b [prefix]/DMC-XXX` (use appropriate prefix: core, api, ui, ui-comp)
+3. **Stage all changes**: `/run git add .` to add all modified files
+4. **Create commit**: `/commit "DMC-XXX - [your implementation summary]\n[Short description of changes]"`
 
-These commands ensure proper Git tracking and documentation of the implementation process.
+**IMPORTANT**: Do NOT use `/ask` command as it causes crashes. Stick to the commands above only.
+
+These commands ensure proper Git tracking following DMTools standards.
