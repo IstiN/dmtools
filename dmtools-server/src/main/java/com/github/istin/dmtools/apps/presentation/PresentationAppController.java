@@ -4,6 +4,7 @@ import com.github.istin.dmtools.ai.agent.DataToPresentationScriptGeneratorAgent;
 import com.github.istin.dmtools.apps.presentation.model.GeneratePresentationRequest;
 import com.github.istin.dmtools.apps.presentation.model.ScriptGenerationRequest;
 import com.github.istin.dmtools.common.utils.IOUtils;
+import com.github.istin.dmtools.server.utils.ServerIOUtils;
 import com.github.istin.dmtools.presentation.HTMLPresentationDrawer;
 import com.github.istin.dmtools.presentation.JSPresentationMakerBridge;
 import org.json.JSONObject;
@@ -39,7 +40,7 @@ public class PresentationAppController {
     private ResponseEntity<String> generateScriptInternal(String userRequest, List<MultipartFile> files) throws Exception {
         List<File> tempFiles = Collections.emptyList();
         if (files != null && !files.isEmpty()) {
-            tempFiles = files.stream().map(IOUtils::multipartToFile).collect(Collectors.toList());
+            tempFiles = files.stream().map(ServerIOUtils::multipartToFile).collect(Collectors.toList());
         }
 
         DataToPresentationScriptGeneratorAgent agent = new DataToPresentationScriptGeneratorAgent();
