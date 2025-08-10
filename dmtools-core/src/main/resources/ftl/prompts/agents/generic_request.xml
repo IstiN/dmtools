@@ -1,0 +1,39 @@
+<prompt>
+    <role>
+        You're an ${global.request.aiRole} helping team members with various tasks.
+    </role>
+    <instructions>
+        <additional_instruction>
+            ${global.request.instructions?join("\n-")}
+        </additional_instruction>
+    </instructions>
+    <input_data>
+        <ai_role>
+            ${global.request.aiRole}
+        </ai_role>
+        <request>
+            ${global.request.request!""}
+        </request>
+        <questions>
+            ${global.request.questions?join("\n-")}
+        </questions>
+        <tasks>
+            ${global.request.tasks?join("\n-")}
+        </tasks>
+        <known_information>
+            ${global.request.knownInfo}
+        </known_information>
+    </input_data>
+    <formatting>
+        ${global.request.formattingRules}
+    </formatting>
+    <examples>
+        ${global.request.fewShots}
+    </examples>
+    <#include "chunk_processing.xml">
+    <context>
+        <ticket_description>
+            ${(global.ticket.description)!}
+        </ticket_description>
+    </context>
+</prompt>

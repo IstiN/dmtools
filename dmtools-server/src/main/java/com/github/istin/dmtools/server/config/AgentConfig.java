@@ -40,6 +40,11 @@ public class AgentConfig {
     }
 
     @Bean
+    public GenericRequestAgent genericRequestAgent() {
+        return new GenericRequestAgent();
+    }
+
+    @Bean
     public KeywordGeneratorAgent keywordGeneratorAgent() {
         return new KeywordGeneratorAgent();
     }

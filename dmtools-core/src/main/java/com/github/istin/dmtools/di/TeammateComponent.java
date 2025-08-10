@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.di;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.agent.GenericRequestAgent;
 import com.github.istin.dmtools.ai.agent.TeamAssistantAgent;
 import com.github.istin.dmtools.common.config.ApplicationConfiguration;
 import com.github.istin.dmtools.teammate.Teammate;
@@ -14,5 +15,5 @@ public interface TeammateComponent {
     void inject(Teammate teammate);
     AI getAI();
     ApplicationConfiguration getConfiguration();
-    TeamAssistantAgent getTeamAssistantAgent();
+    GenericRequestAgent getGenericRequestAgent();
 }

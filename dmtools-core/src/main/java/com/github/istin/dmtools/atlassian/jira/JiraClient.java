@@ -106,9 +106,9 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         this.authorization = authorization;
         this.logger = logger != null ? logger : LogManager.getLogger(JiraClient.class);
         Builder builder = new Builder();
-        builder.connectTimeout(20, TimeUnit.SECONDS);
-        builder.writeTimeout(20, TimeUnit.SECONDS);
-        builder.readTimeout(20, TimeUnit.SECONDS);
+        builder.connectTimeout(60, TimeUnit.SECONDS);
+        builder.writeTimeout(60, TimeUnit.SECONDS);
+        builder.readTimeout(60, TimeUnit.SECONDS);
         this.client = builder.build();
 
         // Initialize cache manager for keys logic only (memory caching for field mappings, cloud detection, etc.)
