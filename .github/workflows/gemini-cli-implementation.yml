@@ -110,19 +110,40 @@ jobs:
 
     - name: Phase 1 - File Discovery and Analysis
       id: gemini_discovery
-      uses: google-github-actions/run-gemini-cli@v0.1.10
-      with:
-        gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-        use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
-        use_gemini_code_assist: ${{ github.event.inputs.use_gemini_code_assist }}
-        settings: |
-          {
-            "model": "${{ github.event.inputs.model }}",
-            "temperature": 0.1,
-            "maxOutputTokens": 8192
-          }
-        prompt: |
-          $(cat gemini-outputs/discovery-prompt-combined.md)
+      run: |
+        echo "🚀 Starting Gemini CLI Discovery Phase"
+        
+        # Read the combined prompt content
+        DISCOVERY_PROMPT_CONTENT=$(cat gemini-outputs/discovery-prompt-combined.md)
+        
+        # Export environment variables for Gemini CLI
+        export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+        export GOOGLE_GENAI_USE_VERTEXAI="${{ github.event.inputs.use_vertex_ai }}"
+        export GOOGLE_GENAI_USE_GCA="${{ github.event.inputs.use_gemini_code_assist }}"
+        
+        # Create settings file for Gemini CLI
+        mkdir -p .gemini
+        cat > .gemini/settings.json << 'EOF'
+        {
+          "model": "${{ github.event.inputs.model }}",
+          "temperature": 0.1,
+          "maxOutputTokens": 8192
+        }
+        EOF
+        
+        # Run Gemini CLI with the discovery prompt
+        echo "📋 Running discovery analysis..."
+        GEMINI_RESPONSE=$(gemini --yolo --prompt "$DISCOVERY_PROMPT_CONTENT")
+        
+        # Save response to output and file
+        echo "gemini_response<<EOF" >> $GITHUB_OUTPUT
+        echo "$GEMINI_RESPONSE" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+        # Save response to file for debugging
+        echo "$GEMINI_RESPONSE" > gemini-outputs/discovery-response.txt
+        
+        echo "✅ Discovery phase completed"
 
     - name: Parse and save discovery results
       id: parse_discovery
@@ -198,24 +219,45 @@ jobs:
 
     - name: Phase 2 - Implementation using discovered files
       id: gemini_implementation
-      uses: google-github-actions/run-gemini-cli@v0.1.10
-      with:
-        gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-        use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
-        use_gemini_code_assist: ${{ github.event.inputs.use_gemini_code_assist }}
-        settings: |
-          {
-            "model": "${{ github.event.inputs.model }}",
-            "temperature": 0.1,
-            "maxOutputTokens": 8192
-          }
-        prompt: |
-          $(cat gemini-outputs/implementation-prompt-combined.md)
+      run: |
+        echo "🚀 Starting Gemini CLI Implementation Phase"
+        
+        # Read the combined prompt content
+        IMPLEMENTATION_PROMPT_CONTENT=$(cat gemini-outputs/implementation-prompt-combined.md)
+        
+        # Export environment variables for Gemini CLI
+        export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+        export GOOGLE_GENAI_USE_VERTEXAI="${{ github.event.inputs.use_vertex_ai }}"
+        export GOOGLE_GENAI_USE_GCA="${{ github.event.inputs.use_gemini_code_assist }}"
+        
+        # Gemini CLI settings should already exist from discovery phase
+        # Update if needed
+        cat > .gemini/settings.json << 'EOF'
+        {
+          "model": "${{ github.event.inputs.model }}",
+          "temperature": 0.1,
+          "maxOutputTokens": 8192
+        }
+        EOF
+        
+        # Run Gemini CLI with the implementation prompt
+        echo "📋 Running implementation analysis..."
+        GEMINI_RESPONSE=$(gemini --yolo --prompt "$IMPLEMENTATION_PROMPT_CONTENT")
+        
+        # Save response to output and file
+        echo "gemini_response<<EOF" >> $GITHUB_OUTPUT
+        echo "$GEMINI_RESPONSE" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+        # Save response to file for debugging
+        echo "$GEMINI_RESPONSE" > gemini-outputs/implementation-response.txt
+        
+        echo "✅ Implementation phase completed"
 
     - name: Create implementation summary and handle Git workflow
       env:
-        IMPLEMENTATION_RESPONSE: ${{ steps.gemini_implementation.outputs.summary }}
-        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.summary }}
+        IMPLEMENTATION_RESPONSE: ${{ steps.gemini_implementation.outputs.gemini_response }}
+        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.gemini_response }}
       run: |
         # Save implementation summary for PR description
         echo "$IMPLEMENTATION_RESPONSE" > gemini-outputs/pr-summary/implementation-summary.md
@@ -341,8 +383,8 @@ jobs:
 
     - name: Display execution summary
       env:
-        IMPLEMENTATION_RESPONSE: ${{ steps.gemini_implementation.outputs.summary }}
-        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.summary }}
+        IMPLEMENTATION_RESPONSE: ${{ steps.gemini_implementation.outputs.gemini_response }}
+        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.gemini_response }}
       run: |
         # Display comprehensive summary
         echo "## 🚀 Gemini CLI Two-Phase Implementation Summary" >> $GITHUB_STEP_SUMMARY

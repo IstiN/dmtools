@@ -56,7 +56,8 @@ For detailed Vertex AI setup, see the [Authentication documentation](https://git
 ### ✅ **Enhanced Code Generation**
 - **Gemini Code Assist**: Optional enhanced code generation capabilities
 - **Base64 Input Support**: Handles both plain text and base64 encoded requests
-- **Existing Prompt Integration**: Uses proven discovery and implementation prompts
+- **Dynamic Prompt Loading**: Reads prompts from `aider/discovery-prompt.md` and `aider/implementation-prompt.md` files
+- **Context Combination**: Automatically combines prompts with user request and discovery results
 
 ### ✅ **DMTools Integration**
 - Enforces DMC-XXX ticket requirement
@@ -93,39 +94,93 @@ DMC-413 - Fix 500 Internal Server Error when deleting AI Job Configuration that 
 DMC-456 - Add user authentication endpoint with OAuth2 integration including JWT token generation, refresh token support, and user profile management.
 ```
 
+## Dynamic Prompt Loading
+
+Unlike hardcoded prompts, this workflow dynamically reads and combines prompt files:
+
+### Discovery Phase Process:
+1. **Read** `aider/discovery-prompt.md` file content
+2. **Read** user request from `gemini-outputs/user-request.txt`
+3. **Combine** into `gemini-outputs/discovery-prompt-combined.md`:
+   ```markdown
+   # Discovery Phase - User Request Context
+   
+   **User Request:**
+   ```
+   [User's actual request here]
+   ```
+   
+   ---
+   
+   [Full content of aider/discovery-prompt.md]
+   ```
+
+### Implementation Phase Process:
+1. **Read** `aider/implementation-prompt.md` file content  
+2. **Read** user request from `gemini-outputs/user-request.txt`
+3. **Read** discovery results from `gemini-outputs/affected-files.json`
+4. **Combine** into `gemini-outputs/implementation-prompt-combined.md`:
+   ```markdown
+   # Implementation Phase - Context
+   
+   **User Request:**
+   ```
+   [User's actual request here]
+   ```
+   
+   **Discovery Results:**
+   ```json
+   [Complete discovery JSON here]
+   ```
+   
+   ---
+   
+   [Full content of aider/implementation-prompt.md]
+   ```
+
+### Benefits:
+- ✅ **No Hardcoding**: Prompts read from actual files, not embedded in workflow
+- ✅ **Easy Updates**: Change prompts by editing `.md` files, no workflow changes needed
+- ✅ **Context Rich**: Combines prompts with user request and discovery results
+- ✅ **Consistency**: Uses same prompt files as Aider workflow
+- ✅ **Debugging**: Combined prompts saved as artifacts for inspection
+
 ## Workflow Structure
 
 ### Phase 1: Discovery
 ```yaml
 - name: Phase 1 - File Discovery and Analysis
-  uses: google-github-actions/run-gemini-cli@v0.1.10
-  with:
-    gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-    use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
-    use_gemini_code_assist: ${{ github.event.inputs.use_gemini_code_assist }}
-    settings: |
-      {
-        "model": "${{ github.event.inputs.model }}",
-        "temperature": 0.1,
-        "maxOutputTokens": 8192
-      }
-    prompt: |
-      # Uses content from aider/discovery-prompt.md
-      # Analyzes scope and creates affected-files.json
+  run: |
+    # Read the combined prompt content
+    DISCOVERY_PROMPT_CONTENT=$(cat gemini-outputs/discovery-prompt-combined.md)
+    
+    # Export environment variables for Gemini CLI
+    export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+    export GOOGLE_GENAI_USE_VERTEXAI="${{ github.event.inputs.use_vertex_ai }}"
+    export GOOGLE_GENAI_USE_GCA="${{ github.event.inputs.use_gemini_code_assist }}"
+    
+    # Create settings file
+    cat > .gemini/settings.json << 'EOF'
+    {
+      "model": "${{ github.event.inputs.model }}",
+      "temperature": 0.1,
+      "maxOutputTokens": 8192
+    }
+    EOF
+    
+    # Run Gemini CLI with prompt content
+    GEMINI_RESPONSE=$(gemini --yolo --prompt "$DISCOVERY_PROMPT_CONTENT")
 ```
 
-### Phase 2: Implementation
+### Phase 2: Implementation  
 ```yaml
 - name: Phase 2 - Implementation using discovered files
-  uses: google-github-actions/run-gemini-cli@v0.1.10
-  with:
-    gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-    use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
-    use_gemini_code_assist: ${{ github.event.inputs.use_gemini_code_assist }}
-    prompt: |
-      # Uses content from aider/implementation-prompt.md
-      # Includes discovered files JSON from Phase 1
-      # Provides actual code implementation
+  run: |
+    # Read the combined prompt content
+    IMPLEMENTATION_PROMPT_CONTENT=$(cat gemini-outputs/implementation-prompt-combined.md)
+    
+    # Run Gemini CLI with prompt content
+    GEMINI_RESPONSE=$(gemini --yolo --prompt "$IMPLEMENTATION_PROMPT_CONTENT")
 ```
 
 ## Output Structure
