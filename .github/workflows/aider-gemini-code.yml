@@ -202,10 +202,13 @@ jobs:
           PR_TITLE="$(echo "$USER_REQUEST_DECODED" | head -c 80)"
         fi
         
-        # Generate branch name from PR title (fallback naming)
-        BRANCH_NAME="aider/$(echo "$PR_TITLE" | head -c 50 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')-$(date +%Y%m%d)"
+        # Generate unique branch name with timestamp and run ID to avoid conflicts
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        RUN_ID="${{ github.run_id }}"
+        BRANCH_BASE="$(echo "$PR_TITLE" | head -c 30 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')"
+        BRANCH_NAME="aider/${BRANCH_BASE}-${TIMESTAMP}-${RUN_ID}"
         
-        echo "📋 Creating fallback branch: $BRANCH_NAME"
+        echo "📋 Creating unique fallback branch: $BRANCH_NAME"
         
         # Create and switch to new branch
         git checkout -b "$BRANCH_NAME"
@@ -220,9 +223,23 @@ jobs:
         git commit -m "$COMMIT_MSG"
         echo "✅ Fallback branch and commit created successfully"
         
-        # Push the fallback branch
-        git push origin "$BRANCH_NAME"
-        echo "✅ Fallback feature branch pushed successfully: $BRANCH_NAME"
+        # Push the fallback branch with error handling
+        if git push origin "$BRANCH_NAME"; then
+          echo "✅ Fallback feature branch pushed successfully: $BRANCH_NAME"
+        else
+          echo "❌ Push failed, trying with force push (lease)"
+          if git push --force-with-lease origin "$BRANCH_NAME"; then
+            echo "✅ Fallback feature branch force-pushed successfully: $BRANCH_NAME"
+          else
+            echo "❌ Force push also failed, creating alternative branch name"
+            # Generate alternative branch name with additional uniqueness
+            ALT_BRANCH_NAME="${BRANCH_NAME}-alt-$(date +%s)"
+            git checkout -b "$ALT_BRANCH_NAME"
+            git push origin "$ALT_BRANCH_NAME"
+            BRANCH_NAME="$ALT_BRANCH_NAME"
+            echo "✅ Alternative fallback branch pushed successfully: $BRANCH_NAME"
+          fi
+        fi
         
         # Set outputs for next steps
         echo "new_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
