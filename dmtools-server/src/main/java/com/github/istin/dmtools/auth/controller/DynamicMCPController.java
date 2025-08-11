@@ -2,6 +2,7 @@ package com.github.istin.dmtools.auth.controller;
 
 import com.github.istin.dmtools.auth.service.IntegrationService;
 import com.github.istin.dmtools.auth.service.McpConfigurationService;
+import com.github.istin.dmtools.auth.service.IntegrationConfigurationLoader;
 import com.github.istin.dmtools.auth.model.McpConfiguration;
 import com.github.istin.dmtools.dto.IntegrationDto;
 import com.github.istin.dmtools.mcp.generated.MCPSchemaGenerator;
@@ -39,11 +40,13 @@ public class DynamicMCPController {
 
     private final McpConfigurationService mcpConfigurationService;
     private final IntegrationService integrationService;
+    private final IntegrationConfigurationLoader configurationLoader;
     private final FileDownloadService fileDownloadService;
 
-    public DynamicMCPController(McpConfigurationService mcpConfigurationService, IntegrationService integrationService, FileDownloadService fileDownloadService) {
+    public DynamicMCPController(McpConfigurationService mcpConfigurationService, IntegrationService integrationService, IntegrationConfigurationLoader configurationLoader, FileDownloadService fileDownloadService) {
         this.mcpConfigurationService = mcpConfigurationService;
         this.integrationService = integrationService;
+        this.configurationLoader = configurationLoader;
         this.fileDownloadService = fileDownloadService;
     }
 
@@ -437,7 +440,7 @@ public class DynamicMCPController {
                 IntegrationDto integrationDto = integrationService.getIntegrationById(integrationId, userId, true);
                 
                 // Convert to JSONObject format expected by ServerManagedIntegrationsModule using common utility
-                JSONObject integrationConfig = IntegrationConfigMapper.mapIntegrationConfig(integrationDto);
+                JSONObject integrationConfig = IntegrationConfigMapper.mapIntegrationConfig(integrationDto, configurationLoader);
                 
                 // Use integration type as key
                 resolved.put(integrationDto.getType(), integrationConfig);

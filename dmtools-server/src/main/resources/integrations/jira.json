@@ -69,6 +69,26 @@
         {"value": "Basic", "label": "Basic"},
         {"value": "Bearer", "label": "Bearer"}
       ]
+    },
+    {
+      "key": "JIRA_EXTRA_FIELDS_PROJECT",
+      "displayNameKey": "jira.extraFieldsProject.displayName",
+      "descriptionKey": "jira.extraFieldsProject.description",
+      "instructionsKey": "jira.extraFieldsProject.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "JIRA_EXTRA_FIELDS",
+      "displayNameKey": "jira.extraFields.displayName",
+      "descriptionKey": "jira.extraFields.description",
+      "instructionsKey": "jira.extraFields.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
     }
   ]
 } 

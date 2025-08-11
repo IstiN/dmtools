@@ -8,7 +8,6 @@ import com.github.istin.dmtools.github.GitHub;
 import com.github.istin.dmtools.github.BasicGithub;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
-import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.IUser;
@@ -229,6 +228,11 @@ public class IntegrationService {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
+        // Validate parameter keys against JSON configuration
+        if (request.getConfigParams() != null && !request.getConfigParams().isEmpty()) {
+            configurationLoader.validateParameterKeys(request.getType(), request.getConfigParams().keySet());
+        }
+        
         Integration integration = new Integration();
         integration.setName(request.getName());
         integration.setDescription(request.getDescription());
@@ -319,6 +323,11 @@ public class IntegrationService {
         
         // Update configuration parameters if provided
         if (request.getConfigParams() != null) {
+            // Validate parameter keys against JSON configuration
+            if (!request.getConfigParams().isEmpty()) {
+                configurationLoader.validateParameterKeys(integration.getType(), request.getConfigParams().keySet());
+            }
+            
             for (Map.Entry<String, UpdateIntegrationRequest.ConfigParam> entry : request.getConfigParams().entrySet()) {
                 String paramKey = entry.getKey();
                 UpdateIntegrationRequest.ConfigParam param = entry.getValue();

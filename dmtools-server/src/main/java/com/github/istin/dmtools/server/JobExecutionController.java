@@ -7,8 +7,7 @@ import com.github.istin.dmtools.dto.JobExecutionResponse;
 import com.github.istin.dmtools.dto.JobExecutionStatusResponse;
 import com.github.istin.dmtools.auth.service.UserService;
 import com.github.istin.dmtools.auth.model.User;
-import com.github.istin.dmtools.dto.IntegrationDto;
-import com.github.istin.dmtools.dto.IntegrationConfigDto;
+
 import com.github.istin.dmtools.server.service.JobConfigurationService;
 import com.github.istin.dmtools.server.model.JobExecution;
 import com.github.istin.dmtools.server.model.JobConfiguration;
@@ -20,6 +19,7 @@ import com.github.istin.dmtools.job.ExecutionMode;
 import com.github.istin.dmtools.job.JobParams;
 import com.github.istin.dmtools.job.JobRunner;
 import com.github.istin.dmtools.server.service.JobConfigurationLoader;
+import com.github.istin.dmtools.server.util.IntegrationConfigMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -39,6 +39,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -58,6 +59,9 @@ public class JobExecutionController {
     
     @Autowired
     private com.github.istin.dmtools.auth.service.IntegrationService integrationService;
+    
+    @Autowired
+    private com.github.istin.dmtools.auth.service.IntegrationConfigurationLoader configurationLoader;
     
     @Autowired
     private JobConfigurationLoader jobConfigurationLoader;
@@ -229,7 +233,7 @@ public class JobExecutionController {
                 }
                 
                 // Convert to JSONObject format expected by job execution based on integration type
-                JSONObject integrationConfig = mapIntegrationConfig(integrationDto);
+                JSONObject integrationConfig = IntegrationConfigMapper.mapIntegrationConfig(integrationDto, configurationLoader);
                 
                 // Log the final mapped configuration
                 logger.info("🎯 Final mapped config for integration '{}' (type: {}): {}", 
@@ -256,289 +260,7 @@ public class JobExecutionController {
         return resolved;
     }
     
-    /**
-     * Maps integration configuration from database format to job execution format.
-     * 
-     * @param integrationDto The integration configuration from database
-     * @return JSONObject in the format expected by job execution system
-     */
-    private JSONObject mapIntegrationConfig(IntegrationDto integrationDto) {
-        JSONObject config = new JSONObject();
-        
-        // Create a map of config parameters for easy lookup
-        java.util.Map<String, String> params = new java.util.HashMap<>();
-        if (integrationDto.getConfigParams() != null) {
-            for (IntegrationConfigDto param : integrationDto.getConfigParams()) {
-                params.put(param.getParamKey(), param.getParamValue());
-            }
-        }
-        
-        logger.info("🔧 Mapping integration config for type '{}' with parameters: {}", 
-            integrationDto.getType(), params.keySet());
-        
-        // Map based on integration type
-        switch (integrationDto.getType().toLowerCase()) {
-            case "tracker":
-            case "jira":
-                logger.info("🔍 Processing JIRA integration mapping...");
-                // Map database parameters to expected JIRA format
-                if (params.containsKey("url")) {
-                    config.put("url", params.get("url"));
-                    logger.info("  ✅ Mapped 'url' parameter: {}", params.get("url"));
-                } else if (params.containsKey("basePath")) {
-                    config.put("url", params.get("basePath"));
-                    logger.info("  ✅ Mapped 'basePath' to 'url': {}", params.get("basePath"));
-                } else if (params.containsKey("baseUrl")) {
-                    config.put("url", params.get("baseUrl"));
-                    logger.info("  ✅ Mapped 'baseUrl' to 'url': {}", params.get("baseUrl"));
-                } else if (params.containsKey("JIRA_BASE_PATH")) {
-                    config.put("url", params.get("JIRA_BASE_PATH"));
-                    logger.info("  ✅ Mapped 'JIRA_BASE_PATH' to 'url': {}", params.get("JIRA_BASE_PATH"));
-                } else {
-                    logger.warn("  ⚠️  No URL parameter found for JIRA integration");
-                }
-                
-                // Priority 1: Use separate email and API token if both are available
-                if (params.containsKey("JIRA_EMAIL") && params.containsKey("JIRA_API_TOKEN")) {
-                    String email = params.get("JIRA_EMAIL");
-                    String apiToken = params.get("JIRA_API_TOKEN");
-                    if (email != null && !email.trim().isEmpty() && 
-                        apiToken != null && !apiToken.trim().isEmpty()) {
-                        // Automatically combine email:token and base64 encode
-                        String credentials = email.trim() + ":" + apiToken.trim();
-                        String encodedToken = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
-                        config.put("token", encodedToken);
-                        logger.info("  ✅ Mapped 'JIRA_EMAIL' + 'JIRA_API_TOKEN' to auto-encoded token: [SENSITIVE]");
-                    }
-                } 
-                // Priority 2: Use legacy token methods
-                else if (params.containsKey("token")) {
-                    config.put("token", params.get("token"));
-                    logger.info("  ✅ Mapped 'token' parameter: [SENSITIVE]");
-                } else if (params.containsKey("password")) {
-                    config.put("token", params.get("password"));
-                    logger.info("  ✅ Mapped 'password' to 'token': [SENSITIVE]");
-                } else if (params.containsKey("JIRA_LOGIN_PASS_TOKEN")) {
-                    config.put("token", params.get("JIRA_LOGIN_PASS_TOKEN"));
-                    logger.info("  ✅ Mapped 'JIRA_LOGIN_PASS_TOKEN' to 'token': [SENSITIVE]");
-                } else {
-                    logger.warn("  ⚠️  No authentication parameters found for JIRA integration");
-                }
-                
-                if (params.containsKey("authType")) {
-                    config.put("authType", params.get("authType"));
-                    logger.info("  ✅ Mapped 'authType' parameter: {}", params.get("authType"));
-                } else if (params.containsKey("JIRA_AUTH_TYPE")) {
-                    config.put("authType", params.get("JIRA_AUTH_TYPE"));
-                    logger.info("  ✅ Mapped 'JIRA_AUTH_TYPE' to 'authType': {}", params.get("JIRA_AUTH_TYPE"));
-                } else {
-                    config.put("authType", "token"); // Default to token auth
-                    logger.info("  ✅ Set default 'authType': token");
-                }
-                
-                if (params.containsKey("username")) {
-                    config.put("username", params.get("username"));
-                    logger.info("  ✅ Mapped 'username' parameter: {}", params.get("username"));
-                } else if (params.containsKey("JIRA_USERNAME")) {
-                    config.put("username", params.get("JIRA_USERNAME"));
-                    logger.info("  ✅ Mapped 'JIRA_USERNAME' to 'username': {}", params.get("JIRA_USERNAME"));
-                }
-                break;
-                
-            case "wiki":
-            case "confluence":
-                logger.info("🔍 Processing Confluence integration mapping...");
-                if (params.containsKey("url")) {
-                    config.put("url", params.get("url"));
-                    logger.info("  ✅ Mapped 'url' parameter: {}", params.get("url"));
-                } else if (params.containsKey("basePath")) {
-                    config.put("url", params.get("basePath"));
-                    logger.info("  ✅ Mapped 'basePath' to 'url': {}", params.get("basePath"));
-                } else if (params.containsKey("CONFLUENCE_BASE_PATH")) {
-                    config.put("url", params.get("CONFLUENCE_BASE_PATH"));
-                    logger.info("  ✅ Mapped 'CONFLUENCE_BASE_PATH' to 'url': {}", params.get("CONFLUENCE_BASE_PATH"));
-                } else {
-                    logger.warn("  ⚠️  No URL parameter found for Confluence integration");
-                }
-                
-                // Priority 1: Use separate email and API token if both are available
-                if (params.containsKey("CONFLUENCE_EMAIL") && params.containsKey("CONFLUENCE_API_TOKEN")) {
-                    String email = params.get("CONFLUENCE_EMAIL");
-                    String apiToken = params.get("CONFLUENCE_API_TOKEN");
-                    String authType = params.getOrDefault("CONFLUENCE_AUTH_TYPE", "Basic");
-                    
-                    if (email != null && !email.trim().isEmpty() && 
-                        apiToken != null && !apiToken.trim().isEmpty()) {
-                        
-                        // For Bearer auth, use token directly without email combination
-                        if ("Bearer".equalsIgnoreCase(authType)) {
-                            config.put("token", apiToken.trim());
-                            config.put("authType", "Bearer");
-                            logger.info("  ✅ Mapped 'CONFLUENCE_EMAIL' + 'CONFLUENCE_API_TOKEN' to Bearer token: [SENSITIVE]");
-                        } else {
-                            // For Basic auth (default), combine email:token and base64 encode
-                            String credentials = email.trim() + ":" + apiToken.trim();
-                            String encodedToken = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
-                            config.put("token", encodedToken);
-                            config.put("authType", "Basic");
-                            logger.info("  ✅ Mapped 'CONFLUENCE_EMAIL' + 'CONFLUENCE_API_TOKEN' to auto-encoded Basic token: [SENSITIVE]");
-                        }
-                    }
-                } 
-                // Priority 2: Use legacy token methods
-                else if (params.containsKey("token")) {
-                    config.put("token", params.get("token"));
-                    logger.info("  ✅ Mapped 'token' parameter: [SENSITIVE]");
-                } else if (params.containsKey("CONFLUENCE_LOGIN_PASS_TOKEN")) {
-                    config.put("token", params.get("CONFLUENCE_LOGIN_PASS_TOKEN"));
-                    logger.info("  ✅ Mapped 'CONFLUENCE_LOGIN_PASS_TOKEN' to 'token': [SENSITIVE]");
-                } else {
-                    logger.warn("  ⚠️  No authentication parameters found for Confluence integration");
-                }
-                
-                // Handle auth type if provided separately
-                if (params.containsKey("CONFLUENCE_AUTH_TYPE") && !config.has("authType")) {
-                    config.put("authType", params.get("CONFLUENCE_AUTH_TYPE"));
-                    logger.info("  ✅ Mapped 'CONFLUENCE_AUTH_TYPE' to 'authType': {}", params.get("CONFLUENCE_AUTH_TYPE"));
-                }
-                
-                if (params.containsKey("defaultSpace")) {
-                    config.put("defaultSpace", params.get("defaultSpace"));
-                    logger.info("  ✅ Mapped 'defaultSpace' parameter: {}", params.get("defaultSpace"));
-                } else if (params.containsKey("CONFLUENCE_DEFAULT_SPACE")) {
-                    config.put("defaultSpace", params.get("CONFLUENCE_DEFAULT_SPACE"));
-                    logger.info("  ✅ Mapped 'CONFLUENCE_DEFAULT_SPACE' to 'defaultSpace': {}", params.get("CONFLUENCE_DEFAULT_SPACE"));
-                } else {
-                    logger.warn("  ⚠️  No defaultSpace parameter found for Confluence integration");
-                }
-                break;
-                
-            case "ai":
-            case "dial":
-                logger.info("🔍 Processing Dial integration mapping...");
-                if (params.containsKey("apiKey")) {
-                    config.put("apiKey", params.get("apiKey"));
-                    logger.info("  ✅ Mapped 'apiKey' parameter: [SENSITIVE]");
-                } else {
-                    logger.warn("  ⚠️  No apiKey parameter found for Dial integration");
-                }
-                
-                if (params.containsKey("model")) {
-                    config.put("model", params.get("model"));
-                    logger.info("  ✅ Mapped 'model' parameter: {}", params.get("model"));
-                }
-                
-                if (params.containsKey("basePath")) {
-                    config.put("basePath", params.get("basePath"));
-                    logger.info("  ✅ Mapped 'basePath' parameter: {}", params.get("basePath"));
-                }
-                break;
-                
-            case "gemini":
-                logger.info("🔍 Processing Gemini integration mapping...");
-                if (params.containsKey("apiKey")) {
-                    config.put("apiKey", params.get("apiKey"));
-                    logger.info("  ✅ Mapped 'apiKey' parameter: [SENSITIVE]");
-                } else if (params.containsKey("GEMINI_API_KEY")) {
-                    config.put("apiKey", params.get("GEMINI_API_KEY"));
-                    logger.info("  ✅ Mapped 'GEMINI_API_KEY' to 'apiKey': [SENSITIVE]");
-                } else {
-                    logger.warn("  ⚠️  No apiKey parameter found for Gemini integration");
-                }
-                
-                if (params.containsKey("model")) {
-                    config.put("model", params.get("model"));
-                    logger.info("  ✅ Mapped 'model' parameter: {}", params.get("model"));
-                } else if (params.containsKey("GEMINI_DEFAULT_MODEL")) {
-                    config.put("model", params.get("GEMINI_DEFAULT_MODEL"));
-                    logger.info("  ✅ Mapped 'GEMINI_DEFAULT_MODEL' to 'model': {}", params.get("GEMINI_DEFAULT_MODEL"));
-                }
-                
-                if (params.containsKey("basePath")) {
-                    config.put("basePath", params.get("basePath"));
-                    logger.info("  ✅ Mapped 'basePath' parameter: {}", params.get("basePath"));
-                } else if (params.containsKey("GEMINI_BASE_PATH")) {
-                    config.put("basePath", params.get("GEMINI_BASE_PATH"));
-                    logger.info("  ✅ Mapped 'GEMINI_BASE_PATH' to 'basePath': {}", params.get("GEMINI_BASE_PATH"));
-                }
-                break;
-                
-            case "github":
-                logger.info("🔍 Processing GitHub integration mapping...");
-                
-                // Map GitHub URL
-                if (params.containsKey("url")) {
-                    config.put("url", params.get("url"));
-                    logger.info("  ✅ Mapped 'url' parameter: {}", params.get("url"));
-                } else if (params.containsKey("GITHUB_BASE_PATH")) {
-                    config.put("url", params.get("GITHUB_BASE_PATH"));
-                    logger.info("  ✅ Mapped 'GITHUB_BASE_PATH' to 'url': {}", params.get("GITHUB_BASE_PATH"));
-                } else {
-                    // Default GitHub API URL
-                    config.put("url", "https://api.github.com");
-                    logger.info("  ✅ Using default GitHub API URL: https://api.github.com");
-                }
-                
-                // Map GitHub token
-                if (params.containsKey("token")) {
-                    config.put("token", params.get("token"));
-                    logger.info("  ✅ Mapped 'token' parameter: [SENSITIVE]");
-                } else if (params.containsKey("GITHUB_TOKEN")) {
-                    config.put("token", params.get("GITHUB_TOKEN"));
-                    logger.info("  ✅ Mapped 'GITHUB_TOKEN' to 'token': [SENSITIVE]");
-                } else if (params.containsKey("SOURCE_GITHUB_TOKEN")) {
-                    config.put("token", params.get("SOURCE_GITHUB_TOKEN"));
-                    logger.info("  ✅ Mapped 'SOURCE_GITHUB_TOKEN' to 'token': [SENSITIVE]");
-                } else {
-                    logger.warn("  ⚠️  No token parameter found for GitHub integration");
-                }
-                
-                // Map GitHub workspace (owner/organization)
-                if (params.containsKey("workspace")) {
-                    config.put("workspace", params.get("workspace"));
-                    logger.info("  ✅ Mapped 'workspace' parameter: {}", params.get("workspace"));
-                } else if (params.containsKey("GITHUB_WORKSPACE")) {
-                    config.put("workspace", params.get("GITHUB_WORKSPACE"));
-                    logger.info("  ✅ Mapped 'GITHUB_WORKSPACE' to 'workspace': {}", params.get("GITHUB_WORKSPACE"));
-                } else if (params.containsKey("SOURCE_GITHUB_WORKSPACE")) {
-                    config.put("workspace", params.get("SOURCE_GITHUB_WORKSPACE"));
-                    logger.info("  ✅ Mapped 'SOURCE_GITHUB_WORKSPACE' to 'workspace': {}", params.get("SOURCE_GITHUB_WORKSPACE"));
-                } else {
-                    logger.warn("  ⚠️  No workspace parameter found for GitHub integration");
-                }
-                
-                // Map GitHub repository
-                if (params.containsKey("repository")) {
-                    config.put("repository", params.get("repository"));
-                    logger.info("  ✅ Mapped 'repository' parameter: {}", params.get("repository"));
-                } else if (params.containsKey("GITHUB_REPOSITORY")) {
-                    config.put("repository", params.get("GITHUB_REPOSITORY"));
-                    logger.info("  ✅ Mapped 'GITHUB_REPOSITORY' to 'repository': {}", params.get("GITHUB_REPOSITORY"));
-                } else if (params.containsKey("SOURCE_GITHUB_REPOSITORY")) {
-                    config.put("repository", params.get("SOURCE_GITHUB_REPOSITORY"));
-                    logger.info("  ✅ Mapped 'SOURCE_GITHUB_REPOSITORY' to 'repository': {}", params.get("SOURCE_GITHUB_REPOSITORY"));
-                } else {
-                    logger.warn("  ⚠️  No repository parameter found for GitHub integration");
-                }
-                break;
-                
-            default:
-                logger.info("🔍 Processing unknown integration type '{}' - copying all parameters as-is", integrationDto.getType());
-                // For unknown types, copy all parameters as-is
-                if (integrationDto.getConfigParams() != null) {
-                    for (IntegrationConfigDto param : integrationDto.getConfigParams()) {
-                        config.put(param.getParamKey(), param.getParamValue());
-                        logger.info("  ✅ Copied parameter: {}={}", param.getParamKey(), 
-                            param.isSensitive() ? "[SENSITIVE]" : param.getParamValue());
-                    }
-                }
-                break;
-        }
-        
-        logger.info("🎯 Final mapped config for type '{}': {} parameters", integrationDto.getType(), config.length());
-        
-        return config;
-    }
+
 
 
 
@@ -855,6 +577,17 @@ public class JobExecutionController {
             // Convert integration mappings to JSONObject (handle corrupted OID references from LOB migration)
             JSONObject integrationMappings = parseJsonFieldSafely(executionParams.getIntegrationMappings().toString());
             
+            // Validate JobConfiguration: Check that all configured integrations have required parameters
+            List<String> validationErrors = validateJobConfigurationForExecution(integrationMappings, userId);
+            if (!validationErrors.isEmpty()) {
+                logger.error("❌ Cannot execute job configuration '{}': validation failed", configId);
+                for (String error : validationErrors) {
+                    logger.error("   • {}", error);
+                }
+                return ResponseEntity.badRequest().body(JobExecutionResponse.error(
+                    "Job configuration cannot be executed: " + String.join("; ", validationErrors)));
+            }
+            
             // Extract integration values (IDs or types) from the mappings
             List<String> integrationValues = new java.util.ArrayList<>();
             integrationMappings.keys().forEachRemaining(key -> {
@@ -994,6 +727,54 @@ public class JobExecutionController {
             logger.error("Failed to get job execution status for {}: {}", executionId, e.getMessage(), e);
             return ResponseEntity.status(500).build();
         }
+    }
+    
+    /**
+     * Validates that all integrations in a JobConfiguration have required parameters for execution.
+     * This allows JobConfigurations to be saved with incomplete integrations but prevents execution.
+     * 
+     * @param integrationMappings The integration mappings from JobConfiguration
+     * @param userId The user ID for accessing integrations
+     * @return List of validation error messages (empty if valid for execution)
+     */
+    private List<String> validateJobConfigurationForExecution(JSONObject integrationMappings, String userId) {
+        List<String> validationErrors = new ArrayList<>();
+        
+        // Extract integration IDs from the mappings
+        List<String> integrationIds = new ArrayList<>();
+        integrationMappings.keys().forEachRemaining(key -> {
+            String value = integrationMappings.getString(key);
+            if (value.contains("-") && value.length() > 30) { // UUIDs
+                integrationIds.add(value);
+            }
+        });
+        
+        // Check each integration for missing required parameters
+        for (String integrationId : integrationIds) {
+            try {
+                var integrationDto = integrationService.getIntegrationById(integrationId, userId, true);
+                
+                // Check for missing required parameters
+                List<String> missingRequired = IntegrationConfigMapper.validateIntegrationForExecution(integrationDto, configurationLoader);
+                if (!missingRequired.isEmpty()) {
+                    validationErrors.add(String.format(
+                        "Integration '%s' (type: %s) is missing required parameters: %s",
+                        integrationDto.getName(), integrationDto.getType(), missingRequired));
+                }
+                
+            } catch (Exception e) {
+                validationErrors.add(String.format(
+                    "Failed to validate integration '%s': %s", integrationId, e.getMessage()));
+            }
+        }
+        
+        if (validationErrors.isEmpty()) {
+            logger.info("✅ JobConfiguration validation passed: all {} integrations have required parameters", integrationIds.size());
+        } else {
+            logger.warn("❌ JobConfiguration validation failed: {} validation errors found", validationErrors.size());
+        }
+        
+        return validationErrors;
     }
     
     /**
