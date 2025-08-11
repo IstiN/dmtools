@@ -177,16 +177,7 @@ jobs:
           fi
         fi
 
-    - name: Push feature branch created by Aider
-      if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
-      run: |
-        BRANCH_NAME="${{ steps.check_branches.outputs.new_branch }}"
-        
-        # Push the branch created by Aider
-        git push origin "$BRANCH_NAME"
-        echo "✅ Aider's feature branch pushed successfully: $BRANCH_NAME"
-
-    - name: Create and push fallback branch for uncommitted changes
+    - name: Create fallback branch and commit if Aider didn't
       if: steps.check_branches.outputs.has_new_branch == 'false' && steps.check_branches.outputs.has_uncommitted_changes == 'true'
       id: fallback_branch
       run: |
@@ -214,24 +205,38 @@ jobs:
         # Create commit with user request info
         USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
         COMMIT_MSG="Aider implementation: $(echo "$USER_REQUEST_DECODED" | head -c 60)
-        
-        Implemented via Aider AI assistant using ${{ inputs.model }}
-        (Fallback commit created by workflow)
-        
-        Request: $USER_REQUEST_DECODED
-        
-        Co-authored-by: Aider <aider@ai-assistant>"
+
+Implemented via Aider AI assistant using ${{ inputs.model }}
+(Fallback commit created by workflow)
+
+Request: $USER_REQUEST_DECODED
+
+Co-authored-by: Aider <aider@ai-assistant>"
         
         git commit -m "$COMMIT_MSG"
         echo "✅ Fallback branch and commit created successfully"
         
-        # Push the fallback branch
-        git push origin "$BRANCH_NAME"
-        echo "✅ Fallback feature branch pushed successfully: $BRANCH_NAME"
-        
         # Set outputs for next steps
         echo "new_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
         echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+    - name: Push feature branch created by Aider
+      if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
+      run: |
+        BRANCH_NAME="${{ steps.check_branches.outputs.new_branch }}"
+        
+        # Push the branch created by Aider
+        git push origin "$BRANCH_NAME"
+        echo "✅ Aider's feature branch pushed successfully: $BRANCH_NAME"
+
+    - name: Push fallback branch
+      if: steps.check_branches.outputs.has_new_branch == 'false' && steps.check_branches.outputs.has_uncommitted_changes == 'true'
+      run: |
+        BRANCH_NAME="${{ steps.fallback_branch.outputs.new_branch }}"
+        
+        # Push the fallback branch
+        git push origin "$BRANCH_NAME"
+        echo "✅ Fallback feature branch pushed successfully: $BRANCH_NAME"
 
     - name: Generate PR title
       id: generate_pr_title
