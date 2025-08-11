@@ -23,19 +23,30 @@ Example: If user request doesn't include DMC-XXX, respond with:
 
 1) **IMPLEMENT CODE** - You are doing ACTUAL IMPLEMENTATION, not just analysis
 2) **MAKE REAL CHANGES** - Modify, create, and update files as needed to fulfill the request
-3) **WORK AUTONOMOUSLY** - Read any files you need, make changes without asking
-4) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
-5) **PROVIDE SUMMARY** - After implementation, provide a summary in the specified format
-6) **COMPREHENSIVE SOLUTION** - Include all necessary files, tests, documentation as requested
+3) **WORK AUTONOMOUSLY** - Read any files you need using `/add` command, make changes without asking
+4) **DISCOVER FILES** - Use `/add` command to add relevant files to your context when needed
+5) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
+6) **PROVIDE SUMMARY** - After implementation, provide a summary in the specified format
+7) **COMPREHENSIVE SOLUTION** - Include all necessary files, tests, documentation as requested
 
 ## IMPLEMENTATION GUIDELINES:
 
+- **Discover Files First**: Use `/add` command to find and add relevant files to your context (e.g., `/add *Entity.java`, `/add *Repository.java`, `/add *Controller.java`)
 - **Read First**: Examine existing code structure, patterns, and conventions
 - **Follow Patterns**: Maintain consistency with existing codebase style and architecture
 - **Quality Code**: Write production-ready code with proper error handling
 - **Documentation**: Add comments and documentation where appropriate
 - **Testing**: Include or update tests if specified in the request
 - **Dependencies**: Add any necessary dependencies to appropriate files
+
+### File Discovery Commands:
+When you need to find specific files, use these Aider commands:
+- `/add *Entity.java` - Add all entity classes
+- `/add *Repository.java` - Add all repository interfaces
+- `/add *Service.java` - Add all service classes
+- `/add *Controller.java` - Add all controllers
+- `/add JobConfiguration*` - Add job configuration related files
+- `/add *Exception*.java` - Add exception handling classes
 
 ## FINAL SUMMARY FORMAT:
 
