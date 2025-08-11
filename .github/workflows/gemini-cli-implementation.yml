@@ -1,0 +1,509 @@
+# Gemini CLI Two-Phase Implementation
+name: Gemini CLI Two-Phase Implementation
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_request:
+        description: 'Your coding request for Gemini CLI (must include DMC-XXX ticket number)'
+        required: true
+        type: string
+      model:
+        description: 'Gemini model to use'
+        required: false
+        type: choice
+        default: 'gemini-2.0-flash-exp'
+        options:
+          - gemini-2.0-flash-exp
+          - gemini-1.5-pro-latest
+          - gemini-1.5-flash-latest
+          - gemini-1.0-pro-latest
+      use_vertex_ai:
+        description: 'Use Vertex AI instead of Gemini API'
+        required: false
+        type: boolean
+        default: false
+      pr_title:
+        description: 'Pull request title (auto-generated if empty)'
+        required: false
+        type: string
+        default: ''
+      pr_base_branch:
+        description: 'Base branch for the pull request'
+        required: false
+        type: string
+        default: 'main'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  implement-code:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better context
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Prepare request for Gemini CLI
+      id: prepare_request
+      run: |
+        # Create output directories
+        mkdir -p gemini-outputs
+        mkdir -p gemini-outputs/pr-summary
+        
+        # Save user request to file for both phases
+        echo "${{ github.event.inputs.user_request }}" > gemini-outputs/user-request.txt
+        echo "💾 User request saved to gemini-outputs/user-request.txt"
+        
+        # Print the actual user request content for debugging  
+        echo "🔍 USER REQUEST CONTENT:"
+        cat gemini-outputs/user-request.txt
+        echo "🔍 END USER REQUEST"
+
+    - name: Phase 1 - File Discovery and Analysis
+      id: gemini_discovery
+      uses: google-github-actions/run-gemini-cli@v0.1.10
+      with:
+        gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+        use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
+        settings: |
+          {
+            "model": "${{ github.event.inputs.model }}",
+            "temperature": 0.1,
+            "maxOutputTokens": 8192
+          }
+        prompt: |
+          # Gemini File Discovery Assistant
+
+          ## PHASE 1: FILE DISCOVERY AND ANALYSIS
+
+          **IMPORTANT**: This is the DISCOVERY phase only. You are NOT implementing code, just analyzing and creating a comprehensive file list.
+
+          **User Request**: 
+          ${{ github.event.inputs.user_request }}
+
+          ## MANDATORY TICKET REQUIREMENT:
+
+          **IMPORTANT**: Every request MUST be linked to a Jira ticket (DMC-XXX format).
+
+          1. **If ticket number is provided** in user request: Use it for analysis
+          2. **If NO ticket number provided**: You MUST respond with an error asking for the DMC ticket number
+          3. **Never proceed without a valid DMC-XXX ticket number**
+
+          ## DISCOVERY INSTRUCTIONS:
+
+          Your job is to perform comprehensive analysis to identify ALL files that will be affected by the requested changes:
+
+          1. **Analyze the Request**: Understand the full scope of changes needed
+          2. **Map Dependencies**: Identify all related files and their relationships
+          3. **Create Comprehensive File List**: Generate a detailed JSON structure
+          4. **Save Discovery Results**: Provide the analysis in the specified format
+
+          ## ANALYSIS SCOPE:
+
+          Consider ALL of these file types and relationships:
+
+          ### Core Application Files:
+          - **Entity classes** and their relationships (JPA annotations, foreign keys)
+          - **Repository interfaces** and implementations (Spring Data JPA)
+          - **Service classes** and business logic implementations
+          - **Controller endpoints** and REST API definitions
+          - **DTO classes** for data transfer
+          - **Exception classes** and error handling
+          - **Configuration files** (application.yml, properties)
+
+          ### Supporting Files:
+          - **Database migration files** (Flyway SQL scripts if schema changes needed)
+          - **Test files** (unit tests, integration tests)
+          - **OpenAPI/Swagger** specification files
+          - **Documentation files** (if API changes affect docs)
+
+          ### Dependencies and Relationships:
+          - **Parent-child entity relationships**
+          - **Service layer dependencies**
+          - **Controller-service-repository chains**
+          - **Cross-cutting concerns** (security, validation, logging)
+
+          ## REQUIRED OUTPUT FORMAT:
+
+          You MUST provide your analysis in this exact JSON format:
+
+          ```json
+          {
+            "ticket_number": "DMC-XXX",
+            "request_summary": "Brief description of the requested change",
+            "affected_files": {
+              "to_modify": [
+                "path/to/existing/file1.java",
+                "path/to/existing/file2.java"
+              ],
+              "to_create": [
+                "path/to/new/file1.java", 
+                "path/to/new/file2.java"
+              ],
+              "to_reference": [
+                "path/to/context/file1.java",
+                "path/to/context/file2.java"
+              ],
+              "tests_needed": [
+                "path/to/test/file1Test.java",
+                "path/to/test/file2Test.java"
+              ]
+            },
+            "dependencies": [
+              "Entity A depends on Entity B (foreign key relationship)",
+              "Service X uses Repository Y",
+              "Controller Z calls Service X"
+            ],
+            "implementation_notes": [
+              "Consider validation rules for new fields",
+              "Database migration needed for schema changes",
+              "API documentation updates required"
+            ],
+            "estimated_complexity": "LOW|MEDIUM|HIGH",
+            "potential_risks": [
+              "Breaking change to existing API",
+              "Data migration required"
+            ]
+          }
+          ```
+
+          ## DISCOVERY QUALITY CHECKLIST:
+
+          Before completing discovery, verify:
+          - ✅ All entity relationships are mapped
+          - ✅ Service layer dependencies are identified
+          - ✅ Controller endpoints are considered
+          - ✅ Test files are included
+          - ✅ Database changes are noted
+          - ✅ Configuration impacts are assessed
+          - ✅ API documentation needs are identified
+
+          Please analyze the user request and provide the comprehensive file discovery JSON.
+
+    - name: Parse and save discovery results
+      id: parse_discovery
+      run: |
+        # Extract JSON from Gemini's response
+        GEMINI_OUTPUT="${{ steps.gemini_discovery.outputs.summary }}"
+        echo "🔍 Raw Gemini Discovery Output:"
+        echo "$GEMINI_OUTPUT"
+        echo "🔍 END Raw Output"
+        
+        # Try to extract JSON from the response
+        if echo "$GEMINI_OUTPUT" | grep -q '```json'; then
+          echo "✅ Found JSON block in response"
+          echo "$GEMINI_OUTPUT" | sed -n '/```json/,/```/p' | sed '1d;$d' > gemini-outputs/affected-files.json
+        elif echo "$GEMINI_OUTPUT" | grep -q '{.*"ticket_number"'; then
+          echo "✅ Found JSON in response without code blocks"
+          echo "$GEMINI_OUTPUT" | grep -A 1000 '{.*"ticket_number"' | grep -B 1000 '^}' | head -n -0 > gemini-outputs/affected-files.json
+        else
+          echo "❌ No valid JSON found, creating fallback"
+          echo '{
+            "ticket_number": "UNKNOWN",
+            "request_summary": "Discovery phase failed - manual analysis needed",
+            "affected_files": {
+              "to_modify": [],
+              "to_create": [],
+              "to_reference": [],
+              "tests_needed": []
+            },
+            "dependencies": [],
+            "implementation_notes": ["Discovery phase did not complete successfully"]
+          }' > gemini-outputs/affected-files.json
+        fi
+        
+        echo "📋 Discovery Results Saved:"
+        cat gemini-outputs/affected-files.json
+
+    - name: Phase 2 - Implementation using discovered files
+      id: gemini_implementation
+      uses: google-github-actions/run-gemini-cli@v0.1.10
+      with:
+        gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+        use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
+        settings: |
+          {
+            "model": "${{ github.event.inputs.model }}",
+            "temperature": 0.1,
+            "maxOutputTokens": 8192
+          }
+        prompt: |
+          # Gemini Implementation Assistant
+
+          ## PHASE 2: IMPLEMENTATION USING DISCOVERED FILES
+
+          **IMPORTANT**: This is the IMPLEMENTATION phase. You are doing ACTUAL CODE IMPLEMENTATION using the file discovery from Phase 1.
+
+          **User Request**: 
+          ${{ github.event.inputs.user_request }}
+
+          **Discovery Results**:
+          ```json
+          $(cat gemini-outputs/affected-files.json)
+          ```
+
+          ## CRITICAL INSTRUCTIONS:
+
+          1) **USE DISCOVERY RESULTS** - Follow the comprehensive file analysis from Phase 1
+          2) **IMPLEMENT ACTUAL CODE** - Make real code changes based on the analysis
+          3) **CREATE ALL NECESSARY FILES** - Include new files, modifications, and tests
+          4) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
+          5) **PROVIDE IMPLEMENTATION SUMMARY** - Give detailed summary of all changes made
+
+          ## IMPLEMENTATION GUIDELINES:
+
+          ### Code Quality:
+          - **Follow Existing Patterns**: Maintain consistency with codebase style and architecture
+          - **Production-Ready Code**: Include proper error handling and validation
+          - **Documentation**: Add JavaDoc comments and inline documentation
+          - **Testing**: Update or create tests as identified in discovery
+          - **Dependencies**: Add any necessary dependencies to appropriate files
+
+          ### Change Management:
+          - **Incremental Changes**: Make logical, related changes together
+          - **Validation**: Ensure all changes work together cohesively
+          - **Database Changes**: Include migration scripts if schema changes are needed
+          - **API Changes**: Update OpenAPI/Swagger documentation if endpoints change
+
+          ## MANDATORY TICKET INTEGRATION:
+
+          All implementation must follow DMTools standards using the ticket from discovery.
+
+          ## IMPLEMENTATION WORKFLOW:
+
+          1. **Review Discovery**: Understand the scope and file relationships
+          2. **Create/Modify Files**: Implement all necessary changes
+          3. **Add Tests**: Create or update test files
+          4. **Database Migrations**: Add SQL scripts if needed
+          5. **Documentation**: Update API docs if necessary
+
+          ## FINAL SUMMARY FORMAT:
+
+          Provide your implementation summary in this format:
+
+          # Implementation Summary
+
+          ## 🚀 Changes Made
+
+          ### Files Modified:
+          - `path/to/file1.ext` - Description of changes made
+          - `path/to/file2.ext` - Description of changes made
+
+          ### Files Created:
+          - `path/to/newfile.ext` - Purpose and functionality
+
+          ### Key Features Implemented:
+          - Feature 1: Description
+          - Feature 2: Description
+
+          ## 🔧 Technical Details
+
+          ### Implementation Approach:
+          Brief explanation of the solution approach and design decisions based on discovery analysis.
+
+          ### Dependencies Added:
+          - dependency-name: version (purpose)
+
+          ### Configuration Changes:
+          - Config file changes if any
+
+          ### Database Changes:
+          - Schema modifications (migrations created)
+
+          ## ✅ Verification Steps
+
+          ### How to Test:
+          1. Step 1 to verify the implementation
+          2. Step 2 to test functionality  
+          3. Step 3 to validate integration
+
+          ### Expected Behavior:
+          Description of how the implemented solution should work.
+
+          ## 📝 Additional Notes
+
+          Any important notes, considerations, or follow-up tasks.
+
+          Please provide the complete implementation following these guidelines and the discovery analysis.
+
+    - name: Create implementation summary and handle Git workflow
+      env:
+        IMPLEMENTATION_RESPONSE: ${{ steps.gemini_implementation.outputs.summary }}
+        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.summary }}
+      run: |
+        # Save implementation summary for PR description
+        echo "$IMPLEMENTATION_RESPONSE" > gemini-outputs/pr-summary/implementation-summary.md
+        echo "📝 Implementation summary saved"
+        
+        # Configure git user for commits
+        git config user.name "gemini-cli[bot]"
+        git config user.email "gemini-cli-bot@google-ai.local"
+        echo "✅ Git configured for Gemini CLI operations"
+        
+        # Check what was modified
+        echo "=== CHECKING WHAT GEMINI IMPLEMENTED ==="
+        echo "📋 Git status after Gemini execution:"
+        git status --porcelain || echo "No changes detected"
+        
+        echo "📋 Modified files:"
+        git diff --name-only || echo "No modified files"
+        
+        echo "📋 Untracked files:"
+        git ls-files --others --exclude-standard || echo "No untracked files"
+        
+        # Check if there are any changes to commit
+        if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+          echo "📋 Found changes, creating branch and commit"
+          
+          # Generate clean branch name
+          if [ -n "${{ github.event.inputs.pr_title }}" ]; then
+            PR_TITLE="${{ github.event.inputs.pr_title }}"
+          else
+            PR_TITLE="$(echo "${{ github.event.inputs.user_request }}" | head -c 80)"
+          fi
+          
+          # Create unique branch name
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          RUN_ID="${{ github.run_id }}"
+          BRANCH_BASE="$(echo "$PR_TITLE" | tr '\n\r' ' ' | head -c 30 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')"
+          BRANCH_NAME="gemini/${BRANCH_BASE}-${TIMESTAMP}-${RUN_ID}"
+          
+          echo "📋 Creating branch: $BRANCH_NAME"
+          
+          # Create and switch to new branch
+          git checkout -b "$BRANCH_NAME"
+          
+          # Add all changes
+          git add .
+          
+          # Create commit
+          COMMIT_MSG="Gemini CLI implementation: $(echo "${{ github.event.inputs.user_request }}" | head -c 60) - Implemented via Gemini CLI using ${{ github.event.inputs.model }} - Co-authored-by: Gemini CLI <gemini-cli@google-ai>"
+          
+          git commit -m "$COMMIT_MSG"
+          echo "✅ Branch and commit created successfully"
+          
+          # Push the branch
+          git push origin "$BRANCH_NAME"
+          echo "✅ Feature branch pushed successfully: $BRANCH_NAME"
+          
+          # Set outputs for PR creation
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+        else
+          echo "ℹ️ No changes to commit"
+          echo "HAS_CHANGES=false" >> $GITHUB_ENV
+        fi
+
+    - name: Create Pull Request
+      if: env.HAS_CHANGES == 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        BRANCH_NAME="$BRANCH_NAME"
+        PR_TITLE="$PR_TITLE"
+        BASE_BRANCH="${{ github.event.inputs.pr_base_branch }}"
+        
+        # Get the implementation summary for PR body
+        if [ -f "gemini-outputs/pr-summary/implementation-summary.md" ]; then
+          PR_BODY_FILE="gemini-outputs/pr-summary/implementation-summary.md"
+        else
+          # Fallback to basic description
+          echo "# Gemini CLI Implementation" > /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "This PR was created automatically by Gemini CLI." >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "## Original Request" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "${{ github.event.inputs.user_request }}" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "## Implementation Details" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "Changes were implemented using ${{ github.event.inputs.model }} model." >> /tmp/pr-body.md
+          PR_BODY_FILE="/tmp/pr-body.md"
+        fi
+        
+        # Create the pull request using GitHub CLI
+        gh pr create \
+          --title "$PR_TITLE" \
+          --body-file "$PR_BODY_FILE" \
+          --base "$BASE_BRANCH" \
+          --head "$BRANCH_NAME" \
+          --label "gemini-cli-generated" \
+          --label "automated-pr"
+        
+        # Get the PR URL and number
+        PR_URL=$(gh pr view "$BRANCH_NAME" --json url --jq '.url')
+        PR_NUMBER=$(gh pr view "$BRANCH_NAME" --json number --jq '.number')
+        
+        echo "✅ Pull Request created successfully!"
+        echo "🔗 PR URL: $PR_URL"
+        echo "📋 PR Number: #$PR_NUMBER"
+        
+        # Store for summary
+        echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+        echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+
+    - name: Upload execution logs as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: gemini-cli-logs-${{ github.run_number }}
+        path: |
+          gemini-outputs/
+        retention-days: 7
+
+    - name: Display execution summary
+      env:
+        IMPLEMENTATION_RESPONSE: ${{ steps.gemini_implementation.outputs.summary }}
+        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.summary }}
+      run: |
+        # Display comprehensive summary
+        echo "## 🚀 Gemini CLI Two-Phase Implementation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show request details
+        echo "### 📋 Request Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Model**: ${{ github.event.inputs.model }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Use Vertex AI**: ${{ github.event.inputs.use_vertex_ai }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show original request
+        echo "### 📝 Original Request" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "${{ github.event.inputs.user_request }}" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show discovery phase results
+        echo "### 🔍 Phase 1: Discovery Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "$DISCOVERY_RESPONSE" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show implementation results
+        if [ "$HAS_CHANGES" = "true" ]; then
+          echo "### ✅ Implementation Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Implementation completed with changes" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: $BRANCH_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pull Request**: [#$PR_NUMBER]($PR_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 📊 Phase 2: Implementation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ℹ️ No Changes Made" >> $GITHUB_STEP_SUMMARY
+          echo "Gemini CLI completed execution but no code changes were necessary or made." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 📝 Gemini CLI Response" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_STEP_SUMMARY
+        fi
