@@ -23,6 +23,11 @@ on:
         required: false
         type: boolean
         default: false
+      use_gemini_code_assist:
+        description: 'Use Gemini Code Assist for enhanced code generation'
+        required: false
+        type: boolean
+        default: false
       pr_title:
         description: 'Pull request title (auto-generated if empty)'
         required: false
@@ -57,8 +62,20 @@ jobs:
         mkdir -p gemini-outputs
         mkdir -p gemini-outputs/pr-summary
         
-        # Save user request to file for both phases
-        echo "${{ github.event.inputs.user_request }}" > gemini-outputs/user-request.txt
+        # Handle base64 encoded user request (similar to Aider workflow)
+        USER_REQUEST_RAW="${{ github.event.inputs.user_request }}"
+        
+        # Check if request looks like base64 (no spaces, only valid base64 chars)
+        if echo "$USER_REQUEST_RAW" | grep -qE '^[A-Za-z0-9+/]*={0,2}$' && [ ${#USER_REQUEST_RAW} -gt 50 ]; then
+          echo "🔍 Detected base64 encoded request, decoding..."
+          USER_REQUEST_DECODED=$(echo "$USER_REQUEST_RAW" | base64 -d)
+        else
+          echo "🔍 Using request as plain text"
+          USER_REQUEST_DECODED="$USER_REQUEST_RAW"
+        fi
+        
+        # Save decoded user request to file for both phases
+        echo "$USER_REQUEST_DECODED" > gemini-outputs/user-request.txt
         echo "💾 User request saved to gemini-outputs/user-request.txt"
         
         # Print the actual user request content for debugging  
@@ -72,6 +89,7 @@ jobs:
       with:
         gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
         use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
+        use_gemini_code_assist: ${{ github.event.inputs.use_gemini_code_assist }}
         settings: |
           {
             "model": "${{ github.event.inputs.model }}",
@@ -79,14 +97,14 @@ jobs:
             "maxOutputTokens": 8192
           }
         prompt: |
-          # Gemini File Discovery Assistant
+          # Aider File Discovery Assistant Instructions
 
           ## PHASE 1: FILE DISCOVERY AND ANALYSIS
 
           **IMPORTANT**: This is the DISCOVERY phase only. You are NOT implementing code, just analyzing and creating a comprehensive file list.
 
           **User Request**: 
-          ${{ github.event.inputs.user_request }}
+          $(cat gemini-outputs/user-request.txt)
 
           ## MANDATORY TICKET REQUIREMENT:
 
@@ -103,7 +121,7 @@ jobs:
           1. **Analyze the Request**: Understand the full scope of changes needed
           2. **Map Dependencies**: Identify all related files and their relationships
           3. **Create Comprehensive File List**: Generate a detailed JSON structure
-          4. **Save Discovery Results**: Provide the analysis in the specified format
+          4. **Save Discovery Results**: Store analysis in `gemini-outputs/affected-files.json`
 
           ## ANALYSIS SCOPE:
 
@@ -132,7 +150,7 @@ jobs:
 
           ## REQUIRED OUTPUT FORMAT:
 
-          You MUST provide your analysis in this exact JSON format:
+          You MUST create gemini-outputs/affected-files.json with this exact structure:
 
           ```json
           {
@@ -185,6 +203,52 @@ jobs:
           - ✅ Configuration impacts are assessed
           - ✅ API documentation needs are identified
 
+          ## FINAL DISCOVERY RESPONSE:
+
+          Wrap your discovery analysis in these tags:
+
+          <GEMINI_RESPONSE>
+          # File Discovery Analysis Complete
+
+          ## 📋 Discovery Summary
+
+          **Ticket**: DMC-XXX
+          **Request**: [Brief description]
+          **Complexity**: [LOW/MEDIUM/HIGH]
+
+          ## 📁 Files Identified
+
+          ### To Modify: X files
+          - List key files to be modified
+
+          ### To Create: X files  
+          - List new files to be created
+
+          ### For Context: X files
+          - List files needed for understanding
+
+          ### Tests Needed: X files
+          - List test files to update/create
+
+          ## 🔗 Key Dependencies
+          - Main dependency relationships identified
+
+          ## ⚠️ Implementation Notes
+          - Critical considerations for implementation phase
+
+          ## ✅ Discovery Status
+          File discovery analysis complete. Comprehensive file list saved to `gemini-outputs/affected-files.json`.
+
+          **Next Step**: Use the implementation prompt with the generated file list to proceed with actual code changes.
+          </GEMINI_RESPONSE>
+
+          ## WORKFLOW INTEGRATION:
+
+          - This discovery phase creates the foundation for Phase 2 implementation
+          - The generated JSON file will be used by the implementation prompt
+          - DO NOT implement any code changes in this phase
+          - Focus solely on analysis and planning
+
           Please analyze the user request and provide the comprehensive file discovery JSON.
 
     - name: Parse and save discovery results
@@ -228,6 +292,7 @@ jobs:
       with:
         gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
         use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
+        use_gemini_code_assist: ${{ github.event.inputs.use_gemini_code_assist }}
         settings: |
           {
             "model": "${{ github.event.inputs.model }}",
@@ -235,14 +300,20 @@ jobs:
             "maxOutputTokens": 8192
           }
         prompt: |
-          # Gemini Implementation Assistant
+          # Aider Implementation Assistant Instructions
 
           ## PHASE 2: IMPLEMENTATION USING DISCOVERED FILES
 
           **IMPORTANT**: This is the IMPLEMENTATION phase. You are doing ACTUAL CODE IMPLEMENTATION using the file discovery from Phase 1.
 
+          ## PREREQUISITES:
+
+          1. **Discovery Phase Complete**: File discovery must be completed first
+          2. **JSON File Available**: `gemini-outputs/affected-files.json` must exist
+          3. **Ticket Validated**: DMC-XXX ticket number already confirmed
+
           **User Request**: 
-          ${{ github.event.inputs.user_request }}
+          $(cat gemini-outputs/user-request.txt)
 
           **Discovery Results**:
           ```json
@@ -251,11 +322,36 @@ jobs:
 
           ## CRITICAL INSTRUCTIONS:
 
-          1) **USE DISCOVERY RESULTS** - Follow the comprehensive file analysis from Phase 1
-          2) **IMPLEMENT ACTUAL CODE** - Make real code changes based on the analysis
-          3) **CREATE ALL NECESSARY FILES** - Include new files, modifications, and tests
-          4) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
-          5) **PROVIDE IMPLEMENTATION SUMMARY** - Give detailed summary of all changes made
+          1) **DISCOVERY CONTEXT READY** - All discovered files are identified in the analysis
+          2) **REVIEW DISCOVERY RESULTS** - Check `gemini-outputs/affected-files.json` for the analysis
+          3) **IMPLEMENT CODE** - Make actual code changes following the discovery analysis
+          4) **WORK SYSTEMATICALLY** - Follow the planned approach from discovery
+          5) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
+          6) **COMPREHENSIVE SOLUTION** - Include all necessary files, tests, documentation
+
+          ## IMPLEMENTATION WORKFLOW:
+
+          ### Step 1: Review Discovery Results
+          The discovery analysis provides complete file identification:
+          - `gemini-outputs/affected-files.json` - Complete discovery analysis
+          - Files from `to_modify` array - Need modification
+          - Files from `to_reference` array - Provide context for understanding
+          - Files from `tests_needed` array - Need test updates
+
+          ### Step 2: Understand the Scope
+          Review the discovery JSON to understand:
+          - **Request Summary**: What needs to be implemented
+          - **Files to Modify**: Existing files that need changes
+          - **Files to Create**: New files to be created
+          - **Dependencies**: Relationships between components
+          - **Implementation Notes**: Key considerations and risks
+
+          ### Step 3: Implement Changes
+          Follow the implementation plan from discovery:
+          - **Read existing patterns** and maintain consistency
+          - **Create new files** as identified in discovery
+          - **Modify existing files** according to requirements
+          - **Update tests** to cover new functionality
 
           ## IMPLEMENTATION GUIDELINES:
 
@@ -274,20 +370,29 @@ jobs:
 
           ## MANDATORY TICKET INTEGRATION:
 
-          All implementation must follow DMTools standards using the ticket from discovery.
+          All implementation must follow DMTools standards using the ticket from discovery:
 
-          ## IMPLEMENTATION WORKFLOW:
+          ### Branch Naming Convention:
+          Based on sub-task prefix structure:
 
-          1. **Review Discovery**: Understand the scope and file relationships
-          2. **Create/Modify Files**: Implement all necessary changes
-          3. **Add Tests**: Create or update test files
-          4. **Database Migrations**: Add SQL scripts if needed
-          5. **Documentation**: Update API docs if necessary
+          | Sub-task Prefix | Branch Format | Example |
+          |----------------|---------------|---------|
+          | **[CORE]** | core/DMC-XXX | core/DMC-46 |
+          | **[API]** | api/DMC-XXX | api/DMC-46 |
+          | **[UI]** | ui/DMC-XXX | ui/DMC-46 |
+          | **[UI-COMP]** | ui-comp/DMC-XXX | ui-comp/DMC-46 |
+
+          ### Commit Message Format:
+          ```
+          DMC-XXX - [ticket summary]
+          [Short description of the change]
+          ```
 
           ## FINAL SUMMARY FORMAT:
 
-          Provide your implementation summary in this format:
+          Your final response must be wrapped in these tags:
 
+          <GEMINI_RESPONSE>
           # Implementation Summary
 
           ## 🚀 Changes Made
@@ -330,6 +435,26 @@ jobs:
           ## 📝 Additional Notes
 
           Any important notes, considerations, or follow-up tasks.
+          </GEMINI_RESPONSE>
+
+          ## QUALITY CHECKLIST:
+
+          Before completing implementation, verify:
+          - ✅ All files from discovery are properly handled
+          - ✅ Code follows existing patterns and conventions
+          - ✅ Tests are updated/created as planned
+          - ✅ Error handling is comprehensive
+          - ✅ Documentation is updated
+          - ✅ Branch name follows prefix/DMC-XXX format
+          - ✅ Commit message follows DMTools standards
+
+          ## WORKFLOW INTEGRATION:
+
+          - This phase uses the comprehensive file list from Phase 1
+          - All identified dependencies and relationships are considered
+          - Changes are made systematically based on the discovery analysis
+          - The implementation follows the planned approach from discovery
+          - Git workflow follows DMTools standards with proper ticket linkage
 
           Please provide the complete implementation following these guidelines and the discovery analysis.
 
@@ -366,7 +491,8 @@ jobs:
           if [ -n "${{ github.event.inputs.pr_title }}" ]; then
             PR_TITLE="${{ github.event.inputs.pr_title }}"
           else
-            PR_TITLE="$(echo "${{ github.event.inputs.user_request }}" | head -c 80)"
+            # Use the decoded user request from file
+            PR_TITLE="$(cat gemini-outputs/user-request.txt | head -c 80)"
           fi
           
           # Create unique branch name
@@ -384,7 +510,7 @@ jobs:
           git add .
           
           # Create commit
-          COMMIT_MSG="Gemini CLI implementation: $(echo "${{ github.event.inputs.user_request }}" | head -c 60) - Implemented via Gemini CLI using ${{ github.event.inputs.model }} - Co-authored-by: Gemini CLI <gemini-cli@google-ai>"
+          COMMIT_MSG="Gemini CLI implementation: $(cat gemini-outputs/user-request.txt | head -c 60) - Implemented via Gemini CLI using ${{ github.event.inputs.model }} - Co-authored-by: Gemini CLI <gemini-cli@google-ai>"
           
           git commit -m "$COMMIT_MSG"
           echo "✅ Branch and commit created successfully"
@@ -422,7 +548,7 @@ jobs:
           echo "" >> /tmp/pr-body.md
           echo "## Original Request" >> /tmp/pr-body.md
           echo "" >> /tmp/pr-body.md
-          echo "${{ github.event.inputs.user_request }}" >> /tmp/pr-body.md
+          cat gemini-outputs/user-request.txt >> /tmp/pr-body.md
           echo "" >> /tmp/pr-body.md
           echo "## Implementation Details" >> /tmp/pr-body.md
           echo "" >> /tmp/pr-body.md
@@ -477,7 +603,7 @@ jobs:
         # Show original request
         echo "### 📝 Original Request" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "${{ github.event.inputs.user_request }}" >> $GITHUB_STEP_SUMMARY
+        cat gemini-outputs/user-request.txt >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
