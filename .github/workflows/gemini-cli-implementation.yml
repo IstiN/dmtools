@@ -83,6 +83,14 @@ jobs:
         cat gemini-outputs/user-request.txt
         echo "🔍 END USER REQUEST"
 
+    - name: Install Gemini CLI
+      run: |
+        echo "📦 Installing Gemini CLI from npm..."
+        npm install -g @google/gemini-cli@latest
+        echo "✅ Gemini CLI installed successfully"
+        echo "📋 Gemini CLI version:"
+        gemini --version
+
     - name: Prepare discovery prompt
       id: prepare_discovery_prompt
       run: |
