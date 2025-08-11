@@ -85,15 +85,17 @@ jobs:
         retention-days: 7
 
     - name: Create implementation summary artifact
+      env:
+        AIDER_RESPONSE: ${{ steps.aider_run.outputs.aider_response }}
       run: |
         # Create dedicated summary file for PR description
         mkdir -p aider-outputs/pr-summary
         
-        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.aider_response }}" ]; then
+        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "$AIDER_RESPONSE" ]; then
           echo "✅ Creating implementation summary for PR"
           
-          # Save the implementation summary using printf to handle special characters safely
-          printf '%s\n' '${{ steps.aider_run.outputs.aider_response }}' > aider-outputs/pr-summary/implementation-summary.md
+          # Save the implementation summary safely using environment variable to avoid shell injection
+          echo "$AIDER_RESPONSE" > aider-outputs/pr-summary/implementation-summary.md
           
           echo "📝 Implementation summary created successfully"
           echo "Summary size: $(wc -c < aider-outputs/pr-summary/implementation-summary.md) bytes"
@@ -299,6 +301,8 @@ jobs:
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
     - name: Display execution summary
+      env:
+        AIDER_RESPONSE: ${{ steps.aider_run.outputs.aider_response }}
       run: |
         # Display comprehensive summary
         echo "## 🚀 Aider Implementation Workflow Summary" >> $GITHUB_STEP_SUMMARY
@@ -330,7 +334,7 @@ jobs:
           if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ]; then
             echo "### 📊 Implementation Summary" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            printf '%s\n' '${{ steps.aider_run.outputs.aider_response }}' >> $GITHUB_STEP_SUMMARY
+            echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
           fi
         else
           echo "### ℹ️ No Changes Made" >> $GITHUB_STEP_SUMMARY
@@ -340,7 +344,7 @@ jobs:
           if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ]; then
             echo "### 📝 Aider Response" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            printf '%s\n' '${{ steps.aider_run.outputs.aider_response }}' >> $GITHUB_STEP_SUMMARY
+            echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Implementation Error" >> $GITHUB_STEP_SUMMARY
             echo "No valid response received from Aider. Check execution logs for details." >> $GITHUB_STEP_SUMMARY

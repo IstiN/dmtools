@@ -154,7 +154,7 @@ After completing all implementation work, you MUST execute these commands in seq
 2. **Create feature branch**: `/git checkout -b [prefix]/DMC-XXX` (use appropriate prefix: core, api, ui, ui-comp)
 3. **Stage all changes**: `/run git add .` to add all modified files
 4. **Create commit**: `/commit "DMC-XXX - [your implementation summary]\n[Short description of changes]"`
+5. **Push changes**: `/run git push -u origin [prefix]/DMC-XXX`
 
-**IMPORTANT**: Do NOT use `/ask` command as it causes crashes. Stick to the commands above only.
 
 These commands ensure proper Git tracking following DMTools standards.
