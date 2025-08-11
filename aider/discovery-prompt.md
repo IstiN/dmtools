@@ -56,7 +56,7 @@ Consider ALL of these file types and relationships:
 Execute these commands to perform thorough analysis:
 
 1. **Read user request**: `/add aider-outputs/user-request.txt`
-2. **Understand scope**:  analyze the request thoroughly
+2. **Understand scope**: Analyze the request thoroughly
 3. **Map file relationships**: Identify all interconnected components
 4. **Generate file list**: Create comprehensive JSON structure
 
