@@ -177,48 +177,7 @@ jobs:
           fi
         fi
 
-    - name: Create fallback branch and commit if Aider didn't
-      if: steps.check_branches.outputs.has_new_branch == 'false' && steps.check_branches.outputs.has_uncommitted_changes == 'true'
-      id: fallback_branch
-      run: |
-        echo "🔄 Creating fallback branch since Aider didn't create one"
-        
-        # Generate PR title for branch name
-        if [ -n "${{ inputs.pr_title }}" ]; then
-          PR_TITLE="${{ inputs.pr_title }}"
-        else
-          USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
-          PR_TITLE="$(echo "$USER_REQUEST_DECODED" | head -c 80)"
-        fi
-        
-        # Generate branch name from PR title (fallback naming)
-        BRANCH_NAME="aider/$(echo "$PR_TITLE" | head -c 50 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')-$(date +%Y%m%d)"
-        
-        echo "📋 Creating fallback branch: $BRANCH_NAME"
-        
-        # Create and switch to new branch
-        git checkout -b "$BRANCH_NAME"
-        
-        # Add all changes
-        git add .
-        
-        # Create commit with user request info
-        USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
-        COMMIT_MSG="Aider implementation: $(echo "$USER_REQUEST_DECODED" | head -c 60)
-
-Implemented via Aider AI assistant using ${{ inputs.model }}
-(Fallback commit created by workflow)
-
-Request: $USER_REQUEST_DECODED
-
-Co-authored-by: Aider <aider@ai-assistant>"
-        
-        git commit -m "$COMMIT_MSG"
-        echo "✅ Fallback branch and commit created successfully"
-        
-        # Set outputs for next steps
-        echo "new_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
-        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+    
 
     - name: Push feature branch created by Aider
       if: steps.check_branches.outputs.has_new_branch == 'true' && steps.check_branches.outputs.has_commits == 'true'
