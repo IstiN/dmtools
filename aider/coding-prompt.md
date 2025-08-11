@@ -2,11 +2,10 @@
 
 ## INSTRUCTION #1: IMPLEMENT THE REQUESTED CHANGES AND PROVIDE SUMMARY
 
-You have access to these files:
-1. **This file** (`aider/coding-prompt.md`) - Contains your instructions 
-2. **User request file** (`aider-outputs/user-request.txt`) - Contains the specific coding task to implement
+**IMPORTANT** YOU HAVE ACCESS TO ALL FILES WHICH ARE MANDATORY TO SOLVE THE USER REQUEST.
 
-**READ THE USER REQUEST FILE** to understand what code changes are needed.
+
+**READ THE USER REQUEST FILE(`aider-outputs/user-request.txt`)** to understand what code changes are needed. 
 
 ## MANDATORY TICKET REQUIREMENT:
 
@@ -22,7 +21,7 @@ Example: If user request doesn't include DMC-XXX, respond with:
 ## CRITICAL INSTRUCTIONS:
 
 1) **IMPLEMENT CODE** - You are doing ACTUAL IMPLEMENTATION, not just analysis
-2) **MAKE REAL CHANGES** - Modify, create, and update files as needed to fulfill the request
+2) **MAKE REAL CHANGES** - Add files to chat context, I approve all of them. Modify, create, and update files as needed to fulfill the request
 3) **WORK AUTONOMOUSLY** - Read any files you need, make changes without asking
 4) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
 5) **PROVIDE SUMMARY** - After implementation, provide a summary in the specified format
@@ -39,7 +38,7 @@ Example: If user request doesn't include DMC-XXX, respond with:
 
 ## FINAL SUMMARY FORMAT:
 
-After completing all implementation work, provide a summary wrapped in tags:
+Your final response must be wrapped to <AIDER_RESPONSE> even it's success or not:
 
 <AIDER_RESPONSE>
 # Implementation Summary
