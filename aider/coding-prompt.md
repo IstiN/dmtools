@@ -1,4 +1,4 @@
-# Aider Coding Assistant - Two-Phase Workflow
+# Coding Assistant - Two-Phase Workflow
 
 ## WORKFLOW OVERVIEW
 

@@ -1,6 +1,6 @@
 /ask
 
-# Aider Analysis Assistant Instructions
+# Analysis Assistant Instructions
 
 ## INSTRUCTION #1: WHEN YOU KNOW FULL ANSWER WRITE YOUR RESPONSE AS ONE GOOD STRUCTURED MARKDOWN IN TAGS <AIDER_RESPONSE></AIDER_RESPONSE>
 
