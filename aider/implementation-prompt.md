@@ -12,36 +12,29 @@
 
 ## CRITICAL INSTRUCTIONS:
 
-1) **LOAD DISCOVERY RESULTS** - Read `aider-outputs/affected-files.json` first
-2) **ADD ALL DISCOVERED FILES** - Use `/add` for all files identified in discovery
-3) **IMPLEMENT CODE** - Make actual code changes following the analysis
+1) **DISCOVERY CONTEXT READY** - All discovered files are already loaded in your context
+2) **REVIEW DISCOVERY RESULTS** - Check `aider-outputs/affected-files.json` for the analysis
+3) **IMPLEMENT CODE** - Make actual code changes following the discovery analysis
 4) **WORK SYSTEMATICALLY** - Follow the planned approach from discovery
 5) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
 6) **COMPREHENSIVE SOLUTION** - Include all necessary files, tests, documentation
 
 ## IMPLEMENTATION WORKFLOW:
 
-### Step 1: Load Discovery Results
-```
-/add aider-outputs/affected-files.json
-```
-Read and understand the discovery analysis before proceeding.
+### Step 1: Review Discovery Results
+The discovery analysis and all identified files are already in your context:
+- `aider-outputs/affected-files.json` - Complete discovery analysis
+- All files from `to_modify` array - Ready for modification
+- All files from `to_reference` array - Available for understanding context
+- All files from `tests_needed` array - Ready for test updates
 
-### Step 2: Add All Context Files
-Based on the JSON file, systematically add ALL identified files:
-
-```
-# Add files to modify
-/add path/to/file1.java
-/add path/to/file2.java
-
-# Add files for context
-/add path/to/context/file1.java
-/add path/to/context/file2.java
-
-# Add test files
-/add path/to/test/file1Test.java
-```
+### Step 2: Understand the Scope
+Review the discovery JSON to understand:
+- **Request Summary**: What needs to be implemented
+- **Files to Modify**: Existing files that need changes
+- **Files to Create**: New files to be created
+- **Dependencies**: Relationships between components
+- **Implementation Notes**: Key considerations and risks
 
 ### Step 3: Implement Changes
 Follow the implementation plan from discovery:
