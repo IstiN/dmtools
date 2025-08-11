@@ -6,17 +6,6 @@
 
 **READ THE USER REQUEST FILE(`aider-outputs/user-request.txt`)** to understand what code changes are needed.
 
-## MANDATORY TICKET REQUIREMENT:
-
-**IMPORTANT**: Every request MUST be linked to a Jira ticket (DMC-XXX format).
-
-1. **If ticket number is provided** in user request: Use it for analysis
-2. **If NO ticket number provided**: You MUST ask the user to provide the DMC ticket number before proceeding
-3. **Never proceed without a valid DMC-XXX ticket number**
-
-Example: If user request doesn't include DMC-XXX, respond with:
-"I need a DMC ticket number to proceed with this analysis. Please provide the ticket number (format: DMC-XXX) for this work."
-
 ## DISCOVERY INSTRUCTIONS:
 
 Your job is to perform comprehensive analysis to identify ALL files that will be affected by the requested changes:
