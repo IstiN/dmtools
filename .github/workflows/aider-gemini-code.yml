@@ -1,5 +1,5 @@
 # Aider Code Implementation with PR Creation
-name: Aider Implementation Phase (Post-Discovery)
+name: Aider Two-Phase Implementation
 
 on:
   workflow_dispatch:
@@ -63,7 +63,18 @@ jobs:
         fetch-depth: 0  # Full history for better context
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Setup Aider and run implementation
+    - name: Phase 1 - File Discovery and Analysis
+      id: aider_discovery
+      uses: ./.github/actions/aider-setup
+      with:
+        user_request: ${{ inputs.user_request }}
+        model: ${{ inputs.model }}
+        gemini_api_key: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
+        max_tokens: ${{ inputs.max_tokens }}
+        prompt_file: 'aider/discovery-prompt.md'
+        mode: 'analysis'
+
+    - name: Phase 2 - Implementation using discovered files
       id: aider_run
       uses: ./.github/actions/aider-setup
       with:
@@ -82,6 +93,7 @@ jobs:
         path: |
           aider-outputs/response_*.txt
           aider-outputs/user-request.txt
+          aider-outputs/affected-files*.json
         retention-days: 7
 
     - name: Create implementation summary artifact
@@ -320,9 +332,10 @@ jobs:
     - name: Display execution summary
       env:
         AIDER_RESPONSE: ${{ steps.aider_run.outputs.aider_response }}
+        DISCOVERY_RESPONSE: ${{ steps.aider_discovery.outputs.aider_response }}
       run: |
         # Display comprehensive summary
-        echo "## 🚀 Aider Implementation Workflow Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 Aider Two-Phase Implementation Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         # Show request details
@@ -339,6 +352,14 @@ jobs:
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
+        # Show discovery phase results
+        if [ "${{ steps.aider_discovery.outputs.response_found }}" = "true" ]; then
+          echo "### 🔍 Phase 1: Discovery Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$DISCOVERY_RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
         # Show implementation results
         if [ "$CHANGES_STATUS" = "has_changes" ]; then
           echo "### ✅ Implementation Results" >> $GITHUB_STEP_SUMMARY
@@ -349,7 +370,7 @@ jobs:
           
           # Include Aider's summary if available
           if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ]; then
-            echo "### 📊 Implementation Summary" >> $GITHUB_STEP_SUMMARY
+            echo "### 📊 Phase 2: Implementation Summary" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "$AIDER_RESPONSE" >> $GITHUB_STEP_SUMMARY
           fi
