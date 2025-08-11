@@ -74,6 +74,35 @@ jobs:
         prompt_file: 'aider/discovery-prompt.md'
         mode: 'analysis'
 
+    - name: Ensure discovery results are available for implementation
+      run: |
+        # Check if affected-files.json exists from discovery phase
+        if [ -f "aider-outputs/affected-files.json" ]; then
+          echo "✅ Discovery JSON found, proceeding with implementation"
+          echo "📋 Discovery file contents:"
+          cat aider-outputs/affected-files.json
+        else
+          echo "❌ No discovery JSON found from Phase 1"
+          echo "📁 Available files in aider-outputs:"
+          ls -la aider-outputs/ || echo "No aider-outputs directory"
+          
+          # Create a fallback discovery file if none exists
+          echo "🔧 Creating fallback discovery structure"
+          mkdir -p aider-outputs
+          echo '{
+            "ticket_number": "UNKNOWN",
+            "request_summary": "Fallback - manual file discovery needed",
+            "affected_files": {
+              "to_modify": [],
+              "to_create": [],
+              "to_reference": [],
+              "tests_needed": []
+            },
+            "dependencies": [],
+            "implementation_notes": ["Discovery phase did not complete successfully"]
+          }' > aider-outputs/affected-files.json
+        fi
+
     - name: Phase 2 - Implementation using discovered files
       id: aider_run
       uses: ./.github/actions/aider-setup
@@ -217,7 +246,8 @@ jobs:
         # Generate unique branch name with timestamp and run ID to avoid conflicts
         TIMESTAMP=$(date +%Y%m%d-%H%M%S)
         RUN_ID="${{ github.run_id }}"
-        BRANCH_BASE="$(echo "$PR_TITLE" | head -c 30 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')"
+        # Clean branch name: remove newlines, convert to lowercase, replace spaces/special chars with dashes
+        BRANCH_BASE="$(echo "$PR_TITLE" | tr '\n\r' ' ' | head -c 30 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')"
         BRANCH_NAME="aider/${BRANCH_BASE}-${TIMESTAMP}-${RUN_ID}"
         
         echo "📋 Creating unique fallback branch: $BRANCH_NAME"
