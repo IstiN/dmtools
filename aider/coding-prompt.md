@@ -4,6 +4,7 @@
 
 **IMPORTANT** YOU HAVE ACCESS TO ALL FILES WHICH ARE MANDATORY TO SOLVE THE USER REQUEST.
 
+get /context of what must be changed and do /whole changes of files to reduce mistakes
 
 **READ THE USER REQUEST FILE(`aider-outputs/user-request.txt`)** to understand what code changes are needed. 
 
