@@ -8,6 +8,51 @@ get /context of what must be changed and do /whole changes of files to reduce mi
 
 **READ THE USER REQUEST FILE(`aider-outputs/user-request.txt`)** to understand what code changes are needed. 
 
+## TWO-PHASE IMPLEMENTATION APPROACH:
+
+### PHASE 1: FILE DISCOVERY AND ANALYSIS
+**Before making any changes**, perform a comprehensive analysis to identify all files that will be affected:
+
+1. **Analyze the Request**: Understand the scope of changes needed
+2. **Map Dependencies**: Identify all related files (entities, repositories, services, controllers, tests, etc.)
+3. **Create File List**: Generate a comprehensive list of affected files in JSON format
+4. **Save to Discovery File**: Store the list in `aider-outputs/affected-files.json`
+
+**Discovery Command Sequence:**
+```
+/ask Please analyze the user request and create a comprehensive list of all files that will need to be modified, created, or referenced for this implementation. Consider:
+- Entity classes and their relationships
+- Repository interfaces and implementations  
+- Service classes and business logic
+- Controller endpoints and DTOs
+- Exception classes
+- Configuration files
+- Test files
+- Database migration files (if needed)
+- Documentation files
+
+Save this analysis as a JSON file with the following structure:
+{
+  "request_summary": "Brief description of the change",
+  "affected_files": {
+    "to_modify": ["list of existing files to modify"],
+    "to_create": ["list of new files to create"], 
+    "to_reference": ["list of files to read for context"],
+    "tests_needed": ["list of test files to update/create"]
+  },
+  "dependencies": ["list of file dependencies and relationships"],
+  "implementation_notes": ["key considerations for implementation"]
+}
+```
+
+### PHASE 2: IMPLEMENTATION
+**After file discovery**, proceed with actual implementation:
+
+1. **Load File List**: Read `aider-outputs/affected-files.json`
+2. **Add Files to Context**: Use `/add` to include all files from the discovery phase
+3. **Implement Changes**: Make all necessary modifications following the analysis
+4. **Verify Completeness**: Ensure all identified files are properly handled
+
 ## MANDATORY TICKET REQUIREMENT:
 
 **IMPORTANT**: Every implementation MUST be linked to a Jira ticket (DMC-XXX format).
@@ -21,15 +66,26 @@ Example: If user request doesn't include DMC-XXX, respond with:
 
 ## CRITICAL INSTRUCTIONS:
 
-1) **IMPLEMENT CODE** - You are doing ACTUAL IMPLEMENTATION, not just analysis
-2) **MAKE REAL CHANGES** - Add files to chat context, I approve all of them. Modify, create, and update files as needed to fulfill the request
-3) **WORK AUTONOMOUSLY** - Read any files you need, make changes without asking
-4) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
-5) **PROVIDE SUMMARY** - After implementation, provide a summary in the specified format
-6) **COMPREHENSIVE SOLUTION** - Include all necessary files, tests, documentation as requested
+1) **FOLLOW TWO-PHASE APPROACH** - First discover files, then implement
+2) **IMPLEMENT CODE** - You are doing ACTUAL IMPLEMENTATION, not just analysis
+3) **USE FILE DISCOVERY** - Add files to context based on the discovery phase analysis
+4) **MAKE REAL CHANGES** - Modify, create, and update files as needed to fulfill the request
+5) **WORK AUTONOMOUSLY** - Read any files you need, make changes without asking
+6) **FOLLOW BEST PRACTICES** - Write clean, maintainable, well-documented code
+7) **PROVIDE SUMMARY** - After implementation, provide a summary in the specified format
+8) **COMPREHENSIVE SOLUTION** - Include all necessary files, tests, documentation as requested
 
 ## IMPLEMENTATION GUIDELINES:
 
+### Phase 1 - Discovery:
+- **Analyze Scope**: Thoroughly understand the full impact of the requested changes
+- **Map File Dependencies**: Identify all interconnected files and relationships
+- **Document Analysis**: Create comprehensive JSON file list for Phase 2
+- **Validate Coverage**: Ensure no critical files are missed in discovery
+
+### Phase 2 - Implementation:
+- **Load Discovery Results**: Read `aider-outputs/affected-files.json` before starting
+- **Add Files Systematically**: Use `/add` for all files identified in discovery phase
 - **Read First**: Examine existing code structure, patterns, and conventions
 - **Follow Patterns**: Maintain consistency with existing codebase style and architecture
 - **Quality Code**: Write production-ready code with proper error handling
@@ -147,15 +203,26 @@ Before completing implementation, verify:
 - Include any special deployment or setup instructions in the summary
 - Link the created PR to the corresponding Jira ticket (DMC-XXX)
 
-## FINAL COMMANDS SEQUENCE:
+## COMPLETE WORKFLOW SEQUENCE:
 
-After completing all implementation work, you MUST execute these commands in sequence:
+You MUST follow this complete sequence for every implementation:
 
-1. **Check what was modified**: `/run git status` to show what files were changed
-2. **Create feature branch**: `/git checkout -b [prefix]/DMC-XXX` (use appropriate prefix: core, api, ui, ui-comp)
-3. **Stage all changes**: `/run git add .` to add all modified files
-4. **Create commit**: `/commit "DMC-XXX - [your implementation summary]\n[Short description of changes]"`
-5. **Push changes**: `/run git push -u origin [prefix]/DMC-XXX`
+### PHASE 1 - DISCOVERY:
+1. **Read user request**: `/add aider-outputs/user-request.txt`
+2. **Perform analysis**: Use `/ask` command to analyze scope and create file discovery JSON
+3. **Create discovery file**: Save comprehensive file list to `aider-outputs/affected-files.json`
 
+### PHASE 2 - IMPLEMENTATION:
+4. **Load discovery results**: `/add aider-outputs/affected-files.json`  
+5. **Add discovered files**: Use `/add` for all files identified in discovery phase
+6. **Implement changes**: Make all necessary code modifications
+7. **Verify completeness**: Ensure all requirements are met
 
-These commands ensure proper Git tracking following DMTools standards.
+### PHASE 3 - GIT WORKFLOW:
+8. **Check what was modified**: `/run git status` to show what files were changed
+9. **Create feature branch**: `/git checkout -b [prefix]/DMC-XXX` (use appropriate prefix: core, api, ui, ui-comp)
+10. **Stage all changes**: `/run git add .` to add all modified files
+11. **Create commit**: `/commit "DMC-XXX - [your implementation summary]\n[Short description of changes]"`
+12. **Push changes**: `/run git push -u origin [prefix]/DMC-XXX`
+
+These commands ensure comprehensive discovery and proper Git tracking following DMTools standards.
