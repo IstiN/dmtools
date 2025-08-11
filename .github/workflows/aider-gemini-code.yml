@@ -213,14 +213,7 @@ jobs:
         
         # Create commit with user request info
         USER_REQUEST_DECODED=$(echo "${{ inputs.user_request }}" | base64 -d)
-        COMMIT_MSG="Aider implementation: $(echo "$USER_REQUEST_DECODED" | head -c 60)
-        
-        Implemented via Aider AI assistant using ${{ inputs.model }}
-        (Fallback commit created by workflow)
-        
-        Request: $USER_REQUEST_DECODED
-        
-        Co-authored-by: Aider <aider@ai-assistant>"
+        COMMIT_MSG="Aider implementation: $(echo "$USER_REQUEST_DECODED" | head -c 60) - Implemented via Aider AI assistant using ${{ inputs.model }} (Fallback commit created by workflow) - Request: $USER_REQUEST_DECODED - Co-authored-by: Aider <aider@ai-assistant>"
         
         git commit -m "$COMMIT_MSG"
         echo "✅ Fallback branch and commit created successfully"
