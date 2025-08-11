@@ -92,8 +92,8 @@ jobs:
         if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.aider_response }}" ]; then
           echo "✅ Creating implementation summary for PR"
           
-          # Save the implementation summary
-          echo "${{ steps.aider_run.outputs.aider_response }}" > aider-outputs/pr-summary/implementation-summary.md
+          # Save the implementation summary using printf to handle special characters safely
+          printf '%s\n' '${{ steps.aider_run.outputs.aider_response }}' > aider-outputs/pr-summary/implementation-summary.md
           
           echo "📝 Implementation summary created successfully"
           echo "Summary size: $(wc -c < aider-outputs/pr-summary/implementation-summary.md) bytes"
@@ -330,7 +330,7 @@ jobs:
           if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ]; then
             echo "### 📊 Implementation Summary" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.aider_run.outputs.aider_response }}" >> $GITHUB_STEP_SUMMARY
+            printf '%s\n' '${{ steps.aider_run.outputs.aider_response }}' >> $GITHUB_STEP_SUMMARY
           fi
         else
           echo "### ℹ️ No Changes Made" >> $GITHUB_STEP_SUMMARY
@@ -340,7 +340,7 @@ jobs:
           if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ]; then
             echo "### 📝 Aider Response" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.aider_run.outputs.aider_response }}" >> $GITHUB_STEP_SUMMARY
+            printf '%s\n' '${{ steps.aider_run.outputs.aider_response }}' >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Implementation Error" >> $GITHUB_STEP_SUMMARY
             echo "No valid response received from Aider. Check execution logs for details." >> $GITHUB_STEP_SUMMARY
