@@ -190,6 +190,52 @@ public class IntegrationConfigurationLoader {
     }
     
     /**
+     * Get the raw configuration for an integration type.
+     *
+     * @param type The integration type identifier
+     * @return The raw integration type configuration
+     * @throws IllegalArgumentException if the integration type is not found
+     */
+    public IntegrationTypeConfig getRawConfiguration(String type) {
+        IntegrationTypeConfig config = configurations.get(type);
+        if (config == null) {
+            throw new IllegalArgumentException("Integration type not found: " + type);
+        }
+        return config;
+    }
+    
+    /**
+     * Validate that provided parameter keys are allowed for the given integration type.
+     *
+     * @param integrationType The integration type identifier
+     * @param parameterKeys The set of parameter keys to validate
+     * @throws IllegalArgumentException if any parameter key is not allowed
+     */
+    public void validateParameterKeys(String integrationType, Set<String> parameterKeys) {
+        IntegrationTypeConfig config = getRawConfiguration(integrationType);
+        
+        // Get allowed parameter keys from JSON configuration
+        Set<String> allowedKeys = config.getConfigParams().stream()
+                .map(ConfigParamConfig::getKey)
+                .collect(Collectors.toSet());
+        
+        // Find invalid keys
+        Set<String> invalidKeys = parameterKeys.stream()
+                .filter(key -> !allowedKeys.contains(key))
+                .collect(Collectors.toSet());
+        
+        if (!invalidKeys.isEmpty()) {
+            throw new IllegalArgumentException(
+                String.format("Invalid parameter keys for integration type '%s': %s. Allowed keys: %s", 
+                    integrationType, invalidKeys, allowedKeys)
+            );
+        }
+        
+        logger.debug("Parameter validation passed for integration type '{}' with keys: {}", 
+            integrationType, parameterKeys);
+    }
+    
+    /**
      * Get all available categories.
      *
      * @return Set of all categories
@@ -290,5 +336,49 @@ public class IntegrationConfigurationLoader {
         }
         
         return def;
+    }
+    
+    /**
+     * Validates that all required parameters are present for job execution.
+     * Unlike validateParameterKeys, this allows saving incomplete configurations
+     * but prevents execution when required parameters are missing.
+     * 
+     * @param integrationType The integration type (e.g., "jira", "confluence")
+     * @param providedParameters Map of parameter keys to values
+     * @return List of missing required parameter keys (empty if all required params are present)
+     */
+    public List<String> validateRequiredParametersForExecution(String integrationType, Map<String, String> providedParameters) {
+        try {
+            IntegrationTypeConfig typeConfig = getRawConfiguration(integrationType);
+            
+            List<String> missingRequired = new ArrayList<>();
+            
+            for (ConfigParamConfig paramConfig : typeConfig.getConfigParams()) {
+                if (paramConfig.isRequired()) {
+                    String paramKey = paramConfig.getKey();
+                    String paramValue = providedParameters.get(paramKey);
+                    
+                    // Consider parameter missing if not provided or empty/blank
+                    if (paramValue == null || paramValue.trim().isEmpty()) {
+                        missingRequired.add(paramKey);
+                    }
+                }
+            }
+            
+            if (!missingRequired.isEmpty()) {
+                logger.warn("⚠️ Missing required parameters for integration type '{}': {}", 
+                    integrationType, missingRequired);
+            } else {
+                logger.info("✅ All required parameters present for integration type '{}'", integrationType);
+            }
+            
+            return missingRequired;
+            
+        } catch (IllegalArgumentException e) {
+            logger.error("Failed to validate required parameters for integration type '{}': {}", 
+                integrationType, e.getMessage());
+            // Return empty list to allow execution in case of configuration errors
+            return new ArrayList<>();
+        }
     }
 } 
