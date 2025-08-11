@@ -53,6 +53,11 @@ For detailed Vertex AI setup, see the [Authentication documentation](https://git
   - `gemini-1.5-flash-latest`
   - `gemini-1.0-pro-latest`
 
+### ✅ **Enhanced Code Generation**
+- **Gemini Code Assist**: Optional enhanced code generation capabilities
+- **Base64 Input Support**: Handles both plain text and base64 encoded requests
+- **Existing Prompt Integration**: Uses proven discovery and implementation prompts
+
 ### ✅ **DMTools Integration**
 - Enforces DMC-XXX ticket requirement
 - Follows DMTools branching and commit standards
@@ -71,10 +76,12 @@ For detailed Vertex AI setup, see the [Authentication documentation](https://git
 2. **Select** "Gemini CLI Two-Phase Implementation" workflow
 3. **Click** "Run workflow"
 4. **Fill in**:
-   - **User Request**: Your implementation request (must include DMC-XXX)
-   - **Model**: Choose Gemini model (optional)
+   - **User Request**: Your implementation request (must include DMC-XXX, supports base64 encoding)
+   - **Model**: Choose Gemini model (optional, default: gemini-2.0-flash-exp)
    - **Use Vertex AI**: Check if using Vertex AI (optional)
+   - **Use Gemini Code Assist**: Enable enhanced code generation (optional)
    - **PR Title**: Custom title (optional)
+   - **PR Base Branch**: Target branch for PR (optional, default: main)
 
 ### Example Requests
 
@@ -94,6 +101,8 @@ DMC-456 - Add user authentication endpoint with OAuth2 integration including JWT
   uses: google-github-actions/run-gemini-cli@v0.1.10
   with:
     gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+    use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
+    use_gemini_code_assist: ${{ github.event.inputs.use_gemini_code_assist }}
     settings: |
       {
         "model": "${{ github.event.inputs.model }}",
@@ -101,7 +110,7 @@ DMC-456 - Add user authentication endpoint with OAuth2 integration including JWT
         "maxOutputTokens": 8192
       }
     prompt: |
-      # Comprehensive discovery prompt
+      # Uses content from aider/discovery-prompt.md
       # Analyzes scope and creates affected-files.json
 ```
 
@@ -111,9 +120,11 @@ DMC-456 - Add user authentication endpoint with OAuth2 integration including JWT
   uses: google-github-actions/run-gemini-cli@v0.1.10
   with:
     gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+    use_vertex_ai: ${{ github.event.inputs.use_vertex_ai }}
+    use_gemini_code_assist: ${{ github.event.inputs.use_gemini_code_assist }}
     prompt: |
-      # Implementation prompt with discovery context
-      # Includes discovered files JSON
+      # Uses content from aider/implementation-prompt.md
+      # Includes discovered files JSON from Phase 1
       # Provides actual code implementation
 ```
 
