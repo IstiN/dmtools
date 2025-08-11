@@ -1,5 +1,5 @@
 # Aider Code Implementation with PR Creation
-name: Aider Code Implementation (Gemini)
+name: Aider Implementation Phase (Post-Discovery)
 
 on:
   workflow_dispatch:
@@ -72,7 +72,7 @@ jobs:
         model: ${{ inputs.model }}
         gemini_api_key: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
         max_tokens: ${{ inputs.max_tokens }}
-        prompt_file: 'aider/coding-prompt.md'
+        prompt_file: 'aider/implementation-prompt.md'
         mode: 'coding'
 
     - name: Upload execution logs as artifact
