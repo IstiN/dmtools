@@ -41,32 +41,31 @@ ui-comp/DMC-46
 
 Commit Message Format
 
-DMC-XXX - [ticket summary]
-[Short description of the change]
+**IMPORTANT**: The commit message must be a single line without newlines.
+
+Format: `DMC-XXX - [ticket summary] - [Short description of the change]`
+
 Examples
 
 UI Implementation
 
 Branch: ui/DMC-46
-DMC-46 - Add human-readable display names to job configurations
-Updated job configuration forms to include displayName and description fields for better UX
+Commit: `DMC-46 - Add human-readable display names to job configurations - Updated job configuration forms to include displayName and description fields for better UX`
 
 API Implementation (server module related logic)
 
 Branch: api/DMC-46
-DMC-46 - Fix JSON deserialization errors in job configurations
-Removed nested arrays from examples fields and updated validation logic
+Commit: `DMC-46 - Fix JSON deserialization errors in job configurations - Removed nested arrays from examples fields and updated validation logic`
+
 Core Implementation
 
 Branch: core/DMC-46
-DMC-46 - Implement job configuration validation service
-Added centralized validation logic for job configuration parameters
+Commit: `DMC-46 - Implement job configuration validation service - Added centralized validation logic for job configuration parameters`
 
 UI Component
 
 Branch: ui-comp/DMC-46
-DMC-46 - Create reusable form input component
-Built new InputField component for consistent form styling across the app
+Commit: `DMC-46 - Create reusable form input component - Built new InputField component for consistent form styling across the app`
 Invalid Examples
 
 
