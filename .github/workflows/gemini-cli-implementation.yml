@@ -21,11 +21,7 @@ on:
           - gemini-2.5-flash-preview-05-20
           - gemini-2.5-pro-latest
 
-      pr_title:
-        description: 'Pull request title (auto-generated if empty)'
-        required: false
-        type: string
-        default: ''
+
       pr_base_branch:
         description: 'Base branch for the pull request'
         required: false
@@ -56,6 +52,62 @@ jobs:
     - name: Setup Gemini CLI environment
       run: |
         ./cli_agents/scripts/setup-cli-env.sh "gemini" "${{ github.event.inputs.model }}" "${{ secrets.GEMINI_API_KEY }}"
+
+    - name: Generate PR details using Gemini
+      id: generate_pr_details
+      run: |
+        echo "🔧 Generating PR details using Gemini CLI..."
+        
+        # Export environment variables for Gemini CLI
+        export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+        
+        # Create combined prompt for PR generation
+        CURRENT_DIR=$(pwd)
+        PR_PROMPT_FILE="outputs/pr-generation-prompt.md"
+        
+        cat > "$PR_PROMPT_FILE" << EOF
+        # PR Details Generation Request
+        
+        **Working Directory:** $CURRENT_DIR
+        
+        **User Request:**
+        $(cat outputs/user-request.txt)
+        
+        ---
+        
+        $(cat cli_agents/prompts/pull_request_and_commit.md)
+        EOF
+        
+        echo "🚀 Executing Gemini CLI for PR generation..."
+        if PR_GENERATION_RESPONSE=$(gemini --yolo --prompt "$(cat "$PR_PROMPT_FILE")" 2>&1); then
+          echo "✅ PR details generation successful"
+          echo "📄 Gemini response length: ${#PR_GENERATION_RESPONSE} characters"
+          
+          # Verify pr_notes.json was created
+          if [ -f "outputs/pr_notes.json" ]; then
+            echo "✅ Found pr_notes.json file"
+            echo "📋 PR notes content:"
+            cat outputs/pr_notes.json
+            
+            # Validate JSON format
+            if command -v jq >/dev/null 2>&1; then
+              if jq empty outputs/pr_notes.json 2>/dev/null; then
+                echo "✅ JSON validation passed"
+              else
+                echo "❌ ERROR: Invalid JSON format in pr_notes.json"
+                exit 1
+              fi
+            fi
+          else
+            echo "❌ ERROR: pr_notes.json file was not created by Gemini"
+            echo "📋 Gemini response was:"
+            echo "$PR_GENERATION_RESPONSE"
+            exit 1
+          fi
+        else
+          echo "❌ ERROR: PR generation failed"
+          exit 1
+        fi
 
     - name: Implementation using Gemini CLI
       id: gemini_implementation
@@ -131,25 +183,29 @@ jobs:
         echo "$IMPLEMENTATION_RESPONSE" > outputs/pr-summary/implementation-summary.md
         echo "📝 Implementation summary saved"
         
-        # Extract ticket number from user request for Git workflow (optional)
-        TICKET_NUMBER=""
-        if grep -q "DMC-[0-9]\+" outputs/user-request.txt; then
-          TICKET_NUMBER=$(grep -o "DMC-[0-9]\+" outputs/user-request.txt | head -1)
-          echo "📋 Found ticket number: $TICKET_NUMBER"
+        # Read PR details from generated pr_notes.json (guaranteed to exist)
+        echo "📋 Reading PR details from pr_notes.json..."
+        
+        # Extract values using jq if available, otherwise use grep/sed
+        if command -v jq >/dev/null 2>&1; then
+          BRANCH_PREFIX=$(cat outputs/pr_notes.json | jq -r '.branchName')
+          COMMIT_MESSAGE=$(cat outputs/pr_notes.json | jq -r '.commitMessage')
+          PR_TITLE=$(cat outputs/pr_notes.json | jq -r '.pullRequestTitle')
         else
-          echo "ℹ️ No ticket number found in user request (optional)"
-          TICKET_NUMBER="IMPL-$(date +%Y%m%d)"
+          # Fallback parsing without jq
+          BRANCH_PREFIX=$(grep '"branchName"' outputs/pr_notes.json | sed 's/.*"branchName"[^"]*"\([^"]*\)".*/\1/' | head -1)
+          COMMIT_MESSAGE=$(grep '"commitMessage"' outputs/pr_notes.json | sed 's/.*"commitMessage"[^"]*"\([^"]*\)".*/\1/' | head -1)
+          PR_TITLE=$(grep '"pullRequestTitle"' outputs/pr_notes.json | sed 's/.*"pullRequestTitle"[^"]*"\([^"]*\)".*/\1/' | head -1)
         fi
         
-        # Generate commit message from user request
-        if [ -n "${{ github.event.inputs.pr_title }}" ]; then
-          COMMIT_MESSAGE="${{ github.event.inputs.pr_title }}"
-        else
-          COMMIT_MESSAGE="$(cat outputs/user-request.txt | head -c 80 | tr '\n' ' ')"
-        fi
+        echo "📋 Extracted PR details:"
+        echo "- Branch: $BRANCH_PREFIX"
+        echo "- Commit: $COMMIT_MESSAGE"
+        echo "- PR Title: $PR_TITLE"
         
         # Use our Git workflow script to handle the entire Git workflow
-        WORKFLOW_OUTPUT=$(./cli_agents/scripts/git-workflow.sh "full-workflow" "$TICKET_NUMBER" "$COMMIT_MESSAGE" "$COMMIT_MESSAGE")
+        # Pass branch prefix and commit message from PR notes
+        WORKFLOW_OUTPUT=$(./cli_agents/scripts/git-workflow.sh "full-workflow" "$BRANCH_PREFIX" "$COMMIT_MESSAGE" "$PR_TITLE")
         echo "$WORKFLOW_OUTPUT"
         
         # Extract environment variables from the git workflow output
@@ -258,6 +314,8 @@ jobs:
           outputs/response-log_*.txt
           outputs/implementation-prompt-combined.md
           outputs/user-request.txt
+          outputs/pr_notes.json
+          outputs/pr-generation-prompt.md
         retention-days: 7
         if-no-files-found: warn
 
