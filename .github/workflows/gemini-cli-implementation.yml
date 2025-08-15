@@ -1,11 +1,11 @@
-# Gemini CLI Two-Phase Implementation
-name: Gemini CLI Two-Phase Implementation
+# Gemini CLI Implementation
+name: Gemini CLI Implementation
 
 on:
   workflow_dispatch:
     inputs:
       user_request:
-        description: 'Your coding request for Gemini CLI (must include DMC-XXX ticket number)'
+        description: 'Your coding request for Gemini CLI'
         required: true
         type: string
       model:
@@ -20,16 +20,7 @@ on:
           - gemini-1.0-pro-latest
           - gemini-2.5-flash-preview-05-20
           - gemini-2.5-pro-latest
-      use_vertex_ai:
-        description: 'Use Vertex AI instead of Gemini API'
-        required: false
-        type: boolean
-        default: false
-      use_gemini_code_assist:
-        description: 'Use Gemini Code Assist for enhanced code generation'
-        required: false
-        type: boolean
-        default: false
+
       pr_title:
         description: 'Pull request title (auto-generated if empty)'
         required: false
@@ -60,279 +51,69 @@ jobs:
     - name: Prepare request for Gemini CLI
       id: prepare_request
       run: |
-        # Create output directories
-        mkdir -p gemini-outputs
-        mkdir -p gemini-outputs/pr-summary
-        
-        # Handle base64 encoded user request (similar to Aider workflow)
-        USER_REQUEST_RAW="${{ github.event.inputs.user_request }}"
-        
-        # Check if request looks like base64 (no spaces, only valid base64 chars)
-        if echo "$USER_REQUEST_RAW" | grep -qE '^[A-Za-z0-9+/]*={0,2}$' && [ ${#USER_REQUEST_RAW} -gt 50 ]; then
-          echo "🔍 Detected base64 encoded request, decoding..."
-          USER_REQUEST_DECODED=$(echo "$USER_REQUEST_RAW" | base64 -d)
-        else
-          echo "🔍 Using request as plain text"
-          USER_REQUEST_DECODED="$USER_REQUEST_RAW"
-        fi
-        
-        # Save decoded user request to file for both phases
-        echo "$USER_REQUEST_DECODED" > gemini-outputs/user-request.txt
-        echo "💾 User request saved to gemini-outputs/user-request.txt"
-        
-        # Print the actual user request content for debugging  
-        echo "🔍 USER REQUEST CONTENT:"
-        cat gemini-outputs/user-request.txt
-        echo "🔍 END USER REQUEST"
+        ./cli_agents/scripts/prepare-user-request.sh "${{ github.event.inputs.user_request }}" "outputs"
 
-    - name: Install Gemini CLI
+    - name: Setup Gemini CLI environment
       run: |
-        echo "📦 Installing Gemini CLI from npm..."
-        npm install -g @google/gemini-cli@latest
-        echo "✅ Gemini CLI installed successfully"
-        echo "📋 Gemini CLI version:"
-        gemini --version
+        ./cli_agents/scripts/setup-cli-env.sh "gemini" "${{ github.event.inputs.model }}" "${{ secrets.GEMINI_API_KEY }}"
 
-    - name: Prepare discovery prompt
-      id: prepare_discovery_prompt
-      run: |
-        echo "📋 Preparing discovery prompt from aider/discovery-prompt.md"
-        
-        # Read the discovery prompt content
-        DISCOVERY_PROMPT=$(cat aider/discovery-prompt.md)
-        
-        # Read user request content  
-        USER_REQUEST=$(cat gemini-outputs/user-request.txt)
-        
-        # Combine discovery prompt with user request
-        echo "# Discovery Phase - User Request Context" > gemini-outputs/discovery-prompt-combined.md
-        echo "" >> gemini-outputs/discovery-prompt-combined.md
-        echo "**User Request:**" >> gemini-outputs/discovery-prompt-combined.md
-        echo '```' >> gemini-outputs/discovery-prompt-combined.md
-        echo "$USER_REQUEST" >> gemini-outputs/discovery-prompt-combined.md
-        echo '```' >> gemini-outputs/discovery-prompt-combined.md
-        echo "" >> gemini-outputs/discovery-prompt-combined.md
-        echo "---" >> gemini-outputs/discovery-prompt-combined.md
-        echo "" >> gemini-outputs/discovery-prompt-combined.md
-        echo "$DISCOVERY_PROMPT" >> gemini-outputs/discovery-prompt-combined.md
-        
-        echo "✅ Combined discovery prompt prepared in gemini-outputs/discovery-prompt-combined.md"
-
-    - name: Phase 1 - File Discovery and Analysis
-      id: gemini_discovery
-      run: |
-        echo "🚀 Starting Gemini CLI Discovery Phase"
-        
-        # Read the combined prompt content
-        DISCOVERY_PROMPT_CONTENT=$(cat gemini-outputs/discovery-prompt-combined.md)
-        
-        # Export environment variables for Gemini CLI
-        export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
-        export GOOGLE_GENAI_USE_VERTEXAI="${{ github.event.inputs.use_vertex_ai }}"
-        export GOOGLE_GENAI_USE_GCA="${{ github.event.inputs.use_gemini_code_assist }}"
-        
-        # Create settings file for Gemini CLI
-        mkdir -p .gemini
-        cat > .gemini/settings.json << 'EOF'
-        {
-          "model": "${{ github.event.inputs.model }}",
-          "temperature": 0.1,
-          "maxOutputTokens": 8192
-        }
-        EOF
-        
-        # Run Gemini CLI with the discovery prompt
-        echo "📋 Running discovery analysis..."
-        GEMINI_RESPONSE=$(gemini --yolo --prompt "$DISCOVERY_PROMPT_CONTENT")
-        
-        # Save response to output and file
-        echo "gemini_response<<EOF" >> $GITHUB_OUTPUT
-        echo "$GEMINI_RESPONSE" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
-        
-        # Save response to file for debugging
-        echo "$GEMINI_RESPONSE" > gemini-outputs/discovery-response.txt
-        
-        echo "✅ Discovery phase completed"
-
-    - name: Parse and save discovery results
-      id: parse_discovery
-      run: |
-        # Extract JSON from Gemini's response
-        GEMINI_OUTPUT="${{ steps.gemini_discovery.outputs.summary }}"
-        echo "🔍 Raw Gemini Discovery Output:"
-        echo "$GEMINI_OUTPUT"
-        echo "🔍 END Raw Output"
-        
-        # Try to extract JSON from the response
-        if echo "$GEMINI_OUTPUT" | grep -q '```json'; then
-          echo "✅ Found JSON block in response"
-          echo "$GEMINI_OUTPUT" | sed -n '/```json/,/```/p' | sed '1d;$d' > gemini-outputs/affected-files.json
-        elif echo "$GEMINI_OUTPUT" | grep -q '{.*"ticket_number"'; then
-          echo "✅ Found JSON in response without code blocks"
-          echo "$GEMINI_OUTPUT" | grep -A 1000 '{.*"ticket_number"' | grep -B 1000 '^}' | head -n -0 > gemini-outputs/affected-files.json
-        else
-          echo "❌ No valid JSON found, creating fallback"
-          echo '{
-            "ticket_number": "UNKNOWN",
-            "request_summary": "Discovery phase failed - manual analysis needed",
-            "affected_files": {
-              "to_modify": [],
-              "to_create": [],
-              "to_reference": [],
-              "tests_needed": []
-            },
-            "dependencies": [],
-            "implementation_notes": ["Discovery phase did not complete successfully"]
-          }' > gemini-outputs/affected-files.json
-        fi
-        
-        echo "📋 Discovery Results Saved:"
-        cat gemini-outputs/affected-files.json
-
-    - name: Prepare implementation prompt
-      id: prepare_implementation_prompt
-      run: |
-        echo "📋 Preparing implementation prompt from aider/implementation-prompt.md"
-        
-        # Read the implementation prompt content
-        IMPLEMENTATION_PROMPT=$(cat aider/implementation-prompt.md)
-        
-        # Read user request content  
-        USER_REQUEST=$(cat gemini-outputs/user-request.txt)
-        
-        # Read discovery results if available
-        if [ -f "gemini-outputs/affected-files.json" ]; then
-          DISCOVERY_RESULTS=$(cat gemini-outputs/affected-files.json)
-        else
-          DISCOVERY_RESULTS="No discovery results found"
-        fi
-        
-        # Combine implementation prompt with user request and discovery results
-        echo "# Implementation Phase - Context" > gemini-outputs/implementation-prompt-combined.md
-        echo "" >> gemini-outputs/implementation-prompt-combined.md
-        echo "**User Request:**" >> gemini-outputs/implementation-prompt-combined.md
-        echo '```' >> gemini-outputs/implementation-prompt-combined.md
-        echo "$USER_REQUEST" >> gemini-outputs/implementation-prompt-combined.md
-        echo '```' >> gemini-outputs/implementation-prompt-combined.md
-        echo "" >> gemini-outputs/implementation-prompt-combined.md
-        echo "**Discovery Results:**" >> gemini-outputs/implementation-prompt-combined.md
-        echo '```json' >> gemini-outputs/implementation-prompt-combined.md
-        echo "$DISCOVERY_RESULTS" >> gemini-outputs/implementation-prompt-combined.md
-        echo '```' >> gemini-outputs/implementation-prompt-combined.md
-        echo "" >> gemini-outputs/implementation-prompt-combined.md
-        echo "---" >> gemini-outputs/implementation-prompt-combined.md
-        echo "" >> gemini-outputs/implementation-prompt-combined.md
-        echo "$IMPLEMENTATION_PROMPT" >> gemini-outputs/implementation-prompt-combined.md
-        
-        echo "✅ Combined implementation prompt prepared in gemini-outputs/implementation-prompt-combined.md"
-
-    - name: Phase 2 - Implementation using discovered files
+    - name: Implementation using Gemini CLI
       id: gemini_implementation
       run: |
-        echo "🚀 Starting Gemini CLI Implementation Phase"
-        
-        # Read the combined prompt content
-        IMPLEMENTATION_PROMPT_CONTENT=$(cat gemini-outputs/implementation-prompt-combined.md)
+        echo "🚀 Starting Gemini CLI Implementation"
         
         # Export environment variables for Gemini CLI
         export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
-        export GOOGLE_GENAI_USE_VERTEXAI="${{ github.event.inputs.use_vertex_ai }}"
-        export GOOGLE_GENAI_USE_GCA="${{ github.event.inputs.use_gemini_code_assist }}"
         
-        # Gemini CLI settings should already exist from discovery phase
-        # Update if needed
-        cat > .gemini/settings.json << 'EOF'
-        {
-          "model": "${{ github.event.inputs.model }}",
-          "temperature": 0.1,
-          "maxOutputTokens": 8192
-        }
-        EOF
+        # Run implementation using our simplified script
+        IMPLEMENTATION_OUTPUT_FILE=$(./cli_agents/scripts/run-gemini.sh "implementation" "outputs/user-request.txt")
+        IMPLEMENTATION_EXIT_CODE=$?
         
-        # Run Gemini CLI with the implementation prompt
-        echo "📋 Running implementation analysis..."
-        GEMINI_RESPONSE=$(gemini --yolo --prompt "$IMPLEMENTATION_PROMPT_CONTENT")
-        
-        # Save response to output and file
-        echo "gemini_response<<EOF" >> $GITHUB_OUTPUT
-        echo "$GEMINI_RESPONSE" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
-        
-        # Save response to file for debugging
-        echo "$GEMINI_RESPONSE" > gemini-outputs/implementation-response.txt
-        
-        echo "✅ Implementation phase completed"
+        # Check if implementation was successful
+        if [ $IMPLEMENTATION_EXIT_CODE -eq 0 ]; then
+          echo "✅ Implementation completed successfully"
+          if [ -f "outputs/response.md" ]; then
+            IMPLEMENTATION_RESPONSE=$(cat outputs/response.md)
+            echo "gemini_response<<EOF" >> $GITHUB_OUTPUT
+            echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ No response.md file found"
+            echo "gemini_response=Implementation completed but no response file found" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "❌ Implementation failed with exit code $IMPLEMENTATION_EXIT_CODE"
+          echo "gemini_response=Implementation failed" >> $GITHUB_OUTPUT
+        fi
 
     - name: Create implementation summary and handle Git workflow
       env:
         IMPLEMENTATION_RESPONSE: ${{ steps.gemini_implementation.outputs.gemini_response }}
-        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.gemini_response }}
       run: |
         # Save implementation summary for PR description
-        echo "$IMPLEMENTATION_RESPONSE" > gemini-outputs/pr-summary/implementation-summary.md
+        mkdir -p outputs/pr-summary
+        echo "$IMPLEMENTATION_RESPONSE" > outputs/pr-summary/implementation-summary.md
         echo "📝 Implementation summary saved"
         
-        # Configure git user for commits
-        git config user.name "gemini-cli[bot]"
-        git config user.email "gemini-cli-bot@google-ai.local"
-        echo "✅ Git configured for Gemini CLI operations"
-        
-        # Check what was modified
-        echo "=== CHECKING WHAT GEMINI IMPLEMENTED ==="
-        echo "📋 Git status after Gemini execution:"
-        git status --porcelain || echo "No changes detected"
-        
-        echo "📋 Modified files:"
-        git diff --name-only || echo "No modified files"
-        
-        echo "📋 Untracked files:"
-        git ls-files --others --exclude-standard || echo "No untracked files"
-        
-        # Check if there are any changes to commit
-        if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-          echo "📋 Found changes, creating branch and commit"
-          
-          # Generate clean branch name
-          if [ -n "${{ github.event.inputs.pr_title }}" ]; then
-            PR_TITLE="${{ github.event.inputs.pr_title }}"
-          else
-            # Use the decoded user request from file
-            PR_TITLE="$(cat gemini-outputs/user-request.txt | head -c 80)"
-          fi
-          
-          # Create unique branch name
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          RUN_ID="${{ github.run_id }}"
-          BRANCH_BASE="$(echo "$PR_TITLE" | tr '\n\r' ' ' | head -c 30 | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')"
-          BRANCH_NAME="gemini/${BRANCH_BASE}-${TIMESTAMP}-${RUN_ID}"
-          
-          echo "📋 Creating branch: $BRANCH_NAME"
-          
-          # Create and switch to new branch
-          git checkout -b "$BRANCH_NAME"
-          
-          # Add all changes
-          git add .
-          
-          # Create commit
-          COMMIT_MSG="Gemini CLI implementation: $(cat gemini-outputs/user-request.txt | head -c 60) - Implemented via Gemini CLI using ${{ github.event.inputs.model }} - Co-authored-by: Gemini CLI <gemini-cli@google-ai>"
-          
-          git commit -m "$COMMIT_MSG"
-          echo "✅ Branch and commit created successfully"
-          
-          # Push the branch
-          git push origin "$BRANCH_NAME"
-          echo "✅ Feature branch pushed successfully: $BRANCH_NAME"
-          
-          # Set outputs for PR creation
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-          echo "HAS_CHANGES=true" >> $GITHUB_ENV
-          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+        # Extract ticket number from user request for Git workflow (optional)
+        TICKET_NUMBER=""
+        if grep -q "DMC-[0-9]\+" outputs/user-request.txt; then
+          TICKET_NUMBER=$(grep -o "DMC-[0-9]\+" outputs/user-request.txt | head -1)
+          echo "📋 Found ticket number: $TICKET_NUMBER"
         else
-          echo "ℹ️ No changes to commit"
-          echo "HAS_CHANGES=false" >> $GITHUB_ENV
+          echo "ℹ️ No ticket number found in user request (optional)"
+          TICKET_NUMBER="IMPL-$(date +%Y%m%d)"
         fi
+        
+        # Generate commit message from user request
+        if [ -n "${{ github.event.inputs.pr_title }}" ]; then
+          COMMIT_MESSAGE="${{ github.event.inputs.pr_title }}"
+        else
+          COMMIT_MESSAGE="$(cat outputs/user-request.txt | head -c 80 | tr '\n' ' ')"
+        fi
+        
+        # Use our Git workflow script to handle the entire Git workflow
+        ./cli_agents/scripts/git-workflow.sh "full-workflow" "$TICKET_NUMBER" "$COMMIT_MESSAGE" "$COMMIT_MESSAGE"
 
     - name: Create Pull Request
       if: env.HAS_CHANGES == 'true'
@@ -344,8 +125,8 @@ jobs:
         BASE_BRANCH="${{ github.event.inputs.pr_base_branch }}"
         
         # Get the implementation summary for PR body
-        if [ -f "gemini-outputs/pr-summary/implementation-summary.md" ]; then
-          PR_BODY_FILE="gemini-outputs/pr-summary/implementation-summary.md"
+        if [ -f "outputs/pr-summary/implementation-summary.md" ]; then
+          PR_BODY_FILE="outputs/pr-summary/implementation-summary.md"
         else
           # Fallback to basic description
           echo "# Gemini CLI Implementation" > /tmp/pr-body.md
@@ -354,7 +135,7 @@ jobs:
           echo "" >> /tmp/pr-body.md
           echo "## Original Request" >> /tmp/pr-body.md
           echo "" >> /tmp/pr-body.md
-          cat gemini-outputs/user-request.txt >> /tmp/pr-body.md
+          cat outputs/user-request.txt >> /tmp/pr-body.md
           echo "" >> /tmp/pr-body.md
           echo "## Implementation Details" >> /tmp/pr-body.md
           echo "" >> /tmp/pr-body.md
@@ -388,35 +169,27 @@ jobs:
       with:
         name: gemini-cli-logs-${{ github.run_number }}
         path: |
-          gemini-outputs/
+          outputs/
         retention-days: 7
 
     - name: Display execution summary
       env:
         IMPLEMENTATION_RESPONSE: ${{ steps.gemini_implementation.outputs.gemini_response }}
-        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.gemini_response }}
       run: |
         # Display comprehensive summary
-        echo "## 🚀 Gemini CLI Two-Phase Implementation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 Gemini CLI Implementation Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         # Show request details
         echo "### 📋 Request Details" >> $GITHUB_STEP_SUMMARY
         echo "- **Model**: ${{ github.event.inputs.model }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Use Vertex AI**: ${{ github.event.inputs.use_vertex_ai }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         # Show original request
         echo "### 📝 Original Request" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        cat gemini-outputs/user-request.txt >> $GITHUB_STEP_SUMMARY
+        cat outputs/user-request.txt >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # Show discovery phase results
-        echo "### 🔍 Phase 1: Discovery Analysis" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "$DISCOVERY_RESPONSE" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         # Show implementation results
@@ -427,7 +200,7 @@ jobs:
           echo "- **Pull Request**: [#$PR_NUMBER]($PR_URL)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          echo "### 📊 Phase 2: Implementation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Implementation Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_STEP_SUMMARY
         else
