@@ -48,7 +48,7 @@ Execute the implementation:
 - **Naming Conventions**: Use clear, descriptive names for files and functions
 - **Code Structure**: Organize code logically with proper separation of concerns
 - **Error Handling**: Include appropriate error handling where needed
-- **Unit Test Coverage**: Written code must be covered by unit test in project specific format
+- **Unit Test Coverage**: **MANDATORY** - All written code MUST be covered by unit tests in project-specific format. No production code without corresponding tests.
 
 ### Response Guidelines:
 - **High-Level Focus**: Describe what was implemented, not how it was coded
@@ -63,7 +63,7 @@ Focus on practical implementation:
 - **Working Code**: Ensure all code is functional and tested
 - **Clear Output**: Provide clear results and explanations
 - **User-Focused**: Address exactly what the user requested
-- **Unit Test Coverage**: Cover logic with unit test or mention in response why it's not possible
+- **Unit Test Coverage**: **CRITICAL** - ALL business logic MUST be covered by comprehensive unit tests. If tests cannot be written, provide detailed explanation in response.md why testing is not applicable.
 
 ## RESPONSE FORMAT:
 
@@ -83,6 +83,7 @@ Provide a comprehensive implementation summary that includes:
 - Any dependencies or requirements or manual steps which are required to make implementation working properly
 - Key design patterns or technologies used, especially if it's different from approaches which are existing in codebase
 - How components interact with each other
+- **Unit Test Coverage**: Details about test files created, test scenarios covered, and testing approach used
 
 ### Usage Instructions:
 - **IMPORTANT** if any manual steps, configs are required
@@ -109,7 +110,7 @@ The `outputs/response.md` file should be the definitive implementation summary, 
 Before completing implementation, verify:
 - ✅ All requested functionality is implemented
 - ✅ Code is functional and tested
-- ✅ Unit Tests are passed
+- ✅ **Unit Tests are written and PASSING** - This is non-negotiable
 - ✅ Files are created in correct locations
 - ✅ Implementation meets user requirements
 - ✅ Documentation is clear and complete

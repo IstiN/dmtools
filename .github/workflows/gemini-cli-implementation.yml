@@ -170,33 +170,46 @@ jobs:
         
         # Extract values using jq if available, otherwise use grep/sed
         if command -v jq >/dev/null 2>&1; then
-          BRANCH_PREFIX=$(cat outputs/pr_notes.json | jq -r '.branchName')
+          FULL_BRANCH_NAME=$(cat outputs/pr_notes.json | jq -r '.branchName')
           COMMIT_MESSAGE=$(cat outputs/pr_notes.json | jq -r '.commitMessage' | tr '\n' ' ')
           PR_TITLE=$(cat outputs/pr_notes.json | jq -r '.pullRequestTitle')
         else
           # Fallback parsing without jq
-          BRANCH_PREFIX=$(grep '"branchName"' outputs/pr_notes.json | sed 's/.*"branchName"[^"]*"\([^"]*\)".*/\1/' | head -1)
+          FULL_BRANCH_NAME=$(grep '"branchName"' outputs/pr_notes.json | sed 's/.*"branchName"[^"]*"\([^"]*\)".*/\1/' | head -1)
           COMMIT_MESSAGE=$(grep '"commitMessage"' outputs/pr_notes.json | sed 's/.*"commitMessage"[^"]*"\([^"]*\)".*/\1/' | head -1 | tr '\n' ' ')
           PR_TITLE=$(grep '"pullRequestTitle"' outputs/pr_notes.json | sed 's/.*"pullRequestTitle"[^"]*"\([^"]*\)".*/\1/' | head -1)
+        fi
+        
+        # Parse branch name to extract ticket and prefix (e.g., "api/DMC-413" -> prefix="api", ticket="DMC-413")
+        if [[ "$FULL_BRANCH_NAME" =~ ^([^/]+)/(.+)$ ]]; then
+          BRANCH_PREFIX="${BASH_REMATCH[1]}"
+          TICKET_NUMBER="${BASH_REMATCH[2]}"
+        else
+          # Fallback: try to extract DMC-XXX pattern
+          TICKET_NUMBER=$(echo "$FULL_BRANCH_NAME" | grep -o 'DMC-[0-9]\+' | head -1)
+          BRANCH_PREFIX="core"  # Default prefix
         fi
         
         # Clean up commit message - remove excessive whitespace and truncate if too long
         COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed 's/  */ /g' | cut -c1-200)
         
         echo "📋 Extracted PR details:"
-        echo "- Branch: $BRANCH_PREFIX"
+        echo "- Full Branch Name: $FULL_BRANCH_NAME"
+        echo "- Branch Prefix: $BRANCH_PREFIX"
+        echo "- Ticket Number: $TICKET_NUMBER"
         echo "- Commit: $COMMIT_MESSAGE"
         echo "- PR Title: $PR_TITLE"
         
         # Debug the parameters before calling git workflow
         echo "🔍 Git workflow parameters:"
-        echo "- BRANCH_PREFIX: '$BRANCH_PREFIX'"
+        echo "- TICKET_NUMBER: '$TICKET_NUMBER'"
         echo "- COMMIT_MESSAGE: '$COMMIT_MESSAGE'"
         echo "- PR_TITLE: '$PR_TITLE'"
+        echo "- BRANCH_PREFIX: '$BRANCH_PREFIX'"
         
         # Use our Git workflow script to handle the entire Git workflow
-        # Pass branch prefix and commit message from PR notes
-        if WORKFLOW_OUTPUT=$(./cli_agents/scripts/git-workflow.sh "full-workflow" "$BRANCH_PREFIX" "$COMMIT_MESSAGE" "$PR_TITLE" 2>&1); then
+        # Pass parameters in correct order: ticket, commit_message, pr_title, branch_prefix
+        if WORKFLOW_OUTPUT=$(./cli_agents/scripts/git-workflow.sh "full-workflow" "$TICKET_NUMBER" "$COMMIT_MESSAGE" "$PR_TITLE" "$BRANCH_PREFIX" 2>&1); then
           echo "✅ Git workflow completed successfully"
           echo "$WORKFLOW_OUTPUT"
         else
