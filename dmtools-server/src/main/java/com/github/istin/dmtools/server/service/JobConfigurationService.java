@@ -8,7 +8,9 @@ import com.github.istin.dmtools.auth.repository.UserRepository;
 import com.github.istin.dmtools.dto.*;
 import com.github.istin.dmtools.server.model.JobConfiguration;
 import com.github.istin.dmtools.server.repository.JobConfigurationRepository;
+import com.github.istin.dmtools.server.repository.JobExecutionRepository; // Added
 import com.github.istin.dmtools.server.exception.ValidationException;
+import com.github.istin.dmtools.server.exception.JobConfigurationDeletionException; // Added
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,18 +30,21 @@ public class JobConfigurationService {
     private final ObjectMapper objectMapper;
     private final DotNotationTransformer dotNotationTransformer;
     private final ParameterValidator parameterValidator;
+    private final JobExecutionRepository jobExecutionRepository; // Added
 
     public JobConfigurationService(
             JobConfigurationRepository jobConfigRepository,
             UserRepository userRepository,
             ObjectMapper objectMapper,
             DotNotationTransformer dotNotationTransformer,
-            ParameterValidator parameterValidator) {
+            ParameterValidator parameterValidator,
+            JobExecutionRepository jobExecutionRepository) { // Added
         this.jobConfigRepository = jobConfigRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.dotNotationTransformer = dotNotationTransformer;
         this.parameterValidator = parameterValidator;
+        this.jobExecutionRepository = jobExecutionRepository; // Added
     }
 
     /**
@@ -198,7 +203,14 @@ public class JobConfigurationService {
             return false;
         }
         
-        jobConfigRepository.delete(optionalJobConfig.get());
+        JobConfiguration jobConfig = optionalJobConfig.get();
+
+        // Check for existing job executions
+        if (!jobExecutionRepository.findByJobConfigurationOrderByStartedAtDesc(jobConfig).isEmpty()) {
+            throw new JobConfigurationDeletionException("Cannot delete job configuration with existing job executions.");
+        }
+
+        jobConfigRepository.delete(jobConfig);
         return true;
     }
 

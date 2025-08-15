@@ -8,8 +8,9 @@ group = 'com.github.istin.dmtools'
 version = '0.0.1-SNAPSHOT'
 
 java {
-    sourceCompatibility = '23'
-    targetCompatibility = '23'
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 repositories {

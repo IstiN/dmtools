@@ -57,7 +57,20 @@ public class GitHubWorkflowIntegrationTest {
         String repo = "dmtools";
         Long runId = 16859458667L;
         
-        BasicGithub github = (BasicGithub) BasicGithub.getInstance();
+        String token = System.getenv("GITHUB_TOKEN");
+        // For local testing, you might need to set a dummy token if not running with real credentials
+        if (token == null) {
+            token = "dummy_token_for_test"; 
+        }
+        SourceCodeConfig config = SourceCodeConfig.builder()
+                .path("https://api.github.com")
+                .auth(token)
+                .workspaceName(owner)
+                .repoName(repo)
+                .branchName("main")
+                .type(SourceCodeConfig.Type.GITHUB)
+                .build();
+        BasicGithub github = new BasicGithub(config);
 
         // Use reflection to test private method
 

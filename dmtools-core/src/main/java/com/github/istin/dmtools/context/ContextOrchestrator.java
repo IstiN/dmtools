@@ -51,7 +51,7 @@ public class ContextOrchestrator {
                 List<FileToTextTransformer.TransformationResult> transformationResults = FileToTextTransformer.transform(file);
                 if (transformationResults != null) {
                     if (transformationResults.size() == 1) {
-                        FileToTextTransformer.TransformationResult first = transformationResults.getFirst();
+                        FileToTextTransformer.TransformationResult first = transformationResults.get(0);
                         processorMemory.put(resourceUriKey, first.text());
                         List<File> files = first.files();
                         if (files != null) {

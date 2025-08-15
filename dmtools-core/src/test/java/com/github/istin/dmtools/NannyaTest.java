@@ -208,6 +208,7 @@ public class NannyaTest {
     }
 
     @Test
+    @Disabled("Disabling web scraping test as it relies on external resources and is not suitable for automated unit tests.")
     public void test() throws Exception {
         NannySorter.main(null);
     }

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8"/>
+    <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro' rel='stylesheet' type='text/css'>
+            <style type="text/css">table, th, td {
+    border-collapse: collapse;
+    word-wrap: break-word;
+	max-width: 600px;
+    min-width: 160px;
+    text-align: left;
+    font-weight: normal;
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 10pt;
+}
+
+.dependencies td:nth-child(1),
+.dependencies td:nth-child(3),
+.dependencies td:nth-child(5) {
+  width: 8%;
+}
+.dependencies td:nth-child(2),
+.dependencies td:nth-child(4){
+  width: 35%;
+}
+.dependencies th {
+    text-transform: uppercase;
+    text-align: left;
+    vertical-align: top;
+    font-weight: normal;
+    font-family: 'Source Sans Pro', sans-serif;
+    font-weight: lighter;
+    font-size: 8pt;
+    padding-bottom: 1em;
+    color: #b7b7b7;
+    padding-left: 6px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+a {
+    color: #32B6CE;
+}
+
+.current {
+	position: relative;
+}
+
+ .current:after {
+	content: '';
+	display: block;
+	position: absolute;
+	width: 2px;
+	height: 1000vh;
+	background: red;
+}
+
+.current:after {
+	right: 0;
+	top: 0;
+}
+.current:before {
+	left: 0;
+}
+
+
+h2 {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 20pt;
+  color: #39C2D7;
+  font-weight: normal;
+}
+
+h1 {
+  font-family: 'Source Sans Pro';
+  font-size: 14pt;
+  color: #39C2D7;
+  font-weight: bolder;
+}
+
+tr.sprint>th {
+  color: #39C2D7;
+  font-family: "Oswald";
+  font-weight: normal;
+  font-size: 14pt; }
+
+tr.date>th {
+  color: #464547;
+  font-family: "Oswald";
+  font-weight: lighter;
+}
+
+tr.version>th {
+  border-bottom: 1px solid #464547;
+  margin-bottom: 10px;
+  font-family: "Oswald";
+  padding-bottom: 0.5em;
+  font-weight: bolder;
+}
+
+tr.space>th {
+  padding-bottom: 1em;
+}
+
+.per_100 {
+  background: #94D333;
+}
+.per_80 {
+  background: #C8DE49;
+}
+.per_60 {
+  background: #E2F475;
+}
+.per_40 {
+  background: #F0FFA3;
+}
+
+.per_20 {
+  background: #F5FAD8;
+}
+.per_0 {
+  background: #ECFDFF;
+}.no_capacity {
+  background: #FA8F8F;
+}
+td {
+  border: 2px solid #ffffff;
+  padding-left: 6px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  vertical-align : top;}
+
+p.label {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  padding-right: 4px;
+  margin: 0px;
+  text-align: right;
+  font-size: 8pt;
+  font-family: "Oswald";
+  font-weight: bold;
+  color: #838383;
+}div.new {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  padding-left: 4px;
+  padding-right: 4px;
+  margin: 0px;
+  background: #D03939;
+  color: #FFFFFF;
+  text-align: left;
+  font-size: 8pt;
+  font-family: "Oswald";
+  display: inline-block;
+  font-weight: bold;
+}div.ba_sa {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  padding-left: 4px;
+  padding-right: 4px;
+  margin: 0px;
+  background: #F0B0BF;
+  color: #FFFFFF;
+  text-align: left;
+  font-size: 6pt;
+  font-family: "Oswald";
+  display: inline-block;
+  font-weight: bold;
+}div.dev_complete {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  padding-left: 4px;
+  padding-right: 4px;
+  background: #FFFFFF;
+  color: #000000;
+  text-align: left;
+  font-size: 6pt;
+  font-family: "Oswald";
+  display: inline-block;
+  font-weight: bold;
+}p {
+  padding: 0px;
+  padding-right: 4px;
+  margin: 0px;
+}
+p.blocked_by {
+  text-align: left;
+  font-size: 7pt;
+  font-family: "Oswald";
+  display: inline-block;
+  font-weight: bold;
+}
+p.blocked_by_tickets {
+  text-align: left;
+  font-size: 7pt;
+}
+/*tr:nth-child(2n +1):not([class]) {
+     background: lightgrey;
+}*/</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+
+
+</head><body>
+
+<a href="null/issues/?jql=jql">null/issues/?jql=jql</a>
+
+<h2>team Dev Productivity</h2>
+
+<table style="width:100%" class="js-sort-table">
+    <thead>
+<tr class="sprint">
+    <th colspan="1"></th>
+</tr><tr class="date">
+    <th colspan="1"></th>
+</tr><tr class="date version">
+    <th>Name</th>
+    </tr>    <tr class="space">
+        <th></th>
+    </tr>
+    </thead>
+</table>
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+<script type="text/javascript">
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(drawVisualization);
+
+    function drawVisualization() {
+      // Some raw data (not necessarily accurate)
+      var data = google.visualization.arrayToDataTable([
+        ['Sprint','Score'],
+      ]);
+
+      // Light mode options
+      var options = {
+        title: 'Score Earl Barlow (0) ',
+        vAxis: {minValue: 20},
+        hAxis: {title: 'Iterations'},
+        seriesType: 'bars',
+        legend: {position: 'top'},
+        chartArea: { left: "5%", width: "100%" },
+        bar: { groupWidth: "85%" },
+        series: {0: {type: 'line'}}
+      };
+
+      var chart = new google.visualization.ComboChart(document.getElementById('chart_div_team'));
+      chart.draw(data, options);
+    }
+</script>
+<div id="chart_div_team" style="width: 2400px; height: 700px;"></div>
+<style>
+      /* NAME COLUMN AS STICKY  HEADER */
+      table tr td:first-child {
+      /* Background color */
+      background-color: #ddd;
+      /* Stick to the left */
+      left: 0;
+      position: sticky !important;
+      /* Displayed on top of other rows when scrolling */
+      z-index: 9999;
+      }
+
+      /* ROWS COLOR */
+      tr:nth-child(odd) {background-color: #f2f2f2;}
+
+      /* SORTING */
+      table.js-sort-table thead tr.date.version th {
+        position: relative;
+      }
+      table.js-sort-table thead tr.date.version th:before,
+      table.js-sort-table thead tr.date.version th:after
+      {
+        border: 4px solid transparent;
+        content: "";
+        display: block;
+        height: 0;
+        right: 5px;
+        top: 50%;
+        position: absolute;
+        width: 0;
+      }
+      table.js-sort-table thead tr.date.version th:before {
+        border-bottom-color: #666;
+        margin-top: -9px;
+      }
+      table.js-sort-table thead tr.date.version th:after {
+        border-top-color: #666;
+        margin-top: 1px;
+      }
+      table.js-sort-table.js-sort-desc thead tr.date.version > .js-sort-active:not(.js-sort-none):before {border-bottom-color:transparent;}
+      table.js-sort-table.js-sort-asc thead tr.date.version > .js-sort-active:not(.js-sort-none):after {border-top-color:transparent;}
+    </style>
+    <script>
+      /* Copyright (c) 2006-2019 Tyler Uebele * Released under the MIT license. * latest at https://github.com/stationer/sSortTable/ * minified by Google Closure Compiler */
+      function sortTable(a,b,c){sortTable.sortCol=-1;var d=a.className.match(/js-sort-\d+/);null!=d&&(sortTable.sortCol=d[0].replace(/js-sort-/,""),a.className=a.className.replace(new RegExp(" ?"+d[0]+"\\b"),""));"undefined"===typeof b&&(b=sortTable.sortCol);"undefined"!==typeof c?sortTable.sortDir=-1==c||"desc"==c?-1:1:(d=a.className.match(/js-sort-(a|de)sc/),sortTable.sortDir=null!=d&&sortTable.sortCol==b?"js-sort-asc"==d[0]?-1:1:1);a.className=a.className.replace(/ ?js-sort-(a|de)sc/g,"");a.className+=
+      " js-sort-"+b;sortTable.sortCol=b;a.className+=" js-sort-"+(-1==sortTable.sortDir?"desc":"asc");b<a.tHead.rows[a.tHead.rows.length-1].cells.length&&(d=a.tHead.rows[a.tHead.rows.length-1].cells[b].className.match(/js-sort-[-\w]+/));for(c=0;c<a.tHead.rows[a.tHead.rows.length-1].cells.length;c++)b==a.tHead.rows[a.tHead.rows.length-1].cells[c].getAttribute("data-js-sort-colNum")&&(d=a.tHead.rows[a.tHead.rows.length-1].cells[c].className.match(/js-sort-[-\w]+/));sortTable.sortFunc=null!=d?d[0].replace(/js-sort-/,
+      ""):"string";a.querySelectorAll(".js-sort-active").forEach(function(a){a.className=a.className.replace(/ ?js-sort-active\b/,"")});a.querySelectorAll('[data-js-sort-colNum="'+b+'"]:not(:empty)').forEach(function(a){a.className+=" js-sort-active"});b=[];a=a.tBodies[0];for(c=0;c<a.rows.length;c++)b[c]=a.rows[c];for("none"!=sortTable.sortFunc&&b.sort(sortTable.compareRow);a.firstChild;)a.removeChild(a.firstChild);for(c=0;c<b.length;c++)a.appendChild(b[c])}
+      sortTable.compareRow=function(a,b){"function"!=typeof sortTable[sortTable.sortFunc]&&(sortTable.sortFunc="number");a=sortTable[sortTable.sortFunc](a.cells[sortTable.sortCol]);b=sortTable[sortTable.sortFunc](b.cells[sortTable.sortCol]);return a==b?0:sortTable.sortDir*(a>b?1:-1)};sortTable.stripTags=function(a){return a.replace(/<\/?[a-z][a-z0-9]*\b[^>]*>/gi,"")};
+      sortTable.date=function(a){return"undefined"!==typeof okDate?(a=okDate(sortTable.stripTags(a.innerHTML)))?a.getTime():0:(new Date(sortTable.stripTags(a.innerHTML))).getTime()||0};sortTable.number=function(a){return Number(sortTable.stripTags(a.innerHTML).replace(/[^-\d.]/g,""))};sortTable.string=function(a){return sortTable.stripTags(a.innerHTML).toLowerCase()};sortTable.raw=function(a){return a.innerHTML};sortTable.last=function(a){return sortTable.stripTags(a.innerHTML).split(" ").pop().toLowerCase()};
+      sortTable.input=function(a){for(var b=0;b<a.children.length;b++)if("object"==typeof a.children[b]&&"undefined"!=typeof a.children[b].value)return a.children[b].value.toLowerCase();return sortTable.string(a)};sortTable.none=function(a){return null};sortTable.getClickHandler=function(a,b){return function(){sortTable(a,b)}};
+      sortTable.init=function(){var a=document.querySelectorAll?document.querySelectorAll("table.js-sort-table"):document.getElementsByTagName("table");for(var b=0;b<a.length;b++)if((document.querySelectorAll||null!==a[b].className.match(/\bjs-sort-table\b/))&&!a[b].attributes["data-js-sort-table"]){if(a[b].tHead)var c=a[b].tHead;else c=document.createElement("thead"),c.appendChild(a[b].rows[0]),a[b].insertBefore(c,a[b].children[0]);for(var d=0;d<c.rows.length;d++)for(var e=0,f=0;e<c.rows[d].cells.length;e++)if(!c.rows[d].cells[e].className.match(/\bjs-sort-none\b/)){c.rows[d].cells[e].setAttribute("data-js-sort-colNum",
+      f);var g=sortTable.getClickHandler(a[b],f);window.addEventListener?c.rows[d].cells[e].addEventListener("click",g):window.attachEvent&&c.rows[d].cells[e].attachEvent("onclick",g);f+=c.rows[d].cells[e].colSpan}a[b].setAttribute("data-js-sort-table","true")}c=document.createElement("style");document.head.insertBefore(c,document.head.childNodes[0]);c=c.sheet;};window.addEventListener?window.addEventListener("load",sortTable.init,!1):window.attachEvent&&window.attachEvent("onload",sortTable.init);"function"!==typeof NodeList.prototype.forEach&&(NodeList.prototype.forEach=Array.prototype.forEach);
+    </script>
+</body>
+</html>

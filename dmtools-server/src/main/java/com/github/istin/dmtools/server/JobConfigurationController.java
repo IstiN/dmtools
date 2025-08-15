@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import com.github.istin.dmtools.server.exception.JobConfigurationDeletionException; // Added
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -156,6 +157,12 @@ public class JobConfigurationController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete job configuration", 
                description = "Delete a job configuration by its ID")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Job configuration deleted successfully"),
+        @ApiResponse(responseCode = "404", description = "Job configuration not found"),
+        @ApiResponse(responseCode = "409", description = "Cannot delete job configuration with existing job executions"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     public ResponseEntity<Void> deleteJobConfiguration(
             @Parameter(description = "Job configuration ID", required = true)
             @PathVariable String id,
@@ -165,6 +172,8 @@ public class JobConfigurationController {
             boolean deleted = jobConfigurationService.deleteJobConfiguration(id, userId);
             return deleted ? ResponseEntity.noContent().build() 
                           : ResponseEntity.notFound().build();
+        } catch (JobConfigurationDeletionException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
