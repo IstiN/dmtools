@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Entity representing a saved job configuration that users can create and execute.
@@ -55,6 +57,9 @@ public class JobConfiguration {
     
     @Column(nullable = false)
     private long executionCount = 0;
+
+    @OneToMany(mappedBy = "jobConfiguration", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<JobExecution> jobExecutions = new HashSet<>();
     
     @PrePersist
     protected void onCreate() {

@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Entity representing a job execution instance.
@@ -127,4 +129,7 @@ public class JobExecution {
                status == ExecutionStatus.FAILED || 
                status == ExecutionStatus.CANCELLED;
     }
+
+    @OneToMany(mappedBy = "execution", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<JobExecutionLog> logs = new HashSet<>();
 } 
