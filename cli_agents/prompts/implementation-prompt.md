@@ -95,9 +95,10 @@ Provide a comprehensive implementation summary that includes:
 1. A clean, well-formatted markdown response
 2. High-level implementation summary and details
 3. **Description of what was implemented** (not the actual code)
-4. Clear usage instructions and examples
-5. File locations and purposes
-6. **IMPORTANT** if any manual steps, configs are required
+4. **MUST NOT DUPLICATE INFORMATION FROM USER REQUEST**
+5. Clear usage instructions and examples
+6. File locations and purposes
+7. **IMPORTANT** if any manual steps, configs are required
 
 The `outputs/response.md` file should be the definitive implementation summary, formatted clearly without any console logs or debugging information. Focus on **describing what was done** rather than showing all the code.
 
