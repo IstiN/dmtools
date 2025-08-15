@@ -109,6 +109,14 @@ jobs:
           exit 1
         fi
 
+    - name: Clean up Gemini processes before implementation
+      run: |
+        echo "🧹 Cleaning up Gemini processes between runs..."
+        pkill -f "gemini" 2>/dev/null || true
+        pkill -f "node.*gemini" 2>/dev/null || true
+        sleep 2
+        echo "✅ Process cleanup completed"
+
     - name: Implementation using Gemini CLI
       id: gemini_implementation
       run: |
