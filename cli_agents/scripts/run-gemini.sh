@@ -111,24 +111,44 @@ RESPONSE_LOG_FILE="$OUTPUT_DIR/response-log_${TIMESTAMP}.txt"
 # Run Gemini CLI and capture output
 echo "📋 Running Gemini CLI to process user request..."
 
+# Debug information
+echo "🔍 Debug: Checking Gemini CLI availability..."
+which gemini || echo "❌ WARNING: gemini command not found in PATH"
+echo "🔍 Debug: Gemini CLI version:"
+gemini --version 2>&1 || echo "❌ WARNING: Could not get Gemini CLI version"
+
+echo "🔍 Debug: Environment check:"
+echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:+SET (${#GEMINI_API_KEY} chars)} ${GEMINI_API_KEY:-NOT_SET}"
+echo "- Model: $MODEL"
+echo "- Combined prompt file size: $(wc -c < "$COMBINED_PROMPT_FILE") bytes"
+
+echo "🚀 Executing: gemini --yolo --prompt <prompt_content>"
+echo "📏 Prompt length: ${#COMBINED_PROMPT_CONTENT} characters"
+
 if GEMINI_RESPONSE=$(gemini --yolo --prompt "$COMBINED_PROMPT_CONTENT" 2>&1); then
     GEMINI_EXIT_CODE=0
     echo "✅ Gemini CLI execution successful"
+    echo "📏 Response length: ${#GEMINI_RESPONSE} characters"
     
     # Check if Gemini created the response.md file itself
     if [ -f "$RESPONSE_FILE" ]; then
         echo "📄 Gemini created response file: $RESPONSE_FILE"
+        echo "📏 Response file size: $(wc -c < "$RESPONSE_FILE") bytes"
     else
         # Fallback: create response file from Gemini output (cleaned)
         echo "📄 Creating response file from Gemini output"
         # Remove console logs and keep only the clean response
         echo "$GEMINI_RESPONSE" | sed '/^(node:[0-9]*)/d' | sed '/Both GOOGLE_API_KEY and GEMINI_API_KEY are set/d' > "$RESPONSE_FILE"
+        echo "📏 Created response file size: $(wc -c < "$RESPONSE_FILE") bytes"
     fi
     
     echo "📄 Response available at: $RESPONSE_FILE"
 else
     GEMINI_EXIT_CODE=$?
     echo "❌ ERROR: Gemini CLI failed with exit code $GEMINI_EXIT_CODE"
+    echo "📏 Error response length: ${#GEMINI_RESPONSE} characters"
+    echo "🔍 Error details:"
+    echo "$GEMINI_RESPONSE" | head -20  # Show first 20 lines of error
     
     # Write error response to markdown file
     cat > "$RESPONSE_FILE" << EOF

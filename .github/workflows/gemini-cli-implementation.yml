@@ -65,14 +65,43 @@ jobs:
         # Export environment variables for Gemini CLI
         export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
         
-        # Run implementation using our simplified script
-        IMPLEMENTATION_OUTPUT_FILE=$(./cli_agents/scripts/run-gemini.sh "implementation" "outputs/user-request.txt")
+        # Enable debug logging for Gemini CLI
+        export DEBUG="gemini*"
+        export NODE_OPTIONS="--trace-warnings"
+        
+        echo "🔍 Debug: Checking Gemini CLI installation..."
+        which gemini || echo "❌ Gemini CLI not found in PATH"
+        gemini --version || echo "❌ Failed to get Gemini CLI version"
+        
+        echo "🔍 Debug: Environment variables:"
+        echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:0:10}..."
+        echo "- PWD: $(pwd)"
+        echo "- User request file exists: $(test -f outputs/user-request.txt && echo 'YES' || echo 'NO')"
+        
+        echo "🔍 Debug: Contents of user request:"
+        cat outputs/user-request.txt || echo "❌ Could not read user request file"
+        
+        # Run implementation using our simplified script with verbose output
+        echo "🚀 Executing run-gemini.sh script..."
+        set -x  # Enable command tracing
+        IMPLEMENTATION_OUTPUT_FILE=$(./cli_agents/scripts/run-gemini.sh "implementation" "outputs/user-request.txt" 2>&1)
         IMPLEMENTATION_EXIT_CODE=$?
+        set +x  # Disable command tracing
+        
+        echo "📋 Script output:"
+        echo "$IMPLEMENTATION_OUTPUT_FILE"
+        
+        echo "📋 Script exit code: $IMPLEMENTATION_EXIT_CODE"
+        
+        # Check for log files
+        echo "🔍 Debug: Checking for log files..."
+        ls -la outputs/ || echo "❌ No outputs directory found"
         
         # Check if implementation was successful
         if [ $IMPLEMENTATION_EXIT_CODE -eq 0 ]; then
           echo "✅ Implementation completed successfully"
           if [ -f "outputs/response.md" ]; then
+            echo "📄 Found response.md file"
             IMPLEMENTATION_RESPONSE=$(cat outputs/response.md)
             echo "gemini_response<<EOF" >> $GITHUB_OUTPUT
             echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_OUTPUT
@@ -83,7 +112,14 @@ jobs:
           fi
         else
           echo "❌ Implementation failed with exit code $IMPLEMENTATION_EXIT_CODE"
-          echo "gemini_response=Implementation failed" >> $GITHUB_OUTPUT
+          
+          # Try to get error details from log files
+          if [ -f "outputs/response-log_"*".txt" ]; then
+            echo "📋 Error log content:"
+            cat outputs/response-log_*.txt
+          fi
+          
+          echo "gemini_response=Implementation failed with exit code $IMPLEMENTATION_EXIT_CODE" >> $GITHUB_OUTPUT
         fi
 
     - name: Create implementation summary and handle Git workflow
