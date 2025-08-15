@@ -199,24 +199,41 @@ jobs:
         # Extract values using jq if available, otherwise use grep/sed
         if command -v jq >/dev/null 2>&1; then
           BRANCH_PREFIX=$(cat outputs/pr_notes.json | jq -r '.branchName')
-          COMMIT_MESSAGE=$(cat outputs/pr_notes.json | jq -r '.commitMessage')
+          COMMIT_MESSAGE=$(cat outputs/pr_notes.json | jq -r '.commitMessage' | tr '\n' ' ')
           PR_TITLE=$(cat outputs/pr_notes.json | jq -r '.pullRequestTitle')
         else
           # Fallback parsing without jq
           BRANCH_PREFIX=$(grep '"branchName"' outputs/pr_notes.json | sed 's/.*"branchName"[^"]*"\([^"]*\)".*/\1/' | head -1)
-          COMMIT_MESSAGE=$(grep '"commitMessage"' outputs/pr_notes.json | sed 's/.*"commitMessage"[^"]*"\([^"]*\)".*/\1/' | head -1)
+          COMMIT_MESSAGE=$(grep '"commitMessage"' outputs/pr_notes.json | sed 's/.*"commitMessage"[^"]*"\([^"]*\)".*/\1/' | head -1 | tr '\n' ' ')
           PR_TITLE=$(grep '"pullRequestTitle"' outputs/pr_notes.json | sed 's/.*"pullRequestTitle"[^"]*"\([^"]*\)".*/\1/' | head -1)
         fi
+        
+        # Clean up commit message - remove excessive whitespace and truncate if too long
+        COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed 's/  */ /g' | cut -c1-200)
         
         echo "📋 Extracted PR details:"
         echo "- Branch: $BRANCH_PREFIX"
         echo "- Commit: $COMMIT_MESSAGE"
         echo "- PR Title: $PR_TITLE"
         
+        # Debug the parameters before calling git workflow
+        echo "🔍 Git workflow parameters:"
+        echo "- BRANCH_PREFIX: '$BRANCH_PREFIX'"
+        echo "- COMMIT_MESSAGE: '$COMMIT_MESSAGE'"
+        echo "- PR_TITLE: '$PR_TITLE'"
+        
         # Use our Git workflow script to handle the entire Git workflow
         # Pass branch prefix and commit message from PR notes
-        WORKFLOW_OUTPUT=$(./cli_agents/scripts/git-workflow.sh "full-workflow" "$BRANCH_PREFIX" "$COMMIT_MESSAGE" "$PR_TITLE")
-        echo "$WORKFLOW_OUTPUT"
+        if WORKFLOW_OUTPUT=$(./cli_agents/scripts/git-workflow.sh "full-workflow" "$BRANCH_PREFIX" "$COMMIT_MESSAGE" "$PR_TITLE" 2>&1); then
+          echo "✅ Git workflow completed successfully"
+          echo "$WORKFLOW_OUTPUT"
+        else
+          WORKFLOW_EXIT_CODE=$?
+          echo "❌ Git workflow failed with exit code $WORKFLOW_EXIT_CODE"
+          echo "📋 Git workflow output:"
+          echo "$WORKFLOW_OUTPUT"
+          exit $WORKFLOW_EXIT_CODE
+        fi
         
         # Extract environment variables from the git workflow output
         if echo "$WORKFLOW_OUTPUT" | grep -q "HAS_CHANGES=true"; then
