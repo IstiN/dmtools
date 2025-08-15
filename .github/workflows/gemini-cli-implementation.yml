@@ -89,15 +89,7 @@ jobs:
           exit 1
         fi
 
-    - name: Clean up Gemini processes before implementation
-      run: |
-        echo "🧹 Cleaning up orphaned Gemini processes between runs..."
-        # Kill any orphaned node processes related to gemini
-        pkill -f "node.*@google/gemini-cli" 2>/dev/null || true
-        # Clean up any stuck npm processes
-        pkill -f "npm.*gemini" 2>/dev/null || true
-        sleep 1
-        echo "✅ Process cleanup completed"
+
 
     - name: Implementation using Gemini CLI
       id: gemini_implementation
