@@ -53,37 +53,19 @@ jobs:
       run: |
         ./cli_agents/scripts/setup-cli-env.sh "gemini" "${{ github.event.inputs.model }}" "${{ secrets.GEMINI_API_KEY }}"
 
-    - name: Generate PR details using Gemini
+    - name: Generate PR details using direct Gemini API
       id: generate_pr_details
       run: |
-        echo "🔧 Generating PR details using Gemini CLI..."
+        echo "🔧 Generating PR details using direct Gemini API..."
         
-        # Export environment variables for Gemini CLI
+        # Export environment variables for API call
         export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
         
-        # Create combined prompt for PR generation
-        CURRENT_DIR=$(pwd)
-        PR_PROMPT_FILE="outputs/pr-generation-prompt.md"
-        
-        cat > "$PR_PROMPT_FILE" << EOF
-        # PR Details Generation Request
-        
-        **Working Directory:** $CURRENT_DIR
-        
-        **User Request:**
-        $(cat outputs/user-request.txt)
-        
-        ---
-        
-        $(cat cli_agents/prompts/pull_request_and_commit.md)
-        EOF
-        
-        echo "🚀 Executing Gemini CLI for PR generation..."
-        if PR_GENERATION_RESPONSE=$(gemini --yolo --prompt "$(cat "$PR_PROMPT_FILE")" 2>&1); then
+        # Use our direct API script for PR generation
+        if ./cli_agents/scripts/generate_pr_notes.sh "outputs/user-request.txt" "outputs"; then
           echo "✅ PR details generation successful"
-          echo "📄 Gemini response length: ${#PR_GENERATION_RESPONSE} characters"
           
-          # Verify pr_notes.json was created
+          # Verify pr_notes.json was created and is valid
           if [ -f "outputs/pr_notes.json" ]; then
             echo "✅ Found pr_notes.json file"
             echo "📋 PR notes content:"
@@ -99,9 +81,7 @@ jobs:
               fi
             fi
           else
-            echo "❌ ERROR: pr_notes.json file was not created by Gemini"
-            echo "📋 Gemini response was:"
-            echo "$PR_GENERATION_RESPONSE"
+            echo "❌ ERROR: pr_notes.json file was not created"
             exit 1
           fi
         else
