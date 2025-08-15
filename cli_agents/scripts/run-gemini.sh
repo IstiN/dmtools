@@ -128,7 +128,7 @@ echo "📏 Prompt length: ${#COMBINED_PROMPT_CONTENT} characters"
 # Set Node.js options to handle event listener limits
 export NODE_OPTIONS="--max-old-space-size=4096 --max-http-header-size=8192"
 
-# Note: Process cleanup is handled at the workflow level between steps
+# No process cleanup needed - single execution per workflow
 
 if GEMINI_RESPONSE=$(gemini --yolo --prompt "$COMBINED_PROMPT_CONTENT" 2>&1); then
     GEMINI_EXIT_CODE=0
