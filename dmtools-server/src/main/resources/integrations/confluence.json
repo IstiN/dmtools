@@ -78,7 +78,7 @@
       "required": false,
       "sensitive": false,
       "inputType": "string",
-      "defaultValue": null
+      "defaultValue": "[atlassian_domain]/gateway/api/"
     },
     {
       "key": "CONFLUENCE_DEFAULT_SPACE",

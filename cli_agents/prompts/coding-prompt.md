@@ -5,12 +5,12 @@
 This coding workflow uses a **two-phase approach** for comprehensive and reliable implementations:
 
 ### **PHASE 1: DISCOVERY** 
-- **File**: `aider/discovery-prompt.md`
+- **File**: `cli_agents/prompts/discovery-prompt.md`
 - **Purpose**: Analyze scope and create comprehensive file list
-- **Output**: `aider-outputs/affected-files.json`
+- **Output**: `outputs/affected-files.json`
 
 ### **PHASE 2: IMPLEMENTATION**
-- **File**: `aider/implementation-prompt.md` 
+- **File**: `cli_agents/prompts/implementation-prompt.md` 
 - **Purpose**: Implement changes using discovered file context
 - **Input**: Uses file list from Phase 1
 
@@ -24,7 +24,7 @@ This coding workflow uses a **two-phase approach** for comprehensive and reliabl
 
 ### Use Implementation Phase When:
 - Discovery phase is complete
-- `aider-outputs/affected-files.json` exists
+- `outputs/affected-files.json` exists
 - Ready to make actual code changes
 - Have comprehensive file context
 
@@ -33,13 +33,13 @@ This coding workflow uses a **two-phase approach** for comprehensive and reliabl
 ### For Discovery (Phase 1):
 ```bash
 # Use discovery prompt
-aider --message-file aider/discovery-prompt.md aider-outputs/user-request.txt
+cli --message-file cli_agents/prompts/discovery-prompt.md outputs/user-request.txt
 ```
 
 ### For Implementation (Phase 2):
 ```bash
 # Use implementation prompt (after discovery)
-aider --message-file aider/implementation-prompt.md aider-outputs/user-request.txt aider-outputs/affected-files.json
+cli --message-file cli_agents/prompts/implementation-prompt.md outputs/user-request.txt outputs/affected-files.json
 ```
 
 ## BENEFITS OF TWO-PHASE APPROACH:
@@ -62,7 +62,7 @@ aider --message-file aider/implementation-prompt.md aider-outputs/user-request.t
 
 get /context of what must be changed and do /whole changes of files to reduce mistakes
 
-**READ THE USER REQUEST FILE(`aider-outputs/user-request.txt`)** to understand what code changes are needed. 
+**READ THE USER REQUEST FILE(`outputs/user-request.txt`)** to understand what code changes are needed. 
 
 ## MANDATORY TICKET REQUIREMENT:
 
@@ -95,9 +95,9 @@ Example: If user request doesn't include DMC-XXX, respond with:
 
 ## FINAL SUMMARY FORMAT:
 
-Your final response must be wrapped to <AIDER_RESPONSE> even it's success or not:
+Your final response must be wrapped to <RESPONSE> even it's success or not:
 
-<AIDER_RESPONSE>
+<RESPONSE>
 # Implementation Summary
 
 ## 🚀 Changes Made
@@ -137,11 +137,11 @@ Description of how the implemented solution should work.
 ## 📝 Additional Notes
 
 Any important notes, considerations, or follow-up tasks.
-</AIDER_RESPONSE>
+</RESPONSE>
 
 ## GIT WORKFLOW INTEGRATION:
 
-After completing the implementation, you MUST create a feature branch and commit your changes using Aider's built-in commands following DMTools conventions:
+After completing the implementation, you MUST create a feature branch and commit your changes using built-in commands following DMTools conventions:
 
 1. **Create Feature Branch**: Use `/git checkout -b [prefix]/DMC-XXX` format
 2. **Commit Changes**: Use `/commit "DMC-XXX - [ticket summary]\n[Short description of the change]"`
@@ -198,7 +198,7 @@ Before completing implementation, verify:
 ## WORKFLOW INTEGRATION:
 
 - The summary above will be extracted and included in the Pull Request description
-- Aider will handle branch creation and commits automatically following DMTools standards
+- CLI tools will handle branch creation and commits automatically following DMTools standards
 - The GitHub workflow will detect the new branch and create the PR
 - Include any special deployment or setup instructions in the summary
 - Link the created PR to the corresponding Jira ticket (DMC-XXX)

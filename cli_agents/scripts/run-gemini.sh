@@ -1,0 +1,174 @@
+#!/bin/bash
+
+# run-gemini.sh - Execute Gemini CLI with specified parameters
+# Handles prompt preparation and execution
+
+set -e
+
+# Parameters
+PHASE="$1"              # discovery or implementation
+USER_REQUEST_FILE="$2"
+MODEL="${3:-gemini-2.5-flash-preview-05-20}"
+USE_VERTEX_AI="${4:-false}"
+USE_GCA="${5:-false}"
+OUTPUT_DIR="${6:-outputs}"
+
+echo "🚀 Starting Gemini CLI execution..."
+echo "📋 Phase: $PHASE"
+echo "📋 Model: $MODEL"
+echo "📋 Use Vertex AI: $USE_VERTEX_AI"
+echo "📋 Use Gemini Code Assist: $USE_GCA"
+
+# Clean up previous files
+echo "🧹 Cleaning up previous files..."
+rm -f "$OUTPUT_DIR/response.md"
+rm -f "$OUTPUT_DIR"/response-log_*.txt
+rm -f "$OUTPUT_DIR"/*-prompt-combined.md
+echo "✅ Cleanup completed"
+
+# Validate phase
+case "$PHASE" in
+    "discovery"|"implementation")
+        ;;
+    *)
+        echo "ERROR: Invalid phase '$PHASE'. Must be 'discovery' or 'implementation'"
+        exit 1
+        ;;
+esac
+
+# Set environment variables for Gemini CLI
+export GOOGLE_GENAI_USE_VERTEXAI="$USE_VERTEX_AI"
+export GOOGLE_GENAI_USE_GCA="$USE_GCA"
+
+# Prepare prompt file based on phase
+PROMPT_FILE="cli_agents/prompts/${PHASE}-prompt.md"
+COMBINED_PROMPT_FILE="$OUTPUT_DIR/${PHASE}-prompt-combined.md"
+
+if [ ! -f "$PROMPT_FILE" ]; then
+    echo "ERROR: Prompt file not found: $PROMPT_FILE"
+    exit 1
+fi
+
+if [ ! -f "$USER_REQUEST_FILE" ]; then
+    echo "ERROR: User request file not found: $USER_REQUEST_FILE"
+    exit 1
+fi
+
+# Read the prompt content
+PROMPT_CONTENT=$(cat "$PROMPT_FILE")
+
+# Read user request content  
+USER_REQUEST=$(cat "$USER_REQUEST_FILE")
+
+# Prepare combined prompt based on phase
+echo "📋 Preparing $PHASE prompt..."
+
+if [ "$PHASE" = "discovery" ]; then
+    # Discovery phase prompt - use the template with user request
+    CURRENT_DIR=$(pwd)
+    cat > "$COMBINED_PROMPT_FILE" << EOF
+# User Request Analysis
+
+**Working Directory:** $CURRENT_DIR
+
+**User Request:**
+\`\`\`
+$USER_REQUEST
+\`\`\`
+
+---
+
+$PROMPT_CONTENT
+EOF
+
+elif [ "$PHASE" = "implementation" ]; then
+    # Implementation phase prompt
+    cat > "$COMBINED_PROMPT_FILE" << EOF
+# Implementation Phase
+
+**User Request:**
+\`\`\`
+$USER_REQUEST
+\`\`\`
+
+---
+
+$PROMPT_CONTENT
+EOF
+
+fi
+
+echo "✅ Combined $PHASE prompt prepared in $COMBINED_PROMPT_FILE"
+
+# Read the combined prompt content
+COMBINED_PROMPT_CONTENT=$(cat "$COMBINED_PROMPT_FILE")
+
+# Create output file for response
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+RESPONSE_FILE="$OUTPUT_DIR/response.md"
+RESPONSE_LOG_FILE="$OUTPUT_DIR/response-log_${TIMESTAMP}.txt"
+
+# Run Gemini CLI and capture output
+echo "📋 Running Gemini CLI to process user request..."
+
+if GEMINI_RESPONSE=$(gemini --yolo --prompt "$COMBINED_PROMPT_CONTENT" 2>&1); then
+    GEMINI_EXIT_CODE=0
+    echo "✅ Gemini CLI execution successful"
+    
+    # Check if Gemini created the response.md file itself
+    if [ -f "$RESPONSE_FILE" ]; then
+        echo "📄 Gemini created response file: $RESPONSE_FILE"
+    else
+        # Fallback: create response file from Gemini output (cleaned)
+        echo "📄 Creating response file from Gemini output"
+        # Remove console logs and keep only the clean response
+        echo "$GEMINI_RESPONSE" | sed '/^(node:[0-9]*)/d' | sed '/Both GOOGLE_API_KEY and GEMINI_API_KEY are set/d' > "$RESPONSE_FILE"
+    fi
+    
+    echo "📄 Response available at: $RESPONSE_FILE"
+else
+    GEMINI_EXIT_CODE=$?
+    echo "❌ ERROR: Gemini CLI failed with exit code $GEMINI_EXIT_CODE"
+    
+    # Write error response to markdown file
+    cat > "$RESPONSE_FILE" << EOF
+# Error Response
+
+**Generated:** $(date)
+**Phase:** $PHASE
+**Model:** $MODEL
+**Exit Code:** $GEMINI_EXIT_CODE
+
+---
+
+## Error Output:
+\`\`\`
+$GEMINI_RESPONSE
+\`\`\`
+EOF
+    
+    echo "📄 Error response written to: $RESPONSE_FILE"
+fi
+
+# Create detailed log file for debugging
+{
+    echo "=== GEMINI CLI EXECUTION LOG ==="
+    echo "Phase: $PHASE"
+    echo "Model: $MODEL"
+    echo "Use Vertex AI: $USE_VERTEX_AI"
+    echo "Use Gemini Code Assist: $USE_GCA"
+    echo "Timestamp: $TIMESTAMP"
+    echo "=== USER REQUEST CONTENT ==="
+    cat "$USER_REQUEST_FILE"
+    echo "=== END USER REQUEST ==="
+    echo "=== GEMINI CLI RESPONSE ==="
+    echo "$GEMINI_RESPONSE"
+    echo "=== GEMINI EXIT CODE: $GEMINI_EXIT_CODE ==="
+    echo "=== EXECUTION END ==="
+} > "$RESPONSE_LOG_FILE"
+
+echo "📋 Response log saved to: $RESPONSE_LOG_FILE"
+
+# Output the response file path and exit code for use by calling script
+echo "$RESPONSE_FILE"
+exit $GEMINI_EXIT_CODE

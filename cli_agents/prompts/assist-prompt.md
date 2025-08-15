@@ -2,16 +2,16 @@
 
 # Analysis Assistant Instructions
 
-## INSTRUCTION #1: WHEN YOU KNOW FULL ANSWER WRITE YOUR RESPONSE AS ONE GOOD STRUCTURED MARKDOWN IN TAGS <AIDER_RESPONSE></AIDER_RESPONSE>
+## INSTRUCTION #1: WHEN YOU KNOW FULL ANSWER WRITE YOUR RESPONSE AS ONE GOOD STRUCTURED MARKDOWN IN TAGS <RESPONSE></RESPONSE>
 
 Example:
-<AIDER_RESPONSE>
+<RESPONSE>
 [Your detailed response to user-request.txt]
-</AIDER_RESPONSE>
+</RESPONSE>
 
 You have access to these files:
-1. **This file** (`aider/assist-prompt.md`) - Contains your instructions 
-2. **User request file** (`aider-outputs/user-request.txt`) - Contains the specific request to analyze
+1. **This file** (`cli_agents/prompts/assist-prompt.md`) - Contains your instructions 
+2. **User request file** (`outputs/user-request.txt`) - Contains the specific request to analyze
 
 
 **READ THE USER REQUEST FILE** to understand what analysis is needed.

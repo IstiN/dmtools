@@ -19,11 +19,6 @@ on:
         default: 'gemini/gemini-2.5-flash-preview-05-20'
         options:
           - gemini/gemini-2.5-flash-preview-05-20
-          - gemini/gemini-1.5-pro-latest
-          - gemini/gemini-1.5-pro-002
-          - gemini/gemini-1.5-flash-latest
-          - gemini/gemini-1.5-flash-002
-          - gemini/gemini-1.0-pro-latest
       gemini_api_key_secret:
         description: 'GitHub secret name containing Gemini API key'
         required: false
@@ -52,63 +47,63 @@ jobs:
         user_request: ${{ inputs.user_request }}
         target_files: ${{ inputs.target_files }}
         model: ${{ inputs.model }}
-        gemini_api_key: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
+        api_key: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
         max_tokens: ${{ inputs.max_tokens }}
-        prompt_file: 'aider/assist-prompt.md'
+        prompt_file: 'cli_agents/prompts/assist-prompt.md'
         mode: 'analysis'
 
     - name: Upload execution logs as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: aider-execution-logs-${{ github.run_number }}
+        name: cli-execution-logs-${{ github.run_number }}
         path: |
-          aider-outputs/response_*.txt
-          aider-outputs/user-request.txt
+          outputs/response_*.txt
+          outputs/user-request.txt
         retention-days: 7
 
     - name: Create dedicated response artifact
       run: |
         # Create dedicated response file for API consumption
-        mkdir -p aider-outputs/api-response
+        mkdir -p outputs/api-response
         
-        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.aider_response }}" ]; then
+        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.cli_response }}" ]; then
           echo "✅ Creating dedicated analysis response artifact for API consumption"
           
           # Create single markdown response file
-          echo "# Analysis Response" > aider-outputs/api-response/response.md
-          echo "" >> aider-outputs/api-response/response.md
-          echo "${{ steps.aider_run.outputs.aider_response }}" >> aider-outputs/api-response/response.md
+          echo "# Analysis Response" > outputs/api-response/response.md
+          echo "" >> outputs/api-response/response.md
+          echo "${{ steps.aider_run.outputs.cli_response }}" >> outputs/api-response/response.md
           
           echo "📝 Response artifact created successfully"
-          echo "Response size: $(wc -c < aider-outputs/api-response/response.md) bytes"
+          echo "Response size: $(wc -c < outputs/api-response/response.md) bytes"
           
         else
           echo "❌ No analysis response found, creating error artifact"
-          echo "# Analysis Response" > aider-outputs/api-response/response.md
-          echo "" >> aider-outputs/api-response/response.md
-          echo "**ERROR: Analysis Response Not Available**" >> aider-outputs/api-response/response.md
-          echo "" >> aider-outputs/api-response/response.md
-          echo "Could not find AIDER_RESPONSE tags in console output." >> aider-outputs/api-response/response.md
-          echo "Please check the execution logs in artifacts for details." >> aider-outputs/api-response/response.md
+          echo "# Analysis Response" > outputs/api-response/response.md
+          echo "" >> outputs/api-response/response.md
+          echo "**ERROR: Analysis Response Not Available**" >> outputs/api-response/response.md
+          echo "" >> outputs/api-response/response.md
+          echo "Could not find response tags in console output." >> outputs/api-response/response.md
+          echo "Please check the execution logs in artifacts for details." >> outputs/api-response/response.md
         fi
 
     - name: Upload dedicated response artifact
       uses: actions/upload-artifact@v4
       with:
         name: response-${{ github.run_number }}
-        path: aider-outputs/api-response/
+        path: outputs/api-response/
         retention-days: 7
 
-    - name: Display Aider response
+    - name: Display CLI response
       run: |
         # Display response or error information in step summary
-        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.aider_response }}" ]; then
-          echo "## 🎯 Aider Analysis Response" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.cli_response }}" ]; then
+          echo "## 🎯 CLI Analysis Response" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.aider_run.outputs.aider_response }}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.aider_run.outputs.cli_response }}" >> $GITHUB_STEP_SUMMARY
         else
           echo "## ❌ Analysis Response Not Available" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Could not find AIDER_RESPONSE tags in console output." >> $GITHUB_STEP_SUMMARY
+          echo "Could not find response tags in console output." >> $GITHUB_STEP_SUMMARY
           echo "Please check the execution logs in artifacts for details." >> $GITHUB_STEP_SUMMARY
         fi
