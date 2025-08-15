@@ -149,16 +149,43 @@ jobs:
         fi
         
         # Use our Git workflow script to handle the entire Git workflow
-        ./cli_agents/scripts/git-workflow.sh "full-workflow" "$TICKET_NUMBER" "$COMMIT_MESSAGE" "$COMMIT_MESSAGE"
+        WORKFLOW_OUTPUT=$(./cli_agents/scripts/git-workflow.sh "full-workflow" "$TICKET_NUMBER" "$COMMIT_MESSAGE" "$COMMIT_MESSAGE")
+        echo "$WORKFLOW_OUTPUT"
+        
+        # Extract environment variables from the git workflow output
+        if echo "$WORKFLOW_OUTPUT" | grep -q "HAS_CHANGES=true"; then
+          echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          echo "✅ Changes detected - PR will be created"
+        else
+          echo "HAS_CHANGES=false" >> $GITHUB_ENV
+          echo "ℹ️ No changes detected - PR creation skipped"
+        fi
+        
+        if echo "$WORKFLOW_OUTPUT" | grep -q "BRANCH_NAME="; then
+          BRANCH_NAME=$(echo "$WORKFLOW_OUTPUT" | grep "BRANCH_NAME=" | cut -d'=' -f2)
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "📋 Branch name: $BRANCH_NAME"
+        fi
+        
+        if echo "$WORKFLOW_OUTPUT" | grep -q "PR_TITLE="; then
+          PR_TITLE=$(echo "$WORKFLOW_OUTPUT" | grep "PR_TITLE=" | cut -d'=' -f2)
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          echo "📋 PR title: $PR_TITLE"
+        fi
 
     - name: Create Pull Request
       if: env.HAS_CHANGES == 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        BRANCH_NAME="$BRANCH_NAME"
-        PR_TITLE="$PR_TITLE"
+        BRANCH_NAME="${{ env.BRANCH_NAME }}"
+        PR_TITLE="${{ env.PR_TITLE }}"
         BASE_BRANCH="${{ github.event.inputs.pr_base_branch }}"
+        
+        echo "🔍 PR Creation Debug:"
+        echo "- Branch: $BRANCH_NAME"
+        echo "- Title: $PR_TITLE"
+        echo "- Base: $BASE_BRANCH"
         
         # Get the implementation summary for PR body
         if [ -f "outputs/pr-summary/implementation-summary.md" ]; then
@@ -200,13 +227,30 @@ jobs:
         echo "PR_URL=$PR_URL" >> $GITHUB_ENV
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
-    - name: Upload execution logs as artifact
+    - name: Prepare artifacts for upload
+      run: |
+        echo "📋 Files available for upload:"
+        ls -la outputs/ || echo "❌ No outputs directory found"
+        echo ""
+        echo "📄 Response file content preview:"
+        if [ -f "outputs/response.md" ]; then
+          echo "✅ response.md exists ($(wc -c < outputs/response.md) bytes)"
+          head -10 outputs/response.md
+        else
+          echo "❌ response.md not found"
+        fi
+
+    - name: Upload execution results as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: gemini-cli-logs-${{ github.run_number }}
+        name: gemini-cli-results-${{ github.run_number }}
         path: |
-          outputs/
+          outputs/response.md
+          outputs/response-log_*.txt
+          outputs/implementation-prompt-combined.md
+          outputs/user-request.txt
         retention-days: 7
+        if-no-files-found: warn
 
     - name: Display execution summary
       env:
@@ -221,30 +265,41 @@ jobs:
         echo "- **Model**: ${{ github.event.inputs.model }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        # Show original request
-        echo "### 📝 Original Request" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        cat outputs/user-request.txt >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
         # Show implementation results
-        if [ "$HAS_CHANGES" = "true" ]; then
+        if [ "${{ env.HAS_CHANGES }}" = "true" ]; then
           echo "### ✅ Implementation Results" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: Implementation completed with changes" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: $BRANCH_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "- **Pull Request**: [#$PR_NUMBER]($PR_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ env.BRANCH_NAME }}" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ env.PR_NUMBER }}" ]; then
+            echo "- **Pull Request**: [#${{ env.PR_NUMBER }}](${{ env.PR_URL }})" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Pull Request**: Creation in progress..." >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          echo "### 📊 Implementation Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_STEP_SUMMARY
+          # Show clean implementation summary from response.md
+          if [ -f "outputs/response.md" ]; then
+            echo "### 📊 Implementation Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat outputs/response.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 📝 Implementation Details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_STEP_SUMMARY
+          fi
         else
           echo "### ℹ️ No Changes Made" >> $GITHUB_STEP_SUMMARY
           echo "Gemini CLI completed execution but no code changes were necessary or made." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          echo "### 📝 Gemini CLI Response" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_STEP_SUMMARY
+          # Show clean response from response.md if available
+          if [ -f "outputs/response.md" ]; then
+            echo "### 📊 Implementation Analysis" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat outputs/response.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 📝 Response Details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "$IMPLEMENTATION_RESPONSE" >> $GITHUB_STEP_SUMMARY
+          fi
         fi
