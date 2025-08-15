@@ -207,13 +207,22 @@ jobs:
         fi
         
         # Create the pull request using GitHub CLI
-        gh pr create \
+        echo "🚀 Creating pull request..."
+        if gh pr create \
           --title "$PR_TITLE" \
           --body-file "$PR_BODY_FILE" \
           --base "$BASE_BRANCH" \
-          --head "$BRANCH_NAME" \
-          --label "gemini-cli-generated" \
-          --label "automated-pr"
+          --head "$BRANCH_NAME"; then
+          echo "✅ Pull request created successfully!"
+          
+          # Try to add labels (non-critical if they fail)
+          echo "🏷️ Adding labels..."
+          gh pr edit "$BRANCH_NAME" --add-label "gemini-cli-generated" || echo "⚠️ Could not add label 'gemini-cli-generated'"
+          gh pr edit "$BRANCH_NAME" --add-label "automated-pr" || echo "⚠️ Could not add label 'automated-pr'"
+        else
+          echo "❌ Failed to create pull request"
+          exit 1
+        fi
         
         # Get the PR URL and number
         PR_URL=$(gh pr view "$BRANCH_NAME" --json url --jq '.url')
