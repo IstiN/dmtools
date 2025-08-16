@@ -103,9 +103,11 @@ jobs:
         # Export environment variables for Gemini CLI
         export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
         
-        # Enable debug logging for Gemini CLI
-        export DEBUG="gemini*"
-        export NODE_OPTIONS="--trace-warnings"
+        # Enable comprehensive debug logging for Gemini CLI
+        export DEBUG="gemini*,@google/gemini-cli*"
+        export NODE_OPTIONS="--trace-warnings --max-old-space-size=8192"
+        export GEMINI_CLI_VERBOSE=true
+        export GEMINI_CLI_LOG_LEVEL=debug
         
         echo "🔍 Debug: Checking Gemini CLI installation..."
         which gemini || echo "❌ Gemini CLI not found in PATH"
@@ -119,21 +121,59 @@ jobs:
         echo "🔍 Debug: Contents of user request:"
         cat outputs/user-request.txt || echo "❌ Could not read user request file"
         
-        # Run implementation using our simplified script with verbose output
-        echo "🚀 Executing run-gemini.sh script..."
-        set -x  # Enable command tracing
-        IMPLEMENTATION_OUTPUT_FILE=$(./cli_agents/scripts/run-gemini.sh "implementation" "outputs/user-request.txt" 2>&1)
-        IMPLEMENTATION_EXIT_CODE=$?
-        set +x  # Disable command tracing
+        echo "🔍 Debug: Environment summary:"
+        echo "- Node version: $(node --version)"
+        echo "- NPM version: $(npm --version)"
+        echo "- Available memory: $(free -h | grep Mem || echo 'Memory info not available')"
+        echo "- Disk space: $(df -h . | tail -1)"
         
-        echo "📋 Script output:"
-        echo "$IMPLEMENTATION_OUTPUT_FILE"
+        # Run implementation using our simplified script with comprehensive logging
+        echo "🚀 Executing run-gemini.sh script with full logging..."
+        echo "📋 Script command: ./cli_agents/scripts/run-gemini.sh implementation outputs/user-request.txt"
+        
+        # Capture both stdout and stderr with timestamps and timeout protection
+        set -x  # Enable command tracing
+        (
+          echo "=== GEMINI CLI EXECUTION START: $(date) ==="
+          echo "🕐 Timeout set to 25 minutes to prevent infinite loops"
+          
+          # Use timeout with kill signal after grace period
+          timeout --signal=TERM --kill-after=60s 25m ./cli_agents/scripts/run-gemini.sh "implementation" "outputs/user-request.txt" 2>&1 | while IFS= read -r line; do
+            echo "[$(date '+%H:%M:%S')] $line"
+            
+            # Check for potential loop indicators
+            if [[ "$line" == *"MaxListenersExceededWarning"* ]]; then
+              echo "[$(date '+%H:%M:%S')] ⚠️ WARNING: Detected potential memory leak warning"
+            fi
+            if [[ "$line" == *"Error executing tool"* ]]; then
+              echo "[$(date '+%H:%M:%S')] ⚠️ WARNING: Detected tool execution error"
+            fi
+          done
+          
+          TIMEOUT_EXIT=$?
+          echo "=== GEMINI CLI EXECUTION END: $(date) ==="
+          if [ $TIMEOUT_EXIT -eq 124 ]; then
+            echo "❌ TIMEOUT: Gemini CLI execution exceeded 25 minutes - likely in infinite loop"
+          elif [ $TIMEOUT_EXIT -eq 137 ]; then
+            echo "❌ KILLED: Gemini CLI process was forcefully terminated"
+          fi
+          exit $TIMEOUT_EXIT
+        ) | tee outputs/gemini-execution.log
+        IMPLEMENTATION_EXIT_CODE=${PIPESTATUS[0]}
+        set +x  # Disable command tracing
         
         echo "📋 Script exit code: $IMPLEMENTATION_EXIT_CODE"
         
-        # Check for log files
-        echo "🔍 Debug: Checking for log files..."
+        # Check for log files and show summary
+        echo "🔍 Debug: Checking for output files..."
         ls -la outputs/ || echo "❌ No outputs directory found"
+        
+        echo "📋 Gemini execution log summary (last 50 lines):"
+        if [ -f "outputs/gemini-execution.log" ]; then
+          tail -50 outputs/gemini-execution.log
+        else
+          echo "❌ No gemini-execution.log found"
+        fi
         
         # Check if implementation was successful
         if [ $IMPLEMENTATION_EXIT_CODE -eq 0 ]; then
@@ -151,13 +191,32 @@ jobs:
         else
           echo "❌ Implementation failed with exit code $IMPLEMENTATION_EXIT_CODE"
           
-          # Try to get error details from log files
-          if [ -f "outputs/response-log_"*".txt" ]; then
-            echo "📋 Error log content:"
-            cat outputs/response-log_*.txt
+          # Determine failure reason
+          if [ $IMPLEMENTATION_EXIT_CODE -eq 124 ]; then
+            FAILURE_REASON="TIMEOUT - Execution exceeded 25 minutes (likely infinite loop)"
+          elif [ $IMPLEMENTATION_EXIT_CODE -eq 137 ]; then
+            FAILURE_REASON="KILLED - Process was forcefully terminated"
+          else
+            FAILURE_REASON="FAILED with exit code $IMPLEMENTATION_EXIT_CODE"
           fi
           
-          echo "gemini_response=Implementation failed with exit code $IMPLEMENTATION_EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "🔍 Failure reason: $FAILURE_REASON"
+          
+          # Try to get error details from log files
+          if [ -f "outputs/response-log_"*".txt" ]; then
+            echo "📋 Error log content (last 100 lines):"
+            tail -100 outputs/response-log_*.txt
+          fi
+          
+          # Show execution log for timeout cases
+          if [ $IMPLEMENTATION_EXIT_CODE -eq 124 ] || [ $IMPLEMENTATION_EXIT_CODE -eq 137 ]; then
+            echo "📋 Last 100 lines of execution log to analyze loop patterns:"
+            if [ -f "outputs/gemini-execution.log" ]; then
+              tail -100 outputs/gemini-execution.log
+            fi
+          fi
+          
+          echo "gemini_response=Implementation $FAILURE_REASON" >> $GITHUB_OUTPUT
         fi
 
     - name: Create implementation summary and handle Git workflow
@@ -332,6 +391,7 @@ jobs:
           outputs/user-request.txt
           outputs/pr_notes.json
           outputs/pr-generation-prompt.md
+          outputs/gemini-execution.log
         retention-days: 7
         if-no-files-found: warn
 
