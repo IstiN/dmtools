@@ -33,13 +33,22 @@ This composite action sets up the complete development environment for DMTools w
 ## Cache Strategy
 
 - **Gradle Cache**: Uses file hashes of `*.gradle*` and `gradle-wrapper.properties`
-- **Playwright Cache**: Uses `package-lock.json` hash
+- **Node.js Cache**: Caches npm cache and node_modules using `package*.json` hash
+- **Playwright Cache**: Uses `package*.json` hash with smart installation checks
 - **Cache Isolation**: Different workflows use different cache keys via `cache-key-suffix`
+
+### Playwright Caching Improvements
+
+- Caches are restored **before** Playwright installation
+- Smart installation check using `--dry-run` to avoid unnecessary downloads
+- Multiple cache paths to handle different runner environments
+- Version-specific cache keys to handle Playwright updates
 
 ## Cache Keys
 
 - Gradle: `{os}-gradle{suffix}-{gradle-files-hash}`
-- Playwright: `{os}-playwright{suffix}-{package-lock-hash}`
+- Node.js: `{os}-node{suffix}-{package-files-hash}`
+- Playwright: `{os}-playwright{suffix}-{package-files-hash}-v1`
 
 ## Used in Workflows
 

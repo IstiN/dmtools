@@ -14,6 +14,10 @@ inputs:
     description: 'Additional suffix for cache keys to avoid conflicts'
     required: false
     default: ''
+  install-playwright:
+    description: 'Whether to install Playwright browsers and dependencies'
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -29,19 +33,6 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
 
-    - name: Install Playwright
-      shell: bash
-      run: |
-        npm init -y
-        npm install -D @playwright/test
-        npx playwright install --with-deps
-
-    - name: Install xmllint
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libxml2-utils
-
     - name: Cache Gradle files
       uses: actions/cache@v4
       with:
@@ -53,11 +44,44 @@ runs:
           ${{ runner.os }}-gradle${{ inputs.cache-key-suffix }}-
           ${{ runner.os }}-gradle-
 
+    - name: Cache Node modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.npm
+          node_modules
+        key: ${{ runner.os }}-node${{ inputs.cache-key-suffix }}-${{ hashFiles('**/package*.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node${{ inputs.cache-key-suffix }}-
+          ${{ runner.os }}-node-
+
     - name: Cache Playwright browsers
       uses: actions/cache@v4
       with:
-        path: ~/.cache/ms-playwright
-        key: ${{ runner.os }}-playwright${{ inputs.cache-key-suffix }}-${{ hashFiles('**/package-lock.json') }}
+        path: |
+          ~/.cache/ms-playwright
+          /home/runner/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright${{ inputs.cache-key-suffix }}-${{ hashFiles('**/package*.json') }}-v1
         restore-keys: |
           ${{ runner.os }}-playwright${{ inputs.cache-key-suffix }}-
           ${{ runner.os }}-playwright-
+
+    - name: Install Playwright
+      shell: bash
+      run: |
+        npm init -y
+        npm install -D @playwright/test
+        
+        # Check if browsers are already installed
+        if npx playwright install --dry-run 2>/dev/null | grep -q "browsers are up to date"; then
+          echo "Playwright browsers are already installed and up to date"
+        else
+          echo "Installing Playwright browsers..."
+          npx playwright install --with-deps
+        fi
+
+    - name: Install xmllint
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libxml2-utils
