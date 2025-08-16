@@ -119,6 +119,9 @@ jobs:
       - name: Set final status
         if: always()
         run: |
+          echo "🔍 Debug: Gradle step outcome = '${{ steps.gradle.outcome }}'"
+          echo "🔍 Debug: Gradle step conclusion = '${{ steps.gradle.conclusion }}'"
+          
           echo "## 📊 Unit Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           

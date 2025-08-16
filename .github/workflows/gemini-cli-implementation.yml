@@ -53,31 +53,21 @@ jobs:
       with:
         cache-key-suffix: '-gemini'
 
-    - name: Setup Gemini CLI MCP Configuration
+    - name: Setup Gemini CLI Configuration
       run: |
-        echo "🔧 Setting up Gemini CLI MCP configuration..."
+        echo "🔧 Setting up Gemini CLI configuration..."
         
         # Create .gemini directory
         mkdir -p ~/.gemini
         
-        # Create MCP settings.json configuration
+        # Create empty MCP settings.json configuration
         cat > ~/.gemini/settings.json << 'EOF'
         {
-          "mcpServers": {
-            "dmtools-prod": {
-              "command": "node",
-              "args": ["/usr/local/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js", "/tmp"],
-              "transport": {
-                "type": "stdio"
-              }
-            }
-          }
+          "mcpServers": {}
         }
         EOF
         
-        echo "✅ MCP configuration created"
-        echo "📋 Configuration content:"
-        cat ~/.gemini/settings.json
+        echo "✅ Empty MCP configuration created (no external tools needed)"
 
     - name: Prepare request for Gemini CLI
       id: prepare_request
