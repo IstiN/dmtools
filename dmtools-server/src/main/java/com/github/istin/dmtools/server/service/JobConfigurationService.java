@@ -8,7 +8,11 @@ import com.github.istin.dmtools.auth.repository.UserRepository;
 import com.github.istin.dmtools.dto.*;
 import com.github.istin.dmtools.server.model.JobConfiguration;
 import com.github.istin.dmtools.server.repository.JobConfigurationRepository;
+import com.github.istin.dmtools.server.repository.JobExecutionRepository;
 import com.github.istin.dmtools.server.exception.ValidationException;
+import com.github.istin.dmtools.server.exception.JobConfigurationDeletionException;
+import com.github.istin.dmtools.server.model.JobExecution;
+import com.github.istin.dmtools.server.model.ExecutionStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.Arrays;
 
 /**
  * Service for managing job configurations.
@@ -24,6 +29,7 @@ import java.util.stream.Collectors;
 public class JobConfigurationService {
 
     private final JobConfigurationRepository jobConfigRepository;
+    private final JobExecutionRepository jobExecutionRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final DotNotationTransformer dotNotationTransformer;
@@ -31,11 +37,13 @@ public class JobConfigurationService {
 
     public JobConfigurationService(
             JobConfigurationRepository jobConfigRepository,
+            JobExecutionRepository jobExecutionRepository,
             UserRepository userRepository,
             ObjectMapper objectMapper,
             DotNotationTransformer dotNotationTransformer,
             ParameterValidator parameterValidator) {
         this.jobConfigRepository = jobConfigRepository;
+        this.jobExecutionRepository = jobExecutionRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.dotNotationTransformer = dotNotationTransformer;
@@ -187,18 +195,38 @@ public class JobConfigurationService {
      * @param jobConfigId The ID of the job configuration to delete
      * @param userId The ID of the user deleting the job configuration
      * @return true if deletion was successful, false if job configuration not found
+     * @throws JobConfigurationDeletionException if the job configuration has active executions
      */
     @Transactional
     public boolean deleteJobConfiguration(String jobConfigId, String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        
+
         Optional<JobConfiguration> optionalJobConfig = jobConfigRepository.findByIdAndCreatedBy(jobConfigId, user);
         if (optionalJobConfig.isEmpty()) {
             return false;
         }
-        
-        jobConfigRepository.delete(optionalJobConfig.get());
+
+        JobConfiguration jobConfig = optionalJobConfig.get();
+
+        // Check for associated job executions
+        List<JobExecution> associatedExecutions = jobExecutionRepository.findByJobConfigurationOrderByStartedAtDesc(jobConfig);
+
+        // Determine if there are any active (PENDING or RUNNING) executions
+        boolean hasActiveExecutions = associatedExecutions.stream()
+                .anyMatch(execution -> Arrays.asList(ExecutionStatus.PENDING, ExecutionStatus.RUNNING).contains(execution.getStatus()));
+
+        if (hasActiveExecutions) {
+            throw new JobConfigurationDeletionException("Cannot delete job configuration with active executions. Please wait for them to complete or cancel them.");
+        }
+
+        // If no active executions, delete all associated executions first
+        if (!associatedExecutions.isEmpty()) {
+            jobExecutionRepository.deleteAll(associatedExecutions);
+        }
+
+        // Finally, delete the job configuration
+        jobConfigRepository.delete(jobConfig);
         return true;
     }
 

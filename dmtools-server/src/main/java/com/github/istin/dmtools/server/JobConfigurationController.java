@@ -3,6 +3,7 @@ package com.github.istin.dmtools.server;
 import com.github.istin.dmtools.auth.service.UserService;
 import com.github.istin.dmtools.dto.*;
 import com.github.istin.dmtools.server.service.JobConfigurationService;
+import com.github.istin.dmtools.server.exception.JobConfigurationDeletionException;
 import com.github.istin.dmtools.server.service.WebhookKeyService;
 import com.github.istin.dmtools.server.service.WebhookExamplesService;
 import com.github.istin.dmtools.server.model.WebhookKey;
@@ -156,7 +157,7 @@ public class JobConfigurationController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete job configuration", 
                description = "Delete a job configuration by its ID")
-    public ResponseEntity<Void> deleteJobConfiguration(
+    public ResponseEntity<String> deleteJobConfiguration(
             @Parameter(description = "Job configuration ID", required = true)
             @PathVariable String id,
             Authentication authentication) {
@@ -165,6 +166,8 @@ public class JobConfigurationController {
             boolean deleted = jobConfigurationService.deleteJobConfiguration(id, userId);
             return deleted ? ResponseEntity.noContent().build() 
                           : ResponseEntity.notFound().build();
+        } catch (JobConfigurationDeletionException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
