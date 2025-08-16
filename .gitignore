@@ -89,3 +89,6 @@ outputs
 .gemini
 dmtools-core/reports
 dmtools-core/screenshots
+node_modules
+package.json
+package-lock.json
