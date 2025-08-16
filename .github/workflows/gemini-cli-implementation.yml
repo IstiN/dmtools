@@ -104,7 +104,10 @@ jobs:
         export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
         
         # Enable comprehensive debug logging for Gemini CLI
-        export DEBUG="gemini*,@google/gemini-cli*"
+        # Based on Gemini CLI source code investigation:
+        export DEBUG=1                              # Main debug flag
+        export DEBUG_MODE=1                         # Alternative debug mode
+        export DEBUG="gemini*,@google/gemini-cli*"  # Namespace-specific debug
         export NODE_OPTIONS="--trace-warnings --max-old-space-size=8192"
         export GEMINI_CLI_VERBOSE=true
         export GEMINI_CLI_LOG_LEVEL=debug
@@ -112,6 +115,15 @@ jobs:
         echo "🔍 Debug: Checking Gemini CLI installation..."
         which gemini || echo "❌ Gemini CLI not found in PATH"
         gemini --version || echo "❌ Failed to get Gemini CLI version"
+        
+        echo "🔍 Debug: Checking MCP server configuration..."
+        echo "- Gemini settings directory:"
+        ls -la ~/.gemini/ 2>/dev/null || echo "❌ No ~/.gemini directory found"
+        echo "- MCP settings file:"
+        cat ~/.gemini/settings.json 2>/dev/null || echo "❌ No settings.json found"
+        
+        echo "🔍 Debug: Testing MCP server connectivity..."
+        echo "This will help identify MCP connection issues when they occur."
         
         echo "🔍 Debug: Environment variables:"
         echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:0:10}..."
@@ -147,6 +159,22 @@ jobs:
             fi
             if [[ "$line" == *"Error executing tool"* ]]; then
               echo "[$(date '+%H:%M:%S')] ⚠️ WARNING: Detected tool execution error"
+            fi
+            
+            # Check for MCP connection patterns (based on CLI source investigation)
+            if [[ "$line" == *"Attempting to connect to"* ]]; then
+              echo "[$(date '+%H:%M:%S')] 🔍 MCP: Connection attempt detected"
+            fi
+            if [[ "$line" == *"Cannot connect to"*"server may be down"* ]]; then
+              echo "[$(date '+%H:%M:%S')] 🚨 MCP: Connection failed"
+            fi
+            if [[ "$line" == *"Connected to"*"server"* ]]; then
+              echo "[$(date '+%H:%M:%S')] ✅ MCP: Connection successful"
+            fi
+            
+            # Debug mode confirmations
+            if [[ "$line" == *"Found readable global GEMINI.md"* ]] || [[ "$line" == *"Searching for GEMINI.md"* ]]; then
+              echo "[$(date '+%H:%M:%S')] 🔍 DEBUG: Memory discovery active"
             fi
           done
           
