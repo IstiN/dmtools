@@ -50,9 +50,13 @@ public class DynamicMCPController {
         this.fileDownloadService = fileDownloadService;
     }
 
-    @PostMapping(value = "/stream/{configId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    import com.github.istin.dmtools.dto.McpStreamRequestParamsDto;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+@PostMapping(value = "/stream/{configId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter mcpStream(@PathVariable String configId, @RequestBody String body, HttpServletRequest request) {
-        logger.info("===== MCP Request for configId: {} =====", configId);
+        logger.info("===== MCP Request (POST) for configId: {} =====", configId);
         logger.info("Request body: {}", body);
 
         // Create a new SSE emitter for each request
@@ -93,6 +97,101 @@ public class DynamicMCPController {
         CompletableFuture.runAsync(() -> {
             try {
                 JSONObject requestJson = new JSONObject(body);
+                String method = requestJson.getString("method");
+                Object id = requestJson.opt("id");
+
+                logger.info("Processing method: {} with id: {}", method, id);
+
+                // Handle different MCP methods
+                switch (method) {
+                    case "initialize":
+                        handleInitialize(emitter, id, requestJson.optJSONObject("params"));
+                        break;
+
+                    case "tools/list":
+                        handleToolsList(emitter, id, configId, userId, integrationIds);
+                        break;
+
+                    case "tools/call":
+                        handleToolCall(emitter, id, requestJson.optJSONObject("params"), configId, userId, integrationIds, request);
+                        break;
+
+                    case "notifications/initialized":
+                        // This is just a notification, acknowledge it but don't send error
+                        logger.info("Received initialized notification");
+                        break;
+
+                    default:
+                        sendError(emitter, id, -32601, "Method not found: " + method);
+                        break;
+                }
+
+                // Ensure response is sent before completing
+                Thread.sleep(100);
+
+        } catch (Exception e) {
+                logger.error("Error processing MCP request", e);
+                try {
+                    emitter.completeWithError(e);
+                } catch (Exception ignored) {
+                    logger.debug("Emitter already completed");
+                }
+            } finally {
+                // Complete the emitter
+                try {
+                    emitter.complete();
+                } catch (Exception e) {
+                    logger.debug("Emitter already completed");
+                }
+            }
+        });
+
+        return emitter;
+    }
+
+    @GetMapping(value = "/stream/{configId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter mcpStreamGet(@PathVariable String configId, @ModelAttribute McpStreamRequestParamsDto paramsDto, HttpServletRequest request) {
+        logger.info("===== MCP Request (GET) for configId: {} =====", configId);
+        logger.info("Request params: method={}, id={}, params={}", paramsDto.getMethod(), paramsDto.getId(), paramsDto.getParams());
+
+        // Create a new SSE emitter for each request
+        SseEmitter emitter = new SseEmitter(30 * 1000L); // 30 second timeout
+
+        emitter.onCompletion(() -> logger.debug("SSE completed for configId: {}", configId));
+        emitter.onTimeout(() -> logger.debug("SSE timeout for configId: {}", configId));
+        emitter.onError(e -> logger.debug("SSE error for configId: {}", configId, e));
+
+        // Load integration IDs in main thread to avoid LazyInitializationException
+        final List<String> integrationIds;
+        final String userId;
+        try {
+            McpConfiguration mcpConfig = mcpConfigurationService.findById(configId);
+            logger.info("MCP Configuration lookup result for {}: {}", configId, mcpConfig != null ? "found" : "not found");
+            
+            if (mcpConfig != null) {
+                userId = mcpConfig.getUser().getId();
+                integrationIds = new ArrayList<>(mcpConfig.getIntegrationIds()); // Force eager loading
+                logger.info("Loaded integration IDs in main thread: {} for user: {}", integrationIds, userId);
+            } else {
+                userId = null;
+                integrationIds = null;
+                logger.warn("MCP Configuration not found for configId: {}", configId);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to load MCP configuration in main thread: {}", e.getMessage(), e);
+            try {
+                emitter.send(SseEmitter.event().data("Error: Failed to load configuration"));
+                emitter.complete();
+            } catch (Exception sendError) {
+                logger.error("Failed to send error response", sendError);
+            }
+            return emitter;
+        }
+
+        // Process request asynchronously with pre-loaded data
+        CompletableFuture.runAsync(() -> {
+            try {
+                JSONObject requestJson = paramsDto.toJSONObject();
                 String method = requestJson.getString("method");
                 Object id = requestJson.opt("id");
 
