@@ -1,0 +1,323 @@
+---
+description: Agent and job development patterns for DMTools
+globs: **/agent/*.java,**/job/*.java,**/*Agent.java,**/*Job.java
+---
+
+# Agent and Job Development Patterns
+
+## Agent Development Framework
+
+### AbstractSimpleAgent Base Class
+
+[AbstractSimpleAgent.java](mdc:dmtools-core/src/main/java/com/github/istin/dmtools/ai/agent/AbstractSimpleAgent.java) is the foundation for all AI agents.
+
+#### Core Implementation Pattern
+```java
+public class MyAgent extends AbstractSimpleAgent<MyParams, MyResult> {
+    
+    public MyAgent() {
+        super("my_agent_prompt"); // Prompt template name
+    }
+    
+    @Override
+    public MyResult transformAIResponse(MyParams params, String response) throws Exception {
+        // Transform AI text response to typed result
+        return new MyResult(response);
+    }
+}
+```
+
+#### Agent Lifecycle
+1. **Parameter Validation**: Agent receives typed parameters
+2. **Context Preparation**: Files and chunks are processed if params implement interfaces
+3. **Prompt Generation**: Template is rendered with context
+4. **AI Execution**: Prompt sent to AI with files/chunks
+5. **Response Transformation**: AI response converted to typed result
+
+#### Parameter Interfaces
+
+**GetFiles Interface**: For agents that process files
+```java
+public static class MyParams implements AbstractSimpleAgent.GetFiles {
+    private List<File> files;
+    
+    @Override
+    public List<File> getFiles() {
+        return files;
+    }
+}
+```
+
+**GetChunks Interface**: For agents that process chunks
+```java
+public static class MyParams implements AbstractSimpleAgent.GetChunks {
+    private List<ChunkPreparation.Chunk> chunks;
+    
+    @Override
+    public List<ChunkPreparation.Chunk> getChunks() {
+        return chunks;
+    }
+    
+    @Override
+    public long getChunksProcessingTimeout() {
+        return 30000; // 30 seconds timeout
+    }
+}
+```
+
+#### Agent Dependencies
+```java
+public class MyAgent extends AbstractSimpleAgent<MyParams, MyResult> {
+    @Inject
+    protected AI ai; // Automatically injected by Dagger
+    
+    @Inject
+    protected IPromptTemplateReader promptTemplateReader; // Template reader
+    
+    // Additional dependencies can be injected as needed
+}
+```
+
+### Agent Best Practices
+
+#### Prompt Management
+- Store prompts in `src/main/resources/ftl/prompts/`
+- Use FreeMarker templates for dynamic content
+- Include parameter validation in prompts
+- Document expected input/output formats
+
+#### Error Handling
+```java
+@Override
+public MyResult transformAIResponse(MyParams params, String response) throws Exception {
+    try {
+        return parseResponse(response);
+    } catch (Exception e) {
+        logger.error("Failed to parse AI response: {}", response, e);
+        throw new AgentExecutionException("Response parsing failed", e);
+    }
+}
+```
+
+#### Chunk Processing
+- Implement timeout handling for large chunk sets
+- Process chunks sequentially with progress tracking
+- Accumulate results across chunks
+- Handle partial failures gracefully
+
+## Job Development Framework
+
+### AbstractJob Base Class
+
+Jobs extend `AbstractJob<ParamsType, ResultType>` and follow execution mode patterns.
+
+#### Basic Job Structure
+```java
+public class MyJob extends AbstractJob<MyJobParams, List<ResultItem>> {
+    
+    @Inject
+    TrackerClient<? extends ITicket> trackerClient;
+    
+    @Inject
+    AI ai;
+    
+    @Override
+    protected List<ResultItem> runJobImpl(MyJobParams params) throws Exception {
+        // Job implementation logic
+        List<ResultItem> results = new ArrayList<>();
+        
+        // Process tickets or other work items
+        trackerClient.searchAndPerform(ticket -> {
+            // Process individual ticket
+            String result = processTicket(ticket, params);
+            results.add(new ResultItem(ticket.getKey(), result));
+            return false; // Continue processing
+        }, params.getJql(), trackerClient.getExtendedQueryFields());
+        
+        return results;
+    }
+}
+```
+
+### Job Execution Modes
+
+#### Execution Mode Enum
+```java
+public enum ExecutionMode {
+    STANDALONE,     // Uses default Dagger components
+    SERVER_MANAGED  // Uses dynamic components with pre-resolved integrations
+}
+```
+
+#### Standalone Mode Initialization
+```java
+@Override
+protected void initializeStandalone() {
+    if (myJobComponent == null) {
+        myJobComponent = DaggerMyJobComponent.create();
+    }
+    myJobComponent.inject(this);
+}
+```
+
+#### Server-Managed Mode Initialization
+```java
+@Override
+protected void initializeServerManaged(JSONObject resolvedIntegrations) {
+    try {
+        ServerManagedIntegrationsModule module = new ServerManagedIntegrationsModule(resolvedIntegrations);
+        ServerManagedComponent component = DaggerMyJob_ServerManagedComponent.builder()
+                .serverManagedIntegrationsModule(module)
+                .build();
+        component.inject(this);
+    } catch (Exception e) {
+        throw new RuntimeException("Failed to initialize job in server-managed mode", e);
+    }
+}
+```
+
+### Job Parameter Patterns
+
+#### JobTrackerParams Base Class
+```java
+public static class MyJobParams extends JobTrackerParams<AgentResultType> {
+    @SerializedName("customField")
+    private String customField;
+    
+    // Getters and setters
+}
+```
+
+#### Parameter Validation
+- Use `@SerializedName` for JSON serialization
+- Implement parameter validation in job constructor or early in execution
+- Provide meaningful error messages for invalid parameters
+
+### Integration with Agents
+
+#### Agent Integration Pattern
+```java
+public class MyJob extends AbstractJob<MyJobParams, List<ResultItem>> {
+    
+    @Inject
+    MySpecificAgent myAgent;
+    
+    @Override
+    protected List<ResultItem> runJobImpl(MyJobParams params) throws Exception {
+        // Prepare agent parameters
+        MyAgent.Params agentParams = new MyAgent.Params();
+        agentParams.setInput(params.getInput());
+        
+        // Execute agent
+        MyAgent.Result agentResult = myAgent.run(agentParams);
+        
+        // Process agent result
+        return processAgentResult(agentResult);
+    }
+}
+```
+
+### Job Output and Reporting
+
+#### ResultItem Pattern
+```java
+public class ResultItem {
+    private String key;        // Ticket key or identifier
+    private String result;     // Processed result
+    private String status;     // Processing status
+    private Map<String, Object> metadata; // Additional data
+}
+```
+
+#### File Attachment Pattern
+```java
+public void attachResponse(Object orchestratorClass, String file, String result, 
+                          String ticketKey, String contentType) throws IOException {
+    String fileNameResult = orchestratorClass.getClass().getSimpleName() + file;
+    String[] fields = {Fields.ATTACHMENT, Fields.SUMMARY};
+    ITicket ticket = trackerClient.performTicket(ticketKey, fields);
+    
+    // Generate unique filename
+    List<? extends IAttachment> attachments = ticket.getAttachments();
+    fileNameResult = IAttachment.Utils.generateUniqueFileName(fileNameResult, attachments);
+    
+    // Create and attach file
+    File tempFile = File.createTempFile(fileNameResult, null);
+    FileUtils.writeStringToFile(tempFile, result, "UTF-8");
+    
+    trackerClient.attachFileToTicket(ticketKey, fileNameResult, contentType, tempFile);
+    FileUtils.deleteQuietly(tempFile);
+}
+```
+
+## Role-Based Job Examples
+
+### Teammate Job Pattern
+
+[Teammate.java](mdc:dmtools-core/src/main/java/com/github/istin/dmtools/teammate/Teammate.java) demonstrates complex job implementation:
+
+#### Key Features
+- **Context Processing**: URI-based context resolution
+- **Agent Orchestration**: Multiple agents working together
+- **Hook Integration**: External tool integration via hooks
+- **Field Updates**: Direct ticket field manipulation
+
+#### Context Orchestration
+```java
+// Process URIs in content
+contextOrchestrator.processUrisInContent(inputParams.getKnownInfo(), uriProcessingSources, 2);
+String processedKnownInfo = contextOrchestrator.summarize().toString();
+inputParams.setKnownInfo(processedKnownInfo);
+contextOrchestrator.clear();
+```
+
+#### Hook Processing
+```java
+String[] hooksAsContext = params.getHooksAsContext();
+StringBuilder globalHooksResponses = new StringBuilder();
+if (hooksAsContext != null && sourceCodes != null) {
+    for (String hook : hooksAsContext) {
+        for (SourceCode sourceCode : sourceCodes) {
+            try {
+                String response = sourceCode.callHookAndWaitResponse(hook, inputParams.toString());
+                if (response != null) {
+                    globalHooksResponses.append("Tools Information (").append(hook).append("):\n");
+                    globalHooksResponses.append(response).append("\n\n");
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to call hook: " + hook + ", error: " + e.getMessage());
+            }
+        }
+    }
+}
+```
+
+## Development Best Practices
+
+### Agent Development
+1. **Single Responsibility**: Each agent should have one clear purpose
+2. **Parameter Typing**: Use strongly typed parameters and results
+3. **Error Handling**: Implement comprehensive error handling
+4. **Testing**: Unit test agent logic with mocked AI responses
+5. **Documentation**: Document expected input/output formats
+
+### Job Development
+1. **Execution Mode Support**: Implement both standalone and server-managed modes
+2. **Resource Management**: Properly clean up resources and temporary files
+3. **Progress Tracking**: Provide progress feedback for long-running jobs
+4. **Failure Recovery**: Handle partial failures gracefully
+5. **Result Aggregation**: Collect and structure results appropriately
+
+### Integration Patterns
+1. **Agent Composition**: Combine multiple agents for complex workflows
+2. **Context Management**: Use ContextOrchestrator for complex data processing
+3. **File Handling**: Follow patterns for temporary file management
+4. **Caching**: Leverage caching for expensive operations
+5. **Monitoring**: Include logging and metrics for operational visibility
+
+### Testing Strategies
+1. **Agent Testing**: Mock AI responses and test transformation logic
+2. **Job Testing**: Test with mock tracker clients and agents
+3. **Integration Testing**: End-to-end testing with real services
+4. **Parameter Testing**: Validate parameter serialization/deserialization
+5. **Error Testing**: Test error conditions and recovery scenarios

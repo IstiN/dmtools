@@ -44,6 +44,28 @@ jobs:
         fetch-depth: 0  # Full history for better context
         token: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Set up JDK 23
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '23'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Playwright
+      run: |
+        npm init -y
+        npm install -D @playwright/test
+        npx playwright install --with-deps
+
+    - name: Install xmllint
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libxml2-utils
+
     - name: Prepare request for Gemini CLI
       id: prepare_request
       run: |

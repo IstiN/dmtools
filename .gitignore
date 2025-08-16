@@ -86,3 +86,6 @@ jwt_token.txt
 /dmtools-server/cacheCustomServerManagedJiraClient/**
 /cacheCustomServerManagedJiraClient/**
 outputs
+.gemini
+dmtools-core/reports
+dmtools-core/screenshots

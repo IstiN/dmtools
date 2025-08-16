@@ -1,0 +1,205 @@
+---
+globs: *.gradle,gradle.properties,gradle-wrapper.properties
+description: Gradle dependencies and build configuration patterns for DMTools
+---
+
+# Gradle Dependencies & Build Configuration Rules
+
+## Project Structure
+
+DMTools is a **multi-module Gradle project** with the following modules:
+- `dmtools-core` - Core business logic and integrations
+- `dmtools-server` - Spring Boot web services
+- `dmtools-mcp-annotations` - MCP annotation processing
+- `dmtools-annotation-processor` - Custom annotation processing
+
+## Dependency Management Strategy
+
+### Version Centralization
+Define versions in a centralized `versions` block:
+```gradle
+def versions = [
+    log4j    : '2.20.0',
+    slf4j    : '2.0.7',
+    selenium : '4.11.0',
+    appium   : '8.3.0',
+    guava    : '31.1-jre',
+    graalvm  : '24.1.1'
+]
+```
+
+### Dependency Categories by Module
+
+#### dmtools-core Dependencies
+- **AI & ML**: GraalVM SDK (24.1.1), JavaScript engines
+- **Integration APIs**: OkHttp (4.12.0), Apache Commons
+- **Automation**: Selenium (4.11.0), Playwright (1.50.0), Appium (8.3.0)
+- **Document Processing**: Apache POI, PDFBox (3.0.2), JSoup (1.18.3)
+- **Testing**: JUnit 4.13.2, Mockito 5.14.2, PowerMock 2.0.9
+
+#### dmtools-server Dependencies
+- **Web Framework**: Spring Boot 3.2.5, Spring Security
+- **API Documentation**: SpringDoc OpenAPI 2.5.0
+- **Monitoring**: Spring Boot Actuator
+- **Database**: Spring Data JPA, Flyway migration
+
+#### Shared Dependencies
+- **Logging**: Log4j2 (2.20.0) with SLF4J bridge (2.0.7)
+- **JSON Processing**: org.json (20231013)
+- **HTTP Client**: OkHttp (4.12.0)
+- **Utilities**: Apache Commons Lang3, Commons IO
+
+## When to Use What
+
+### HTTP Clients
+- **OkHttp**: Primary HTTP client for all REST API integrations
+- **Apache HttpComponents**: Use for complex HTTP scenarios requiring advanced configuration
+
+### Testing Frameworks
+- **JUnit 4.13.2**: Legacy test compatibility
+- **JUnit Jupiter 5.9.1**: New tests should use JUnit 5
+- **Mockito Core**: Standard mocking framework
+- **Mockito Inline**: For mocking final classes and static methods
+- **PowerMock**: Only when Mockito cannot handle advanced scenarios
+
+### Logging
+- **Log4j2**: Primary logging framework
+- **SLF4J**: API layer for logging
+- **NEVER use**: Logback (excluded in server module)
+
+### AI & Automation
+- **GraalVM**: For polyglot runtime and JavaScript execution
+- **Selenium**: Web browser automation
+- **Playwright**: Modern web testing (use via Node.js)
+- **Appium**: Mobile application automation
+
+### Document Processing
+- **Apache POI**: Excel file processing
+- **PDFBox**: PDF manipulation and processing
+- **JSoup**: HTML parsing and manipulation
+- **FreeMarker**: Template processing
+
+## Build Configuration Patterns
+
+### Test Configuration
+```gradle
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        exceptionFormat "full"
+    }
+    finalizedBy jacocoTestReport
+}
+```
+
+### Integration Tests
+```gradle
+sourceSets {
+    integrationTest {
+        java.srcDir file('src/integrationTest/java')
+        resources.srcDir file('src/integrationTest/resources')
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+        runtimeClasspath += output + compileClasspath
+    }
+}
+```
+
+### JaCoCo Coverage
+```gradle
+jacocoTestReport {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+```
+
+### Shadow JAR (for core module)
+```gradle
+plugins {
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+```
+
+## Version Resolution Strategy
+
+### Conflict Resolution
+```gradle
+configurations.all {
+    resolutionStrategy {
+        eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'com.google.guava') {
+                details.useVersion versions.guava
+            }
+            if (details.requested.group == 'org.seleniumhq.selenium') {
+                details.useVersion versions.selenium
+            }
+        }
+    }
+}
+```
+
+### Exclusions
+- Exclude `log4j-to-slf4j` to prevent logging conflicts
+- Exclude Logback dependencies in server module
+- Handle Guava version conflicts explicitly
+
+## Build Commands
+
+### Development Workflow
+```bash
+# Build all modules
+./gradlew build
+
+# Clean build
+./gradlew clean build
+
+# Skip integration tests during development
+./gradlew build -x integrationTest
+
+# Run specific module tests
+./gradlew :dmtools-core:test
+./gradlew :dmtools-server:test
+```
+
+### Production Builds
+```bash
+# Build deployable server JAR
+./gradlew :dmtools-server:bootJar
+
+# Build standalone core JAR
+./gradlew :dmtools-core:shadowJar
+
+# Publish to repository
+./gradlew publish
+```
+
+### Testing Commands
+```bash
+# All tests with coverage
+./gradlew test jacocoTestReport
+
+# Integration tests only
+./gradlew integrationTest
+
+# Specific test class
+./gradlew test --tests "ClassName"
+```
+
+## Module Dependency Rules
+
+### Dependency Direction
+- Server module depends on core module
+- Core module should NOT depend on server module
+- Annotation processors are standalone utilities
+
+### API vs Implementation
+- Use `api` for dependencies that are part of public API
+- Use `implementation` for internal dependencies
+- Use `testImplementation` for test-only dependencies
+
+### Transitive Dependencies
+- Manage transitive dependencies explicitly
+- Use `resolutionStrategy` for version conflicts
+- Document reasons for version forcing

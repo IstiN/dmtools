@@ -1,0 +1,313 @@
+---
+description: Comprehensive unit testing coverage rules and patterns for DMTools
+globs: **/*Test.java,**/test/**/*.java
+---
+
+# Unit Testing Coverage Rules
+
+## Mandatory Testing Requirements
+
+### CRITICAL Testing Rules
+- **ALL business logic MUST be covered by comprehensive unit tests**
+- **NO production code without corresponding tests**
+- **Test coverage is NON-NEGOTIABLE**
+- If tests cannot be written, provide detailed explanation why testing is not applicable
+
+## Testing Framework Stack
+
+### Core Testing Libraries
+- **JUnit 4.13.2**: Legacy test compatibility and existing tests
+- **JUnit Jupiter 5.9.1**: Preferred for new tests
+- **Mockito Core 5.14.2**: Standard mocking framework
+- **Mockito Inline 5.2.0**: For mocking final classes and static methods
+- **PowerMock 2.0.9**: Advanced mocking (use sparingly)
+- **JUnit Vintage 5.8.2**: JUnit 4 compatibility runtime
+
+### Test Types by Module
+
+#### dmtools-core Testing
+- **Unit Tests**: `src/test/java/` - Business logic testing
+- **Integration Tests**: `src/integrationTest/java/` - External service integration
+- **Test Resources**: `src/test/resources/` - Test data and configuration
+
+#### dmtools-server Testing
+- **Unit Tests**: Spring Boot test framework
+- **Integration Tests**: TestContainers for database testing
+- **Web Layer Tests**: MockMvc for REST API testing
+- **Security Tests**: Spring Security test framework
+
+## Test Execution Configuration
+
+### JVM Configuration
+```gradle
+test {
+    useJUnitPlatform()
+    jvmArgs '-Dnet.bytebuddy.experimental=true'
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
+    jvmArgs '-javaagent:' + configurations.testRuntimeClasspath.find { it.name.contains('mockito-core') }
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        exceptionFormat "full"
+    }
+    finalizedBy jacocoTestReport
+}
+```
+
+### Coverage Requirements
+- **Target**: Minimum 80% line coverage for all business logic
+- **Tool**: JaCoCo for coverage reporting
+- **Reporting**: Both XML and HTML reports required
+- **CI Integration**: Coverage reports uploaded to build artifacts
+
+## Testing Patterns and Best Practices
+
+### Test Class Naming
+- Test classes: `ClassNameTest.java`
+- Integration tests: `ClassNameIntegrationTest.java`
+- Test methods: `testMethodName_scenario_expectedResult()`
+
+### Test Structure (AAA Pattern)
+```java
+@Test
+public void testMethodName_scenario_expectedResult() {
+    // Arrange
+    SomeClass objectUnderTest = new SomeClass();
+    when(mockDependency.someMethod()).thenReturn(expectedValue);
+    
+    // Act
+    String result = objectUnderTest.methodUnderTest(input);
+    
+    // Assert
+    assertEquals(expectedResult, result);
+    verify(mockDependency).someMethod();
+}
+```
+
+### Mocking Guidelines
+
+#### Standard Mocking with Mockito
+```java
+@Mock
+private DependencyClass mockDependency;
+
+@InjectMocks
+private ClassUnderTest classUnderTest;
+
+@Before
+public void setUp() {
+    MockitoAnnotations.openMocks(this);
+}
+```
+
+#### Advanced Mocking Scenarios
+- **Final Classes**: Use Mockito Inline
+- **Static Methods**: Use PowerMock sparingly
+- **Constructor Mocking**: Use PowerMock when absolutely necessary
+- **Spy Objects**: Use `@Spy` for partial mocking
+
+### Testing External Dependencies
+
+#### HTTP Clients Testing
+```java
+// Mock AbstractRestClient
+@Mock
+private AbstractRestClient restClient;
+
+@Test
+public void testApiCall_success_returnsExpectedData() throws IOException {
+    // Arrange
+    String expectedResponse = "{\"key\":\"value\"}";
+    when(restClient.execute(any(GenericRequest.class))).thenReturn(expectedResponse);
+    
+    // Act & Assert
+    MyApiClient client = new MyApiClient(restClient);
+    MyModel result = client.getData();
+    assertNotNull(result);
+}
+```
+
+#### Database Testing
+```java
+// Use TestContainers for integration tests
+@Testcontainers
+class DatabaseIntegrationTest {
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:13")
+            .withDatabaseName("testdb")
+            .withUsername("test")
+            .withPassword("test");
+}
+```
+
+### Agent and Job Testing
+
+#### Agent Testing Pattern
+```java
+@Test
+public void testAgent_executeWithDependencies_returnsExpectedResult() throws Exception {
+    // Arrange
+    MyAgent agent = new MyAgent("prompt-name");
+    MyParams params = new MyParams();
+    
+    // Mock AI dependency
+    when(mockAI.chat(anyString())).thenReturn("AI Response");
+    
+    // Act
+    MyResult result = agent.run(params);
+    
+    // Assert
+    assertNotNull(result);
+    verify(mockAI).chat(anyString());
+}
+```
+
+#### Job Testing Pattern
+```java
+@Test
+public void testJob_runJobImpl_processesTicketsCorrectly() throws Exception {
+    // Arrange
+    MyJob job = new MyJob();
+    MyJobParams params = new MyJobParams();
+    
+    // Mock tracker client
+    when(mockTrackerClient.searchAndPerform(any(), anyString(), any()))
+        .thenReturn(expectedResults);
+    
+    // Act
+    List<ResultItem> results = job.run(params);
+    
+    // Assert
+    assertEquals(expectedCount, results.size());
+}
+```
+
+## Integration Testing Requirements
+
+### JiraMCP Tools Integration Tests
+- Located in `dmtools-core/src/integrationTest/java/com/github/istin/dmtools/jira/`
+- Tests all 29 MCP-annotated methods
+- Requires real Jira instance for testing
+- Covers search, ticket management, comments, and project operations
+
+### API Integration Testing
+```java
+@IntegrationTest
+class ApiIntegrationTest {
+    @Test
+    void testRealApiInteraction() {
+        // Test with real external services
+        // Use test accounts and data
+        // Verify actual integration behavior
+    }
+}
+```
+
+## Test Data Management
+
+### Test Resources
+- JSON test data: `src/test/resources/json/`
+- Configuration files: `src/test/resources/config/`
+- Test images: `src/test/resources/images/`
+
+### Test Data Patterns
+```java
+// Load test data from resources
+private String loadTestJson(String filename) {
+    return TestUtils.loadResourceAsString("/json/" + filename);
+}
+
+// Create test objects
+private MyModel createTestModel() {
+    return MyModel.builder()
+        .id("test-id")
+        .name("Test Name")
+        .build();
+}
+```
+
+## Testing AI Components
+
+### AI Agent Testing
+- Mock AI responses for consistent testing
+- Test different response scenarios
+- Verify prompt construction
+- Test error handling for AI failures
+
+### Prompt Testing
+```java
+@Test
+public void testPromptGeneration_withParams_generatesCorrectPrompt() {
+    // Test prompt template rendering
+    // Verify parameter substitution
+    // Check prompt formatting
+}
+```
+
+## Async and Threading Testing
+
+### Concurrent Testing
+```java
+@Test
+public void testConcurrentAccess_multipleThreads_threadSafe() {
+    // Test thread safety
+    // Use CountDownLatch for coordination
+    // Verify no race conditions
+}
+```
+
+## Test Execution Commands
+
+### Development Testing
+```bash
+# Run all tests
+./gradlew test
+
+# Run tests with coverage
+./gradlew test jacocoTestReport
+
+# Run specific test class
+./gradlew test --tests "ClassNameTest"
+
+# Run tests matching pattern
+./gradlew test --tests "*Integration*"
+```
+
+### CI/CD Testing
+```bash
+# Full test suite with integration tests
+./gradlew clean build integrationTest
+
+# Skip integration tests for faster feedback
+./gradlew build -x integrationTest
+
+# Generate coverage reports
+./gradlew test jacocoTestReport
+```
+
+## Coverage Reporting
+
+### JaCoCo Configuration
+- XML reports for CI integration
+- HTML reports for local development
+- Exclude test classes from coverage
+- Set minimum coverage thresholds
+
+### Coverage Analysis
+- Review coverage reports after each build
+- Identify untested code paths
+- Add tests for missing coverage
+- Document any legitimate coverage exclusions
+
+## Test Maintenance
+
+### Regular Tasks
+- Update test data when APIs change
+- Refactor tests when implementation changes
+- Remove obsolete tests
+- Keep test dependencies up to date
+
+### Test Code Quality
+- Apply same coding standards to test code
+- Avoid test code duplication
+- Use helper methods and utilities
+- Keep tests focused and independent

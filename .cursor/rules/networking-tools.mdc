@@ -1,0 +1,205 @@
+---
+description: Networking and response processing tools usage patterns
+globs: **/AbstractRestClient.java,**/JSONModel.java,**/networking/*.java,**/model/*.java
+---
+
+# Networking & Response Processing Tools
+
+## Core Networking Classes
+
+### AbstractRestClient Usage
+
+[AbstractRestClient.java](mdc:dmtools-core/src/main/java/com/github/istin/dmtools/networking/AbstractRestClient.java) is the base class for all REST API integrations.
+
+#### Key Features
+- **Caching**: Automatic request/response caching with cache control
+- **Timeout Configuration**: Configurable timeouts via `getTimeout()` method
+- **Error Handling**: Standardized error processing with `printAndCreateException()`
+- **Retry Logic**: Built-in retry mechanism for `SocketTimeoutException`
+- **Rate Limiting**: Built-in rate limit detection and handling
+
+#### Implementation Pattern
+```java
+public class MyApiClient extends AbstractRestClient {
+    public MyApiClient(String basePath, String authorization) throws IOException {
+        super(basePath, authorization);
+    }
+    
+    @Override
+    public int getTimeout() {
+        return 120; // Override default 60 seconds if needed
+    }
+    
+    @Override
+    protected String getCacheFolderName() {
+        return "cache" + getClass().getSimpleName();
+    }
+}
+```
+
+#### HTTP Methods Available
+- `execute(GenericRequest)` - GET requests with caching
+- `post(GenericRequest)` - POST requests with optional caching
+- `put(GenericRequest)` - PUT requests
+- `patch(GenericRequest)` - PATCH requests  
+- `delete(GenericRequest)` - DELETE requests
+
+#### Cache Management
+- **GET Request Caching**: Enabled by default via `isCacheGetRequestsEnabled`
+- **POST Request Caching**: Disabled by default, enable via `setCachePostRequestsEnabled(true)`
+- **Cache Control**: `setClearCache(boolean)` to manage cache lifecycle
+- **Selective Clearing**: `clearCache(GenericRequest)` for specific requests
+
+#### Error Handling Patterns
+- **503 Errors**: Detected as backup/maintenance mode
+- **400 Errors**: Parsed for specific error conditions (e.g., parent epic not found)
+- **Rate Limiting**: Automatic detection via response body containing "rate"
+- **Custom Exceptions**: `RestClientException`, `RateLimitException`
+
+### JSONModel Usage
+
+[JSONModel.java](mdc:dmtools-common/model/JSONModel.java) is the base class for all JSON-based data models.
+
+#### Core Functionality
+- **JSON Parsing**: Safe JSON object parsing with error handling
+- **Type Safety**: Typed getters with null safety
+- **Nested Objects**: Support for nested JSON structures
+- **Array Handling**: Utilities for JSON arrays and string arrays
+
+#### Implementation Pattern
+```java
+public class MyDataModel extends JSONModel {
+    public MyDataModel(String json) throws JSONException {
+        super(json);
+    }
+    
+    // Use typed getters for safety
+    public String getName() {
+        return getString("name");
+    }
+    
+    public List<String> getTags() {
+        return Arrays.asList(getStringArray("tags"));
+    }
+    
+    // For nested objects
+    public NestedModel getNested() {
+        return getModel(NestedModel.class, "nested");
+    }
+}
+```
+
+#### Safe Data Access
+- `getString(key)` - Returns null if key doesn't exist
+- `getInt(key)` - Returns 0 if key doesn't exist
+- `getBoolean(key)` - Returns false if key doesn't exist
+- `getJSONObject(key)` - Returns null if key doesn't exist
+- `getJSONArray(key)` - Returns null if key doesn't exist
+
+#### Collection Handling
+```java
+// Convert JSON array to typed models
+List<MyModel> models = getModels(MyModel.class, "items");
+
+// Static utility for external JSON arrays
+List<MyModel> converted = JSONModel.convertToModels(MyModel.class, jsonArray);
+```
+
+## Networking Best Practices
+
+### Request Construction
+- Use `GenericRequest` for all API calls
+- Set appropriate headers via `getHeaders()` map
+- Handle authentication in the client constructor
+- Use request body for POST/PUT operations
+
+### Response Processing
+- Always use JSONModel subclasses for structured responses
+- Handle null responses gracefully
+- Log important response data for debugging
+- Cache responses when appropriate
+
+### Error Handling
+- Catch and handle `RestClientException`
+- Implement retry logic for transient failures
+- Log errors with sufficient context
+- Use appropriate HTTP status code handling
+
+### Caching Strategy
+- Enable GET caching for read-heavy operations
+- Consider POST caching for expensive operations
+- Implement cache expiration via `clearRequestIfExpired()`
+- Use cache keys based on request content
+
+### Performance Optimization
+- Set appropriate timeouts for different operations
+- Use connection pooling via `client.connectionPool().evictAll()`
+- Implement rate limiting respect
+- Monitor and log response times
+
+## Integration Examples
+
+### Jira Client Pattern
+```java
+public class JiraClient extends AbstractRestClient {
+    public Issue getIssue(String key) throws IOException {
+        GenericRequest request = new GenericRequest(this, "/rest/api/2/issue/" + key);
+        String response = execute(request);
+        return new Issue(response);
+    }
+}
+```
+
+### Confluence Client Pattern
+```java
+public class ConfluenceClient extends AbstractRestClient {
+    public Page getPage(String id) throws IOException {
+        GenericRequest request = new GenericRequest(this, "/rest/api/content/" + id);
+        String response = execute(request);
+        return new Page(response);
+    }
+}
+```
+
+### Model Hierarchy
+```java
+public class Issue extends JSONModel {
+    public Fields getFields() {
+        return getModel(Fields.class, "fields");
+    }
+}
+
+public class Fields extends JSONModel {
+    public String getSummary() {
+        return getString("summary");
+    }
+}
+```
+
+## Threading Considerations
+
+### Thread Safety
+- `AbstractRestClient` uses synchronized blocks for cache operations
+- `JSONModel` uses synchronized access to underlying JSONObject
+- Connection pool is thread-safe
+- Multiple clients can share the same OkHttpClient instance
+
+### Concurrency Patterns
+- Use separate client instances for different authentication contexts
+- Implement proper connection pool management
+- Consider request queuing for rate-limited APIs
+- Use timeouts to prevent thread blocking
+
+## Testing Strategies
+
+### Unit Testing
+- Mock `AbstractRestClient` for business logic tests
+- Use test JSON files for `JSONModel` testing
+- Test error conditions and edge cases
+- Verify caching behavior
+
+### Integration Testing
+- Test against real API endpoints when possible
+- Use test data that won't affect production
+- Verify authentication and authorization
+- Test rate limiting and retry behavior

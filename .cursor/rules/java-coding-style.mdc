@@ -1,0 +1,111 @@
+---
+alwaysApply: true
+description: Java coding style and execution patterns for DMTools project
+---
+
+# Java Coding Style & Execution Rules
+
+## Java Version & Configuration
+
+- **Java Version**: Java 21 (sourceCompatibility and targetCompatibility)
+- **Build Tool**: Gradle with Gradle Wrapper
+- **Testing Platform**: JUnit Platform with JUnit 4.13.2 and JUnit Jupiter 5.9.1
+
+## Coding Style Standards
+
+### Package Structure
+- Use domain-driven package organization under `com.github.istin.dmtools`
+- Separate concerns by functional area (ai, atlassian, common, etc.)
+- Place interfaces in appropriate packages with implementation separation
+
+### Naming Conventions
+- **Classes**: PascalCase (e.g., `AbstractRestClient`, `JSONModel`)
+- **Methods**: camelCase with descriptive names
+- **Constants**: UPPER_SNAKE_CASE
+- **Variables**: camelCase
+- **Packages**: lowercase with dots
+
+### Method Design
+- Use meaningful method names that describe functionality
+- Avoid "water" comments if method/variable names are self-readable
+- Include proper JavaDoc for public APIs
+- Use `@Override` annotation consistently
+
+### Error Handling
+- Use checked exceptions for recoverable errors
+- Use RuntimeException for programming errors
+- Include meaningful error messages with context
+- Log errors appropriately using Log4j2
+
+### Documentation
+- Add JavaDoc for public classes and methods if that is not self explained
+- Include parameter descriptions for complex methods
+- Document any threading concerns or side effects
+- Use `@param`, `@return`, `@throws` tags appropriately
+
+## Test Execution
+
+### Unit Tests
+```bash
+# Run all unit tests
+./gradlew test
+
+# Run tests for specific module
+./gradlew :dmtools-core:test
+./gradlew :dmtools-server:test
+
+# Run with coverage
+./gradlew test jacocoTestReport
+```
+
+### Integration Tests
+```bash
+# Run integration tests
+./gradlew integrationTest
+
+# Run specific integration test
+./gradlew :dmtools-core:integrationTest
+```
+
+### Test Configuration
+- Tests use JUnit Platform with JUnit 4 and 5 compatibility
+- Mockito for mocking dependencies
+- PowerMock for advanced mocking scenarios
+- JaCoCo for coverage reporting
+- Specific JVM args for Java 21 compatibility:
+  - `-Dnet.bytebuddy.experimental=true`
+  - `-XX:+EnableDynamicAgentLoading`
+
+### Build and Compile
+```bash
+# Clean and build all modules
+./gradlew clean build
+
+# Compile specific module
+./gradlew :dmtools-core:compileJava
+./gradlew :dmtools-server:compileJava
+
+# Build fat JAR for core module
+./gradlew :dmtools-core:shadowJar
+
+# Build server JAR
+./gradlew :dmtools-server:bootJar
+```
+
+## Code Quality Requirements
+
+### Mandatory Practices
+- **Unit Test Coverage**: CRITICAL - ALL business logic MUST be covered by comprehensive unit tests
+- **Error Handling**: Include appropriate error handling for all external calls
+- **Logging**: Use Log4j2 with appropriate log levels
+- **Thread Safety**: Consider and document thread safety implications
+- **Resource Management**: Use try-with-resources for closeable resources
+
+### Code Review Checklist
+- [ ] All public methods have unit tests
+- [ ] Error cases are tested and handled
+- [ ] Logging is appropriate and informative
+- [ ] No hardcoded values or magic numbers
+- [ ] Proper use of dependency injection
+- [ ] Thread safety considerations documented
+- [ ] Resource cleanup is handled
