@@ -1,0 +1,300 @@
+---
+alwaysApply: true
+description: Architecture rules for separating dmtools-core and dmtools-server responsibilities
+---
+
+# Core vs Server Module Separation Rules
+
+## Architecture Overview
+
+DMTools follows a **multi-module architecture** with clear separation between business logic and web service layers:
+
+- **dmtools-core**: Standalone business logic, integrations, AI framework, job execution
+- **dmtools-server**: Spring Boot web services, REST APIs, authentication, UI
+
+## Module Responsibilities
+
+### dmtools-core (Business Logic Module)
+
+#### What BELONGS in Core
+- **Business Logic**: All domain-specific functionality
+- **External Integrations**: Jira, Confluence, GitHub, GitLab, etc.
+- **AI Framework**: AI providers, agents, prompt management
+- **Job Execution Framework**: Job definitions, execution engine
+- **Role-Based Tools**: BA, Developer, QA, Scrum Master tools
+- **Data Models**: JSONModel subclasses, domain objects
+- **Networking Layer**: AbstractRestClient implementations
+- **Common Utilities**: Shared libraries and utilities
+- **Automation Framework**: Selenium, Playwright, Appium integrations
+
+#### Core Module Characteristics
+- **Standalone JAR**: Can run independently as a library or CLI tool
+- **No Web Dependencies**: No Spring Boot, servlets, or web frameworks
+- **Self-Contained**: All business logic and dependencies included
+- **CLI Capable**: Can be executed from command line
+- **Library Usage**: Can be embedded in other applications
+
+### dmtools-server (Web Services Module)
+
+#### What BELONGS in Server
+- **REST API Layer**: Spring Boot REST controllers
+- **Web UI Layer**: Static resources, templates, frontend assets
+- **Authentication & Security**: Spring Security configuration
+- **API Documentation**: Swagger/OpenAPI configuration
+- **Web Configuration**: Spring Boot configuration, profiles
+- **HTTP Endpoints**: Job execution APIs, configuration APIs
+- **Request/Response Handling**: Web-specific serialization/deserialization
+- **Session Management**: User sessions, security contexts
+- **Static Resource Serving**: HTML, CSS, JavaScript, images
+
+#### Server Module Characteristics
+- **Depends on Core**: Server module depends on core module
+- **Web Framework**: Uses Spring Boot for web services
+- **API Gateway**: Exposes core functionality via REST APIs
+- **UI Host**: Serves user interface and web assets
+- **Multi-User**: Supports concurrent users and sessions
+
+## Dependency Direction Rules
+
+### CRITICAL: One-Way Dependency
+```
+dmtools-server ----depends on----> dmtools-core
+dmtools-core ----NEVER depends on----> dmtools-server
+```
+
+#### Allowed Dependencies
+- ✅ Server can import and use core classes
+- ✅ Server can instantiate core jobs and agents
+- ✅ Server can configure core components
+- ✅ Core can be used independently without server
+
+#### Forbidden Dependencies
+- ❌ Core CANNOT import server classes
+- ❌ Core CANNOT depend on Spring Boot
+- ❌ Core CANNOT depend on web frameworks
+- ❌ Core CANNOT reference servlet APIs
+
+## Implementation Guidelines
+
+### Core Module Development
+
+#### Keep Core Web-Agnostic
+```java
+// ✅ GOOD - Core business logic
+public class TicketProcessor {
+    public List<ResultItem> processTickets(String jql) {
+        // Business logic implementation
+    }
+}
+
+// ❌ BAD - Web framework dependency in core
+public class TicketController {
+    @RequestMapping("/tickets")
+    public ResponseEntity<List<Ticket>> getTickets() {
+        // This belongs in server module
+    }
+}
+```
+
+#### Configuration Management
+```java
+// ✅ GOOD - Core uses ApplicationConfiguration
+public class JiraClient extends AbstractRestClient {
+    public JiraClient(ApplicationConfiguration config) {
+        super(config.getProperty("jira.url"), config.getProperty("jira.token"));
+    }
+}
+
+// ❌ BAD - Using Spring configuration in core
+public class JiraClient {
+    @Value("${jira.url}")
+    private String jiraUrl; // Spring annotation not allowed in core
+}
+```
+
+#### Job Definition Pattern
+```java
+// ✅ GOOD - Core job definition
+public class ExpertJob extends AbstractJob<ExpertParams, List<ResultItem>> {
+    @Override
+    protected List<ResultItem> runJobImpl(ExpertParams params) throws Exception {
+        // Business logic implementation
+        return results;
+    }
+}
+```
+
+### Server Module Development
+
+#### REST API Pattern
+```java
+// ✅ GOOD - Server exposes core functionality
+@RestController
+@RequestMapping("/api/jobs")
+public class JobController {
+    
+    @Autowired
+    private JobExecutor jobExecutor; // Core component
+    
+    @PostMapping("/expert")
+    public ResponseEntity<JobResult> executeExpert(@RequestBody ExpertParams params) {
+        ExpertJob job = new ExpertJob(); // Core job
+        List<ResultItem> results = jobExecutor.execute(job, params);
+        return ResponseEntity.ok(new JobResult(results));
+    }
+}
+```
+
+#### Configuration Bridge
+```java
+// ✅ GOOD - Server bridges Spring config to core
+@Configuration
+public class CoreConfiguration {
+    
+    @Bean
+    public ApplicationConfiguration applicationConfiguration() {
+        return new SpringApplicationConfiguration(); // Adapter pattern
+    }
+}
+```
+
+## Deployment Patterns
+
+### Standalone Core Deployment
+```bash
+# Build standalone JAR
+./gradlew :dmtools-core:shadowJar
+
+# Run core job directly
+java -jar dmtools-core/build/libs/dmtools-core-shadow.jar job-params
+
+# Use as library dependency
+implementation 'com.github.istin:dmtools-core:version'
+```
+
+### Server Deployment
+```bash
+# Build server with embedded core
+./gradlew :dmtools-server:bootJar
+
+# Run web application (includes core)
+java -jar dmtools-server/build/libs/dmtools-server.jar
+
+# Deploy to cloud platforms
+docker build -t dmtools-server .
+```
+
+## Testing Separation
+
+### Core Module Testing
+- **Unit Tests**: Test business logic independently
+- **Integration Tests**: Test external service integrations
+- **No Web Testing**: No MockMvc, WebTestClient, or HTTP testing
+
+### Server Module Testing
+- **Web Layer Tests**: MockMvc for REST API testing
+- **Integration Tests**: TestContainers for full stack testing
+- **Security Tests**: Spring Security test framework
+
+## Common Anti-Patterns to Avoid
+
+### Don't Mix Concerns
+```java
+// ❌ BAD - Mixing web and business logic
+public class TicketService {
+    public ResponseEntity<Ticket> getTicket(String key) {
+        // ResponseEntity belongs in web layer, not business logic
+    }
+}
+
+// ✅ GOOD - Separate concerns
+// Core: Business logic
+public class TicketService {
+    public Ticket getTicket(String key) {
+        return ticketRepository.findByKey(key);
+    }
+}
+
+// Server: Web layer
+@RestController
+public class TicketController {
+    @GetMapping("/tickets/{key}")
+    public ResponseEntity<Ticket> getTicket(@PathVariable String key) {
+        Ticket ticket = ticketService.getTicket(key);
+        return ResponseEntity.ok(ticket);
+    }
+}
+```
+
+### Don't Leak Dependencies
+```java
+// ❌ BAD - Spring annotation in core
+@Component  // Spring annotation should not be in core
+public class CoreService {
+}
+
+// ✅ GOOD - Use Dagger in core, Spring in server
+// Core
+public class CoreService {
+    @Inject  // Dagger annotation
+    private Repository repository;
+}
+
+// Server
+@Component  // Spring annotation in server
+public class ServerWrapper {
+    private final CoreService coreService;
+    
+    public ServerWrapper() {
+        this.coreService = daggerComponent.getCoreService();
+    }
+}
+```
+
+## Build Configuration Separation
+
+### Core build.gradle
+```gradle
+plugins {
+    id 'java-library'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+dependencies {
+    // No web framework dependencies
+    api 'org.json:json:20231013'
+    api 'com.squareup.okhttp3:okhttp:4.12.0'
+    // Business logic dependencies only
+}
+```
+
+### Server build.gradle
+```gradle
+plugins {
+    id 'org.springframework.boot' version '3.2.5'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+dependencies {
+    implementation project(':dmtools-core')  // Depend on core
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // Web framework dependencies
+}
+```
+
+## Documentation Guidelines
+
+### Document Module Boundaries
+- Clearly document what belongs in each module
+- Provide examples of correct module usage
+- Document integration patterns between modules
+- Maintain architectural decision records (ADRs)
+
+### API Design Principles
+- Core provides domain APIs
+- Server provides web APIs that delegate to core
+- Maintain clear contracts between layers
+- Version APIs independently when needed
+
+This separation ensures that DMTools can be used flexibly as a web service, CLI tool, or library while maintaining clean architecture principles and enabling independent testing and deployment of each layer.

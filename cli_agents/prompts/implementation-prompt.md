@@ -122,3 +122,17 @@ Before completing implementation, verify:
 - Create working, functional code
 - Provide clear documentation and usage instructions in `outputs/response.md` 
 - Ensure all deliverables are complete and accessible
+
+
+
+**IMPORTANT** RULE APPLICATION GUIDE:
+
+Apply and check rules in the folder `.cursor/rules` based on your implementation context:
+
+- **java-coding-style.mdc**: Always apply for any Java code - covers Java 21 standards, naming conventions, test execution, and build patterns
+- **gradle-dependencies.mdc**: When modifying build.gradle files or adding new dependencies - guides version management and module dependencies  
+- **networking-tools.mdc**: When working with REST APIs, HTTP clients, or JSON models - covers AbstractRestClient and JSONModel usage patterns
+- **unit-testing.mdc**: MANDATORY for all code implementations - ensures comprehensive test coverage with JUnit/Mockito patterns
+- **agents-jobs.mdc**: When creating or modifying AI agents or job classes - covers AbstractSimpleAgent and AbstractJob patterns
+- **dagger-dependency-injection.mdc**: When setting up dependency injection or working with Dagger components and modules
+- **core-server-separation.mdc**: CRITICAL for architecture decisions - ensures proper separation between dmtools-core and dmtools-server modules 

@@ -1,0 +1,375 @@
+---
+description: Dagger dependency injection patterns and module organization for DMTools
+globs: **/di/*.java,**/*Component.java,**/*Module.java
+---
+
+# Dagger Dependency Injection Rules
+
+## Dagger Architecture Overview
+
+DMTools uses **Dagger 2** for dependency injection with a dual-mode architecture supporting both standalone and server-managed execution.
+
+## Execution Modes
+
+### Standalone Mode
+- Uses static Dagger components with system property configuration
+- Maintains backward compatibility with existing implementations
+- Dependencies resolved at component creation time
+
+### Server-Managed Mode
+- Uses dynamic Dagger modules with pre-resolved credentials
+- Credentials and integrations resolved by server before job execution
+- Enables secure credential management and multi-tenancy
+
+## Component Structure
+
+### Standalone Components
+
+#### Expert Component Example
+```java
+@Singleton
+@Component(modules = {
+    JiraModule.class, 
+    SourceCodeModule.class, 
+    AIComponentsModule.class, 
+    ConfluenceModule.class, 
+    AIAgentsModule.class, 
+    ConfigurationModule.class
+})
+public interface ExpertComponent {
+    void inject(Expert expert);
+    AI getAI();
+    ApplicationConfiguration getConfiguration();
+}
+```
+
+#### Component Usage Pattern
+```java
+@Override
+protected void initializeStandalone() {
+    if (expertComponent == null) {
+        expertComponent = DaggerExpertComponent.create();
+    }
+    expertComponent.inject(this);
+}
+```
+
+### Server-Managed Components
+
+#### Server-Managed Component Pattern
+```java
+@Singleton
+@Component(modules = {ServerManagedIntegrationsModule.class, AIAgentsModule.class})
+public interface ServerManagedExpertComponent {
+    void inject(Expert expert);
+}
+```
+
+#### Dynamic Component Creation
+```java
+@Override
+protected void initializeServerManaged(JSONObject resolvedIntegrations) {
+    try {
+        ServerManagedIntegrationsModule module = new ServerManagedIntegrationsModule(resolvedIntegrations);
+        ServerManagedExpertComponent component = DaggerExpert_ServerManagedExpertComponent.builder()
+            .serverManagedIntegrationsModule(module)
+            .build();
+        component.inject(this);
+    } catch (Exception e) {
+        throw new RuntimeException("Failed to initialize Expert in server-managed mode", e);
+    }
+}
+```
+
+## Module Organization
+
+### Core Modules
+
+#### AIComponentsModule
+- Provides AI implementations and related services
+- Handles AI provider configuration
+- Manages AI client instances
+
+#### AIAgentsModule
+- Provides all AI agent implementations
+- Automatically registers agents with Dagger
+- Handles agent-specific dependencies
+
+#### ConfigurationModule
+- Provides ApplicationConfiguration
+- Handles system property reading
+- Manages environment-specific settings
+
+#### JiraModule
+- Provides Jira client implementation
+- Handles Jira authentication
+- Manages Jira-specific configuration
+
+#### ConfluenceModule
+- Provides Confluence client implementation
+- Handles Confluence authentication
+- Manages Confluence-specific configuration
+
+### Server-Managed Module
+
+#### ServerManagedIntegrationsModule
+```java
+@Module
+public class ServerManagedIntegrationsModule {
+    private final JSONObject resolvedIntegrations;
+    
+    public ServerManagedIntegrationsModule(JSONObject resolvedIntegrations) {
+        this.resolvedIntegrations = resolvedIntegrations;
+    }
+    
+    @Provides
+    @Singleton
+    public JiraClient provideJiraClient() {
+        // Create client with pre-resolved credentials
+        JSONObject jiraConfig = resolvedIntegrations.getJSONObject("jira");
+        return new JiraClient(jiraConfig.getString("url"), jiraConfig.getString("token"));
+    }
+}
+```
+
+## Injection Patterns
+
+### Field Injection
+```java
+public class MyJob extends AbstractJob<MyParams, MyResult> {
+    @Inject
+    TrackerClient<? extends ITicket> trackerClient;
+    
+    @Inject
+    AI ai;
+    
+    @Inject
+    MySpecificAgent myAgent;
+}
+```
+
+### Constructor Injection (Preferred)
+```java
+public class MyService {
+    private final TrackerClient trackerClient;
+    private final AI ai;
+    
+    @Inject
+    public MyService(TrackerClient trackerClient, AI ai) {
+        this.trackerClient = trackerClient;
+        this.ai = ai;
+    }
+}
+```
+
+### Provider Methods
+```java
+@Module
+public class MyModule {
+    @Provides
+    @Singleton
+    public MyService provideMyService(TrackerClient trackerClient, AI ai) {
+        return new MyService(trackerClient, ai);
+    }
+}
+```
+
+## Component Lifecycle Management
+
+### Component Creation
+- Create components lazily when needed
+- Store component references statically for reuse
+- Handle component creation failures gracefully
+
+### Component Cleanup
+- Components are application-scoped and don't require explicit cleanup
+- Singleton dependencies managed by Dagger lifecycle
+- HTTP clients and connections cleaned up by underlying implementations
+
+## Module Development Guidelines
+
+### Module Responsibilities
+1. **Single Concern**: Each module should provide related dependencies
+2. **Clear Boundaries**: Avoid cross-cutting concerns in modules
+3. **Testing Support**: Provide test doubles and mocks where needed
+4. **Configuration**: Handle environment-specific configuration
+
+### Provider Method Patterns
+```java
+@Module
+public class IntegrationModule {
+    
+    @Provides
+    @Singleton
+    public ClientInterface provideClient(ApplicationConfiguration config) {
+        String url = config.getProperty("client.url");
+        String token = config.getProperty("client.token");
+        return new ClientImplementation(url, token);
+    }
+    
+    @Provides
+    @Named("timeout")
+    public Integer provideTimeout(ApplicationConfiguration config) {
+        return Integer.parseInt(config.getProperty("client.timeout", "60"));
+    }
+}
+```
+
+### Conditional Provision
+```java
+@Module
+public class ConditionalModule {
+    
+    @Provides
+    @Singleton
+    public OptionalService provideOptionalService(ApplicationConfiguration config) {
+        if (config.getBooleanProperty("optional.enabled", false)) {
+            return new OptionalServiceImpl();
+        }
+        return new NoOpOptionalService();
+    }
+}
+```
+
+## Testing with Dagger
+
+### Test Modules
+```java
+@Module
+public class TestModule {
+    
+    @Provides
+    @Singleton
+    public TrackerClient provideTrackerClient() {
+        return Mockito.mock(TrackerClient.class);
+    }
+    
+    @Provides
+    @Singleton
+    public AI provideAI() {
+        return Mockito.mock(AI.class);
+    }
+}
+```
+
+### Test Components
+```java
+@Singleton
+@Component(modules = {TestModule.class, AIAgentsModule.class})
+public interface TestComponent {
+    void inject(MyJobTest test);
+}
+```
+
+### Test Usage
+```java
+public class MyJobTest {
+    @Inject
+    TrackerClient trackerClient;
+    
+    @Inject
+    MyJob job;
+    
+    @Before
+    public void setUp() {
+        TestComponent component = DaggerTestComponent.create();
+        component.inject(this);
+    }
+}
+```
+
+## Best Practices
+
+### Component Design
+1. **Minimal Interface**: Components should expose only injection methods
+2. **Scoped Appropriately**: Use `@Singleton` for expensive resources
+3. **Clear Dependencies**: Module dependencies should be explicit
+4. **Testable**: Support dependency substitution for testing
+
+### Module Design
+1. **Focused Responsibility**: Each module handles one integration or concern
+2. **Configuration Driven**: Use ApplicationConfiguration for flexibility
+3. **Error Handling**: Provide meaningful errors for misconfiguration
+4. **Resource Management**: Handle resource lifecycle appropriately
+
+### Injection Best Practices
+1. **Constructor Injection**: Preferred for required dependencies
+2. **Field Injection**: Acceptable for framework-managed objects
+3. **Provider Injection**: Use for lazy initialization or factories
+4. **Qualified Injection**: Use `@Named` or custom qualifiers for disambiguation
+
+### Module Testing
+1. **Unit Test Modules**: Test provider methods independently
+2. **Integration Test Components**: Test component graphs
+3. **Mock External Dependencies**: Use test modules for external services
+4. **Configuration Testing**: Test different configuration scenarios
+
+## Common Patterns
+
+### Multi-Module Support
+```java
+// Job supports both execution modes
+public class UniversalJob extends AbstractJob<Params, Result> {
+    
+    // Static component for standalone mode
+    private static UniversalJobComponent standaloneComponent;
+    
+    @Override
+    protected void initializeStandalone() {
+        if (standaloneComponent == null) {
+            standaloneComponent = DaggerUniversalJobComponent.create();
+        }
+        standaloneComponent.inject(this);
+    }
+    
+    @Override
+    protected void initializeServerManaged(JSONObject resolvedIntegrations) {
+        ServerManagedIntegrationsModule module = new ServerManagedIntegrationsModule(resolvedIntegrations);
+        ServerManagedComponent component = DaggerUniversalJob_ServerManagedComponent.builder()
+            .serverManagedIntegrationsModule(module)
+            .build();
+        component.inject(this);
+    }
+}
+```
+
+### Optional Dependencies
+```java
+@Module
+public class OptionalDependencyModule {
+    
+    @Provides
+    @Singleton
+    public Optional<ExternalService> provideExternalService(ApplicationConfiguration config) {
+        try {
+            if (config.hasProperty("external.enabled")) {
+                return Optional.of(new ExternalServiceImpl(config));
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to initialize external service", e);
+        }
+        return Optional.empty();
+    }
+}
+```
+
+### Configuration-Based Selection
+```java
+@Module
+public class ProviderSelectionModule {
+    
+    @Provides
+    @Singleton
+    public AIProvider provideAIProvider(ApplicationConfiguration config) {
+        String provider = config.getProperty("ai.provider", "openai");
+        switch (provider.toLowerCase()) {
+            case "openai":
+                return new OpenAIProvider(config);
+            case "gemini":
+                return new GeminiProvider(config);
+            default:
+                throw new IllegalArgumentException("Unknown AI provider: " + provider);
+        }
+    }
+}
+```
