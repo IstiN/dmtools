@@ -1,0 +1,63 @@
+name: 'Setup DMTools Environment'
+description: 'Sets up Java, Node.js, Playwright, and caches for DMTools workflows'
+
+inputs:
+  java-version:
+    description: 'Java version to use'
+    required: false
+    default: '23'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20'
+  cache-key-suffix:
+    description: 'Additional suffix for cache keys to avoid conflicts'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up JDK ${{ inputs.java-version }}
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: ${{ inputs.java-version }}
+
+    - name: Set up Node.js ${{ inputs.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install Playwright
+      shell: bash
+      run: |
+        npm init -y
+        npm install -D @playwright/test
+        npx playwright install --with-deps
+
+    - name: Install xmllint
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libxml2-utils
+
+    - name: Cache Gradle files
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle${{ inputs.cache-key-suffix }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle${{ inputs.cache-key-suffix }}-
+          ${{ runner.os }}-gradle-
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright${{ inputs.cache-key-suffix }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-playwright${{ inputs.cache-key-suffix }}-
+          ${{ runner.os }}-playwright-
