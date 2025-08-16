@@ -6,6 +6,7 @@ import com.github.istin.dmtools.server.service.JobConfigurationService;
 import com.github.istin.dmtools.server.service.WebhookKeyService;
 import com.github.istin.dmtools.server.service.WebhookExamplesService;
 import com.github.istin.dmtools.server.model.WebhookKey;
+import com.github.istin.dmtools.server.exception.JobHasActiveExecutionsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -165,6 +166,8 @@ public class JobConfigurationController {
             boolean deleted = jobConfigurationService.deleteJobConfiguration(id, userId);
             return deleted ? ResponseEntity.noContent().build() 
                           : ResponseEntity.notFound().build();
+        } catch (JobHasActiveExecutionsException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(null); // 409 Conflict
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
