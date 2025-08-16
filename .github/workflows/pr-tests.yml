@@ -33,13 +33,14 @@ jobs:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run Playwright API tests
-        id: playwright
-        continue-on-error: true
-        run: |
-          cd playwright-api-tests && npx playwright test
-        env:
-          CI: true
+      # TODO: Add Playwright tests back after server setup is configured
+      # - name: Run Playwright API tests
+      #   id: playwright
+      #   continue-on-error: true
+      #   run: |
+      #     cd playwright-api-tests && npx playwright test
+      #   env:
+      #     CI: true
 
       - name: Test Report
         uses: dorny/test-reporter@v1
@@ -82,18 +83,11 @@ jobs:
           test_file_count=$(find . -path "*/build/test-results/test/TEST-*.xml" -type f | wc -l)
           echo "**Total test result files found**: $test_file_count" >> $GITHUB_STEP_SUMMARY
 
-      - name: Print Playwright Test Results
-        if: steps.playwright.outcome == 'failure'
-        run: |
-          echo "## 🎭 Playwright Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Playwright tests failed. Check the test results for details." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Try to get playwright results if available
-          if [ -f "playwright-api-tests/playwright-report/index.html" ]; then
-            echo "Playwright report generated at: playwright-api-tests/playwright-report/index.html" >> $GITHUB_STEP_SUMMARY
-          fi
+      # Playwright tests disabled for now
+      # - name: Print Playwright Test Results
+      #   if: steps.playwright.outcome == 'failure'
+      #   run: |
+      #     echo "## 🎭 Playwright Test Results" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Test Results
         if: always()
@@ -107,8 +101,6 @@ jobs:
             dmtools-core/build/test-results/test
             dmtools-server/build/reports/tests/test
             dmtools-server/build/test-results/test
-            playwright-api-tests/playwright-report
-            playwright-api-tests/test-results
           retention-days: 7
 
       - name: Upload coverage reports to Codecov
@@ -129,18 +121,17 @@ jobs:
         with:
           script: |
             const gradleSuccess = '${{ steps.gradle.outcome }}' === 'success';
-            const playwrightSuccess = '${{ steps.playwright.outcome }}' === 'success';
             
             let comment = '## 🧪 Test Results\n\n';
             
-            if (gradleSuccess && playwrightSuccess) {
+            if (gradleSuccess) {
               comment += '✅ **All tests passed!**\n\n';
               comment += '- ✅ Gradle tests: PASSED\n';
-              comment += '- ✅ Playwright tests: PASSED\n';
+              comment += '- ⏸️ Playwright tests: DISABLED (requires server setup)\n';
             } else {
-              comment += '❌ **Some tests failed**\n\n';
-              comment += `- ${gradleSuccess ? '✅' : '❌'} Gradle tests: ${gradleSuccess ? 'PASSED' : 'FAILED'}\n`;
-              comment += `- ${playwrightSuccess ? '✅' : '❌'} Playwright tests: ${playwrightSuccess ? 'PASSED' : 'FAILED'}\n`;
+              comment += '❌ **Tests failed**\n\n';
+              comment += `- ❌ Gradle tests: FAILED\n`;
+              comment += '- ⏸️ Playwright tests: DISABLED (requires server setup)\n';
               comment += '\n📋 Check the workflow run for detailed test results and artifacts.\n';
             }
             
@@ -159,17 +150,23 @@ jobs:
           echo "## 📊 Final Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ steps.gradle.outcome }}" = "success" ] && [ "${{ steps.playwright.outcome }}" = "success" ]; then
-            echo "✅ **All tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.gradle.outcome }}" = "success" ]; then
+            echo "✅ **Gradle tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **Gradle build and tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- ⏸️ **Playwright tests**: DISABLED (requires server setup)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The PR is ready for review." >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ **Some tests failed**" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Gradle tests failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ **Gradle build and tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "- ⏸️ **Playwright tests**: DISABLED (requires server setup)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Please fix the failing tests before merging." >> $GITHUB_STEP_SUMMARY
             
-            # Fail the workflow if any tests failed
-            if [ "${{ steps.gradle.outcome }}" = "failure" ] || [ "${{ steps.playwright.outcome }}" = "failure" ]; then
+            # Fail the workflow if Gradle tests failed
+            if [ "${{ steps.gradle.outcome }}" = "failure" ]; then
               exit 1
             fi
           fi
