@@ -116,15 +116,6 @@ Before completing implementation, verify:
 - ✅ Documentation is clear and complete
 - ✅ Response file is created with full details
 
-## WORKFLOW INTEGRATION:
-
-- Focus on direct implementation of user requirements
-- Create working, functional code
-- Provide clear documentation and usage instructions in `outputs/response.md` 
-- Ensure all deliverables are complete and accessible
-
-
-
 **IMPORTANT** RULE APPLICATION GUIDE:
 
 Apply and check rules in the folder `.cursor/rules` based on your implementation context:
@@ -136,3 +127,10 @@ Apply and check rules in the folder `.cursor/rules` based on your implementation
 - **agents-jobs.mdc**: When creating or modifying AI agents or job classes - covers AbstractSimpleAgent and AbstractJob patterns
 - **dagger-dependency-injection.mdc**: When setting up dependency injection or working with Dagger components and modules
 - **core-server-separation.mdc**: CRITICAL for architecture decisions - ensures proper separation between dmtools-core and dmtools-server modules 
+
+## WORKFLOW INTEGRATION:
+**HIGH PRIORITY RULES**
+- Focus on direct implementation of user requirements
+- Create working, functional code
+- **IMPORTANT** Provide clear documentation and usage instructions in `outputs/response.md` 
+- Ensure all deliverables are complete and accessible
