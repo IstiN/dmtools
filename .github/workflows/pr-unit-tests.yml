@@ -88,18 +88,6 @@ jobs:
             dmtools-server/build/test-results/test
           retention-days: 7
 
-      - name: Upload coverage reports to Codecov
-        if: success() || steps.gradle.outcome == 'failure'
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Upload test results to Codecov
-        if: success() || steps.gradle.outcome == 'failure'
-        uses: codecov/test-results-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
       - name: Comment PR with unit test results
         if: always()
         uses: actions/github-script@v7
