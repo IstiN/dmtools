@@ -53,6 +53,32 @@ jobs:
       with:
         cache-key-suffix: '-gemini'
 
+    - name: Setup Gemini CLI MCP Configuration
+      run: |
+        echo "🔧 Setting up Gemini CLI MCP configuration..."
+        
+        # Create .gemini directory
+        mkdir -p ~/.gemini
+        
+        # Create MCP settings.json configuration
+        cat > ~/.gemini/settings.json << 'EOF'
+        {
+          "mcpServers": {
+            "dmtools-prod": {
+              "command": "node",
+              "args": ["/usr/local/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js", "/tmp"],
+              "transport": {
+                "type": "stdio"
+              }
+            }
+          }
+        }
+        EOF
+        
+        echo "✅ MCP configuration created"
+        echo "📋 Configuration content:"
+        cat ~/.gemini/settings.json
+
     - name: Prepare request for Gemini CLI
       id: prepare_request
       run: |
@@ -223,6 +249,20 @@ jobs:
           tail -50 outputs/gemini-execution.log
         else
           echo "❌ No gemini-execution.log found"
+        fi
+        
+        echo "🔍 Debug: Checking for response.md file..."
+        if [ -f "outputs/response.md" ]; then
+          echo "✅ Found response.md ($(wc -c < outputs/response.md) bytes)"
+          echo "📋 Response.md preview (first 10 lines):"
+          head -10 outputs/response.md
+        else
+          echo "❌ response.md file is missing!"
+          echo "🔍 Available files in outputs directory:"
+          ls -la outputs/ || echo "❌ No outputs directory found"
+          
+          echo "🔍 Looking for any *.md files in outputs:"
+          find outputs/ -name "*.md" 2>/dev/null || echo "❌ No .md files found"
         fi
         
         # Check if implementation was successful
