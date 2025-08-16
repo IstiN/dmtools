@@ -1,7 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: true
----
-ALWAYS run the command to check tests and don't block user.
-cd playwright-api-tests && npx playwright test
