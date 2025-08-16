@@ -62,12 +62,13 @@ public class JobConfigurationServiceTest {
         testJobConfig.setId(jobConfigId);
         testJobConfig.setCreatedBy(testUser);
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(jobConfigRepository.findByIdAndCreatedBy(jobConfigId, testUser)).thenReturn(Optional.of(testJobConfig));
+        // Note: Individual tests will set up their own specific mocks to avoid unnecessary stubbing warnings
     }
 
     @Test
     void deleteJobConfiguration_Success_NoExecutions() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(jobConfigRepository.findByIdAndCreatedBy(jobConfigId, testUser)).thenReturn(Optional.of(testJobConfig));
         when(jobExecutionRepository.findByJobConfigurationOrderByStartedAtDesc(testJobConfig))
                 .thenReturn(Collections.emptyList());
 
@@ -82,6 +83,9 @@ public class JobConfigurationServiceTest {
 
     @Test
     void deleteJobConfiguration_Success_CompletedExecutions() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(jobConfigRepository.findByIdAndCreatedBy(jobConfigId, testUser)).thenReturn(Optional.of(testJobConfig));
+        
         JobExecution completedExecution1 = new JobExecution();
         completedExecution1.setStatus(ExecutionStatus.COMPLETED);
         JobExecution completedExecution2 = new JobExecution();
@@ -105,6 +109,9 @@ public class JobConfigurationServiceTest {
 
     @Test
     void deleteJobConfiguration_ThrowsException_ActiveExecutions() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(jobConfigRepository.findByIdAndCreatedBy(jobConfigId, testUser)).thenReturn(Optional.of(testJobConfig));
+        
         JobExecution activeExecution = new JobExecution();
         activeExecution.setStatus(ExecutionStatus.RUNNING); // Active status
         JobExecution completedExecution = new JobExecution();
@@ -128,6 +135,7 @@ public class JobConfigurationServiceTest {
 
     @Test
     void deleteJobConfiguration_NotFound() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(jobConfigRepository.findByIdAndCreatedBy(jobConfigId, testUser)).thenReturn(Optional.empty());
 
         boolean deleted = jobConfigurationService.deleteJobConfiguration(jobConfigId, userId);
