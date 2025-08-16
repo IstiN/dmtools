@@ -7,8 +7,13 @@ import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.repository.UserRepository;
 import com.github.istin.dmtools.dto.*;
 import com.github.istin.dmtools.server.model.JobConfiguration;
+import com.github.istin.dmtools.server.model.JobExecution;
+import com.github.istin.dmtools.server.model.ExecutionStatus;
 import com.github.istin.dmtools.server.repository.JobConfigurationRepository;
+import com.github.istin.dmtools.server.repository.JobExecutionRepository;
+import com.github.istin.dmtools.server.repository.JobExecutionLogRepository;
 import com.github.istin.dmtools.server.exception.ValidationException;
+import com.github.istin.dmtools.server.exception.JobConfigurationDeletionException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -181,12 +186,38 @@ public class JobConfigurationService {
         return Optional.of(transformJobConfigurationForUI(savedJobConfig));
     }
 
+    private final JobConfigurationRepository jobConfigRepository;
+    private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
+    private final DotNotationTransformer dotNotationTransformer;
+    private final ParameterValidator parameterValidator;
+    private final JobExecutionRepository jobExecutionRepository;
+    private final JobExecutionLogRepository jobExecutionLogRepository;
+
+    public JobConfigurationService(
+            JobConfigurationRepository jobConfigRepository,
+            UserRepository userRepository,
+            ObjectMapper objectMapper,
+            DotNotationTransformer dotNotationTransformer,
+            ParameterValidator parameterValidator,
+            JobExecutionRepository jobExecutionRepository,
+            JobExecutionLogRepository jobExecutionLogRepository) {
+        this.jobConfigRepository = jobConfigRepository;
+        this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
+        this.dotNotationTransformer = dotNotationTransformer;
+        this.parameterValidator = parameterValidator;
+        this.jobExecutionRepository = jobExecutionRepository;
+        this.jobExecutionLogRepository = jobExecutionLogRepository;
+    }
+
     /**
      * Delete a job configuration.
      *
      * @param jobConfigId The ID of the job configuration to delete
      * @param userId The ID of the user deleting the job configuration
      * @return true if deletion was successful, false if job configuration not found
+     * @throws JobConfigurationDeletionException if the job configuration has active executions
      */
     @Transactional
     public boolean deleteJobConfiguration(String jobConfigId, String userId) {
@@ -198,7 +229,24 @@ public class JobConfigurationService {
             return false;
         }
         
-        jobConfigRepository.delete(optionalJobConfig.get());
+        JobConfiguration jobConfig = optionalJobConfig.get();
+
+        // Check for active job executions
+        List<JobExecution> activeExecutions = jobExecutionRepository.findByJobConfigurationAndStatusIn(jobConfig,
+                List.of(ExecutionStatus.PENDING, ExecutionStatus.RUNNING));
+        if (!activeExecutions.isEmpty()) {
+            throw new JobConfigurationDeletionException("Cannot delete job configuration with active executions. " +
+                    "Please wait for all executions to complete or cancel them.");
+        }
+
+        // Delete associated job executions and their logs
+        List<JobExecution> jobExecutions = jobExecutionRepository.findByJobConfigurationOrderByStartedAtDesc(jobConfig);
+        for (JobExecution execution : jobExecutions) {
+            jobExecutionLogRepository.deleteByExecution(execution); // Delete logs first
+            jobExecutionRepository.delete(execution); // Then delete the execution
+        }
+
+        jobConfigRepository.delete(jobConfig);
         return true;
     }
 

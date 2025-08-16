@@ -2,6 +2,7 @@ package com.github.istin.dmtools.server;
 
 import com.github.istin.dmtools.auth.service.UserService;
 import com.github.istin.dmtools.dto.*;
+import com.github.istin.dmtools.server.exception.JobConfigurationDeletionException;
 import com.github.istin.dmtools.server.service.JobConfigurationService;
 import com.github.istin.dmtools.server.service.WebhookKeyService;
 import com.github.istin.dmtools.server.service.WebhookExamplesService;
@@ -165,6 +166,8 @@ public class JobConfigurationController {
             boolean deleted = jobConfigurationService.deleteJobConfiguration(id, userId);
             return deleted ? ResponseEntity.noContent().build() 
                           : ResponseEntity.notFound().build();
+        } catch (JobConfigurationDeletionException e) {
+            return ResponseEntity.badRequest().body(null); // Or a custom error response body
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
