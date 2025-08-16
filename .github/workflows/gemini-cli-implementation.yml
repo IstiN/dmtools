@@ -27,6 +27,11 @@ on:
         required: false
         type: string
         default: 'main'
+      enable_debug_logging:
+        description: 'Enable comprehensive debug logging for Gemini CLI'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -103,41 +108,55 @@ jobs:
         # Export environment variables for Gemini CLI
         export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
         
-        # Enable comprehensive debug logging for Gemini CLI
-        # Based on Gemini CLI source code investigation:
-        export DEBUG=1                              # Main debug flag
-        export DEBUG_MODE=1                         # Alternative debug mode
-        export DEBUG="gemini*,@google/gemini-cli*"  # Namespace-specific debug
-        export NODE_OPTIONS="--trace-warnings --max-old-space-size=8192"
-        export GEMINI_CLI_VERBOSE=true
-        export GEMINI_CLI_LOG_LEVEL=debug
+        # Configure debug logging based on input parameter
+        if [ "${{ inputs.enable_debug_logging }}" = "true" ]; then
+          echo "🔍 Debug logging ENABLED - comprehensive output will be shown"
+          # Based on Gemini CLI source code investigation:
+          export DEBUG=1                              # Main debug flag
+          export DEBUG_MODE=1                         # Alternative debug mode
+          export DEBUG="gemini*,@google/gemini-cli*"  # Namespace-specific debug
+          export NODE_OPTIONS="--trace-warnings --max-old-space-size=8192"
+          export GEMINI_CLI_VERBOSE=true
+          export GEMINI_CLI_LOG_LEVEL=debug
+          export GEMINI_DEBUG_ENABLED=true
+        else
+          echo "🔇 Debug logging DISABLED - minimal output will be shown"
+          export NODE_OPTIONS="--max-old-space-size=8192"
+          export GEMINI_DEBUG_ENABLED=false
+        fi
         
         echo "🔍 Debug: Checking Gemini CLI installation..."
         which gemini || echo "❌ Gemini CLI not found in PATH"
         gemini --version || echo "❌ Failed to get Gemini CLI version"
         
-        echo "🔍 Debug: Checking MCP server configuration..."
-        echo "- Gemini settings directory:"
-        ls -la ~/.gemini/ 2>/dev/null || echo "❌ No ~/.gemini directory found"
-        echo "- MCP settings file:"
-        cat ~/.gemini/settings.json 2>/dev/null || echo "❌ No settings.json found"
+        if [ "${{ inputs.enable_debug_logging }}" = "true" ]; then
+          echo "🔍 Debug: Checking MCP server configuration..."
+          echo "- Gemini settings directory:"
+          ls -la ~/.gemini/ 2>/dev/null || echo "❌ No ~/.gemini directory found"
+          echo "- MCP settings file:"
+          cat ~/.gemini/settings.json 2>/dev/null || echo "❌ No settings.json found"
+          
+          echo "🔍 Debug: Testing MCP server connectivity..."
+          echo "This will help identify MCP connection issues when they occur."
+        fi
         
-        echo "🔍 Debug: Testing MCP server connectivity..."
-        echo "This will help identify MCP connection issues when they occur."
-        
-        echo "🔍 Debug: Environment variables:"
-        echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:0:10}..."
-        echo "- PWD: $(pwd)"
-        echo "- User request file exists: $(test -f outputs/user-request.txt && echo 'YES' || echo 'NO')"
-        
-        echo "🔍 Debug: Contents of user request:"
-        cat outputs/user-request.txt || echo "❌ Could not read user request file"
-        
-        echo "🔍 Debug: Environment summary:"
-        echo "- Node version: $(node --version)"
-        echo "- NPM version: $(npm --version)"
-        echo "- Available memory: $(free -h | grep Mem || echo 'Memory info not available')"
-        echo "- Disk space: $(df -h . | tail -1)"
+        if [ "${{ inputs.enable_debug_logging }}" = "true" ]; then
+          echo "🔍 Debug: Environment variables:"
+          echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:0:10}..."
+          echo "- PWD: $(pwd)"
+          echo "- User request file exists: $(test -f outputs/user-request.txt && echo 'YES' || echo 'NO')"
+          
+          echo "🔍 Debug: Contents of user request:"
+          cat outputs/user-request.txt || echo "❌ Could not read user request file"
+          
+          echo "🔍 Debug: Environment summary:"
+          echo "- Node version: $(node --version)"
+          echo "- NPM version: $(npm --version)"
+          echo "- Available memory: $(free -h | grep Mem || echo 'Memory info not available')"
+          echo "- Disk space: $(df -h . | tail -1)"
+        else
+          echo "📋 Basic info: User request file exists: $(test -f outputs/user-request.txt && echo 'YES' || echo 'NO')"
+        fi
         
         # Run implementation using our simplified script with comprehensive logging
         echo "🚀 Executing run-gemini.sh script with full logging..."
@@ -153,7 +172,7 @@ jobs:
           timeout --signal=TERM --kill-after=60s 25m ./cli_agents/scripts/run-gemini.sh "implementation" "outputs/user-request.txt" 2>&1 | while IFS= read -r line; do
             echo "[$(date '+%H:%M:%S')] $line"
             
-            # Check for potential loop indicators
+            # Always check for critical error patterns
             if [[ "$line" == *"MaxListenersExceededWarning"* ]]; then
               echo "[$(date '+%H:%M:%S')] ⚠️ WARNING: Detected potential memory leak warning"
             fi
@@ -161,20 +180,23 @@ jobs:
               echo "[$(date '+%H:%M:%S')] ⚠️ WARNING: Detected tool execution error"
             fi
             
-            # Check for MCP connection patterns (based on CLI source investigation)
-            if [[ "$line" == *"Attempting to connect to"* ]]; then
-              echo "[$(date '+%H:%M:%S')] 🔍 MCP: Connection attempt detected"
-            fi
-            if [[ "$line" == *"Cannot connect to"*"server may be down"* ]]; then
-              echo "[$(date '+%H:%M:%S')] 🚨 MCP: Connection failed"
-            fi
-            if [[ "$line" == *"Connected to"*"server"* ]]; then
-              echo "[$(date '+%H:%M:%S')] ✅ MCP: Connection successful"
-            fi
-            
-            # Debug mode confirmations
-            if [[ "$line" == *"Found readable global GEMINI.md"* ]] || [[ "$line" == *"Searching for GEMINI.md"* ]]; then
-              echo "[$(date '+%H:%M:%S')] 🔍 DEBUG: Memory discovery active"
+            # Additional debug patterns only when debug logging is enabled
+            if [ "${{ inputs.enable_debug_logging }}" = "true" ]; then
+              # Check for MCP connection patterns (based on CLI source investigation)
+              if [[ "$line" == *"Attempting to connect to"* ]]; then
+                echo "[$(date '+%H:%M:%S')] 🔍 MCP: Connection attempt detected"
+              fi
+              if [[ "$line" == *"Cannot connect to"*"server may be down"* ]]; then
+                echo "[$(date '+%H:%M:%S')] 🚨 MCP: Connection failed"
+              fi
+              if [[ "$line" == *"Connected to"*"server"* ]]; then
+                echo "[$(date '+%H:%M:%S')] ✅ MCP: Connection successful"
+              fi
+              
+              # Debug mode confirmations
+              if [[ "$line" == *"Found readable global GEMINI.md"* ]] || [[ "$line" == *"Searching for GEMINI.md"* ]]; then
+                echo "[$(date '+%H:%M:%S')] 🔍 DEBUG: Memory discovery active"
+              fi
             fi
           done
           

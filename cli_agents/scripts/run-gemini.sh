@@ -122,19 +122,26 @@ echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:+SET (${#GEMINI_API_KEY} chars)} ${GEMI
 echo "- Model: $MODEL"
 echo "- Combined prompt file size: $(wc -c < "$COMBINED_PROMPT_FILE") bytes"
 
-echo "🚀 Executing: gemini --debug --yolo --prompt <prompt_content>"
+echo "🚀 Executing: gemini ${GEMINI_DEBUG_FLAG} --yolo --prompt <prompt_content>"
 echo "📏 Prompt length: ${#COMBINED_PROMPT_CONTENT} characters"
 
 # Set Node.js options to handle event listener limits
 export NODE_OPTIONS="--max-old-space-size=4096 --max-http-header-size=8192"
 
-# Enable all debug modes based on Gemini CLI source investigation
-export DEBUG=1
-export DEBUG_MODE=1
+# Configure debug modes based on environment variable from workflow
+if [ "${GEMINI_DEBUG_ENABLED:-true}" = "true" ]; then
+  echo "🔍 Debug mode ENABLED for Gemini CLI execution"
+  export DEBUG=1
+  export DEBUG_MODE=1
+  GEMINI_DEBUG_FLAG="--debug"
+else
+  echo "🔇 Debug mode DISABLED for Gemini CLI execution"
+  GEMINI_DEBUG_FLAG=""
+fi
 
 # No process cleanup needed - single execution per workflow
 
-if GEMINI_RESPONSE=$(gemini --debug --yolo --prompt "$COMBINED_PROMPT_CONTENT" 2>&1); then
+if GEMINI_RESPONSE=$(gemini $GEMINI_DEBUG_FLAG --yolo --prompt "$COMBINED_PROMPT_CONTENT" 2>&1); then
     GEMINI_EXIT_CODE=0
     echo "✅ Gemini CLI execution successful"
     echo "📏 Response length: ${#GEMINI_RESPONSE} characters"
