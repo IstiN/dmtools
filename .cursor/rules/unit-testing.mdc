@@ -311,3 +311,175 @@ public void testConcurrentAccess_multipleThreads_threadSafe() {
 - Avoid test code duplication
 - Use helper methods and utilities
 - Keep tests focused and independent
+
+## CRITICAL: Avoiding Common Test Failures
+
+### Spring Boot Test Context Issues
+
+#### ❌ AVOID: @WebMvcTest with Missing Beans
+```java
+// BAD - Will fail with missing bean errors
+@WebMvcTest(MyController.class)
+public class MyControllerTest {
+    // Spring context tries to load security beans that aren't available
+}
+```
+
+#### ✅ PREFER: Pure Unit Tests for Controllers
+```java
+// GOOD - No Spring context, direct method testing
+@ExtendWith(MockitoExtension.class)
+public class MyControllerTest {
+    @Mock
+    private MyService mockService;
+    
+    @Mock
+    private Authentication authentication;
+    
+    @Mock
+    private OAuth2User oAuth2User;
+
+    @InjectMocks
+    private MyController controller;
+    
+    @Test
+    void testMethod_scenario_expectedResult() {
+        // Setup authentication mocks
+        when(authentication.getPrincipal()).thenReturn(oAuth2User);
+        when(oAuth2User.getAttribute("sub")).thenReturn("user-id");
+        
+        // Test controller method directly
+        ResponseEntity<Void> response = controller.deleteMethod("id", authentication);
+        
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+    }
+}
+```
+
+#### ✅ ALTERNATIVE: MockMvc Standalone Setup
+```java
+// GOOD - MockMvc without Spring context
+@ExtendWith(MockitoExtension.class)
+public class MyControllerTest {
+    @InjectMocks
+    private MyController controller;
+    
+    private MockMvc mockMvc;
+    
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+    }
+}
+```
+
+### Mockito UnnecessaryStubbingException Prevention
+
+#### ❌ AVOID: Global Mock Setup in @BeforeEach
+```java
+// BAD - Creates unnecessary stubbings for some tests
+@BeforeEach
+void setUp() {
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(jobConfigRepository.findByIdAndCreatedBy(jobConfigId, testUser))
+        .thenReturn(Optional.of(testJobConfig));
+}
+
+@Test
+void testUserNotFound() {
+    // This test overrides the first stubbing but never uses the second
+    when(userRepository.findById(userId)).thenReturn(Optional.empty());
+    // UnnecessaryStubbingException because jobConfigRepository stubbing is unused
+}
+```
+
+#### ✅ PREFER: Test-Specific Mock Setup
+```java
+// GOOD - Each test sets up only what it needs
+@BeforeEach
+void setUp() {
+    // Only create test objects, not mock stubbings
+    testUser = new User();
+    testUser.setId(userId);
+    
+    testJobConfig = new JobConfiguration();
+    testJobConfig.setId(jobConfigId);
+}
+
+@Test
+void testSuccess() {
+    // Setup only needed mocks for this test
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(jobConfigRepository.findByIdAndCreatedBy(jobConfigId, testUser))
+        .thenReturn(Optional.of(testJobConfig));
+    
+    // Test logic
+}
+
+@Test
+void testUserNotFound() {
+    // Setup only needed mocks for this test
+    when(userRepository.findById(userId)).thenReturn(Optional.empty());
+    
+    // Test logic - no unnecessary stubbings
+}
+```
+
+#### ✅ ALTERNATIVE: Use @Spy or lenient() Stubbings
+```java
+// GOOD - Use lenient() for potentially unused stubbings
+@BeforeEach
+void setUp() {
+    lenient().when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    lenient().when(jobConfigRepository.findByIdAndCreatedBy(jobConfigId, testUser))
+        .thenReturn(Optional.of(testJobConfig));
+}
+```
+
+### Controller Testing Strategy Decision Tree
+
+1. **Pure Business Logic Testing**: Use `@ExtendWith(MockitoExtension.class)`
+   - Direct method calls to controller
+   - Mock all dependencies
+   - No Spring context
+   - **Example**: `JobConfigurationControllerTest`, `JobConfigurationControllerWebhookTest`
+
+2. **Simple HTTP Testing**: Use `MockMvcBuilders.standaloneSetup()`
+   - Test HTTP endpoints without Spring context
+   - **Example**: `HealthControllerTest`
+
+3. **Full Integration Testing**: Use `@WebMvcTest` with proper test configuration
+   - Only when you need Spring Security, validation, etc.
+   - Must provide all required beans or use `@MockBean`
+   - **Use sparingly**
+
+### Test Failure Debugging Commands
+
+```bash
+# Run specific failing test with detailed output
+./gradlew :dmtools-server:test --tests "ClassNameTest.methodName" --info
+
+# Run test with debug logging
+./gradlew :dmtools-server:test --tests "ClassNameTest" --debug
+
+# Check test reports
+open dmtools-server/build/reports/tests/test/index.html
+```
+
+### Test Stability Rules
+
+#### MANDATORY Practices
+- **Each test must be independent** - No shared state between tests
+- **Setup only what each test needs** - Avoid global @BeforeEach stubbings
+- **Use descriptive test names** - `testMethod_scenario_expectedResult()`
+- **Clean test data** - Reset/clean state after each test
+- **Mock external dependencies** - Never call real services in unit tests
+- **Test one thing at a time** - Single responsibility per test method
+
+#### FORBIDDEN Practices
+- ❌ Shared mutable state between tests
+- ❌ Global mock stubbings that aren't used by all tests
+- ❌ Testing multiple scenarios in one test method
+- ❌ Depending on test execution order
+- ❌ Using real external services in unit tests
+- ❌ Catching and ignoring exceptions without assertions
