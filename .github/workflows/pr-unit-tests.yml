@@ -1,4 +1,4 @@
-name: PR Tests and Quality Checks
+name: PR Unit Tests
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
     types: [ opened, synchronize, reopened, ready_for_review ]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,38 +23,29 @@ jobs:
       - name: Setup DMTools Environment
         uses: ./.github/actions/setup-environment
         with:
-          cache-key-suffix: '-pr'
+          cache-key-suffix: '-unit-tests'
 
-      - name: Run tests and build
+      - name: Run unit tests and build
         id: gradle
         continue-on-error: true
-        run: ./gradlew clean build :dmtools-core:shadowJar -x integrationTest
+        run: ./gradlew clean test :dmtools-core:shadowJar -x integrationTest
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # TODO: Add Playwright tests back after server setup is configured
-      # - name: Run Playwright API tests
-      #   id: playwright
-      #   continue-on-error: true
-      #   run: |
-      #     cd playwright-api-tests && npx playwright test
-      #   env:
-      #     CI: true
-
-      - name: Test Report
+      - name: Unit Test Report
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: JUnit Tests
+          name: Unit Tests
           path: '**/build/test-results/test/TEST-*.xml'
           reporter: java-junit
-          fail-on-error: false # Don't fail here, we'll handle it later
+          fail-on-error: false
 
-      - name: Print Failed Tests
+      - name: Print Failed Unit Tests
         if: steps.gradle.outcome == 'failure'
         run: |
-          echo "## 🚨 Failed Tests Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚨 Failed Unit Tests Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           failed_found=false
@@ -83,17 +74,11 @@ jobs:
           test_file_count=$(find . -path "*/build/test-results/test/TEST-*.xml" -type f | wc -l)
           echo "**Total test result files found**: $test_file_count" >> $GITHUB_STEP_SUMMARY
 
-      # Playwright tests disabled for now
-      # - name: Print Playwright Test Results
-      #   if: steps.playwright.outcome == 'failure'
-      #   run: |
-      #     echo "## 🎭 Playwright Test Results" >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload Test Results
+      - name: Upload Unit Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-pr-${{ github.event.number }}
+          name: unit-test-results-pr-${{ github.event.number }}
           path: |
             build/reports/tests/test
             build/test-results/test
@@ -115,23 +100,22 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Comment PR with test results
+      - name: Comment PR with unit test results
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const gradleSuccess = '${{ steps.gradle.outcome }}' === 'success';
             
-            let comment = '## 🧪 Test Results\n\n';
+            let comment = '## 🧪 Unit Test Results\n\n';
             
             if (gradleSuccess) {
-              comment += '✅ **All tests passed!**\n\n';
-              comment += '- ✅ Gradle tests: PASSED\n';
-              comment += '- ⏸️ Playwright tests: DISABLED (requires server setup)\n';
+              comment += '✅ **All unit tests passed!**\n\n';
+              comment += '- ✅ Unit tests: PASSED\n';
+              comment += '- ✅ Build: PASSED\n';
             } else {
-              comment += '❌ **Tests failed**\n\n';
-              comment += `- ❌ Gradle tests: FAILED\n`;
-              comment += '- ⏸️ Playwright tests: DISABLED (requires server setup)\n';
+              comment += '❌ **Unit tests failed**\n\n';
+              comment += `- ❌ Unit tests: FAILED\n`;
               comment += '\n📋 Check the workflow run for detailed test results and artifacts.\n';
             }
             
@@ -147,25 +131,24 @@ jobs:
       - name: Set final status
         if: always()
         run: |
-          echo "## 📊 Final Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Unit Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ steps.gradle.outcome }}" = "success" ]; then
-            echo "✅ **Gradle tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Unit tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ **Gradle build and tests**: PASSED" >> $GITHUB_STEP_SUMMARY
-            echo "- ⏸️ **Playwright tests**: DISABLED (requires server setup)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **Unit tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **Build**: PASSED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The PR is ready for review." >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ **Gradle tests failed**" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Unit tests failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- ❌ **Gradle build and tests**: FAILED" >> $GITHUB_STEP_SUMMARY
-            echo "- ⏸️ **Playwright tests**: DISABLED (requires server setup)" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ **Unit tests**: FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Please fix the failing tests before merging." >> $GITHUB_STEP_SUMMARY
+            echo "Please fix the failing unit tests before merging." >> $GITHUB_STEP_SUMMARY
             
-            # Fail the workflow if Gradle tests failed
+            # Fail the workflow if unit tests failed
             if [ "${{ steps.gradle.outcome }}" = "failure" ]; then
               exit 1
             fi
