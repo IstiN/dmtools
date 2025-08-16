@@ -42,7 +42,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Full history for better context
-        token: ${{ secrets.PAT_TOKEN }}
 
     - name: Setup DMTools Environment
       uses: ./.github/actions/setup-environment
