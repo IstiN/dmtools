@@ -8,13 +8,15 @@ set -e
 # Parameters
 PHASE="$1"              # discovery or implementation
 USER_REQUEST_FILE="$2"
-MODEL="${3:-gemini-2.5-flash-preview-05-20}"
-USE_VERTEX_AI="${4:-false}"
-USE_GCA="${5:-false}"
-OUTPUT_DIR="${6:-outputs}"
+RULES_FOLDER="$3"       # optional folder with .mdc rules files
+MODEL="${4:-gemini-2.5-flash-preview-05-20}"
+USE_VERTEX_AI="${5:-false}"
+USE_GCA="${6:-false}"
+OUTPUT_DIR="${7:-outputs}"
 
 echo "🚀 Starting Gemini CLI execution..."
 echo "📋 Phase: $PHASE"
+echo "📋 Rules folder: ${RULES_FOLDER:-None}"
 echo "📋 Model: $MODEL"
 echo "📋 Use Vertex AI: $USE_VERTEX_AI"
 echo "📋 Use Gemini Code Assist: $USE_GCA"
@@ -60,6 +62,26 @@ PROMPT_CONTENT=$(cat "$PROMPT_FILE")
 # Read user request content  
 USER_REQUEST=$(cat "$USER_REQUEST_FILE")
 
+# Aggregate rules if rules folder is provided
+RULES_CONTENT=""
+if [ ! -z "$RULES_FOLDER" ] && [ -d "$RULES_FOLDER" ]; then
+    echo "📋 Aggregating rules from: $RULES_FOLDER"
+    RULES_SCRIPT="cli_agents/scripts/aggregate-rules.sh"
+    
+    if [ -f "$RULES_SCRIPT" ]; then
+        RULES_CONTENT=$(bash "$RULES_SCRIPT" "$RULES_FOLDER" 2>/dev/null | grep -v "📋\|📄\|⚠️" || echo "")
+        if [ ! -z "$RULES_CONTENT" ]; then
+            echo "✅ Rules aggregated successfully ($(echo "$RULES_CONTENT" | wc -l) lines)"
+        else
+            echo "⚠️ No rules content found in $RULES_FOLDER"
+        fi
+    else
+        echo "⚠️ Rules aggregation script not found: $RULES_SCRIPT"
+    fi
+else
+    echo "📋 No rules folder specified or folder doesn't exist"
+fi
+
 # Prepare combined prompt based on phase
 echo "📋 Preparing $PHASE prompt..."
 
@@ -76,6 +98,13 @@ if [ "$PHASE" = "discovery" ]; then
 $USER_REQUEST
 \`\`\`
 
+$(if [ ! -z "$RULES_CONTENT" ]; then
+echo "---"
+echo ""
+echo "$RULES_CONTENT"
+echo ""
+fi)
+
 ---
 
 $PROMPT_CONTENT
@@ -90,6 +119,13 @@ elif [ "$PHASE" = "implementation" ]; then
 \`\`\`
 $USER_REQUEST
 \`\`\`
+
+$(if [ ! -z "$RULES_CONTENT" ]; then
+echo "---"
+echo ""
+echo "$RULES_CONTENT"
+echo ""
+fi)
 
 ---
 
@@ -120,6 +156,8 @@ gemini --version 2>&1 || echo "❌ WARNING: Could not get Gemini CLI version"
 echo "🔍 Debug: Environment check:"
 echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:+SET (${#GEMINI_API_KEY} chars)} ${GEMINI_API_KEY:-NOT_SET}"
 echo "- Model: $MODEL"
+echo "- Rules folder: ${RULES_FOLDER:-None}"
+echo "- Rules content: ${RULES_CONTENT:+$(echo "$RULES_CONTENT" | wc -l) lines} ${RULES_CONTENT:-None}"
 echo "- Combined prompt file size: $(wc -c < "$COMBINED_PROMPT_FILE") bytes"
 
 echo "🚀 Executing: gemini ${GEMINI_DEBUG_FLAG} --yolo --prompt <prompt_content>"
