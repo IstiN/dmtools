@@ -255,7 +255,7 @@ public abstract class AbstractRestClient implements RestClient {
             Long prevTime = timeMeasurement.get(url);
             long time = System.currentTimeMillis() - 200 - prevTime;
             logger.info("{} {}", time, url);
-            client.connectionPool().evictAll();
+            // Removed aggressive connection pool eviction - let OkHttp manage connection lifecycle
         }
     }
 
@@ -332,7 +332,7 @@ public abstract class AbstractRestClient implements RestClient {
                 throw AbstractRestClient.printAndCreateException(request, response);
             }
         } finally {
-            client.connectionPool().evictAll();
+            // Removed aggressive connection pool eviction - let OkHttp manage connection lifecycle
         }
     }
 
@@ -366,7 +366,7 @@ public abstract class AbstractRestClient implements RestClient {
                 throw AbstractRestClient.printAndCreateException(request, response);
             }
         } finally {
-            client.connectionPool().evictAll();
+            // Removed aggressive connection pool eviction - let OkHttp manage connection lifecycle
         }
     }
 
@@ -396,7 +396,7 @@ public abstract class AbstractRestClient implements RestClient {
                 throw AbstractRestClient.printAndCreateException(request, response);
             }
         } finally {
-            client.connectionPool().evictAll();
+            // Removed aggressive connection pool eviction - let OkHttp manage connection lifecycle
         }
     }
 
@@ -430,12 +430,22 @@ public abstract class AbstractRestClient implements RestClient {
                 throw AbstractRestClient.printAndCreateException(request, response);
             }
         } finally {
-            client.connectionPool().evictAll();
+            // Removed aggressive connection pool eviction - let OkHttp manage connection lifecycle
         }
     }
 
     public void setWaitBeforePerform(boolean waitBeforePerform) {
         isWaitBeforePerform = waitBeforePerform;
+    }
+
+    /**
+     * Manually cleanup connection pool when absolutely necessary.
+     * Should only be called when shutting down the client or in exceptional circumstances.
+     * Normal operation should rely on OkHttp's built-in connection management.
+     */
+    public void cleanupConnectionPool() {
+        client.connectionPool().evictAll();
+        logger.debug("Connection pool manually cleaned up");
     }
 
     public interface Performer<T> {
