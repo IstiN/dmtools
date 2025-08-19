@@ -1,6 +1,5 @@
 package com.github.istin.dmtools.auth.service;
 
-import com.github.istin.dmtools.auth.model.Integration;
 import com.github.istin.dmtools.auth.model.McpConfiguration;
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.repository.McpConfigurationRepository;
@@ -39,7 +38,6 @@ public class McpConfigurationService {
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
-    @Autowired
     public McpConfigurationService(
             McpConfigurationRepository mcpConfigurationRepository,
             IntegrationService integrationService,
@@ -224,6 +222,8 @@ public class McpConfigurationService {
         switch (format.toLowerCase()) {
             case "cursor":
                 return generateCursorConfig(configuration, endpointUrl);
+            case "gemini":
+                return generateGeminiConfig(configuration, endpointUrl);
             case "json":
                 return generateJsonConfig(configuration, endpointUrl);
             case "shell":
@@ -252,6 +252,29 @@ public class McpConfigurationService {
                 streamUrl);
         
         logger.info("Generated cursor config: {}", result);
+        return result;
+    }
+
+    /**
+     * Generate Gemini CLI configuration.
+     */
+    private String generateGeminiConfig(McpConfiguration configuration, String endpointUrl) {
+        // For Gemini CLI, we need to point to the tools endpoint with httpUrl
+        String toolsUrl = baseUrl + "/mcp/tools/" + configuration.getId();
+        
+        String result = String.format("""
+                {
+                  "mcpServers": {
+                    "%s": {
+                      "httpUrl": "%s"
+                    }
+                  },
+                  "selectedAuthType": "gemini-api-key"
+                }""", 
+                configuration.getName().toLowerCase().replaceAll("[^a-z0-9]", "_"),
+                toolsUrl);
+        
+        logger.info("Generated gemini config: {}", result);
         return result;
     }
 
@@ -311,6 +334,16 @@ public class McpConfigurationService {
                         4. Paste the configuration in the MCP Servers section
                         5. Restart Cursor IDE
                         6. Your DMTools integrations (%s) will be available via MCP
+                        """, String.join(", ", configuration.getIntegrationIds()));
+            case "gemini":
+                return String.format("""
+                        1. Ensure you have Gemini CLI installed and GEMINI_API_KEY set in your environment
+                        2. Copy the JSON configuration above
+                        3. Save it to ~/.gemini/settings.json (create the directory if it doesn't exist)
+                        4. If ~/.gemini/settings.json already exists, merge the mcpServers section
+                        5. Run 'gemini mcp list' to verify the server is detected
+                        6. Your DMTools integrations (%s) will be available in Gemini CLI
+                        7. Use commands like: GEMINI_API_KEY=your_key gemini "Get ticket DMC-100 from Jira"
                         """, String.join(", ", configuration.getIntegrationIds()));
             case "json":
                 return "Use this JSON configuration with any MCP-compatible client that supports JSON configuration files.";

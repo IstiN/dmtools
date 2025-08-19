@@ -18,6 +18,10 @@ description: Java coding style and execution patterns for DMTools project
 - Separate concerns by functional area (ai, atlassian, common, etc.)
 - Place interfaces in appropriate packages with implementation separation
 
+### Coding style
+- must be OOP driven
+- no code duplication is allowed
+
 ### Naming Conventions
 - **Classes**: PascalCase (e.g., `AbstractRestClient`, `JSONModel`)
 - **Methods**: camelCase with descriptive names
