@@ -260,7 +260,7 @@ public class McpConfigurationService {
      */
     private String generateGeminiConfig(McpConfiguration configuration, String endpointUrl) {
         // For Gemini CLI, we need to point to the tools endpoint with httpUrl
-        String toolsUrl = baseUrl + "/mcp/tools/" + configuration.getId();
+        String toolsUrl = baseUrl + "/mcp/stream/" + configuration.getId();
         
         String result = String.format("""
                 {
