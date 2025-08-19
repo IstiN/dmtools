@@ -286,7 +286,7 @@ class McpConfigurationServiceTest {
         assertEquals("gemini", result.getFormat());
         assertTrue(result.getCode().contains("\"mcpServers\""));
         assertTrue(result.getCode().contains("\"httpUrl\""));
-        assertTrue(result.getCode().contains("/mcp/tools/"));
+        assertTrue(result.getCode().contains("/mcp/stream/"));
         assertTrue(result.getInstructions().contains("~/.gemini/settings.json"));
     }
 
