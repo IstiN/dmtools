@@ -178,7 +178,6 @@ public class SecurityConfig {
                     .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/v1/chat/**").permitAll()
-                    .requestMatchers("/mcp/config/**").permitAll()  // Allow public access to MCP configurations
                     .requestMatchers("/mcp/stream/**").permitAll()  // Allow public access to MCP SSE streams
                     .requestMatchers("/api/files/download/**").permitAll()  // Allow public access to file downloads
                     .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()  // Allow webhook endpoints to use API key authentication

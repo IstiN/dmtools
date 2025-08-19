@@ -273,6 +273,24 @@ class McpConfigurationServiceTest {
     }
 
     @Test
+    void generateAccessCode_GeminiFormat_ShouldGenerateValidCode() {
+        // Given
+        when(userService.findById("user-123")).thenReturn(Optional.of(testUser));
+        when(mcpConfigurationRepository.findByIdAndUser("config-123", testUser))
+                .thenReturn(Optional.of(testConfiguration));
+
+        // When
+        var result = mcpConfigurationService.generateAccessCode("config-123", "user-123", "gemini");
+
+        // Then
+        assertEquals("gemini", result.getFormat());
+        assertTrue(result.getCode().contains("\"mcpServers\""));
+        assertTrue(result.getCode().contains("\"httpUrl\""));
+        assertTrue(result.getCode().contains("/mcp/stream/"));
+        assertTrue(result.getInstructions().contains("~/.gemini/settings.json"));
+    }
+
+    @Test
     void generateAccessCode_InvalidFormat_ShouldThrowException() {
         // Given
         when(userService.findById("user-123")).thenReturn(Optional.of(testUser));
