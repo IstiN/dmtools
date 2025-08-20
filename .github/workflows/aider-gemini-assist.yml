@@ -1,4 +1,5 @@
-name: Aider Code Assistant (Gemini)
+# Aider Gemini Assist
+name: Aider Gemini Assist
 
 on:
   workflow_dispatch:
@@ -13,97 +14,46 @@ on:
         type: string
         default: ''
       model:
-        description: 'Google Gemini model to use'
+        description: 'Model to use with Aider'
         required: false
         type: choice
         default: 'gemini/gemini-2.5-flash-preview-05-20'
         options:
           - gemini/gemini-2.5-flash-preview-05-20
-      gemini_api_key_secret:
-        description: 'GitHub secret name containing Gemini API key'
-        required: false
-        type: string
-        default: 'GEMINI_API_KEY'
+          - gemini/gemini-1.5-pro-latest
+          - gemini/gemini-1.5-flash-latest
+          - openai/gpt-4o-mini
+          - openai/gpt-4o
+          - anthropic/claude-3-5-sonnet-20241022
       max_tokens:
-        description: 'Maximum tokens for context (Gemini 1.5 Pro supports up to 1M+)'
+        description: 'Maximum tokens for context'
         required: false
         type: number
         default: 1000000
+      enable_debug_logging:
+        description: 'Enable comprehensive debug logging'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  run-aider:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Full history for better context
-
-    - name: Setup Aider and run analysis
-      id: aider_run
-      uses: ./.github/actions/aider-setup
-      with:
-        user_request: ${{ inputs.user_request }}
-        target_files: ${{ inputs.target_files }}
-        model: ${{ inputs.model }}
-        api_key: ${{ secrets[inputs.gemini_api_key_secret] || secrets.GEMINI_API_KEY }}
-        max_tokens: ${{ inputs.max_tokens }}
-        prompt_file: 'cli_agents/prompts/assist-prompt.md'
-        mode: 'analysis'
-
-    - name: Upload execution logs as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: cli-execution-logs-${{ github.run_number }}
-        path: |
-          outputs/response_*.txt
-          outputs/user-request.txt
-        retention-days: 7
-
-    - name: Create dedicated response artifact
-      run: |
-        # Create dedicated response file for API consumption
-        mkdir -p outputs/api-response
-        
-        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.cli_response }}" ]; then
-          echo "✅ Creating dedicated analysis response artifact for API consumption"
-          
-          # Create single markdown response file
-          echo "# Analysis Response" > outputs/api-response/response.md
-          echo "" >> outputs/api-response/response.md
-          echo "${{ steps.aider_run.outputs.cli_response }}" >> outputs/api-response/response.md
-          
-          echo "📝 Response artifact created successfully"
-          echo "Response size: $(wc -c < outputs/api-response/response.md) bytes"
-          
-        else
-          echo "❌ No analysis response found, creating error artifact"
-          echo "# Analysis Response" > outputs/api-response/response.md
-          echo "" >> outputs/api-response/response.md
-          echo "**ERROR: Analysis Response Not Available**" >> outputs/api-response/response.md
-          echo "" >> outputs/api-response/response.md
-          echo "Could not find response tags in console output." >> outputs/api-response/response.md
-          echo "Please check the execution logs in artifacts for details." >> outputs/api-response/response.md
-        fi
-
-    - name: Upload dedicated response artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: response-${{ github.run_number }}
-        path: outputs/api-response/
-        retention-days: 7
-
-    - name: Display CLI response
-      run: |
-        # Display response or error information in step summary
-        if [ "${{ steps.aider_run.outputs.response_found }}" = "true" ] && [ ! -z "${{ steps.aider_run.outputs.cli_response }}" ]; then
-          echo "## 🎯 CLI Analysis Response" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.aider_run.outputs.cli_response }}" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "## ❌ Analysis Response Not Available" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Could not find response tags in console output." >> $GITHUB_STEP_SUMMARY
-          echo "Please check the execution logs in artifacts for details." >> $GITHUB_STEP_SUMMARY
-        fi
+  ai-assist:
+    name: AI Code Assistance (Aider)
+    uses: IstiN/dmtools-agentic-workflows/.github/workflows/reusable-aider-assist.yml@main
+    with:
+      user_request: ${{ inputs.user_request }}
+      target_files: ${{ inputs.target_files }}
+      model: ${{ inputs.model }}
+      max_tokens: ${{ inputs.max_tokens }}
+      enable_debug_logging: ${{ inputs.enable_debug_logging }}
+      
+      # Use specific version for stability
+      workflows_repo: 'IstiN/dmtools-agentic-workflows'
+      workflows_ref: 'main'
+      
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

@@ -1,0 +1,370 @@
+# Gemini CLI Discovery
+name: Gemini CLI Discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_request:
+        description: 'Your discovery request for Gemini CLI'
+        required: true
+        type: string
+      model:
+        description: 'Gemini model to use'
+        required: false
+        type: choice
+        default: 'gemini-2.5-flash-preview-05-20'
+        options:
+          - gemini-2.0-flash-exp
+          - gemini-1.5-pro-latest
+          - gemini-1.5-flash-latest
+          - gemini-1.0-pro-latest
+          - gemini-2.5-flash-preview-05-20
+          - gemini-2.5-pro-latest
+      enable_debug_logging:
+        description: 'Enable comprehensive debug logging for Gemini CLI'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  discovery-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better context
+
+    - name: Setup DMTools Environment
+      uses: ./.github/actions/setup-environment
+      with:
+        cache-key-suffix: '-gemini-discovery'
+
+    - name: Setup Gemini CLI Configuration
+      run: |
+        echo "🔧 Setting up Gemini CLI configuration..."
+        
+        # Create .gemini directory
+        mkdir -p ~/.gemini
+        
+        # Create empty MCP settings.json configuration
+        cat > ~/.gemini/settings.json << 'EOF'
+        {
+          "mcpServers": {}
+        }
+        EOF
+        
+        echo "✅ Empty MCP configuration created (no external tools needed)"
+
+    - name: Prepare request for Gemini CLI
+      id: prepare_request
+      run: |
+        ./cli_agents/scripts/prepare-user-request.sh "${{ github.event.inputs.user_request }}" "outputs"
+
+    - name: Setup Gemini CLI environment
+      run: |
+        ./cli_agents/scripts/setup-cli-env.sh "gemini" "${{ github.event.inputs.model }}" "${{ secrets.GEMINI_API_KEY }}"
+
+    - name: Discovery using Gemini CLI
+      id: gemini_discovery
+      run: |
+        echo "🔍 Starting Gemini CLI Discovery Analysis"
+        
+        # Export environment variables for Gemini CLI
+        export GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+        
+        # Configure debug logging based on input parameter
+        if [ "${{ inputs.enable_debug_logging }}" = "true" ]; then
+          echo "🔍 Debug logging ENABLED - comprehensive output will be shown"
+          # Based on Gemini CLI source code investigation:
+          export DEBUG=1                              # Main debug flag
+          export DEBUG_MODE=1                         # Alternative debug mode
+          export DEBUG="gemini*,@google/gemini-cli*"  # Namespace-specific debug
+          export NODE_OPTIONS="--trace-warnings --max-old-space-size=8192"
+          export GEMINI_CLI_VERBOSE=true
+          export GEMINI_CLI_LOG_LEVEL=debug
+          export GEMINI_DEBUG_ENABLED=true
+        else
+          echo "🔇 Debug logging DISABLED - minimal output will be shown"
+          export NODE_OPTIONS="--max-old-space-size=8192"
+          export GEMINI_DEBUG_ENABLED=false
+        fi
+        
+        echo "🔍 Debug: Checking Gemini CLI installation..."
+        which gemini || echo "❌ Gemini CLI not found in PATH"
+        gemini --version || echo "❌ Failed to get Gemini CLI version"
+        
+        if [ "${{ inputs.enable_debug_logging }}" = "true" ]; then
+          echo "🔍 Debug: Checking MCP server configuration..."
+          echo "- Gemini settings directory:"
+          ls -la ~/.gemini/ 2>/dev/null || echo "❌ No ~/.gemini directory found"
+          echo "- MCP settings file:"
+          cat ~/.gemini/settings.json 2>/dev/null || echo "❌ No settings.json found"
+          
+          echo "🔍 Debug: Testing MCP server connectivity..."
+          echo "This will help identify MCP connection issues when they occur."
+        fi
+        
+        if [ "${{ inputs.enable_debug_logging }}" = "true" ]; then
+          echo "🔍 Debug: Environment variables:"
+          echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:0:10}..."
+          echo "- PWD: $(pwd)"
+          echo "- User request file exists: $(test -f outputs/user-request.txt && echo 'YES' || echo 'NO')"
+          
+          echo "🔍 Debug: Contents of user request:"
+          cat outputs/user-request.txt || echo "❌ Could not read user request file"
+          
+          echo "🔍 Debug: Environment summary:"
+          echo "- Node version: $(node --version)"
+          echo "- NPM version: $(npm --version)"
+          echo "- Available memory: $(free -h | grep Mem || echo 'Memory info not available')"
+          echo "- Disk space: $(df -h . | tail -1)"
+        else
+          echo "📋 Basic info: User request file exists: $(test -f outputs/user-request.txt && echo 'YES' || echo 'NO')"
+        fi
+        
+        # Run discovery using our simplified script with comprehensive logging
+        echo "🔍 Executing run-gemini.sh script in discovery mode with full logging..."
+        echo "📋 Script command: ./cli_agents/scripts/run-gemini.sh discovery outputs/user-request.txt"
+        
+        # Capture both stdout and stderr with timestamps and timeout protection
+        set -x  # Enable command tracing
+        (
+          echo "=== GEMINI CLI DISCOVERY START: $(date) ==="
+          echo "🕐 Timeout set to 25 minutes to prevent infinite loops"
+          
+          # Use timeout with kill signal after grace period
+          timeout --signal=TERM --kill-after=60s 25m ./cli_agents/scripts/run-gemini.sh "discovery" "outputs/user-request.txt" 2>&1 | while IFS= read -r line; do
+            echo "[$(date '+%H:%M:%S')] $line"
+            
+            # Always check for critical error patterns
+            if [[ "$line" == *"MaxListenersExceededWarning"* ]]; then
+              echo "[$(date '+%H:%M:%S')] ⚠️ WARNING: Detected potential memory leak warning"
+            fi
+            if [[ "$line" == *"Error executing tool"* ]]; then
+              echo "[$(date '+%H:%M:%S')] ⚠️ WARNING: Detected tool execution error"
+            fi
+            
+            # Additional debug patterns only when debug logging is enabled
+            if [ "${{ inputs.enable_debug_logging }}" = "true" ]; then
+              # Check for MCP connection patterns (based on CLI source investigation)
+              if [[ "$line" == *"Attempting to connect to"* ]]; then
+                echo "[$(date '+%H:%M:%S')] 🔍 MCP: Connection attempt detected"
+              fi
+              if [[ "$line" == *"Cannot connect to"*"server may be down"* ]]; then
+                echo "[$(date '+%H:%M:%S')] 🚨 MCP: Connection failed"
+              fi
+              if [[ "$line" == *"Connected to"*"server"* ]]; then
+                echo "[$(date '+%H:%M:%S')] ✅ MCP: Connection successful"
+              fi
+              
+              # Debug mode confirmations
+              if [[ "$line" == *"Found readable global GEMINI.md"* ]] || [[ "$line" == *"Searching for GEMINI.md"* ]]; then
+                echo "[$(date '+%H:%M:%S')] 🔍 DEBUG: Memory discovery active"
+              fi
+            fi
+          done
+          
+          TIMEOUT_EXIT=$?
+          echo "=== GEMINI CLI DISCOVERY END: $(date) ==="
+          if [ $TIMEOUT_EXIT -eq 124 ]; then
+            echo "❌ TIMEOUT: Gemini CLI discovery exceeded 25 minutes - likely in infinite loop"
+          elif [ $TIMEOUT_EXIT -eq 137 ]; then
+            echo "❌ KILLED: Gemini CLI process was forcefully terminated"
+          fi
+          exit $TIMEOUT_EXIT
+        ) | tee outputs/gemini-discovery.log
+        DISCOVERY_EXIT_CODE=${PIPESTATUS[0]}
+        set +x  # Disable command tracing
+        
+        echo "📋 Script exit code: $DISCOVERY_EXIT_CODE"
+        
+        # Check for log files and show summary
+        echo "🔍 Debug: Checking for output files..."
+        ls -la outputs/ || echo "❌ No outputs directory found"
+        
+        echo "📋 Gemini discovery log summary (last 50 lines):"
+        if [ -f "outputs/gemini-discovery.log" ]; then
+          tail -50 outputs/gemini-discovery.log
+        else
+          echo "❌ No gemini-discovery.log found"
+        fi
+        
+        echo "🔍 Debug: Checking for response.md file..."
+        if [ -f "outputs/response.md" ]; then
+          echo "✅ Found response.md ($(wc -c < outputs/response.md) bytes)"
+          echo "📋 Response.md preview (first 20 lines):"
+          head -20 outputs/response.md
+        else
+          echo "❌ response.md file is missing!"
+          echo "🔍 Available files in outputs directory:"
+          ls -la outputs/ || echo "❌ No outputs directory found"
+          
+          echo "🔍 Looking for any *.md files in outputs:"
+          find outputs/ -name "*.md" 2>/dev/null || echo "❌ No .md files found"
+        fi
+        
+        # Check if discovery was successful
+        if [ $DISCOVERY_EXIT_CODE -eq 0 ]; then
+          echo "✅ Discovery completed successfully"
+          if [ -f "outputs/response.md" ]; then
+            echo "📄 Found response.md file"
+            DISCOVERY_RESPONSE=$(cat outputs/response.md)
+            echo "gemini_response<<EOF" >> $GITHUB_OUTPUT
+            echo "$DISCOVERY_RESPONSE" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ No response.md file found"
+            echo "gemini_response=Discovery completed but no response file found" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "❌ Discovery failed with exit code $DISCOVERY_EXIT_CODE"
+          
+          # Determine failure reason
+          if [ $DISCOVERY_EXIT_CODE -eq 124 ]; then
+            FAILURE_REASON="TIMEOUT - Execution exceeded 25 minutes (likely infinite loop)"
+          elif [ $DISCOVERY_EXIT_CODE -eq 137 ]; then
+            FAILURE_REASON="KILLED - Process was forcefully terminated"
+          else
+            FAILURE_REASON="FAILED with exit code $DISCOVERY_EXIT_CODE"
+          fi
+          
+          echo "🔍 Failure reason: $FAILURE_REASON"
+          
+          # Try to get error details from log files
+          if [ -f "outputs/response-log_"*".txt" ]; then
+            echo "📋 Error log content (last 100 lines):"
+            tail -100 outputs/response-log_*.txt
+          fi
+          
+          # Show execution log for timeout cases
+          if [ $DISCOVERY_EXIT_CODE -eq 124 ] || [ $DISCOVERY_EXIT_CODE -eq 137 ]; then
+            echo "📋 Last 100 lines of discovery log to analyze loop patterns:"
+            if [ -f "outputs/gemini-discovery.log" ]; then
+              tail -100 outputs/gemini-discovery.log
+            fi
+          fi
+          
+          echo "gemini_response=Discovery $FAILURE_REASON" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create discovery summary
+      env:
+        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.gemini_response }}
+      run: |
+        # Save discovery summary
+        mkdir -p outputs/discovery-summary
+        echo "$DISCOVERY_RESPONSE" > outputs/discovery-summary/discovery-analysis.md
+        echo "📝 Discovery summary saved"
+        
+        # Create a comprehensive discovery report
+        echo "# 🔍 Gemini CLI Discovery Report" > outputs/discovery-summary/full-report.md
+        echo "" >> outputs/discovery-summary/full-report.md
+        echo "**Generated on:** $(date)" >> outputs/discovery-summary/full-report.md
+        echo "**Model Used:** ${{ github.event.inputs.model }}" >> outputs/discovery-summary/full-report.md
+        echo "" >> outputs/discovery-summary/full-report.md
+        
+        echo "## 📋 Original Request" >> outputs/discovery-summary/full-report.md
+        echo "" >> outputs/discovery-summary/full-report.md
+        echo '```' >> outputs/discovery-summary/full-report.md
+        cat outputs/user-request.txt >> outputs/discovery-summary/full-report.md
+        echo '```' >> outputs/discovery-summary/full-report.md
+        echo "" >> outputs/discovery-summary/full-report.md
+        
+        echo "## 🔍 Discovery Analysis" >> outputs/discovery-summary/full-report.md
+        echo "" >> outputs/discovery-summary/full-report.md
+        if [ -f "outputs/response.md" ]; then
+          cat outputs/response.md >> outputs/discovery-summary/full-report.md
+        else
+          echo "$DISCOVERY_RESPONSE" >> outputs/discovery-summary/full-report.md
+        fi
+        
+        echo "" >> outputs/discovery-summary/full-report.md
+        echo "## 📊 Execution Details" >> outputs/discovery-summary/full-report.md
+        echo "" >> outputs/discovery-summary/full-report.md
+        echo "- **Workflow Run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> outputs/discovery-summary/full-report.md
+        echo "- **Repository:** ${{ github.repository }}" >> outputs/discovery-summary/full-report.md
+        echo "- **Branch:** ${{ github.ref_name }}" >> outputs/discovery-summary/full-report.md
+        echo "- **Commit:** ${{ github.sha }}" >> outputs/discovery-summary/full-report.md
+        
+        echo "✅ Full discovery report created"
+
+    - name: Prepare artifacts for upload
+      run: |
+        echo "📋 Files available for upload:"
+        ls -la outputs/ || echo "❌ No outputs directory found"
+        echo ""
+        echo "📄 Discovery files content preview:"
+        if [ -f "outputs/response.md" ]; then
+          echo "✅ response.md exists ($(wc -c < outputs/response.md) bytes)"
+          echo "📋 First 20 lines:"
+          head -20 outputs/response.md
+        else
+          echo "❌ response.md not found"
+        fi
+        
+        if [ -f "outputs/discovery-summary/full-report.md" ]; then
+          echo "✅ full-report.md exists ($(wc -c < outputs/discovery-summary/full-report.md) bytes)"
+        else
+          echo "❌ full-report.md not found"
+        fi
+
+    - name: Upload discovery results as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: gemini-cli-discovery-results-${{ github.run_number }}
+        path: |
+          outputs/response.md
+          outputs/response-log_*.txt
+          outputs/discovery-prompt-combined.md
+          outputs/user-request.txt
+          outputs/gemini-discovery.log
+          outputs/discovery-summary/
+        retention-days: 14
+        if-no-files-found: warn
+
+    - name: Display discovery summary
+      env:
+        DISCOVERY_RESPONSE: ${{ steps.gemini_discovery.outputs.gemini_response }}
+      run: |
+        # Display comprehensive summary
+        echo "## 🔍 Gemini CLI Discovery Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show request details
+        echo "### 📋 Request Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Model**: ${{ github.event.inputs.model }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Debug Logging**: ${{ github.event.inputs.enable_debug_logging }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show original request
+        echo "### 📝 Original Request" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        cat outputs/user-request.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show discovery results
+        echo "### 🔍 Discovery Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show clean discovery analysis from response.md
+        if [ -f "outputs/response.md" ]; then
+          cat outputs/response.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "$DISCOVERY_RESPONSE" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Discovery results and logs have been uploaded as workflow artifacts:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Artifact Name**: gemini-cli-discovery-results-${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Retention**: 14 days" >> $GITHUB_STEP_SUMMARY
+        echo "- **Contents**: Discovery analysis, logs, and full report" >> $GITHUB_STEP_SUMMARY
