@@ -14,7 +14,7 @@ public class ContextOrchestrator {
 
     private Map<String, Map<String, Object>> contextMemory = new ConcurrentHashMap<>();
     private final ExecutorService executorService;
-    private static final int THREAD_POOL_SIZE = 5;
+    private static final int THREAD_POOL_SIZE = 10; // Increased to handle more concurrent URI processing
     private static final int TASK_TIMEOUT_SECONDS = 30;
 
     protected SummaryContextAgent summaryContextAgent;
@@ -93,11 +93,13 @@ public class ContextOrchestrator {
         for (UriToObject processor : uriToObjectList) {
             Set<String> uris = processor.parseUris(String.valueOf(object));
             if (!uris.isEmpty()) {
-                // Create futures for parallel URI object resolution
-                List<Future<ObjectUriPair>> futures = new ArrayList<>();
+                // Use CompletionService for better concurrency - process futures as they complete
+                CompletionService<ObjectUriPair> completionService = new ExecutorCompletionService<>(executorService);
+                int submittedTasks = 0;
 
+                // Submit all URI processing tasks
                 for (String uri : uris) {
-                    futures.add(executorService.submit(() -> {
+                    completionService.submit(() -> {
                         try {
                             Object resolvedObj = processor.uriToObject(uri);
                             return new ObjectUriPair(uri, resolvedObj);
@@ -105,13 +107,15 @@ public class ContextOrchestrator {
                             e.printStackTrace();
                             return new ObjectUriPair(uri, null);
                         }
-                    }));
+                    });
+                    submittedTasks++;
                 }
 
-                // Process results sequentially
-                for (Future<ObjectUriPair> future : futures) {
+                // Process results as they complete (not sequentially)
+                for (int i = 0; i < submittedTasks; i++) {
                     try {
-                        ObjectUriPair pair = future.get(60, TimeUnit.SECONDS); // Increased timeout for external URIs
+                        Future<ObjectUriPair> completedFuture = completionService.take(); // Blocks until one completes
+                        ObjectUriPair pair = completedFuture.get(); // This should return immediately
                         if (pair.object != null) {
                             processFullContent(pair.uri, pair.object, processor, uriToObjectList, depth - 1);
                         }
