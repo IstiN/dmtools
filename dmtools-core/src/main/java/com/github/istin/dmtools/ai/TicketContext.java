@@ -16,6 +16,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class TicketContext implements ToText {
 
@@ -64,35 +69,59 @@ public class TicketContext implements ToText {
         long parseDuration = System.currentTimeMillis() - parseStart;
         logger.info("TIMING: IssuesIDsParser.extractAllJiraIDs() took {}ms for {} and found {} keys: {}", parseDuration, ticket.getKey(), keys.size(), keys);
         
-        // Step 2: Fetch extra tickets
+        // Step 2: Fetch extra tickets (parallel processing for performance)
         extraTickets = new ArrayList<>();
         if (!keys.isEmpty()) {
             long fetchExtraStart = System.currentTimeMillis();
-            logger.info("TIMING: Starting extra tickets fetch for {} at {}", ticket.getKey(), fetchExtraStart);
-            for (String key : keys) {
-                if (key.equalsIgnoreCase(ticket.getKey())) {
-                    continue;
-                }
-
+            logger.info("TIMING: Starting parallel extra tickets fetch for {} at {}", ticket.getKey(), fetchExtraStart);
+            
+            // Filter out self-references and prepare list of keys to fetch
+            List<String> keysToFetch = keys.stream()
+                .filter(key -> !key.equalsIgnoreCase(ticket.getKey()))
+                .collect(Collectors.toList());
+            
+            if (!keysToFetch.isEmpty()) {
+                // Create executor service for parallel processing
+                // Use a reasonable number of threads to avoid overwhelming the API
+                int threadPoolSize = Math.min(keysToFetch.size(), 5); // Max 5 concurrent requests
+                ExecutorService executorService = Executors.newFixedThreadPool(threadPoolSize);
+                
+                logger.info("TIMING: Fetching {} extra tickets in parallel using {} threads", keysToFetch.size(), threadPoolSize);
+                
+                // Create CompletableFutures for parallel ticket fetching
+                List<CompletableFuture<ITicket>> futures = keysToFetch.stream()
+                    .map(key -> CompletableFuture.supplyAsync(() -> fetchSingleTicket(key), executorService))
+                    .collect(Collectors.toList());
+                
+                // Wait for all tickets to be fetched and collect results
                 try {
-                    long singleTicketStart = System.currentTimeMillis();
-                    ITicket e = null;
-                    if (onTicketDetailsRequest != null) {
-                        e = onTicketDetailsRequest.getTicketDetails(key);
+                    List<ITicket> fetchedTickets = futures.stream()
+                        .map(CompletableFuture::join)
+                        .filter(t -> t != null) // Filter out failed fetches
+                        .collect(Collectors.toList());
+                    
+                    extraTickets.addAll(fetchedTickets);
+                    logger.info("TIMING: Successfully fetched {} out of {} extra tickets", fetchedTickets.size(), keysToFetch.size());
+                    
+                } catch (Exception e) {
+                    logger.error("TIMING: Error during parallel ticket fetching: {}", e.getMessage());
+                } finally {
+                    // Shutdown executor service
+                    executorService.shutdown();
+                    try {
+                        if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                            executorService.shutdownNow();
+                            logger.warn("TIMING: Executor service forced shutdown after timeout");
+                        }
+                    } catch (InterruptedException e) {
+                        executorService.shutdownNow();
+                        Thread.currentThread().interrupt();
                     }
-                    if (e == null) {
-                        logger.info("TIMING: Fetching extra ticket {} via performTicket()", key);
-                        e = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
-                    }
-                    extraTickets.add(e);
-                    long singleTicketDuration = System.currentTimeMillis() - singleTicketStart;
-                    logger.info("TIMING: Fetching extra ticket {} took {}ms", key, singleTicketDuration);
-                } catch (AtlassianRestClient.RestClientException e) {
-                    logger.info("TIMING: Failed to fetch extra ticket {}: {}", key, e.getMessage());
                 }
             }
+            
             long fetchExtraDuration = System.currentTimeMillis() - fetchExtraStart;
-            logger.info("TIMING: All extra tickets fetch took {}ms for {}", fetchExtraDuration, ticket.getKey());
+            logger.info("TIMING: Parallel extra tickets fetch took {}ms for {} (was sequential before optimization)", fetchExtraDuration, ticket.getKey());
         }
         
         // Step 3: Fetch comments if requested
@@ -108,6 +137,49 @@ public class TicketContext implements ToText {
         
         long prepareDuration = System.currentTimeMillis() - prepareStart;
         logger.info("TIMING: Overall TicketContext.prepareContext() took {}ms for {}", prepareDuration, ticket.getKey());
+    }
+
+    /**
+     * Helper method to fetch a single ticket with proper error handling and timing
+     * This method is designed to be called from parallel processing contexts
+     * 
+     * @param key The ticket key to fetch
+     * @return The fetched ticket or null if fetching failed
+     */
+    private ITicket fetchSingleTicket(String key) {
+        long singleTicketStart = System.currentTimeMillis();
+        try {
+            ITicket fetchedTicket = null;
+            
+            // Try custom details request first if available
+            if (onTicketDetailsRequest != null) {
+                try {
+                    fetchedTicket = onTicketDetailsRequest.getTicketDetails(key);
+                } catch (Exception e) {
+                    logger.debug("TIMING: Custom ticket details request failed for {}: {}", key, e.getMessage());
+                }
+            }
+            
+            // Fallback to standard performTicket if custom request failed or unavailable
+            if (fetchedTicket == null) {
+                logger.info("TIMING: Fetching extra ticket {} via performTicket()", key);
+                fetchedTicket = trackerClient.performTicket(key, trackerClient.getExtendedQueryFields());
+            }
+            
+            long singleTicketDuration = System.currentTimeMillis() - singleTicketStart;
+            logger.info("TIMING: Fetching extra ticket {} took {}ms", key, singleTicketDuration);
+            
+            return fetchedTicket;
+            
+        } catch (AtlassianRestClient.RestClientException e) {
+            long singleTicketDuration = System.currentTimeMillis() - singleTicketStart;
+            logger.info("TIMING: Failed to fetch extra ticket {} after {}ms: {}", key, singleTicketDuration, e.getMessage());
+            return null;
+        } catch (Exception e) {
+            long singleTicketDuration = System.currentTimeMillis() - singleTicketStart;
+            logger.error("TIMING: Unexpected error fetching extra ticket {} after {}ms: {}", key, singleTicketDuration, e.getMessage());
+            return null;
+        }
     }
 
     @Override

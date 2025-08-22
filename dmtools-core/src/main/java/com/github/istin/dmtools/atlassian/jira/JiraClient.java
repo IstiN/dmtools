@@ -77,14 +77,21 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     
     // Field mapping cache TTL in milliseconds (24 hours)
     private static final long FIELD_MAPPING_CACHE_TTL = 24 * 60 * 60 * 1000L;
+    
+    // Cache for negative field resolution results (fields that don't exist) - 1 hour TTL
+    private static final long NEGATIVE_FIELD_CACHE_TTL = 60 * 60 * 1000L;
+    
+    // Special marker for cached negative results
+    private static final String FIELD_NOT_FOUND_MARKER = "__FIELD_NOT_FOUND__";
 
     public void setClearCache(boolean clearCache) throws IOException {
         isClearCache = clearCache;
         initCache();
         
-        // Also clear the CacheManager memory caches for keys
+        // Also clear the CacheManager memory caches for keys and field resolution caches
         if (clearCache) {
             cacheManager.clearAllMemoryCache();
+            log("Cleared all memory caches including field resolution and negative field caches");
         }
     }
     public static String parseJiraProject(String key) {
@@ -1142,7 +1149,37 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
     
     /**
+     * Checks if a field resolution failure is cached to avoid repeated API calls
+     * 
+     * @param projectKey The project key
+     * @param fieldName The field name
+     * @return true if this field is known to not exist
+     */
+    private boolean isFieldResolutionCachedAsNotFound(String projectKey, String fieldName) {
+        String negativeKey = "negativeField_" + projectKey + "_" + fieldName.toLowerCase();
+        
+        // Use getOrComputeWithTTL with a supplier that returns null to just check the cache
+        String cached = cacheManager.getOrComputeWithTTL(negativeKey, () -> null, NEGATIVE_FIELD_CACHE_TTL);
+        return FIELD_NOT_FOUND_MARKER.equals(cached);
+    }
+    
+    /**
+     * Caches a field resolution failure to avoid repeated API calls
+     * 
+     * @param projectKey The project key
+     * @param fieldName The field name that was not found
+     */
+    private void cacheFieldResolutionAsNotFound(String projectKey, String fieldName) {
+        String negativeKey = "negativeField_" + projectKey + "_" + fieldName.toLowerCase();
+        
+        // Use getOrComputeWithTTL to store the negative result
+        cacheManager.getOrComputeWithTTL(negativeKey, () -> FIELD_NOT_FOUND_MARKER, NEGATIVE_FIELD_CACHE_TTL);
+        log("Cached negative result for field '" + fieldName + "' in project " + projectKey);
+    }
+
+    /**
      * Resolves a field name to its custom field ID using cached mappings
+     * Enhanced with negative result caching to avoid repeated API calls
      * 
      * @param projectKey The project key
      * @param fieldName The user-friendly field name
@@ -1153,6 +1190,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         // If it's already a custom field ID, return as-is
         if (isCustomFieldId(fieldName)) {
             return fieldName;
+        }
+        
+        // Check if this field is already known to not exist (negative cache)
+        if (isFieldResolutionCachedAsNotFound(projectKey, fieldName)) {
+            log("Field '" + fieldName + "' is cached as not found for project " + projectKey + " - skipping API call");
+            return null;
         }
         
         // Get field mapping for project
@@ -1167,16 +1210,23 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         }
         
         // Fallback: try using the existing getFieldCustomCode method for single field resolution
+        // But only if we haven't already cached this as a negative result
         try {
+            log("Attempting fallback field resolution for '" + fieldName + "' in project " + projectKey);
             String resolvedFieldId = getFieldCustomCode(projectKey, fieldName);
             if (resolvedFieldId != null) {
                 // Cache this mapping for future use
                 projectMapping.put(fieldName.toLowerCase(), resolvedFieldId);
                 log("Resolved and cached field '" + fieldName + "' to '" + resolvedFieldId + "' for project " + projectKey);
                 return resolvedFieldId;
+            } else {
+                // Cache negative result to avoid future API calls
+                cacheFieldResolutionAsNotFound(projectKey, fieldName);
             }
         } catch (Exception e) {
             log("Fallback field resolution failed for '" + fieldName + "': " + e.getMessage());
+            // Cache negative result to avoid repeating this failed attempt
+            cacheFieldResolutionAsNotFound(projectKey, fieldName);
         }
         
         log("Could not resolve field '" + fieldName + "' for project " + projectKey);
