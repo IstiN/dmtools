@@ -810,7 +810,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             // 2. Trigger the workflow
             logger.info("Triggering workflow {}/{}/{}", owner, repo, workflowId);
             triggerWorkflow(owner, repo, workflowId, requestParams);
-
+            Thread.sleep(2000L);
             // 3. Wait and retry to find the triggered workflow run
             logger.info("Waiting for workflow run to appear in GitHub API...");
             Long runId = waitAndFindWorkflowRun(owner, repo, workflowId, triggerTimestamp);
@@ -880,11 +880,26 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             // GitHub workflow dispatch typically returns 204 No Content on success
             // The lack of a response body is normal and indicates success
             
-        } catch (Exception e) {
-            logger.error("Failed to trigger workflow: {}", e.getMessage());
+        } catch (IOException e) {
+            // Enhanced error handling for connection issues
+            String errorMessage = e.getMessage();
+            boolean isConnectionError = errorMessage != null && (
+                errorMessage.toLowerCase().contains("broken pipe") ||
+                errorMessage.toLowerCase().contains("connection reset") ||
+                errorMessage.toLowerCase().contains("connection refused") ||
+                errorMessage.toLowerCase().contains("timeout")
+            );
+            
+            if (isConnectionError) {
+                logger.warn("GitHub API connection issue detected: {}. This is common in cloud environments and will be retried.", errorMessage);
+                // The AbstractRestClient will handle the retry logic
+                throw e;
+            }
+            
+            logger.error("Failed to trigger workflow: {}", errorMessage);
             
             // Check for specific "inputs are too large" error
-            if (e.getMessage() != null && e.getMessage().toLowerCase().contains("inputs are too large")) {
+            if (errorMessage != null && errorMessage.toLowerCase().contains("inputs are too large")) {
                 logger.error("GitHub workflow inputs exceed size limit. Original request size: {} characters, processed size: {} characters", 
                     request.length(), processedRequest.length());
                 throw new IOException("GitHub workflow inputs are too large even after compression. " +
@@ -894,7 +909,11 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             
             // Provide specific guidance for common failure reasons
             String errorDetails = getWorkflowTriggerErrorDetails(e, owner, repo, workflowId);
-            throw new IOException("Workflow trigger failed: " + e.getMessage() + ". " + errorDetails, e);
+            throw new IOException("Workflow trigger failed: " + errorMessage + ". " + errorDetails, e);
+        } catch (Exception e) {
+            logger.error("Unexpected error during workflow trigger: {}", e.getMessage(), e);
+            String errorDetails = getWorkflowTriggerErrorDetails(e, owner, repo, workflowId);
+            throw new IOException("Workflow trigger failed with unexpected error: " + e.getMessage() + ". " + errorDetails, e);
         }
     }
     
@@ -1386,9 +1405,23 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             logger.info("Downloaded {} bytes", data.length);
             return data;
             
+        } catch (IOException e) {
+            String errorMessage = e.getMessage();
+            boolean isConnectionError = errorMessage != null && (
+                errorMessage.toLowerCase().contains("broken pipe") ||
+                errorMessage.toLowerCase().contains("connection reset") ||
+                errorMessage.toLowerCase().contains("timeout")
+            );
+            
+            if (isConnectionError) {
+                logger.warn("Connection issue during artifact download: {}. This might be due to large file size or network instability in cloud environment.", errorMessage);
+            } else {
+                logger.error("Failed to download binary artifact: {}", errorMessage);
+            }
+            throw new IOException("Failed to download binary artifact from: " + url + ". Error: " + errorMessage, e);
         } catch (Exception e) {
-            logger.error("Failed to download binary artifact: {}", e.getMessage());
-            throw new IOException("Failed to download binary artifact", e);
+            logger.error("Unexpected error during artifact download: {}", e.getMessage(), e);
+            throw new IOException("Unexpected error downloading binary artifact from: " + url, e);
         }
     }
     
