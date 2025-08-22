@@ -2,7 +2,6 @@ package com.github.istin.dmtools.di;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.google.BasicGeminiAI;
 import com.github.istin.dmtools.ai.dial.DialAIClient;
 import com.github.istin.dmtools.ai.js.JSAIClient;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
@@ -15,7 +14,6 @@ import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.github.istin.dmtools.common.config.ApplicationConfiguration;
 import com.github.istin.dmtools.common.config.InMemoryConfiguration;
 
-import com.github.istin.dmtools.github.BasicGithub;
 import com.github.istin.dmtools.github.GitHub;
 
 import com.github.istin.dmtools.common.model.ITicket;
@@ -24,7 +22,6 @@ import com.github.istin.dmtools.context.UriToObjectFactory;
 import com.github.istin.dmtools.figma.FigmaClient;
 import com.github.istin.dmtools.logging.CallbackLogger;
 import com.github.istin.dmtools.logging.LogCallback;
-import com.github.istin.dmtools.ai.dial.BasicDialAI;
 import com.github.istin.dmtools.prompt.PromptManager;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import dagger.Module;
@@ -128,7 +125,6 @@ public class ServerManagedIntegrationsModule {
                 JSONObject jiraConfig = resolvedIntegrations.getJSONObject("jira");
                 String basePath = jiraConfig.optString("JIRA_BASE_PATH", "");
                 String authType = jiraConfig.optString("JIRA_AUTH_TYPE", "Basic");
-                String extraFields = jiraConfig.optString("JIRA_EXTRA_FIELDS_PROJECT", "");
                 
                 // Handle authentication - priority: email+token combination > legacy token
                 String token = "";
@@ -184,9 +180,12 @@ public class ServerManagedIntegrationsModule {
             // Replicate BasicJiraClient configuration with reasonable defaults
             setLogEnabled(true);
             setWaitBeforePerform(true);
-            setCacheGetRequestsEnabled(false);
             setSleepTimeRequest(100L);
-            setClearCache(true);
+            
+            // Performance optimization: Clean cache folder first, then enable caching
+            setClearCache(true);  // This cleans the cache folder
+            setCacheGetRequestsEnabled(true);  // Enable caching for better performance
+            System.out.println("✅ [CustomServerManagedJiraClient] Cache cleaned and enabled for performance optimization");
             
             // Initialize field arrays exactly like BasicJiraClient
             List<String> defaultFields = new ArrayList<>(Arrays.asList(BasicJiraClient.DEFAULT_QUERY_FIELDS));

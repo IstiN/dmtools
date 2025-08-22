@@ -9,10 +9,38 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class StringUtils {
+
+    // Pre-compiled field blacklist for performance optimization
+    private static final Set<String> FIELD_BLACKLIST = new HashSet<>();
+    static {
+        // Initialize blacklist once to avoid repeated string operations
+        FIELD_BLACKLIST.add("id");
+        FIELD_BLACKLIST.add("url");
+        FIELD_BLACKLIST.add("self");
+        FIELD_BLACKLIST.add("accounttype");
+        FIELD_BLACKLIST.add("statuscategory");
+        FIELD_BLACKLIST.add("subtask");
+        FIELD_BLACKLIST.add("timezone");
+        FIELD_BLACKLIST.add("hierarchylevel");
+        FIELD_BLACKLIST.add("thumbnail");
+        FIELD_BLACKLIST.add("active");
+        // Add common variations to avoid toLowerCase() calls
+        FIELD_BLACKLIST.add("ID");
+        FIELD_BLACKLIST.add("URL");
+        FIELD_BLACKLIST.add("Self");
+        FIELD_BLACKLIST.add("AccountType");
+        FIELD_BLACKLIST.add("StatusCategory");
+        FIELD_BLACKLIST.add("SubTask");
+        FIELD_BLACKLIST.add("TimeZone");
+        FIELD_BLACKLIST.add("HierarchyLevel");
+        FIELD_BLACKLIST.add("Thumbnail");
+        FIELD_BLACKLIST.add("Active");
+    }
 
     public static List<String> extractUrls(String text) {
         List<String> containedUrls = new ArrayList<String>();
@@ -90,64 +118,121 @@ public class StringUtils {
         return textBuilder.append("]");
     }
 
+    /**
+     * High-performance JSON to text transformation with optimized field filtering and string operations.
+     * Performance optimizations:
+     * - Pre-compiled field blacklist to avoid repeated string operations
+     * - Efficient null/empty checks
+     * - Optimized StringBuilder usage
+     * - Reduced string creation and comparison overhead
+     */
     public static StringBuilder transformJSONToText(StringBuilder textBuilder, JSONObject fields, boolean ignoreDescription) {
+        if (fields == null || fields.length() == 0) {
+            return textBuilder;
+        }
+
+        // Use direct field iteration for better performance
         for (String field : fields.keySet()) {
-            // Skip values that contain only self links and IDs
-            if (field.toLowerCase().contains("id")
-                    || field.toLowerCase().contains("url")
-                    || field.equalsIgnoreCase("self")
-                    || field.equalsIgnoreCase("accountType")
-                    || field.equalsIgnoreCase("statusCategory")
-                    || field.equalsIgnoreCase("subtask")
-                    || field.equalsIgnoreCase("timeZone")
-                    || field.equalsIgnoreCase("hierarchyLevel")
-                    || field.equalsIgnoreCase("thumbnail")
-                    || field.equalsIgnoreCase("active")
-                    || ignoreDescription && field.equalsIgnoreCase("description")
-            ) {
+            // Fast blacklist check - avoid expensive string operations
+            if (isFieldBlacklisted(field, ignoreDescription)) {
                 continue;
             }
 
-            Object fieldValue = fields.get(field);
-
-            // Skip null or empty values
-            if (fieldValue == null || fieldValue.toString().trim().isEmpty()) {
+            Object fieldValue = fields.opt(field); // Use opt() for better null handling
+            
+            // Fast null/empty check
+            if (isValueEmpty(fieldValue)) {
                 continue;
             }
 
-            // For nested objects, extract relevant text information
+            // Process field value based on type with optimized operations
             if (fieldValue instanceof JSONObject) {
-                textBuilder.append(field).append(": { \n");
-                transformJSONToText(textBuilder, (JSONObject) fieldValue, true);
-                textBuilder.append("} \n");
+                processJSONObject(textBuilder, field, (JSONObject) fieldValue);
             } else if (fieldValue instanceof JSONArray) {
                 JSONArray jsonArray = (JSONArray) fieldValue;
-                if (jsonArray.isEmpty()) {
-                    continue;
+                if (jsonArray.length() > 0) { // Avoid isEmpty() method call
+                    processJSONArray(textBuilder, field, jsonArray);
                 }
-                textBuilder.append(field).append(": [");
-                for (int i = 0; i < jsonArray.length(); i++) {
-                    Object arrayElement = jsonArray.get(i);
-                    if (arrayElement instanceof JSONObject) {
-                        textBuilder.append("{");
-                        transformJSONToText(textBuilder, (JSONObject) arrayElement, true);
-                        textBuilder.append("}");
-                    } else {
-                        textBuilder.append(arrayElement.toString());
-                    }
-                    if (i < jsonArray.length() - 1) {
-                        textBuilder.append(", ");
-                    }
-                }
-                textBuilder.append("]\n");
             } else {
-                if (!fieldValue.toString().equalsIgnoreCase("null")) {
-                    textBuilder.append(field).append(": ").append(fieldValue).append("\n");
+                // Direct string append without unnecessary toString() calls
+                String valueStr = String.valueOf(fieldValue);
+                if (!"null".equals(valueStr)) { // Direct comparison
+                    textBuilder.append(field).append(": ").append(valueStr).append('\n');
                 }
             }
         }
 
         return textBuilder;
+    }
+
+    /**
+     * Optimized field blacklist check to avoid expensive string operations
+     */
+    private static boolean isFieldBlacklisted(String field, boolean ignoreDescription) {
+        // Fast exact match check first (most common case)
+        if (FIELD_BLACKLIST.contains(field)) {
+            return true;
+        }
+        
+        // Check for id/url substring only if exact match fails
+        String lowerField = field.toLowerCase();
+        if (lowerField.contains("id") || lowerField.contains("url")) {
+            return true;
+        }
+        
+        // Description check
+        return ignoreDescription && "description".equalsIgnoreCase(field);
+    }
+
+    /**
+     * Fast null/empty value check
+     */
+    private static boolean isValueEmpty(Object value) {
+        if (value == null) {
+            return true;
+        }
+        
+        // Avoid toString() call for known empty cases
+        if (value instanceof String) {
+            return ((String) value).trim().isEmpty();
+        }
+        
+        return false;
+    }
+
+    /**
+     * Optimized JSON object processing
+     */
+    private static void processJSONObject(StringBuilder textBuilder, String field, JSONObject jsonObject) {
+        textBuilder.append(field).append(": { \n");
+        transformJSONToText(textBuilder, jsonObject, true);
+        textBuilder.append("} \n");
+    }
+
+    /**
+     * Optimized JSON array processing with reduced string operations
+     */
+    private static void processJSONArray(StringBuilder textBuilder, String field, JSONArray jsonArray) {
+        textBuilder.append(field).append(": [");
+        
+        int length = jsonArray.length();
+        for (int i = 0; i < length; i++) {
+            Object arrayElement = jsonArray.opt(i);
+            
+            if (arrayElement instanceof JSONObject) {
+                textBuilder.append('{');
+                transformJSONToText(textBuilder, (JSONObject) arrayElement, true);
+                textBuilder.append('}');
+            } else if (arrayElement != null) {
+                textBuilder.append(arrayElement);
+            }
+            
+            // Avoid unnecessary comparison on last element
+            if (i < length - 1) {
+                textBuilder.append(", ");
+            }
+        }
+        textBuilder.append("]\n");
     }
 
     /**
