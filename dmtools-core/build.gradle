@@ -4,6 +4,11 @@ plugins {
     id 'jacoco'
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
 apply plugin: 'maven-publish'
 
 group = 'com.github.istin'

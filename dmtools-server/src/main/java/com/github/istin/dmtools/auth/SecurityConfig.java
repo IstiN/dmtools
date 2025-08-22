@@ -57,17 +57,38 @@ public class SecurityConfig {
     @Autowired(required = false)
     private CustomOidcUserService customOidcUserService;
 
+    private final AuthProperties authProperties;
+    private final LocalAuthenticationProvider localAuthenticationProvider;
+    private final DynamicClientRegistrationRepository dynamicClientRegistrationRepository;
+
     public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
                          AuthDebugFilter authDebugFilter, 
                          JwtAuthenticationFilter jwtAuthenticationFilter, 
                          CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
-                         @Value("${spring.profiles.active:default}") String activeProfile) {
+                         @Value("${spring.profiles.active:default}") String activeProfile,
+                         AuthProperties authProperties,
+                         LocalAuthenticationProvider localAuthenticationProvider,
+                         DynamicClientRegistrationRepository dynamicClientRegistrationRepository) {
         this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
         this.activeProfile = activeProfile;
+        this.authProperties = authProperties;
+        this.localAuthenticationProvider = localAuthenticationProvider;
+        this.dynamicClientRegistrationRepository = dynamicClientRegistrationRepository;
         logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
+    }
+
+    @Bean
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        if (authProperties.isLocalStandaloneModeEnabled()) {
+            logger.info("⚠️ Local standalone mode enabled. No external OAuth2 providers configured.");
+            return new InMemoryClientRegistrationRepository();
+        } else {
+            logger.info("🔐 External OAuth2 providers configured. Using DynamicClientRegistrationRepository.");
+            return dynamicClientRegistrationRepository;
+        }
     }
 
     @Bean
@@ -185,9 +206,9 @@ public class SecurityConfig {
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Configure OAuth2 login only if ClientRegistrationRepository is available
-        if (clientRegistrationRepository != null) {
-            logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
+        // Configure OAuth2 login only if ClientRegistrationRepository is available and not in local standalone mode
+        if (!authProperties.isLocalStandaloneModeEnabled()) {
+            logger.info("🔐 OAuth2 ClientRegistrationRepository found and external auth enabled - configuring OAuth2 login");
             http.oauth2Login(oauth2 -> {
                 if (customOAuth2AuthorizationRequestResolver != null) {
                     oauth2.authorizationEndpoint(authorization -> authorization
@@ -206,7 +227,9 @@ public class SecurityConfig {
                 .failureHandler(customOAuth2AuthenticationFailureHandler);
             });
         } else {
-            logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");
+            logger.warn("⚠️ Local standalone mode enabled. OAuth2 login disabled. Configuring local authentication.");
+            // Configure local authentication provider if in standalone mode
+            http.authenticationProvider(localAuthenticationProvider);
         }
 
         // Configure logout
