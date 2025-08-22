@@ -20,7 +20,8 @@ public class GitHubWorkflowUtils {
     /**
      * Triggers a GitHub workflow dispatch with enhanced error handling and cloud support.
      * 
-     * This method uses the enhanced AbstractRestClient with:
+     * This method uses Java's native HTTP client with:
+     * - Native HTTP client (bypasses OkHttp for better cloud compatibility)
      * - Automatic retry logic for connection failures (max 3 attempts)
      * - Cloud environment timeout detection (120s vs 60s local)
      * - Proper handling of "broken pipe" and other connection errors
@@ -34,6 +35,13 @@ public class GitHubWorkflowUtils {
      * @throws IOException if the workflow trigger fails after all retries
      */
     public static void triggerWorkflow(GitHub github, String owner, String repo, String workflowId, String request) throws IOException {
+        triggerWorkflowWithRetry(github, owner, repo, workflowId, request, 0);
+    }
+    
+    /**
+     * Internal method that implements the retry logic for workflow triggering.
+     */
+    private static void triggerWorkflowWithRetry(GitHub github, String owner, String repo, String workflowId, String request, int retryCount) throws IOException {
         String triggerPath = github.path(String.format("repos/%s/%s/actions/workflows/%s/dispatches", owner, repo, workflowId));
         
         // Handle large payloads by implementing size limiting and compression
@@ -55,32 +63,69 @@ public class GitHubWorkflowUtils {
             logger.debug("Request body (truncated): {}...", requestBodyStr.substring(0, 500));
         }
         
-        GenericRequest postRequest = new GenericRequest(github, triggerPath);
-        postRequest.setBody(requestBodyStr);
-        postRequest.setIgnoreCache(true);
-
+        // Use native Java HTTP client instead of OkHttp for better cloud compatibility
+        String triggerUrl = String.format("https://api.github.com/repos/%s/%s/actions/workflows/%s/dispatches", owner, repo, workflowId);
+        
         try {
-            // Use enhanced POST method with automatic retry logic
-            String response = github.post(postRequest);
-            logger.info("Workflow trigger response: {}", response != null ? response : "No response (this is normal for GitHub workflow dispatches)");
+            java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(30))
+                .build();
             
-            // GitHub workflow dispatch typically returns 204 No Content on success
-            // The lack of a response body is normal and indicates success
+            java.net.http.HttpRequest httpRequest = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create(triggerUrl))
+                .timeout(java.time.Duration.ofSeconds(github.getTimeout()))
+                .header("Authorization", "Bearer " + github.getAuthorization())
+                .header("Accept", "application/vnd.github.v3+json")
+                .header("Content-Type", "application/json")
+                .header("User-Agent", "DMTools")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestBodyStr))
+                .build();
+            
+            logger.info("Sending native HTTP request to: {}", triggerUrl);
+            logger.info("Request size: {} chars", requestBodyStr.length());
+            
+            java.net.http.HttpResponse<String> response = httpClient.send(httpRequest, 
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+            
+            logger.info("Native HTTP response: {} {}", response.statusCode(), response.body() != null ? response.body() : "No response (this is normal for GitHub workflow dispatches)");
+            
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IOException("HTTP " + response.statusCode() + ": " + response.body());
+            }
+            
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("HTTP request interrupted", e);
             
         } catch (IOException e) {
-            // Enhanced error handling for connection issues
+            // Enhanced error handling for connection issues with retry logic
             String errorMessage = e.getMessage();
             boolean isConnectionError = errorMessage != null && (
                 errorMessage.toLowerCase().contains("broken pipe") ||
                 errorMessage.toLowerCase().contains("connection reset") ||
                 errorMessage.toLowerCase().contains("connection refused") ||
-                errorMessage.toLowerCase().contains("timeout")
+                errorMessage.toLowerCase().contains("timeout") ||
+                errorMessage.toLowerCase().contains("network is unreachable")
             );
             
-            if (isConnectionError) {
-                logger.warn("GitHub API connection issue detected: {}. This was handled by retry logic.", errorMessage);
-                // The AbstractRestClient has already handled retries before reaching here
-                throw e;
+            // Maximum of 3 attempts (2 retries)
+            final int MAX_RETRIES = 2;
+            
+            if (isConnectionError && retryCount < MAX_RETRIES) {
+                logger.info("Retrying workflow trigger after connection error: {} (Retry {}/{})", e.getClass().getSimpleName(), retryCount + 1, MAX_RETRIES);
+                try {
+                    // Exponential backoff: 200ms, 400ms, 800ms
+                    long waitTime = 200L * (long) Math.pow(2, retryCount);
+                    Thread.sleep(waitTime);
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Workflow trigger interrupted during retry", interruptedException);
+                }
+                // Retry the request
+                triggerWorkflowWithRetry(github, owner, repo, workflowId, request, retryCount + 1);
+                return; // Successfully completed after retry
+            } else if (isConnectionError) {
+                logger.error("Max retries ({}) exceeded for workflow trigger. Final error: {}", MAX_RETRIES, errorMessage);
             }
             
             logger.error("Failed to trigger workflow: {}", errorMessage);
