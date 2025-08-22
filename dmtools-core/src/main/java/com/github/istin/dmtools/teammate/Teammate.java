@@ -36,6 +36,8 @@ import dagger.Component;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import javax.inject.Inject;
@@ -46,6 +48,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultItem>> {
+
+    private static final Logger logger = LogManager.getLogger(Teammate.class);
 
     @Getter
     @Setter
@@ -183,16 +187,74 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
 
         List<ResultItem> results = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
+            long overallStart = System.currentTimeMillis();
+            logger.info("TIMING: Starting ticket processing for {} at {}", ticket.getKey(), overallStart);
+            
+            // Step 1: Create TicketContext
+            long step1Start = System.currentTimeMillis();
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+            long step1Duration = System.currentTimeMillis() - step1Start;
+            logger.info("TIMING: TicketContext creation took {}ms for {}", step1Duration, ticket.getKey());
+            
+            // Step 2: Prepare Context (this includes IssuesIDsParser.extractAllJiraIDs)
+            long step2Start = System.currentTimeMillis();
+            logger.info("TIMING: Starting prepareContext(true) for {} at {}", ticket.getKey(), step2Start);
             ticketContext.prepareContext(true);
+            long step2Duration = System.currentTimeMillis() - step2Start;
+            logger.info("TIMING: prepareContext(true) took {}ms for {}", step2Duration, ticket.getKey());
+            
+            // Step 3: Get attachments
+            long step3Start = System.currentTimeMillis();
             List<? extends IAttachment> attachments = ticket.getAttachments();
-            contextOrchestrator.processFullContent(ticket.getKey(), ticketContext.toText(), (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
+            long step3Duration = System.currentTimeMillis() - step3Start;
+            logger.info("TIMING: getAttachments() took {}ms for {}", step3Duration, ticket.getKey());
+            
+            // Step 4: Convert to text
+            long step4Start = System.currentTimeMillis();
+            logger.info("TIMING: Starting ticketContext.toText() for {} at {}", ticket.getKey(), step4Start);
+            String ticketText = ticketContext.toText();
+            long step4Duration = System.currentTimeMillis() - step4Start;
+            logger.info("TIMING: ticketContext.toText() took {}ms for {} (text length: {})", step4Duration, ticket.getKey(), ticketText.length());
+            
+            // Step 5: Process full content with ContextOrchestrator
+            long step5Start = System.currentTimeMillis();
+            logger.info("TIMING: Starting processFullContent() for {} at {} with depth {}", ticket.getKey(), step5Start, expertParams.getTicketContextDepth());
+            contextOrchestrator.processFullContent(ticket.getKey(), ticketText, (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
+            long step5Duration = System.currentTimeMillis() - step5Start;
+            logger.info("TIMING: processFullContent() took {}ms for {}", step5Duration, ticket.getKey());
+            
+            // Step 6: Get text fields only
+            long step6Start = System.currentTimeMillis();
             String textFieldsOnly = trackerClient.getTextFieldsOnly(ticket);
+            long step6Duration = System.currentTimeMillis() - step6Start;
+            logger.info("TIMING: getTextFieldsOnly() took {}ms for {}", step6Duration, ticket.getKey());
+            
+            // Step 7: Process URIs in text fields
+            long step7Start = System.currentTimeMillis();
+            logger.info("TIMING: Starting processUrisInContent(textFields) for {} at {}", ticket.getKey(), step7Start);
             contextOrchestrator.processUrisInContent(textFieldsOnly, uriProcessingSources, 1);
+            long step7Duration = System.currentTimeMillis() - step7Start;
+            logger.info("TIMING: processUrisInContent(textFields) took {}ms for {}", step7Duration, ticket.getKey());
+            
+            // Step 8: Process URIs in attachments
+            long step8Start = System.currentTimeMillis();
+            logger.info("TIMING: Starting processUrisInContent(attachments) for {} at {}", ticket.getKey(), step8Start);
             contextOrchestrator.processUrisInContent(attachments, uriProcessingSources, 1);
+            long step8Duration = System.currentTimeMillis() - step8Start;
+            logger.info("TIMING: processUrisInContent(attachments) took {}ms for {}", step8Duration, ticket.getKey());
+            
+            // Step 9: Summarize context
+            long step9Start = System.currentTimeMillis();
+            logger.info("TIMING: Starting contextOrchestrator.summarize() for {} at {}", ticket.getKey(), step9Start);
             List<ChunkPreparation.Chunk> chunksContext = contextOrchestrator.summarize();
+            long step9Duration = System.currentTimeMillis() - step9Start;
+            logger.info("TIMING: contextOrchestrator.summarize() took {}ms for {}", step9Duration, ticket.getKey());
+            
             inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n" + chunksContext.toString());
             contextOrchestrator.clear();
+            
+            long overallDuration = System.currentTimeMillis() - overallStart;
+            logger.info("TIMING: Overall ticket processing took {}ms for {}", overallDuration, ticket.getKey());
 
             // Process hooks as context first
             String[] hooksAsContext = expertParams.getHooksAsContext();
@@ -225,8 +287,8 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                 attachResponse(genericRequestAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");
             }
             if (outputType == Params.OutputType.field) {
-                if (trackerClient instanceof JiraClient) {
-                    String fieldCustomCode = ((JiraClient) trackerClient).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
+                if (trackerClient instanceof JiraClient<?>) {
+                    String fieldCustomCode = ((JiraClient<?>) trackerClient).getFieldCustomCode(ticket.getTicketKey().split("-")[0], fieldName);
                     String currentFieldValue = ticket.getFields().getString(fieldCustomCode);
                     if (expertParams.getOperationType() == Params.OperationType.Append) {
                         trackerClient.updateTicket(ticket.getTicketKey(), fields -> fields.set(fieldCustomCode, currentFieldValue + "\n\n" + response));
