@@ -39,6 +39,16 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
         super(basePath, authorization);
     }
 
+    /**
+     * Gets the authorization token for API access.
+     * Used by GitHubWorkflowUtils for native HTTP client requests.
+     * 
+     * @return the authorization token
+     */
+    public String getAuthorization() {
+        return authorization;
+    }
+
     @Override
     public String path(String path) {
         return getBasePath() + "/" + path;
