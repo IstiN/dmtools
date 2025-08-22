@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.SocketTimeoutException;
+
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -54,6 +54,10 @@ public abstract class AbstractRestClient implements RestClient {
                 .writeTimeout(getTimeout(), TimeUnit.SECONDS)
                 .readTimeout(getTimeout(), TimeUnit.SECONDS)
                 .protocols(Arrays.asList(Protocol.HTTP_1_1)) // Force HTTP/1.1 to avoid HTTP/2 protocol issues
+                // Enhanced connection pool for cloud environments
+                .connectionPool(new ConnectionPool(5, 5, TimeUnit.MINUTES))
+                // Add connection retry on failure
+                .retryOnConnectionFailure(true)
                 .build();
         this.basePath = basePath;
         this.authorization = authorization;
@@ -63,6 +67,36 @@ public abstract class AbstractRestClient implements RestClient {
 
     public int getTimeout() {
         return 60;
+    }
+
+    /**
+     * Determines if a connection error is recoverable and should be retried.
+     * This helps distinguish between temporary network issues and permanent configuration problems.
+     * 
+     * @param exception The connection exception that occurred
+     * @return true if the error is likely recoverable with retry, false otherwise
+     */
+    protected boolean isRecoverableConnectionError(Exception exception) {
+        String message = exception.getMessage();
+        if (message == null) {
+            return false;
+        }
+        
+        String lowerMessage = message.toLowerCase();
+        
+        // Recoverable connection errors - typically temporary network issues
+        return lowerMessage.contains("broken pipe") ||
+               lowerMessage.contains("connection reset") ||
+               lowerMessage.contains("connection refused") ||
+               lowerMessage.contains("timeout") ||
+               lowerMessage.contains("network is unreachable") ||
+               lowerMessage.contains("host is unreachable") ||
+               lowerMessage.contains("connection timed out") ||
+               lowerMessage.contains("connection lost") ||
+               lowerMessage.contains("socket closed") ||
+               lowerMessage.contains("premature eof") ||
+               exception instanceof java.net.SocketTimeoutException ||
+               exception instanceof java.net.ConnectException;
     }
 
     private void reinitCache() throws IOException {
@@ -199,6 +233,10 @@ public abstract class AbstractRestClient implements RestClient {
     }
 
     private String execute(String url, boolean isRepeatIfFails, boolean isIgnoreCache, GenericRequest genericRequest) throws IOException {
+        return execute(url, isRepeatIfFails, isIgnoreCache, genericRequest, 0);
+    }
+    
+    private String execute(String url, boolean isRepeatIfFails, boolean isIgnoreCache, GenericRequest genericRequest, int retryCount) throws IOException {
         try {
             timeMeasurement.put(url, System.currentTimeMillis());
             if (isCacheGetRequestsEnabled && !isIgnoreCache) {
@@ -238,18 +276,34 @@ public abstract class AbstractRestClient implements RestClient {
                         throw AbstractRestClient.printAndCreateException(request, response);
                     }
                 }
-            } catch (SocketTimeoutException e) {
-                logger.info(url);
-                if (isRepeatIfFails) {
+            } catch (IOException e) {
+                logger.warn("Connection error for URL: {} - Error: {} (Attempt: {}/3)", url, e.getMessage(), retryCount + 1);
+                
+                // Check if it's a recoverable connection error
+                boolean isRecoverableError = isRecoverableConnectionError(e);
+                
+                // Maximum of 3 attempts (2 retries)
+                final int MAX_RETRIES = 2;
+                
+                if (isRepeatIfFails && isRecoverableError && retryCount < MAX_RETRIES) {
+                    logger.info("Retrying request after connection error: {} (Retry {}/{})", e.getClass().getSimpleName(), retryCount + 1, MAX_RETRIES);
                     if (isWaitBeforePerform) {
                         try {
-                            Thread.currentThread().sleep(100);
-                        } catch (InterruptedException socketException) {
-                            socketException.printStackTrace();
+                            // Exponential backoff: 200ms, 400ms, 800ms
+                            long waitTime = 200L * (long) Math.pow(2, retryCount);
+                            Thread.sleep(waitTime);
+                        } catch (InterruptedException interruptedException) {
+                            Thread.currentThread().interrupt();
+                            throw new IOException("Request interrupted during retry", interruptedException);
                         }
                     }
-                    return execute(url, false, isIgnoreCache, genericRequest);
+                    return execute(url, false, isIgnoreCache, genericRequest, retryCount + 1);
                 } else {
+                    if (!isRecoverableError) {
+                        logger.error("Non-recoverable connection error for URL: {}", url, e);
+                    } else if (retryCount >= MAX_RETRIES) {
+                        logger.error("Max retries ({}) exceeded for URL: {}. Final error: {}", MAX_RETRIES, url, e.getMessage());
+                    }
                     throw e;
                 }
             }
@@ -257,7 +311,7 @@ public abstract class AbstractRestClient implements RestClient {
             Long prevTime = timeMeasurement.get(url);
             long time = System.currentTimeMillis() - 200 - prevTime;
             logger.info("{} {}", time, url);
-            // Removed aggressive connection pool eviction - let OkHttp manage connection lifecycle
+            // Let OkHttp manage connection lifecycle automatically
         }
     }
 

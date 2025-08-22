@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.github;
 
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 import static org.junit.jupiter.api.Assertions.*;
@@ -51,26 +52,26 @@ public class GitHubWorkflowIntegrationTest {
     }
     
     @Test
-    @Disabled("Enable for manual testing with real GitHub credentials")
+    //@Disabled("Enable for manual testing with real GitHub credentials")
     public void testSpecificWorkflowRunSummary() throws Exception {
         // Test with specific workflow run ID: https://github.com/IstiN/dmtools/actions/runs/16858480819
         String owner = "IstiN";
         String repo = "dmtools";
-        Long runId = 16859458667L;
+        Long runId = 17138378930L;
         
-        String token = System.getenv("GITHUB_TOKEN");
-        assertNotNull(token, "GITHUB_TOKEN environment variable must be set for integration test");
+        //String token = System.getenv("GITHUB_TOKEN");
+        //assertNotNull(token, "GITHUB_TOKEN environment variable must be set for integration test");
         
         SourceCodeConfig config = SourceCodeConfig.builder()
                 .path("https://api.github.com")
-                .auth(token)
+                .auth(new PropertyReader().getGithubToken())
                 .workspaceName("IstiN")
                 .repoName("dmtools")
                 .branchName("main")
                 .type(SourceCodeConfig.Type.GITHUB)
                 .build();
         BasicGithub github = new BasicGithub(config);
-
+        github.setClearCache(true);
         String summary = github.getWorkflowSummary(owner, repo, runId);
         
         assertNotNull(summary, "Workflow summary should not be null");
