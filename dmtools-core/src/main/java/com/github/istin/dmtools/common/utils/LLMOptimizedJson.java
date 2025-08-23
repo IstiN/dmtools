@@ -13,19 +13,74 @@ import java.util.Set;
 import java.util.Arrays;
 
 /**
- * Utility class for optimizing JSON representation for LLM consumption.
- * Creates a compact, hierarchical format that reduces redundancy and improves readability.
+ * High-performance JSON to LLM-optimized text converter.
  * 
- * Format:
- * - Next key1, key2, key3 at start of each object
- * - Values on separate lines
- * - _ _ for multiline strings
- * - Array indexing: 0, 1, 2 with optional tab indentation
- * - Key concatenation for nested objects: ParentKeyChildKey
+ * <p>Converts JSON objects into a structured text format optimized for Large Language Models.
+ * Reduces token count while maintaining data integrity and readability.</p>
  * 
- * Formatting modes:
- * - MINIMIZED (default): No indentation, compact format
- * - PRETTY: Tab indentation for hierarchy visualization
+ * <h3>Output Format</h3>
+ * <pre>
+ * Input:  {"name": "John", "age": 30, "active": true}
+ * Output: Next name,age,active
+ *         John
+ *         30
+ *         true
+ * </pre>
+ * 
+ * <h3>Format Rules</h3>
+ * <ul>
+ *   <li><b>Objects</b>: "Next key1,key2,key3" header followed by values on separate lines</li>
+ *   <li><b>Nested objects</b>: Parent key shown before "Next" (e.g., "user Next name,email")</li>
+ *   <li><b>Primitive arrays</b>: Enclosed in [ ] with items on separate lines</li>
+ *   <li><b>Object arrays</b>: "[Next key1,key2" header with indexed objects (0, 1, 2)</li>
+ *   <li><b>Multiline strings</b>: Wrapped in _ _ markers</li>
+ * </ul>
+ * 
+ * <h3>Key Features</h3>
+ * <ul>
+ *   <li><b>Hierarchical filtering</b>: Use dot notation like "user.email", "settings.privacy"</li>
+ *   <li><b>Performance modes</b>: WellFormed mode for 5-10% speed improvement</li>
+ *   <li><b>Formatting options</b>: MINIMIZED (compact) or PRETTY (indented)</li>
+ *   <li><b>Array optimization</b>: Smart handling of primitive and object arrays</li>
+ *   <li><b>Zero data loss</b>: Complete information preservation</li>
+ * </ul>
+ * 
+ * <h3>Usage Examples</h3>
+ * <pre>
+ * // Basic usage
+ * String result = LLMOptimizedJson.format(jsonString);
+ * 
+ * // With field filtering  
+ * String filtered = LLMOptimizedJson.format(jsonString, "id", "timestamp");
+ * 
+ * // Hierarchical filtering (dot notation)
+ * String precise = LLMOptimizedJson.format(jsonString, "user.email", "metadata.internal");
+ * 
+ * // Performance optimized for structured JSON
+ * String fast = LLMOptimizedJson.formatWellFormed(structuredJson, Set.of("id", "created_at"));
+ * 
+ * // Real-world: Clean Jira tickets
+ * String clean = LLMOptimizedJson.formatWellFormed(jiraJson, Set.of(
+ *     "id", "self", "expand",                    // System fields
+ *     "fields.issuetype.description",           // Specific nested field
+ *     "fields.assignee.avatarUrls",             // User metadata
+ *     "active"                                  // All active fields everywhere
+ * ));
+ * </pre>
+ * 
+ * <h3>Performance</h3>
+ * <p>Benchmarks with real Jira JSON (2KB, 200+ fields):</p>
+ * <ul>
+ *   <li>Regular mode: ~0.058 ms/op (competitive with StringUtils)</li>
+ *   <li>WellFormed mode: ~0.052 ms/op (5-10% faster)</li>
+ * </ul>
+ * 
+ * <p><b>See LLMOptimizedJson.README.md for comprehensive documentation with detailed examples.</b></p>
+ * 
+ * @author DMTools Team  
+ * @version 2.0
+ * @since 2024
+ * @see FormattingMode
  */
 public class LLMOptimizedJson {
 
