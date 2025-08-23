@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.Arrays;
 
 /**
  * Utility class for optimizing JSON representation for LLM consumption.
@@ -33,6 +34,9 @@ public class LLMOptimizedJson {
     public static final String LINE_BREAK = "\n";
     public static final String COMMA = ",";
 
+    // Empty default blacklist - users can provide their own
+    private static final Set<String> EMPTY_BLACKLIST = new HashSet<>();
+
     /**
      * Formatting modes for the output
      */
@@ -49,6 +53,7 @@ public class LLMOptimizedJson {
     private final JsonElement rootElement;
     private final FormattingMode formattingMode;
     private final boolean wellFormed;
+    private final Set<String> blacklistedFields;
     private final Gson gson = new Gson();
     
     // Cache indent strings to avoid repeated string creation
@@ -59,92 +64,124 @@ public class LLMOptimizedJson {
      * Create from JSONObject (org.json) with default MINIMIZED mode
      */
     public LLMOptimizedJson(JSONObject jsonObject) {
-        this(jsonObject, FormattingMode.MINIMIZED, false);
+        this(jsonObject, FormattingMode.MINIMIZED, false, EMPTY_BLACKLIST);
     }
     
     /**
      * Create from JSONObject (org.json) with specified formatting mode
      */
     public LLMOptimizedJson(JSONObject jsonObject, FormattingMode mode) {
-        this(jsonObject, mode, false);
+        this(jsonObject, mode, false, EMPTY_BLACKLIST);
     }
     
     /**
      * Create from JSONObject (org.json) with specified formatting mode and well-formed optimization
      */
     public LLMOptimizedJson(JSONObject jsonObject, FormattingMode mode, boolean wellFormed) {
+        this(jsonObject, mode, wellFormed, EMPTY_BLACKLIST);
+    }
+    
+    /**
+     * Create from JSONObject (org.json) with specified formatting mode, well-formed optimization, and custom blacklist
+     */
+    public LLMOptimizedJson(JSONObject jsonObject, FormattingMode mode, boolean wellFormed, Set<String> blacklistedFields) {
         this.rootElement = JsonParser.parseString(jsonObject.toString());
         this.formattingMode = mode;
         this.wellFormed = wellFormed;
+        this.blacklistedFields = blacklistedFields != null ? new HashSet<>(blacklistedFields) : new HashSet<>();
     }
     
     /**
      * Create from JSON string with default MINIMIZED mode
      */
     public LLMOptimizedJson(String jsonString) {
-        this(jsonString, FormattingMode.MINIMIZED, false);
+        this(jsonString, FormattingMode.MINIMIZED, false, EMPTY_BLACKLIST);
     }
     
     /**
      * Create from JSON string with specified formatting mode
      */
     public LLMOptimizedJson(String jsonString, FormattingMode mode) {
-        this(jsonString, mode, false);
+        this(jsonString, mode, false, EMPTY_BLACKLIST);
     }
     
     /**
      * Create from JSON string with specified formatting mode and well-formed optimization
      */
     public LLMOptimizedJson(String jsonString, FormattingMode mode, boolean wellFormed) {
+        this(jsonString, mode, wellFormed, EMPTY_BLACKLIST);
+    }
+    
+    /**
+     * Create from JSON string with specified formatting mode, well-formed optimization, and custom blacklist
+     */
+    public LLMOptimizedJson(String jsonString, FormattingMode mode, boolean wellFormed, Set<String> blacklistedFields) {
         this.rootElement = JsonParser.parseString(jsonString);
         this.formattingMode = mode;
         this.wellFormed = wellFormed;
+        this.blacklistedFields = blacklistedFields != null ? new HashSet<>(blacklistedFields) : new HashSet<>();
     }
     
     /**
      * Create from InputStream with default MINIMIZED mode
      */
     public LLMOptimizedJson(InputStream inputStream) {
-        this(inputStream, FormattingMode.MINIMIZED, false);
+        this(inputStream, FormattingMode.MINIMIZED, false, EMPTY_BLACKLIST);
     }
     
     /**
      * Create from InputStream with specified formatting mode
      */
     public LLMOptimizedJson(InputStream inputStream, FormattingMode mode) {
-        this(inputStream, mode, false);
+        this(inputStream, mode, false, EMPTY_BLACKLIST);
     }
     
     /**
      * Create from InputStream with specified formatting mode and well-formed optimization
      */
     public LLMOptimizedJson(InputStream inputStream, FormattingMode mode, boolean wellFormed) {
+        this(inputStream, mode, wellFormed, EMPTY_BLACKLIST);
+    }
+    
+    /**
+     * Create from InputStream with specified formatting mode, well-formed optimization, and custom blacklist
+     */
+    public LLMOptimizedJson(InputStream inputStream, FormattingMode mode, boolean wellFormed, Set<String> blacklistedFields) {
         this.rootElement = JsonParser.parseReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
         this.formattingMode = mode;
         this.wellFormed = wellFormed;
+        this.blacklistedFields = blacklistedFields != null ? new HashSet<>(blacklistedFields) : new HashSet<>();
     }
     
     /**
      * Create from Gson JsonElement directly with default MINIMIZED mode
      */
     public LLMOptimizedJson(JsonElement jsonElement) {
-        this(jsonElement, FormattingMode.MINIMIZED, false);
+        this(jsonElement, FormattingMode.MINIMIZED, false, EMPTY_BLACKLIST);
     }
     
     /**
      * Create from Gson JsonElement directly with specified formatting mode
      */
     public LLMOptimizedJson(JsonElement jsonElement, FormattingMode mode) {
-        this(jsonElement, mode, false);
+        this(jsonElement, mode, false, EMPTY_BLACKLIST);
     }
     
     /**
      * Create from Gson JsonElement directly with specified formatting mode and well-formed optimization
      */
     public LLMOptimizedJson(JsonElement jsonElement, FormattingMode mode, boolean wellFormed) {
+        this(jsonElement, mode, wellFormed, EMPTY_BLACKLIST);
+    }
+    
+    /**
+     * Create from Gson JsonElement directly with specified formatting mode, well-formed optimization, and custom blacklist
+     */
+    public LLMOptimizedJson(JsonElement jsonElement, FormattingMode mode, boolean wellFormed, Set<String> blacklistedFields) {
         this.rootElement = jsonElement;
         this.formattingMode = mode;
         this.wellFormed = wellFormed;
+        this.blacklistedFields = blacklistedFields != null ? new HashSet<>(blacklistedFields) : new HashSet<>();
     }
     
     /**
@@ -155,6 +192,39 @@ public class LLMOptimizedJson {
         StringBuilder result = new StringBuilder();
         formatElement(result, rootElement, "", "", 0);
         return result.toString();
+    }
+    
+    /**
+     * Determines if a field should be blacklisted based on exact match with provided blacklist
+     * Supports hierarchical filtering with dot notation (e.g., "parent.child")
+     * 
+     * @param field The field name to check
+     * @param currentPath The current path to this field (e.g., "issuetype" for field "description" -> "issuetype.description")
+     */
+    private boolean isFieldBlacklisted(String field, String currentPath) {
+        if (field == null || field.isEmpty()) {
+            return true;
+        }
+
+        // 1. Direct field name match (backward compatibility)
+        if (blacklistedFields.contains(field)) {
+            return true;
+        }
+
+        // 2. Full path match (hierarchical filtering)
+        String fullPath = currentPath.isEmpty() ? field : currentPath + "." + field;
+        if (blacklistedFields.contains(fullPath)) {
+            return true;
+        }
+
+        return false;
+    }
+    
+    /**
+     * Legacy method for backward compatibility
+     */
+    private boolean isFieldBlacklisted(String field) {
+        return isFieldBlacklisted(field, "");
     }
     
     /**
@@ -229,27 +299,50 @@ public class LLMOptimizedJson {
         String indent = getIndent(indentLevel);
         Set<Map.Entry<String, JsonElement>> entries = jsonObject.entrySet();
 
-        if (entries.isEmpty()) {
-            result.append(indent).append(NEXT).append(SPACE).append(LINE_BREAK);
+        // Header with parentKey
+        result.append(indent);
+        if (!parentKey.isEmpty()) {
+            result.append(parentKey).append(" ");
+        }
+        result.append(NEXT).append(SPACE);
+        
+        // Quick iteration for keys (skip blacklisted)
+        boolean first = true;
+        boolean hasValidEntries = false;
+        for (Map.Entry<String, JsonElement> entry : entries) {
+            if (!isFieldBlacklisted(entry.getKey(), keyPrefix)) {
+                if (!first) {
+                    result.append(COMMA);
+                }
+                result.append(entry.getKey());
+                first = false;
+                hasValidEntries = true;
+            }
+        }
+        result.append(LINE_BREAK);
+
+        if (!hasValidEntries) {
             return;
         }
 
-        printObjectNextHeaderWellFormatted(result, indent, entries);
-
-        // Process values (single pass, already have entries)
+        // Values iteration (same filter, minimal overhead)
         for (Map.Entry<String, JsonElement> entry : entries) {
             String key = entry.getKey();
-            JsonElement value = entry.getValue();
+            if (isFieldBlacklisted(key, keyPrefix)) {
+                continue;
+            }
             
+            JsonElement value = entry.getValue();
             if (value.isJsonPrimitive()) {
                 result.append(indent);
                 formatPrimitive(result, value.getAsJsonPrimitive(), emptyString);
                 result.append(LINE_BREAK);
             } else if (value.isJsonArray()) {
-                formatJsonArrayWellFormed(result, value.getAsJsonArray(), key, keyPrefix + key, indentLevel);
+                String newKeyPrefix = keyPrefix.isEmpty() ? key : keyPrefix + "." + key;
+                formatJsonArrayWellFormed(result, value.getAsJsonArray(), key, newKeyPrefix, indentLevel);
             } else if (value.isJsonObject()) {
-                String concatenatedKey = keyPrefix.isEmpty() ? key : keyPrefix + capitalize(key);
-                formatJsonObjectWellFormed(result, value.getAsJsonObject(), key, concatenatedKey, indentLevel);
+                String newKeyPrefix = keyPrefix.isEmpty() ? key : keyPrefix + "." + key;
+                formatJsonObjectWellFormed(result, value.getAsJsonObject(), key, newKeyPrefix, indentLevel);
             }
         }
     }
@@ -261,11 +354,28 @@ public class LLMOptimizedJson {
         String indent = getIndent(indentLevel);
         Set<String> keys = jsonObject.keySet();
         
-        // Add Next header (no colon) - using helper method
-        printObjectNextHeader(result, indent, keys);
+        // Filter out blacklisted fields
+        Set<String> filteredKeys = new HashSet<>();
+        for (String key : keys) {
+            if (!isFieldBlacklisted(key, keyPrefix)) {
+                filteredKeys.add(key);
+            }
+        }
+        
+        if (filteredKeys.isEmpty()) {
+            if (!parentKey.isEmpty()) {
+                result.append(indent).append(parentKey).append(" ").append(NEXT).append(SPACE).append(LINE_BREAK);
+            } else {
+                result.append(indent).append(NEXT).append(SPACE).append(LINE_BREAK);
+            }
+            return;
+        }
+        
+        // Add Next header with parentKey if present
+        printObjectNextHeaderWithParent(result, indent, filteredKeys, parentKey);
         
         // Add values for each key
-        for (String key : keys) {
+        for (String key : filteredKeys) {
             JsonElement value = jsonObject.get(key);
             
             if (value.isJsonPrimitive()) {
@@ -273,10 +383,11 @@ public class LLMOptimizedJson {
                 formatPrimitive(result, value.getAsJsonPrimitive(), emptyString);
                 result.append(LINE_BREAK);
             } else if (value.isJsonArray()) {
-                formatJsonArrayRegular(result, value.getAsJsonArray(), key, keyPrefix + key, indentLevel);
+                String newKeyPrefix = keyPrefix.isEmpty() ? key : keyPrefix + "." + key;
+                formatJsonArrayRegular(result, value.getAsJsonArray(), key, newKeyPrefix, indentLevel);
             } else if (value.isJsonObject()) {
-                String concatenatedKey = keyPrefix.isEmpty() ? key : keyPrefix + capitalize(key);
-                formatJsonObjectRegular(result, value.getAsJsonObject(), key, concatenatedKey, indentLevel);
+                String newKeyPrefix = keyPrefix.isEmpty() ? key : keyPrefix + "." + key;
+                formatJsonObjectRegular(result, value.getAsJsonObject(), key, newKeyPrefix, indentLevel);
             }
         }
     }
@@ -309,11 +420,18 @@ public class LLMOptimizedJson {
             // For arrays of objects - use first object's keys directly (no ArrayList)
             if (firstJsonElement.isJsonObject()) {
                 JsonObject firstObj = firstJsonElement.getAsJsonObject();
-                Set<String> keys = firstObj.keySet();
                 
-                // Output array header with keys directly from keySet
+                // Filter keys using blacklist with current path
+                Set<String> filteredKeys = new HashSet<>();
+                for (String key : firstObj.keySet()) {
+                    if (!isFieldBlacklisted(key, keyPrefix)) {
+                        filteredKeys.add(key);
+                    }
+                }
+                
+                // Output array header with filtered keys
                 result.append("[");
-                printObjectNextHeader(result, indent, keys);
+                printObjectNextHeader(result, indent, filteredKeys);
                 
                 // Output each object's values - one pass, no intermediate collections
                 String valueIndent = getIndent(indentLevel + 1);
@@ -322,17 +440,19 @@ public class LLMOptimizedJson {
                     
                     JsonObject obj = jsonArray.get(i).getAsJsonObject();
 
-                    // Output values in the same order as first object's keys
-                    for (String key : keys) {
+                    // Output values in the same order as filtered keys
+                    for (String key : filteredKeys) {
                         if (obj.has(key)) {
                             JsonElement value = obj.get(key);
                             if (value.isJsonPrimitive()) {
                                 formatPrimitive(result, value.getAsJsonPrimitive(), valueIndent);
                                 result.append(LINE_BREAK);
                             } else if (value.isJsonArray()) {
-                                formatJsonArrayWellFormed(result, value.getAsJsonArray(), key, keyPrefix + key, indentLevel + 2);
+                                String newKeyPrefix = keyPrefix.isEmpty() ? key : keyPrefix + "." + key;
+                                formatJsonArrayWellFormed(result, value.getAsJsonArray(), key, newKeyPrefix, indentLevel + 2);
                             } else if (value.isJsonObject()) {
-                                formatJsonObjectWellFormed(result, value.getAsJsonObject(), key, keyPrefix + capitalize(key), indentLevel + 2);
+                                String newKeyPrefix = keyPrefix.isEmpty() ? key : keyPrefix + "." + key;
+                                formatJsonObjectWellFormed(result, value.getAsJsonObject(), key, newKeyPrefix, indentLevel + 2);
                             }
                         } else {
                             result.append(valueIndent).append("null").append(LINE_BREAK);
@@ -373,17 +493,21 @@ public class LLMOptimizedJson {
             }
             result.append(indent).append("]").append(LINE_BREAK);
         } else {
-            // Collect all unique keys from all objects
+            // Collect all unique keys from all objects (with blacklist filtering)
             Set<String> allKeys = new HashSet<>();
             for (int i = 0; i < jsonArray.size(); i++) {
                 if (jsonArray.get(i).isJsonObject()) {
                     JsonObject obj = jsonArray.get(i).getAsJsonObject();
-                    allKeys.addAll(obj.keySet());
+                    for (String key : obj.keySet()) {
+                        if (!isFieldBlacklisted(key, keyPrefix)) {
+                            allKeys.add(key);
+                        }
+                    }
                 }
             }
 
             result.append("[");
-            // Output array header with keys
+            // Output array header with filtered keys
             printObjectNextHeader(result, indent, allKeys);
             
             // Output each object's values
@@ -394,7 +518,7 @@ public class LLMOptimizedJson {
                 if (jsonArray.get(i).isJsonObject()) {
                     JsonObject obj = jsonArray.get(i).getAsJsonObject();
                     
-                    // Output values in the same order as keys
+                    // Output values in the same order as filtered keys
                     for (String key : allKeys) {
                         if (obj.has(key)) {
                             JsonElement value = obj.get(key);
@@ -402,9 +526,11 @@ public class LLMOptimizedJson {
                                 formatPrimitive(result, value.getAsJsonPrimitive(), valueIndent);
                                 result.append(LINE_BREAK);
                             } else if (value.isJsonArray()) {
-                                formatJsonArrayRegular(result, value.getAsJsonArray(), key, keyPrefix + key, indentLevel + 2);
+                                String newKeyPrefix = keyPrefix.isEmpty() ? key : keyPrefix + "." + key;
+                                formatJsonArrayRegular(result, value.getAsJsonArray(), key, newKeyPrefix, indentLevel + 2);
                             } else if (value.isJsonObject()) {
-                                formatJsonObjectRegular(result, value.getAsJsonObject(), key, keyPrefix + capitalize(key), indentLevel + 2);
+                                String newKeyPrefix = keyPrefix.isEmpty() ? key : keyPrefix + "." + key;
+                                formatJsonObjectRegular(result, value.getAsJsonObject(), key, newKeyPrefix, indentLevel + 2);
                             }
                         } else {
                             result.append(valueIndent).append("null").append(LINE_BREAK);
@@ -447,6 +573,24 @@ public class LLMOptimizedJson {
         }
         result.append(LINE_BREAK);
     }
+    
+    private static void printObjectNextHeaderWellFormattedWithParent(StringBuilder result, String indent, Set<Map.Entry<String, JsonElement>> entries, String parentKey) {
+        // Print parentKey + Next header with keys
+        result.append(indent);
+        if (!parentKey.isEmpty()) {
+            result.append(parentKey).append(" ");
+        }
+        result.append(NEXT).append(SPACE);
+        boolean first = true;
+        for (Map.Entry<String, JsonElement> entry : entries) {
+            if (!first) {
+                result.append(COMMA);
+            }
+            result.append(entry.getKey());
+            first = false;
+        }
+        result.append(LINE_BREAK);
+    }
 
     /**
      * Print Next header for object keys (compact format without spaces after commas)
@@ -463,17 +607,29 @@ public class LLMOptimizedJson {
         }
         result.append(LINE_BREAK);
     }
-
-
+    
     /**
-     * Capitalize first letter of a string for key concatenation
+     * Print Next header for object keys with parent key prefix
      */
-    private String capitalize(String str) {
-        if (str == null || str.isEmpty()) {
-            return str;
+    private void printObjectNextHeaderWithParent(StringBuilder result, String indent, Set<String> keys, String parentKey) {
+        result.append(indent);
+        if (!parentKey.isEmpty()) {
+            result.append(parentKey).append(" ");
         }
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
+        result.append(NEXT).append(SPACE);
+        boolean first = true;
+        for (String key : keys) {
+            if (!first) {
+                result.append(COMMA);
+            }
+            result.append(key);
+            first = false;
+        }
+        result.append(LINE_BREAK);
     }
+
+
+
 
     /**
      * Static factory method for quick conversion (MINIMIZED mode)
@@ -501,6 +657,49 @@ public class LLMOptimizedJson {
      */
     public static String formatWellFormed(String jsonString) {
         return new LLMOptimizedJson(jsonString, FormattingMode.MINIMIZED, true).toString();
+    }
+
+    public static String formatWellFormed(String jsonString, Set<String> blacklistedFields) {
+        return new LLMOptimizedJson(jsonString, FormattingMode.MINIMIZED, true, blacklistedFields).toString();
+    }
+    
+    /**
+     * Static factory method with custom blacklist for field filtering
+     */
+    public static String format(String jsonString, Set<String> blacklistedFields) {
+        return new LLMOptimizedJson(jsonString, FormattingMode.MINIMIZED, false, blacklistedFields).toString();
+    }
+    
+    /**
+     * Static factory method with custom blacklist and formatting mode
+     */
+    public static String format(String jsonString, FormattingMode mode, Set<String> blacklistedFields) {
+        return new LLMOptimizedJson(jsonString, mode, false, blacklistedFields).toString();
+    }
+    
+    /**
+     * Static factory method with custom blacklist, well-formed optimization, and formatting mode (full control)
+     */
+    public static String format(String jsonString, FormattingMode mode, boolean wellFormed, Set<String> blacklistedFields) {
+        return new LLMOptimizedJson(jsonString, mode, wellFormed, blacklistedFields).toString();
+    }
+    
+    /**
+     * Static factory method with custom blacklist from String array for convenience
+     */
+    public static String format(String jsonString, String... blacklistedFields) {
+        Set<String> blacklistSet = blacklistedFields != null ? 
+            new HashSet<>(Arrays.asList(blacklistedFields)) : new HashSet<>();
+        return new LLMOptimizedJson(jsonString, FormattingMode.MINIMIZED, false, blacklistSet).toString();
+    }
+    
+    /**
+     * Static factory method with custom blacklist from String array and formatting mode
+     */
+    public static String format(String jsonString, FormattingMode mode, String... blacklistedFields) {
+        Set<String> blacklistSet = blacklistedFields != null ? 
+            new HashSet<>(Arrays.asList(blacklistedFields)) : new HashSet<>();
+        return new LLMOptimizedJson(jsonString, mode, false, blacklistSet).toString();
     }
     
     /**
