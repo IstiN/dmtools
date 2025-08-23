@@ -4,7 +4,7 @@ import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.model.Status;
-import com.github.istin.dmtools.common.utils.StringUtils;
+import com.github.istin.dmtools.common.utils.LLMOptimizedJson;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -12,10 +12,20 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 public class Ticket extends JSONModel implements ITicket {
 
     private static final String ID = "id";
+    public static final Set<String> BLACKLISTED_FIELDS = Set.of("url", "id", "self", "expand", " avatarId", "hierarchyLevel", "iconUrl", "avatarId", "subtask", "statusCategory", "colorName",
+            "avatarUrls", "accountType", "timeZone", "thumbnail", "fields.issuetype.description",
+            "fields.reporter.active",
+            "fields.creator.active",
+            "fields.author.active",
+            "fields.attachment.author.active",
+            "fields.status.description",
+            "fields.parent.fields.issuetype.description",
+            "fields.parent.fields.status.description");
 
     public Ticket() {
     }
@@ -88,10 +98,14 @@ public class Ticket extends JSONModel implements ITicket {
         }
     }
 
+    private String llmFormatted;
+
     @Override
     public String toText() {
-        StringBuilder fieldsAsJSON = StringUtils.transformJSONToText(new StringBuilder(), getFieldsAsJSON(), false);
-        return "key: " + getTicketKey() + "\n" + fieldsAsJSON;
+        if (llmFormatted == null) {
+            llmFormatted = LLMOptimizedJson.formatWellFormed(toString(), BLACKLISTED_FIELDS);
+        }
+        return llmFormatted;
     }
 
     public String getId() {
