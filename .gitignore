@@ -93,3 +93,4 @@ node_modules
 package.json
 package-lock.json
 .agentic-config/dmtools-server/cacheBasicJiraClient/
+/dmtools-server/cacheBasicJiraClient/
