@@ -28,7 +28,7 @@ jobs:
       - name: Run unit tests and build
         id: gradle
         continue-on-error: true
-        run: ./gradlew clean test :dmtools-core:shadowJar -x integrationTest
+        run: ./gradlew clean :dmtools-core:test :dmtools-server:test :dmtools-core:shadowJar -x integrationTest
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -99,11 +99,12 @@ jobs:
             
             if (gradleSuccess) {
               comment += '✅ **All unit tests passed!**\n\n';
-              comment += '- ✅ Unit tests: PASSED\n';
+              comment += '- ✅ dmtools-core tests: PASSED\n';
+              comment += '- ✅ dmtools-server tests: PASSED\n';
               comment += '- ✅ Build: PASSED\n';
             } else {
               comment += '❌ **Unit tests failed**\n\n';
-              comment += `- ❌ Unit tests: FAILED\n`;
+              comment += `- ❌ Unit tests: Check individual module results below\n`;
               comment += '\n📋 Check the workflow run for detailed test results and artifacts.\n';
             }
             
