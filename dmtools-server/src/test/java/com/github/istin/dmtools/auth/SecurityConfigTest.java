@@ -2,6 +2,7 @@ package com.github.istin.dmtools.auth;
 
 import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
 import com.github.istin.dmtools.auth.service.CustomOidcUserService;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -54,24 +55,54 @@ public class SecurityConfigTest {
         assertFalse(!((List<ClientRegistration>) ((DynamicClientRegistrationRepository) repository).findAll()).isEmpty(), "ClientRegistrationRepository should be empty in local standalone mode");
     }
 
-    @Test
-    void testClientRegistrationRepository_withEnabledProviders() {
-        assertFalse(authConfigProperties.isLocalStandaloneMode());
-        ClientRegistrationRepository repository = context.getBean(ClientRegistrationRepository.class);
-        assertNotNull(repository);
-        assertTrue(!((List<ClientRegistration>) ((DynamicClientRegistrationRepository) repository).findAll()).isEmpty(), "ClientRegistrationRepository should not be empty");
-        assertNotNull(repository.findByRegistrationId("google"));
-        assertNotNull(repository.findByRegistrationId("github"));
-        assertNull(repository.findByRegistrationId("microsoft"));
-    }
+    // Nested class to test OAuth2 enabled scenario
+    @Nested
+    @SpringBootTest(classes = {SecurityConfig.class, AuthConfigProperties.class})
+    @TestPropertySource(properties = {
+        "auth.enabled-providers=google,github",
+        "auth.permitted-email-domains=",
+        "auth.local.username=admin",
+        "auth.local.password=admin"
+    })
+    class OAuth2EnabledTests {
 
-    @Test
-    void testSecurityFilterChain_oauth2Enabled() {
-        assertFalse(authConfigProperties.isLocalStandaloneMode());
-        // This test primarily checks if the context loads without errors when OAuth2 is enabled.
-        // Verifying the exact filter chain configuration programmatically is complex and often brittle.
-        // We rely on Spring Security's internal logging and behavior for detailed verification.
-        assertTrue(context.containsBean("clientRegistrationRepository"));
+        @Autowired
+        private ApplicationContext context;
+
+        @Autowired
+        private AuthConfigProperties authConfigProperties;
+
+        @MockBean
+        private EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler;
+        @MockBean
+        private AuthDebugFilter authDebugFilter;
+        @MockBean
+        private JwtAuthenticationFilter jwtAuthenticationFilter;
+        @MockBean
+        private CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
+        @MockBean
+        private CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
+        @MockBean
+        private CustomOAuth2UserService customOAuth2UserService;
+        @MockBean
+        private CustomOidcUserService customOidcUserService;
+
+        @Test
+        void testClientRegistrationRepository_withEnabledProviders() {
+            assertFalse(authConfigProperties.isLocalStandaloneMode());
+            ClientRegistrationRepository repository = context.getBean(ClientRegistrationRepository.class);
+            assertNotNull(repository);
+            assertTrue(!((List<ClientRegistration>) ((DynamicClientRegistrationRepository) repository).findAll()).isEmpty(), "ClientRegistrationRepository should not be empty");
+            assertNotNull(repository.findByRegistrationId("google"));
+            assertNotNull(repository.findByRegistrationId("github"));
+            assertNull(repository.findByRegistrationId("microsoft"));
+        }
+
+        @Test
+        void testSecurityFilterChain_oauth2Enabled() {
+            assertFalse(authConfigProperties.isLocalStandaloneMode());
+            assertTrue(context.containsBean("clientRegistrationRepository"));
+        }
     }
 
     @Test
