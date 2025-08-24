@@ -26,7 +26,7 @@ Quick compile check:
 - dmtools-server: Web services, Spring Boot, authentication
 
 ** IMPORTANT: DO NOT MODIFY **
-- Java version in build.gradle files - configurations work correctly
+- Java version in build.gradle files - MUST BE JavaVersion.VERSION_23 everywhere, configurations work correctly
 - Dependencies in build.gradle - most dependencies already exist, only add if specifically required by task
 
 ** COMMON TEST FIXES **
