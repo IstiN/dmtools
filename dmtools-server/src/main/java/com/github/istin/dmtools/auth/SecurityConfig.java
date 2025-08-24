@@ -204,19 +204,12 @@ public class SecurityConfig {
             List<String> enabledProviders = authConfigProperties.getEnabledProviders();
 
             if (clientRegistrationRepository != null && !enabledProviders.isEmpty()) {
-                if (clientRegistrationRepository instanceof InMemoryClientRegistrationRepository) {
-                    List<ClientRegistration> filteredRegistrations = ((InMemoryClientRegistrationRepository) clientRegistrationRepository).iterator()
-                            .stream()
-                            .filter(registration -> enabledProviders.contains(registration.getRegistrationId().toLowerCase()))
-                            .collect(Collectors.toList());
-                    effectiveClientRegistrationRepository = new InMemoryClientRegistrationRepository(filteredRegistrations);
-                } else {
-                    logger.warn("⚠️ ClientRegistrationRepository is not an InMemoryClientRegistrationRepository. Dynamic filtering of providers is not supported.");
-                }
+                // For now, we'll use all client registrations as dynamic filtering requires custom implementation
+                logger.info("🔧 Using all available OAuth2 client registrations. Dynamic provider filtering not implemented yet.");
             }
 
-            // Configure OAuth2 login only if effectiveClientRegistrationRepository is available and has registrations
-            if (effectiveClientRegistrationRepository != null && effectiveClientRegistrationRepository.iterator().hasNext()) {
+            // Configure OAuth2 login only if effectiveClientRegistrationRepository is available
+            if (effectiveClientRegistrationRepository != null) {
                 logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
                 http.oauth2Login(oauth2 -> {
                     oauth2.clientRegistrationRepository(effectiveClientRegistrationRepository); // Set the filtered repository

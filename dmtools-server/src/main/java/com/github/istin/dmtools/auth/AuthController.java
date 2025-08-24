@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.auth;
 
+import com.github.istin.dmtools.auth.config.AuthConfigProperties;
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.service.UserService;
 import org.slf4j.Logger;
