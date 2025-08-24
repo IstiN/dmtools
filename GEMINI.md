@@ -110,34 +110,36 @@ List<ClientRegistration> registrations = Arrays.asList(testRegistration);
 
 ### 🔥 MANDATORY Java Commands - ALWAYS USE THESE:
 
-#### **Primary Test Command (use this for all testing):**
+#### **Fast Development Commands (use these most often):**
 ```bash
-./gradlew clean test :dmtools-core:shadowJar -x integrationTest
-```
-
-#### **Compile and Test Specific Modules:**
-```bash
-# Core module only:
-./gradlew :dmtools-core:compileJava :dmtools-core:test
-
-# Server module only:
-./gradlew :dmtools-server:compileJava :dmtools-server:test
-
-# Compile everything without tests:
+# Fast compile check (incremental, no clean):
 ./gradlew compileJava testClasses
-```
 
-#### **Quick Test Commands for Development:**
-```bash
-# Test specific class:
+# Test specific class (fastest):
 ./gradlew test --tests "ClassName"
 
 # Test specific method:
 ./gradlew test --tests "ClassName.methodName"
 
-# Run with detailed info:
-./gradlew test --tests "ClassName" --info --stacktrace
+# Compile and test specific module:
+./gradlew :dmtools-core:compileJava :dmtools-core:test
+./gradlew :dmtools-server:compileJava :dmtools-server:test
 ```
+
+#### **Full Test Command (use before submitting):**
+```bash
+# Complete test run (incremental build):
+./gradlew test :dmtools-core:shadowJar -x integrationTest
+
+# Only use clean when necessary (slower but thorough):
+./gradlew clean test :dmtools-core:shadowJar -x integrationTest
+```
+
+#### **When to Use Clean:**
+- After major dependency changes
+- When build cache seems corrupted
+- Before final submission to ensure clean build
+- **NOT for regular development** (wastes time recompiling everything)
 
 ### ⚠️ CRITICAL Environment Requirements:
 
@@ -175,37 +177,48 @@ dmtools/
 
 #### **Correct Commands (ALWAYS USE):**
 ```bash
-✅ ./gradlew clean test              # Standard testing
-✅ ./gradlew :dmtools-server:bootRun # Run server
-✅ ./gradlew compileJava             # Compile all modules
-✅ ./gradlew classes testClasses     # Quick compile
+✅ ./gradlew test                    # Standard testing (incremental)
+✅ ./gradlew compileJava             # Compile all modules (fast)
+✅ ./gradlew classes testClasses     # Quick compile (fastest)
+✅ ./gradlew test --tests "Class"    # Test specific class
+✅ ./gradlew :module:test            # Test specific module
 ```
 
 ### 🔧 Working with Code Changes:
 
-#### **Step-by-Step Process:**
-1. **First**: Make your code changes
-2. **Then**: Run `./gradlew compileJava testClasses` to check compilation
-3. **Next**: Run `./gradlew test --tests "YourClass"` to test specific changes
-4. **Finally**: Run `./gradlew clean test :dmtools-core:shadowJar -x integrationTest`
+#### **Fast Development Workflow:**
+1. **Make your code changes**
+2. **Quick compile check**: `./gradlew compileJava testClasses` (fastest)
+3. **Test specific changes**: `./gradlew test --tests "YourClass"` 
+4. **Test affected module**: `./gradlew :dmtools-core:test` or `:dmtools-server:test`
+5. **Before submitting**: `./gradlew test :dmtools-core:shadowJar -x integrationTest`
 
 #### **If Compilation Fails:**
 ```bash
-# Check what's wrong with detailed output:
+# Check what's wrong (incremental):
 ./gradlew compileJava --info --stacktrace
 
-# Clean and retry:
+# Only use clean if build cache is corrupted:
 ./gradlew clean compileJava
 ```
 
 #### **If Tests Fail:**
 ```bash
+# Test specific failing class (fastest):
+./gradlew test --tests "FailingClassName" --info
+
 # Run with detailed failure info:
 ./gradlew test --info --stacktrace
 
-# Test just the failing class:
-./gradlew test --tests "FailingClassName" --info
+# Focus on specific module:
+./gradlew :dmtools-server:test --info
 ```
+
+#### **Performance Tips:**
+- **Use incremental builds** - avoid `clean` unless necessary
+- **Test specific classes** instead of full test suite during development  
+- **Focus on compilation** before running tests
+- **Use module-specific commands** to reduce build time
 
 ### 📦 Understanding Module Dependencies:
 
@@ -265,11 +278,19 @@ lenient().when(mockService.method()).thenReturn(value);
 
 ### MANDATORY Before Finishing:
 ```bash
-# ALWAYS run this final command before submitting:
+# ALWAYS run this final command before submitting (incremental):
+./gradlew test :dmtools-core:shadowJar -x integrationTest
+
+# Use clean only if you want to ensure completely fresh build:
 ./gradlew clean test :dmtools-core:shadowJar -x integrationTest
 ```
 
 If this command fails, **FIX THE ISSUES** before submitting your changes.
+
+**Performance Note**: Prefer incremental builds during development. Only use `clean` when:
+- Making major dependency changes
+- Preparing final submission  
+- Build cache appears corrupted
 
 ## Project Context
 
