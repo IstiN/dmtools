@@ -1,0 +1,57 @@
+DMTOOLS QUICK TESTING COMMANDS:
+
+Use these simple commands to quickly test your Java code changes during development.
+
+** QUICK TEST COMMANDS **
+
+Test specific class:
+./gradlew test --tests "ClassName"
+./gradlew test --tests "com.github.istin.dmtools.ClassName"
+
+Test specific method:
+./gradlew test --tests "ClassName.methodName"
+
+Test entire module (fast):
+./gradlew :dmtools-core:test
+./gradlew :dmtools-server:test
+
+Test with compilation check:
+./gradlew compileJava compileTestJava
+
+Quick compile check:
+./gradlew classes testClasses
+
+** PROJECT MODULES **
+- dmtools-core: Business logic, integrations (no Spring dependencies)
+- dmtools-server: Web services, Spring Boot, authentication
+
+** IMPORTANT: DO NOT MODIFY **
+- Java version in build.gradle files - configurations work correctly
+- Dependencies in build.gradle - most dependencies already exist, only add if specifically required by task
+
+** COMMON TEST FIXES **
+
+Authentication issues - add to test:
+@WithMockUser
+
+Missing Spring beans - add to test class:
+@MockBean
+private YourService yourService;
+
+Configuration issues - add to test class:
+@TestConfiguration
+static class TestConfig {
+    @Bean @Primary
+    YourConfigClass config() { return new YourConfigClass(); }
+}
+
+** QUICK DEBUGGING **
+See failure details:
+./gradlew test --tests "ClassName" --info
+
+Clean and retry:
+./gradlew clean test --tests "ClassName"
+
+** BEFORE COMMIT **
+Quick validation:
+./gradlew :dmtools-core:test :dmtools-server:test

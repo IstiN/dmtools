@@ -46,6 +46,9 @@ jobs:
       pr_base_branch: ${{ inputs.pr_base_branch }}
       enable_debug_logging: ${{ inputs.enable_debug_logging }}
       
+      # DMTools-specific rules and context (all rules except jira-admin)
+      additional_context_files: '.cursor/rules/agents-jobs.mdc,.cursor/rules/core-server-separation.mdc,.cursor/rules/dagger-dependency-injection.mdc,.cursor/rules/gradle-dependencies.mdc,.cursor/rules/java-coding-style.mdc,.cursor/rules/networking-tools.mdc,.cursor/rules/testing-context.mdc,.cursor/rules/unit-testing.mdc'
+      
       # Use specific version for stability
       workflows_repo: 'IstiN/dmtools-agentic-workflows'
       workflows_ref: 'main'

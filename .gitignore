@@ -93,3 +93,5 @@ node_modules
 package.json
 package-lock.json
 .agentic-config
+dmtools-core/temp
+dmtools-core/cacheTestableJiraClient
