@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export JAVA_HOME="/usr/lib/jvm/temurin-23-jdk-amd64"
+
 #
 # Copyright © 2015-2021 the original authors.
 #
