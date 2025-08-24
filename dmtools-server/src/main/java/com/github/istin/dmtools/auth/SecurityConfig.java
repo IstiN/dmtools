@@ -15,6 +15,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
@@ -43,6 +47,8 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
     private final String activeProfile;
+    private final AuthConfigProperties authConfigProperties;
+    private final LocalUserDetailsService localUserDetailsService;
 
     // Optional OAuth2 components - may not be available if OAuth2 is not configured
     @Autowired(required = false)
@@ -57,16 +63,55 @@ public class SecurityConfig {
     @Autowired(required = false)
     private CustomOidcUserService customOidcUserService;
 
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        // For local standalone mode, we are using plaintext passwords as per DMC-426 decision.
+        // In a real application, this should be a strong hashing algorithm like BCryptPasswordEncoder.
+        return NoOpPasswordEncoder.getInstance();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider daoAuthenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(localUserDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
+
+    @Bean
+    @ConditionalOnBean(ClientRegistrationRepository.class)
+    public ClientRegistrationRepository filteredClientRegistrationRepository(ClientRegistrationRepository defaultClientRegistrationRepository) {
+        if (authConfigProperties.isLocalStandaloneModeEnabled()) {
+            logger.info("⚠️ Local standalone mode enabled. Disabling all OAuth2 client registrations.");
+            return id -> null; // Return a repository that finds no registrations
+        } else if (authConfigProperties.getEnabledProviders() != null && !authConfigProperties.getEnabledProviders().isEmpty()) {
+            logger.info("Filtering OAuth2 client registrations. Enabled providers: {}", authConfigProperties.getEnabledProviders());
+            return id -> {
+                if (authConfigProperties.getEnabledProviders().contains(id)) {
+                    return defaultClientRegistrationRepository.findByRegistrationId(id);
+                }
+                return null;
+            };
+        } else {
+            logger.info("No specific OAuth2 providers configured. All available providers will be used.");
+            return defaultClientRegistrationRepository;
+        }
+    }
+
     public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
                          AuthDebugFilter authDebugFilter, 
                          JwtAuthenticationFilter jwtAuthenticationFilter, 
                          CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
-                         @Value("${spring.profiles.active:default}") String activeProfile) {
+                         @Value("${spring.profiles.active:default}") String activeProfile,
+                         AuthConfigProperties authConfigProperties,
+                         LocalUserDetailsService localUserDetailsService) {
         this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
         this.activeProfile = activeProfile;
+        this.authConfigProperties = authConfigProperties;
+        this.localUserDetailsService = localUserDetailsService;
         logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
     }
 
@@ -151,8 +196,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManagerBuilder auth) throws Exception {
         logger.info("🔧 Configuring SecurityFilterChain for active profile: {}", activeProfile);
+
+        // Configure local authentication provider
+        auth.authenticationProvider(daoAuthenticationProvider());
 
         // Use IF_REQUIRED session management to support both JWT and OAuth2 session-based auth
         logger.info("🛡️ Applying HYBRID security settings (supports both JWT and OAuth2 session-based auth)");
@@ -169,25 +217,25 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/error").permitAll()
-                    .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
-                    .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
-                    .requestMatchers("/", "/test-*.html").permitAll()
-                    .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()  // Added /temp/** for test files
-                    .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-                    .requestMatchers("/actuator/**").permitAll()
-                    .requestMatchers("/api/v1/chat/**").permitAll()
-                    .requestMatchers("/mcp/stream/**").permitAll()  // Allow public access to MCP SSE streams
-                    .requestMatchers("/api/files/download/**").permitAll()  // Allow public access to file downloads
-                    .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()  // Allow webhook endpoints to use API key authentication
-                    .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(requests -> {
+                requests.requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll();
+                requests.requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll();  // Allow OAuth proxy endpoints
+                requests.requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll();
+                requests.requestMatchers("/", "/test-*.html").permitAll();
+                requests.requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll();  // Added /temp/** for test files
+                requests.requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll();
+                requests.requestMatchers("/actuator/**").permitAll();
+                requests.requestMatchers("/api/v1/chat/**").permitAll();
+                requests.requestMatchers("/mcp/stream/**").permitAll();  // Allow public access to MCP SSE streams
+                requests.requestMatchers("/api/files/download/**").permitAll();  // Allow public access to file downloads
+                requests.requestMatchers("/api/v1/job-configurations/*/webhook").permitAll();  // Allow webhook endpoints to use API key authentication
+                requests.anyRequest().authenticated();
+            })
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Configure OAuth2 login only if ClientRegistrationRepository is available
-        if (clientRegistrationRepository != null) {
-            logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
+        // Configure OAuth2 login only if not in local standalone mode and ClientRegistrationRepository is available
+        if (!authConfigProperties.isLocalStandaloneModeEnabled() && clientRegistrationRepository != null) {
+            logger.info("🔐 OAuth2 ClientRegistrationRepository found and local standalone mode is NOT enabled - configuring OAuth2 login");
             http.oauth2Login(oauth2 -> {
                 if (customOAuth2AuthorizationRequestResolver != null) {
                     oauth2.authorizationEndpoint(authorization -> authorization
@@ -205,6 +253,8 @@ public class SecurityConfig {
                 .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
                 .failureHandler(customOAuth2AuthenticationFailureHandler);
             });
+        } else if (authConfigProperties.isLocalStandaloneModeEnabled()) {
+            logger.warn("⚠️ Local standalone mode enabled - OAuth2 login disabled");
         } else {
             logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");
         }
