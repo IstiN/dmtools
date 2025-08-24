@@ -30,10 +30,48 @@ import java.util.List;
 import java.util.Properties;
 
 import com.github.istin.dmtools.teammate.Teammate;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 public class JobRunner {
 
+    private static final Logger logger = LogManager.getLogger(JobRunner.class);
+
+    /**
+     * Job factory that creates fresh instances for each execution to avoid 
+     * race conditions and ensure proper initialization per execution mode.
+     */
+    private static Job createJobInstance(String jobName) {
+        switch (jobName.toLowerCase()) {
+            case "presalesupport": return new PreSaleSupport();
+            case "documentationgenerator": return new DocumentationGenerator();
+            case "requirementscollector": return new RequirementsCollector();
+            case "jestimator": return new JEstimator();
+            case "testcasesgenerator": return new TestCasesGenerator();
+            case "solutionarchitecturecreator": return new SolutionArchitectureCreator();
+            case "diagramscreator": return new DiagramsCreator();
+            case "codegenerator": return new CodeGenerator();
+            case "devproductivityreport": return new DevProductivityReport();
+            case "baproductivityreport": return new BAProductivityReport();
+            case "businessanalyticdorgeneration": return new BusinessAnalyticDORGeneration();
+            case "qaproductivityreport": return new QAProductivityReport();
+            case "scrummasterdaily": return new ScrumMasterDaily();
+            case "expert": return new Expert();
+            case "teammate": return new Teammate();
+            case "sourcecodetrackersyncjob": return new SourceCodeTrackerSyncJob();
+            case "sourcecodecommittrackersyncjob": return new SourceCodeCommitTrackerSyncJob();
+            case "userstorygenerator": return new UserStoryGenerator();
+            case "unittestsgenerator": return new UnitTestsGenerator();
+            case "commitstriage": return new CommitsTriage();
+            default: return null;
+        }
+    }
+
+    /**
+     * Static job instances used only for job listing and name lookup.
+     * These should NOT be used for execution to avoid race conditions.
+     */
     protected static List<Job> JOBS = Arrays.asList(
             new PreSaleSupport(),
             new DocumentationGenerator(),
@@ -98,21 +136,37 @@ public class JobRunner {
         ExecutionMode mode = jobParams.getExecutionMode();
         JSONObject resolvedIntegrations = jobParams.getResolvedIntegrations();
         
-        for (Job job : JOBS) {
-            if (job.getName().equalsIgnoreCase(jobParams.getName())) {
-                Object paramsByClass = jobParams.getParamsByClass(job.getParamsClass());
-                
-                // Initialize job for the appropriate execution mode
-                if (job instanceof AbstractJob) {
-                    AbstractJob<?, ?> abstractJob = (AbstractJob<?, ?>) job;
-                    abstractJob.initializeForMode(mode, resolvedIntegrations);
-                }
-                
-                initMetadata(job, paramsByClass);
-                return job.runJob(paramsByClass);
+        logger.info("Executing job: {} in mode: {} with {} integrations", 
+                   jobParams.getName(), 
+                   (mode != null ? mode : "null"),
+                   (resolvedIntegrations != null ? resolvedIntegrations.length() : 0));
+        
+        // Create a fresh job instance to avoid race conditions and ensure proper initialization
+        Job job = createJobInstance(jobParams.getName());
+        
+        if (job != null) {
+            logger.info("Created fresh job instance: {}", job.getClass().getSimpleName());
+            
+            Object paramsByClass = jobParams.getParamsByClass(job.getParamsClass());
+            
+            // Initialize job for the appropriate execution mode
+            if (job instanceof AbstractJob) {
+                AbstractJob<?, ?> abstractJob = (AbstractJob<?, ?>) job;
+                logger.info("Calling initializeForMode with mode: {}", mode);
+                abstractJob.initializeForMode(mode, resolvedIntegrations);
+                logger.info("Job initialization completed for mode: {}", mode);
             }
+            
+            initMetadata(job, paramsByClass);
+            
+            logger.info("Starting job execution...");
+            Object result = job.runJob(paramsByClass);
+            logger.info("Job execution completed successfully");
+            
+            return result;
         }
-        throw new IllegalArgumentException("unknown job name");
+        
+        throw new IllegalArgumentException("Unknown job name: " + jobParams.getName());
     }
 
     private static void printHelp() {
