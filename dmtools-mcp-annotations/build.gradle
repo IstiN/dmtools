@@ -2,6 +2,8 @@ plugins {
     id 'java-library'
 }
 
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
 group = 'com.github.istin'
 version = "${version}"
 
@@ -12,4 +14,7 @@ repositories {
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 } 

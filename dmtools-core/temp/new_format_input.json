@@ -1,0 +1,17 @@
+{
+  "key": "DMC-427",
+  "summary": "Performance optimization with new format",
+  "description": "This is a multiline description\nwith line breaks\nto test [ ] markers",
+  "simpleArray": ["performance", "optimization", "critical"],
+  "multilineArray": ["short", "This is a long\nmultiline string\nwith breaks", "simple"],
+  "teams": [
+    {
+      "name": "Frontend Team",
+      "members": [
+        {"name": "John Doe", "skills": ["React", "TypeScript"]},
+        {"name": "Jane Wilson", "skills": ["Figma", "CSS"]}
+      ]
+    }
+  ],
+  "priority": "High"
+}

@@ -4,12 +4,17 @@ plugins {
     id 'java'
 }
 
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
 group = 'com.github.istin.dmtools'
 version = '0.0.1-SNAPSHOT'
 
 java {
-    sourceCompatibility = '23'
-    targetCompatibility = '23'
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 repositories {

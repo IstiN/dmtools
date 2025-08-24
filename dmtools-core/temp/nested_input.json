@@ -1,0 +1,68 @@
+{
+  "organization": "DMTools Corporation",
+  "description": "A complex organization\nwith multiple levels\nof nested structure",
+  "headquarters": {
+    "address": {
+      "street": "123 Tech Street",
+      "city": "San Francisco",
+      "coordinates": {
+        "latitude": 37.7749,
+        "longitude": -122.4194
+      }
+    },
+    "facilities": [
+      {
+        "name": "Main Building",
+        "floors": [
+          {
+            "number": 1,
+            "departments": [
+              {
+                "name": "Reception",
+                "staff": [{"name": "Alice", "role": "Receptionist"}]
+              },
+              {
+                "name": "IT Support",
+                "equipment": ["Servers", "Network Equipment"],
+                "staff": [
+                  {"name": "Bob", "role": "System Admin"},
+                  {"name": "Carol", "role": "Network Engineer"}
+                ]
+              }
+            ]
+          },
+          {
+            "number": 2,
+            "departments": [
+              {
+                "name": "Development",
+                "teams": [
+                  {
+                    "name": "Frontend Team",
+                    "technologies": ["React", "TypeScript"],
+                    "members": [
+                      {"name": "David", "seniority": "Senior"},
+                      {"name": "Eve", "seniority": "Junior"}
+                    ]
+                  },
+                  {
+                    "name": "Backend Team",
+                    "technologies": ["Java", "Spring"],
+                    "members": [
+                      {"name": "Frank", "seniority": "Lead"},
+                      {"name": "Grace", "seniority": "Senior"}
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "metrics": {
+    "employees": 100,
+    "revenue": 5000000
+  }
+}

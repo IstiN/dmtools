@@ -1,0 +1,85 @@
+Next headquarters,organization,description,metrics
+headquarters Next address,facilities
+address Next city,street,coordinates
+San Francisco
+123 Tech Street
+coordinates Next latitude,longitude
+37.7749
+-122.4194
+[Next floors,name
+0
+[		Next number,departments
+		0
+			1
+[				Next name,equipment,staff
+				0
+					Reception
+					null
+[						Next role,name
+						0
+							Receptionist
+							Alice
+						]
+				1
+					IT Support
+						[
+						Servers
+						Network Equipment
+						]
+[						Next role,name
+						0
+							System Admin
+							Bob
+						1
+							Network Engineer
+							Carol
+						]
+				]
+		1
+			2
+[				Next teams,name
+				0
+[						Next technologies,members,name
+						0
+								[
+								React
+								TypeScript
+								]
+[								Next name,seniority
+								0
+									David
+									Senior
+								1
+									Eve
+									Junior
+								]
+							Frontend Team
+						1
+								[
+								Java
+								Spring
+								]
+[								Next name,seniority
+								0
+									Frank
+									Lead
+								1
+									Grace
+									Senior
+								]
+							Backend Team
+						]
+					Development
+				]
+		]
+	Main Building
+]
+DMTools Corporation
+_
+A complex organization
+with multiple levels
+of nested structure
+_
+metrics Next revenue,employees
+5000000
+100

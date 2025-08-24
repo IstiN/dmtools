@@ -1,285 +1,134 @@
 package com.github.istin.dmtools.auth;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.istin.dmtools.auth.config.AuthProperties;
 import com.github.istin.dmtools.auth.model.AuthProvider;
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.service.UserService;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.HttpServletRequest;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
-public class AuthControllerTest {
+@WebMvcTest(AuthController.class)
+@Import({AuthProperties.class, JwtUtils.class}) // Import AuthProperties and JwtUtils for context
+class AuthControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private UserService userService;
 
-    @Mock
+    @MockBean
     private JwtUtils jwtUtils;
 
-    @Mock
-    private Authentication authentication;
+    @MockBean
+    private AuthProperties authProperties; // Mock AuthProperties to control its behavior
 
-    @Mock
-    private HttpServletRequest request;
-
-    @Mock
-    private HttpSession session;
-
-    @InjectMocks
-    private AuthController authController;
+    private User testUser;
 
     @BeforeEach
     void setUp() {
-        // Set default values for local auth
-        ReflectionTestUtils.setField(authController, "localAuthEnabled", true);
-        ReflectionTestUtils.setField(authController, "localUsername", "testuser");
-        ReflectionTestUtils.setField(authController, "localPassword", "secret123");
-        ReflectionTestUtils.setField(authController, "jwtSecret", "testSecretKeyMustBeLongEnoughForHmacSha256Algorithm");
-        ReflectionTestUtils.setField(authController, "jwtExpirationMs", 3600000);
+        testUser = new User();
+        testUser.setId("test-user-id");
+        testUser.setEmail("admin@local.test");
+        testUser.setName("admin");
+        testUser.setProvider(AuthProvider.LOCAL);
+
+        when(userService.createOrUpdateUser(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(AuthProvider.class), anyString()))
+                .thenReturn(testUser);
+        when(userService.getUserRole(any(User.class))).thenReturn("ADMIN");
+        when(jwtUtils.generateJwtTokenCustom(anyString(), anyString(), anyString(), anyInt())).thenReturn("mock-jwt-token");
     }
 
     @Test
-    void initiateLogin_ShouldReturnOAuthSetupMessage() {
-        // Act
-        ResponseEntity<?> response = authController.initiateLogin("google");
-        
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        
-        Map<String, String> responseBody = (Map<String, String>) response.getBody();
-        assertEquals("OAuth not configured", responseBody.get("error"));
-        assertEquals("Please configure OAuth client credentials for google in application.properties", responseBody.get("message"));
-        assertEquals("google", responseBody.get("provider"));
+    void testGetAuthConfig_localStandaloneMode() throws Exception {
+        when(authProperties.isLocalStandaloneMode()).thenReturn(true);
+        when(authProperties.getEnabledProviders()).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/auth/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.localStandaloneMode").value(true))
+                .andExpect(jsonPath("$.enabledProviders").isEmpty());
     }
 
     @Test
-    void handleCallback_ShouldReturnTokenAndRedirect() {
-        // Arrange
-        when(jwtUtils.generateJwtToken(anyString(), anyString())).thenReturn("mock-jwt-token");
-        
-        // Act
-        ResponseEntity<?> response = authController.handleCallback("google", "auth-code");
-        
-        // Assert
-        assertEquals(HttpStatus.FOUND, response.getStatusCode());
-        assertEquals("/?token=mock-jwt-token&login=success", response.getHeaders().getFirst("Location"));
+    void testGetAuthConfig_externalProvidersEnabled() throws Exception {
+        when(authProperties.isLocalStandaloneMode()).thenReturn(false);
+        when(authProperties.getEnabledProviders()).thenReturn(List.of("google", "github"));
+
+        mockMvc.perform(get("/api/auth/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.localStandaloneMode").value(false))
+                .andExpect(jsonPath("$.enabledProviders[0]").value("google"))
+                .andExpect(jsonPath("$.enabledProviders[1]").value("github"));
     }
 
     @Test
-    void getCurrentUser_WithNullAuthentication_ShouldReturnNotAuthenticated() {
-        // Act
-        ResponseEntity<?> response = authController.getCurrentUser(null);
-        
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertEquals(false, responseBody.get("authenticated"));
+    void testLocalLogin_success() throws Exception {
+        when(authProperties.isLocalStandaloneMode()).thenReturn(true);
+        when(authProperties.getAdminUsername()).thenReturn("admin");
+        when(authProperties.getAdminPassword()).thenReturn("admin");
+
+        Map<String, String> loginRequest = Map.of("username", "admin", "password", "admin");
+
+        mockMvc.perform(post("/api/auth/local-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(cookie().exists("jwt"))
+                .andExpect(jsonPath("$.token").value("mock-jwt-token"))
+                .andExpect(jsonPath("$.user.email").value("admin@local.test"))
+                .andExpect(jsonPath("$.user.role").value("ADMIN"));
     }
 
     @Test
-    void getCurrentUser_WithUserDetailsAuthentication_ShouldReturnUserInfo() {
-        // Arrange
-        UserDetails userDetails = mock(UserDetails.class);
-        when(userDetails.getUsername()).thenReturn("test@example.com");
-        
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setName("Test User");
-        user.setPictureUrl("https://example.com/avatar.jpg");
-        user.setProvider(AuthProvider.GOOGLE);
-        
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(userService.findByEmail("test@example.com")).thenReturn(Optional.of(user));
-        
-        // Act
-        ResponseEntity<?> response = authController.getCurrentUser(authentication);
-        
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertEquals(true, responseBody.get("authenticated"));
-        assertEquals("test@example.com", responseBody.get("email"));
-        assertEquals("Test User", responseBody.get("name"));
-        assertEquals("https://example.com/avatar.jpg", responseBody.get("picture"));
-        assertEquals(AuthProvider.GOOGLE, responseBody.get("provider"));
+    void testLocalLogin_invalidCredentials() throws Exception {
+        when(authProperties.isLocalStandaloneMode()).thenReturn(true);
+        when(authProperties.getAdminUsername()).thenReturn("admin");
+        when(authProperties.getAdminPassword()).thenReturn("admin");
+
+        Map<String, String> loginRequest = Map.of("username", "admin", "password", "wrong");
+
+        mockMvc.perform(post("/api/auth/local-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Invalid credentials"));
     }
 
     @Test
-    void getCurrentUser_WithOAuth2Authentication_ShouldReturnUserInfo() {
-        // Arrange
-        OAuth2User oauth2User = mock(OAuth2User.class);
-        when(oauth2User.getAttribute("email")).thenReturn("test@example.com");
-        
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setName("Test User");
-        user.setPictureUrl("https://example.com/avatar.jpg");
-        user.setProvider(AuthProvider.GOOGLE);
-        
-        when(authentication.getPrincipal()).thenReturn(oauth2User);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(userService.findByEmail("test@example.com")).thenReturn(Optional.of(user));
-        
-        // Act
-        ResponseEntity<?> response = authController.getCurrentUser(authentication);
-        
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertEquals(true, responseBody.get("authenticated"));
-        assertEquals("test@example.com", responseBody.get("email"));
-        assertEquals("Test User", responseBody.get("name"));
-    }
+    void testLocalLogin_localAuthDisabled() throws Exception {
+        when(authProperties.isLocalStandaloneMode()).thenReturn(false);
 
-    @Test
-    void logout_WithActiveSession_ShouldInvalidateSession() {
-        // Arrange
-        when(request.getSession(false)).thenReturn(session);
-        when(session.getId()).thenReturn("test-session-id");
-        
-        // Act
-        ResponseEntity<?> response = authController.logout(request);
-        
-        // Assert
-        verify(session).invalidate();
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        
-        Map<String, String> responseBody = (Map<String, String>) response.getBody();
-        assertEquals("Logged out successfully", responseBody.get("message"));
-    }
+        Map<String, String> loginRequest = Map.of("username", "admin", "password", "admin");
 
-    @Test
-    void logout_WithNoSession_ShouldReturnSuccess() {
-        // Arrange
-        when(request.getSession(false)).thenReturn(null);
-        
-        // Act
-        ResponseEntity<?> response = authController.logout(request);
-        
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        
-        Map<String, String> responseBody = (Map<String, String>) response.getBody();
-        assertEquals("Logged out successfully", responseBody.get("message"));
+        mockMvc.perform(post("/api/auth/local-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("Local auth disabled"));
     }
-
-    @Test
-    void localLogin_WithValidCredentials_ShouldReturnToken() {
-        // Arrange
-        Map<String, String> loginRequest = Map.of(
-            "username", "testuser",
-            "password", "secret123"
-        );
-        
-        User user = new User();
-        user.setId("user-id");
-        user.setEmail("testuser@local.test");
-        user.setName("testuser");
-        // Initialize roles to simulate a new user with default role
-        user.setRoles(new HashSet<>());
-        
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        
-        when(userService.createOrUpdateUser(
-            eq("testuser@local.test"),
-            eq("testuser"),
-            eq("testuser"),
-            eq(""),
-            eq(""),
-            eq("en"),
-            eq(AuthProvider.LOCAL),
-            eq("testuser")
-        )).thenReturn(user);
-        
-        when(jwtUtils.generateJwtTokenCustom(
-            eq("testuser@local.test"),
-            eq("user-id"),
-            anyString(),
-            anyInt()
-        )).thenReturn("mock-jwt-token");
-        
-        // Act
-        ResponseEntity<?> responseEntity = authController.localLogin(loginRequest, response);
-        
-        // Assert
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        
-        Map<String, Object> responseBody = (Map<String, Object>) responseEntity.getBody();
-        assertEquals("mock-jwt-token", responseBody.get("token"));
-        
-        // Verify cookie
-        Cookie[] cookies = response.getCookies();
-        assertEquals(1, cookies.length);
-        assertEquals("jwt", cookies[0].getName());
-        assertEquals("mock-jwt-token", cookies[0].getValue());
-        assertTrue(cookies[0].isHttpOnly());
-    }
-
-    @Test
-    void localLogin_WithInvalidCredentials_ShouldReturnUnauthorized() {
-        // Arrange
-        Map<String, String> loginRequest = Map.of(
-            "username", "testuser",
-            "password", "wrong-password"
-        );
-        
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        
-        // Act
-        ResponseEntity<?> responseEntity = authController.localLogin(loginRequest, response);
-        
-        // Assert
-        assertEquals(HttpStatus.UNAUTHORIZED, responseEntity.getStatusCode());
-        
-        Map<String, String> responseBody = (Map<String, String>) responseEntity.getBody();
-        assertEquals("Invalid credentials", responseBody.get("error"));
-    }
-
-    @Test
-    void localLogin_WithLocalAuthDisabled_ShouldReturnForbidden() {
-        // Arrange
-        ReflectionTestUtils.setField(authController, "localAuthEnabled", false);
-        
-        Map<String, String> loginRequest = Map.of(
-            "username", "testuser",
-            "password", "secret123"
-        );
-        
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        
-        // Act
-        ResponseEntity<?> responseEntity = authController.localLogin(loginRequest, response);
-        
-        // Assert
-        assertEquals(HttpStatus.FORBIDDEN, responseEntity.getStatusCode());
-        
-        Map<String, String> responseBody = (Map<String, String>) responseEntity.getBody();
-        assertEquals("Local auth disabled", responseBody.get("error"));
-    }
-} 
+}

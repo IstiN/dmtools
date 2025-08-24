@@ -4,6 +4,8 @@ plugins {
     id 'jacoco'
 }
 
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
 apply plugin: 'maven-publish'
 
 group = 'com.github.istin'
@@ -12,6 +14,14 @@ version = "${version}"
 repositories {
     mavenCentral()
     maven { url = uri("https://maven.pkg.github.com/IstiN/dmtools") }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 // Define versions

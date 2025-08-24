@@ -1,5 +1,7 @@
 package com.github.istin.dmtools.auth;
 
+import com.github.istin.dmtools.auth.config.AuthProperties;
+
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.service.UserService;
 import org.slf4j.Logger;
@@ -27,15 +29,7 @@ public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final UserService userService;
     private final JwtUtils jwtUtils;
-
-    @Value("${auth.local.enabled:true}")
-    private boolean localAuthEnabled;
-
-    @Value("${auth.local.username:testuser}")
-    private String localUsername;
-
-    @Value("${auth.local.password:secret123}")
-    private String localPassword;
+    private final AuthProperties authProperties;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -43,9 +37,10 @@ public class AuthController {
     @Value("${auth.local.jwtExpirationMs:86400000}")
     private int jwtExpirationMs;
 
-    public AuthController(UserService userService, JwtUtils jwtUtils) {
+    public AuthController(UserService userService, JwtUtils jwtUtils, AuthProperties authProperties) {
         this.userService = userService;
         this.jwtUtils = jwtUtils;
+        this.authProperties = authProperties;
     }
 
     @GetMapping("/login/{provider}")
@@ -57,6 +52,14 @@ public class AuthController {
             "message", "Please configure OAuth client credentials for " + provider + " in application.properties",
             "provider", provider
         ));
+    }
+
+    @GetMapping("/config")
+    public ResponseEntity<Map<String, Object>> getAuthConfig() {
+        Map<String, Object> config = new java.util.HashMap<>();
+        config.put("localStandaloneMode", authProperties.isLocalStandaloneMode());
+        config.put("enabledProviders", authProperties.getEnabledProviders());
+        return ResponseEntity.ok(config);
     }
 
     @GetMapping("/callback/{provider}")
@@ -202,14 +205,14 @@ public class AuthController {
     @PostMapping("/local-login")
     public ResponseEntity<?> localLogin(@RequestBody Map<String, String> body, HttpServletResponse response) {
         logger.info("🔍 LOCAL AUTH - Login attempt for user: {}", body.get("username"));
-        logger.info("🔍 LOCAL AUTH - Local auth enabled: {}", localAuthEnabled);
+        logger.info("🔍 LOCAL AUTH - Local standalone mode: {}", authProperties.isLocalStandaloneMode());
 
-        if (!localAuthEnabled) {
-            logger.warn("❌ LOCAL AUTH - Local auth is disabled");
+        if (!authProperties.isLocalStandaloneMode()) {
+            logger.warn("❌ LOCAL AUTH - Local auth is disabled because external providers are configured.");
             return ResponseEntity.status(403).body(Map.of("error", "Local auth disabled"));
         }
         
-        if (!localUsername.equals(body.get("username")) || !localPassword.equals(body.get("password"))) {
+        if (!authProperties.getAdminUsername().equals(body.get("username")) || !authProperties.getAdminPassword().equals(body.get("password"))) {
             logger.warn("❌ LOCAL AUTH - Invalid credentials for user: {}", body.get("username"));
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
@@ -218,16 +221,16 @@ public class AuthController {
             logger.info("✅ LOCAL AUTH - Valid credentials, creating/updating user");
             
             // Create user if not exists - use proper email format
-            String email = localUsername.contains("@") ? localUsername : localUsername + "@local.test";
+            String email = authProperties.getAdminUsername().contains("@") ? authProperties.getAdminUsername() : authProperties.getAdminUsername() + "@local.test";
             com.github.istin.dmtools.auth.model.User user = userService.createOrUpdateUser(
                 email, 
-                localUsername, 
-                localUsername, 
+                authProperties.getAdminUsername(), 
+                authProperties.getAdminUsername(), 
                 "", 
                 "", 
                 "en", 
                 com.github.istin.dmtools.auth.model.AuthProvider.LOCAL, 
-                localUsername
+                authProperties.getAdminUsername()
             );
             
             logger.info("✅ LOCAL AUTH - User created/updated: {}", user.getId());
@@ -242,7 +245,7 @@ public class AuthController {
             jwtCookie.setMaxAge(jwtExpirationMs / 1000);
             response.addCookie(jwtCookie);
             
-            logger.info("✅ LOCAL AUTH - Login successful for user: {}", localUsername);
+            logger.info("✅ LOCAL AUTH - Login successful for user: {}", authProperties.getAdminUsername());
             
             // Get user role with fallback protection
             String userRole = userService.getUserRole(user);
@@ -252,7 +255,7 @@ public class AuthController {
                 "user", Map.of(
                     "id", user.getId(), 
                     "email", email, 
-                    "name", localUsername, 
+                    "name", authProperties.getAdminUsername(), 
                     "provider", "LOCAL",
                     "role", userRole != null ? userRole : "REGULAR_USER",
                     "authenticated", true

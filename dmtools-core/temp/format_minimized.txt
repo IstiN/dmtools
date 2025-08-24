@@ -1,0 +1,16 @@
+Next company,departments
+DMTools Ltd
+departments Next marketing,engineering
+marketing Next name,budget
+Marketing Department
+50000
+engineering Next name,employees
+Engineering Department
+[Next role,name
+0
+Senior Developer
+John
+1
+QA Engineer
+Jane
+]

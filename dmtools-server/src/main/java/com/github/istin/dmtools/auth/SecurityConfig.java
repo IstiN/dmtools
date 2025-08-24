@@ -1,5 +1,7 @@
 package com.github.istin.dmtools.auth;
 
+import com.github.istin.dmtools.auth.config.AuthProperties;
+
 import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
 import com.github.istin.dmtools.auth.service.CustomOidcUserService;
 import org.slf4j.Logger;
@@ -30,6 +32,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -57,17 +63,42 @@ public class SecurityConfig {
     @Autowired(required = false)
     private CustomOidcUserService customOidcUserService;
 
+    private final AuthProperties authProperties;
+
     public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
                          AuthDebugFilter authDebugFilter, 
                          JwtAuthenticationFilter jwtAuthenticationFilter, 
                          CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
+                         AuthProperties authProperties,
                          @Value("${spring.profiles.active:default}") String activeProfile) {
         this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
+        this.authProperties = authProperties;
         this.activeProfile = activeProfile;
         logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
+    }
+
+        @Bean
+    @ConditionalOnBean(ClientRegistrationRepository.class)
+    public ClientRegistrationRepository clientRegistrationRepository(ClientRegistrationRepository defaultClientRegistrationRepository) {
+        if (authProperties.isLocalStandaloneMode()) {
+            logger.info("Local standalone mode enabled. Disabling all external OAuth2 providers.");
+            return new InMemoryClientRegistrationRepository();
+        }
+
+        List<String> enabledProviders = authProperties.getEnabledProviders();
+        if (enabledProviders.isEmpty()) {
+            logger.info("No specific OAuth2 providers enabled. All configured providers will be available.");
+            return defaultClientRegistrationRepository;
+        } else {
+            logger.info("Enabled OAuth2 providers: {}", enabledProviders);
+            List<ClientRegistration> filteredRegistrations = StreamSupport.stream(((Iterable<ClientRegistration>) defaultClientRegistrationRepository).spliterator(), false)
+                    .filter(registration -> enabledProviders.contains(registration.getRegistrationId()))
+                    .collect(Collectors.toList());
+            return new InMemoryClientRegistrationRepository(filteredRegistrations);
+        }
     }
 
     @Bean
@@ -185,28 +216,42 @@ public class SecurityConfig {
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Configure OAuth2 login only if ClientRegistrationRepository is available
-        if (clientRegistrationRepository != null) {
-            logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
-            http.oauth2Login(oauth2 -> {
-                if (customOAuth2AuthorizationRequestResolver != null) {
-                    oauth2.authorizationEndpoint(authorization -> authorization
-                            .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
-                    );
-                }
-                oauth2.userInfoEndpoint(userInfo -> {
-                    if (customOAuth2UserService != null) {
-                        userInfo.userService(customOAuth2UserService);
-                    }
-                    if (customOidcUserService != null) {
-                        userInfo.oidcUserService(customOidcUserService);
-                    }
-                })
-                .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
-                .failureHandler(customOAuth2AuthenticationFailureHandler);
-            });
+        if (authProperties.isLocalStandaloneMode()) {
+            logger.info("⚠️ Local standalone mode enabled. Disabling OAuth2 login and configuring for local authentication only.");
+            http.authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/api/auth/local-login", "/api/auth/config", "/api/auth/user", "/api/auth/public-test", "/error").permitAll()
+                    .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()
+                    .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                    .requestMatchers("/actuator/**").permitAll()
+                    .requestMatchers("/api/v1/chat/**").permitAll()
+                    .requestMatchers("/mcp/stream/**").permitAll()
+                    .requestMatchers("/api/files/download/**").permitAll()
+                    .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()
+                    .anyRequest().authenticated()
+            );
         } else {
-            logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");
+            if (clientRegistrationRepository != null) {
+                logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
+                http.oauth2Login(oauth2 -> {
+                    if (customOAuth2AuthorizationRequestResolver != null) {
+                        oauth2.authorizationEndpoint(authorization -> authorization
+                                .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
+                        );
+                    }
+                    oauth2.userInfoEndpoint(userInfo -> {
+                        if (customOAuth2UserService != null) {
+                            userInfo.userService(customOAuth2UserService);
+                        }
+                        if (customOidcUserService != null) {
+                            userInfo.oidcUserService(customOidcUserService);
+                        }
+                    })
+                    .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
+                    .failureHandler(customOAuth2AuthenticationFailureHandler);
+                });
+            } else {
+                logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");
+            }
         }
 
         // Configure logout

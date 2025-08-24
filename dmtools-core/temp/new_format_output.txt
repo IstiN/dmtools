@@ -1,0 +1,41 @@
+Next summary,simpleArray,multilineArray,teams,description,priority,key
+Performance optimization with new format
+[
+performance
+optimization
+critical
+]
+[
+short
+_
+This is a long
+multiline string
+with breaks
+_
+simple
+]
+[Next members,name
+0
+[Next skills,name
+0
+[
+React
+TypeScript
+]
+John Doe
+1
+[
+Figma
+CSS
+]
+Jane Wilson
+]
+Frontend Team
+]
+_
+This is a multiline description
+with line breaks
+to test [ ] markers
+_
+High
+DMC-427
