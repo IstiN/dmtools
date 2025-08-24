@@ -1,15 +1,17 @@
 package com.github.istin.dmtools.auth;
 
+import com.github.istin.dmtools.auth.config.AuthConfigProperties;
 import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
 import com.github.istin.dmtools.auth.service.CustomOidcUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -31,6 +33,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
@@ -42,6 +47,7 @@ public class SecurityConfig {
     private final AuthDebugFilter authDebugFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
+    private final AuthConfigProperties authConfigProperties;
     private final String activeProfile;
 
     // Optional OAuth2 components - may not be available if OAuth2 is not configured
@@ -57,17 +63,27 @@ public class SecurityConfig {
     @Autowired(required = false)
     private CustomOidcUserService customOidcUserService;
 
+    @Autowired(required = false)
+    private AuthenticationProvider localAuthenticationProvider;
+
     public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
                          AuthDebugFilter authDebugFilter, 
                          JwtAuthenticationFilter jwtAuthenticationFilter, 
                          CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
+                         AuthConfigProperties authConfigProperties,
                          @Value("${spring.profiles.active:default}") String activeProfile) {
         this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
+        this.authConfigProperties = authConfigProperties;
         this.activeProfile = activeProfile;
         logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
@@ -170,7 +186,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/error").permitAll()
+                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
                     .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
                     .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                     .requestMatchers("/", "/test-*.html").permitAll()
@@ -185,28 +201,38 @@ public class SecurityConfig {
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Configure OAuth2 login only if ClientRegistrationRepository is available
-        if (clientRegistrationRepository != null) {
-            logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
-            http.oauth2Login(oauth2 -> {
-                if (customOAuth2AuthorizationRequestResolver != null) {
-                    oauth2.authorizationEndpoint(authorization -> authorization
-                            .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
-                    );
-                }
-                oauth2.userInfoEndpoint(userInfo -> {
-                    if (customOAuth2UserService != null) {
-                        userInfo.userService(customOAuth2UserService);
+        if (!authConfigProperties.isLocalStandaloneMode()) {
+            // Configure OAuth2 login only if ClientRegistrationRepository is available and not in local standalone mode
+            if (clientRegistrationRepository != null) {
+                logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
+                http.oauth2Login(oauth2 -> {
+                    if (customOAuth2AuthorizationRequestResolver != null) {
+                        oauth2.authorizationEndpoint(authorization -> authorization
+                                .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
+                        );
                     }
-                    if (customOidcUserService != null) {
-                        userInfo.oidcUserService(customOidcUserService);
-                    }
-                })
-                .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
-                .failureHandler(customOAuth2AuthenticationFailureHandler);
-            });
+                    oauth2.userInfoEndpoint(userInfo -> {
+                        if (customOAuth2UserService != null) {
+                            userInfo.userService(customOAuth2UserService);
+                        }
+                        if (customOidcUserService != null) {
+                            userInfo.oidcUserService(customOidcUserService);
+                        }
+                    })
+                    .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
+                    .failureHandler(customOAuth2AuthenticationFailureHandler);
+                });
+            } else {
+                logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found and not in local standalone mode - OAuth2 login disabled");
+            }
         } else {
-            logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");
+            logger.info("⚙️ Local standalone mode enabled. OAuth2 login disabled.");
+            if (localAuthenticationProvider != null) {
+                logger.info("Configuring local authentication provider.");
+                http.authenticationProvider(localAuthenticationProvider);
+            } else {
+                logger.warn("Local standalone mode enabled, but no LocalAuthenticationProvider found.");
+            }
         }
 
         // Configure logout
