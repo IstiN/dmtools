@@ -1,0 +1,193 @@
+# Auto-fix Test Failures with Agentic Workflows
+name: Auto-fix Test Failures
+
+on:
+  workflow_run:
+    workflows: ["PR Unit Tests"]  # Target the main unit test workflow
+    types:
+      - completed
+    branches: ["**"]  # Run on all branches
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  check-test-failures:
+    name: Check for Test Failures
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    outputs:
+      should-fix: ${{ steps.check-failures.outputs.should-fix }}
+      branch-name: ${{ steps.check-failures.outputs.branch-name }}
+      failure-context: ${{ steps.get-failure-context.outputs.failure-context }}
+      pr-number: ${{ steps.get-pr-info.outputs.pr-number }}
+      workflow-run-url: ${{ steps.get-failure-context.outputs.workflow-run-url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          
+      - name: Check if failures are test-related
+        id: check-failures
+        run: |
+          # Get workflow run details
+          WORKFLOW_RUN_ID="${{ github.event.workflow_run.id }}"
+          BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
+          
+          # Check if this is a test failure we should auto-fix
+          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          
+          echo "Workflow: $WORKFLOW_NAME"
+          echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Branch: $BRANCH_NAME"
+          
+          # Only proceed if it's a test-related workflow failure
+          if [[ "$WORKFLOW_NAME" =~ (Test|CI|Unit|Integration) ]]; then
+            echo "should-fix=true" >> $GITHUB_OUTPUT
+            echo "branch-name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+            echo "✅ Will auto-fix test failures for workflow: $WORKFLOW_NAME"
+          else
+            echo "should-fix=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Skipping auto-fix for non-test workflow: $WORKFLOW_NAME"
+          fi
+
+      - name: Get PR information
+        id: get-pr-info
+        if: steps.check-failures.outputs.should-fix == 'true'
+        run: |
+          BRANCH_NAME="${{ steps.check-failures.outputs.branch-name }}"
+          
+          # Get PR number for this branch
+          PR_NUMBER=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number')
+          
+          if [[ -n "$PR_NUMBER" && "$PR_NUMBER" != "null" ]]; then
+            echo "pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "Found PR #$PR_NUMBER for branch $BRANCH_NAME"
+          else
+            echo "pr-number=" >> $GITHUB_OUTPUT
+            echo "No PR found for branch $BRANCH_NAME"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      - name: Get failure context
+        id: get-failure-context
+        if: steps.check-failures.outputs.should-fix == 'true'
+        run: |
+          WORKFLOW_RUN_ID="${{ github.event.workflow_run.id }}"
+          BRANCH_NAME="${{ steps.check-failures.outputs.branch-name }}"
+          PR_NUMBER="${{ steps.get-pr-info.outputs.pr-number }}"
+          
+          # Get workflow run logs and job details
+          echo "Fetching failure details for workflow run $WORKFLOW_RUN_ID..."
+          
+          # Get jobs for this workflow run
+          JOBS_JSON=$(gh api "repos/${{ github.repository }}/actions/runs/$WORKFLOW_RUN_ID/jobs" --jq '.jobs')
+          
+          # Extract failed job details
+          FAILED_JOBS=$(echo "$JOBS_JSON" | jq -r '.[] | select(.conclusion == "failure") | "\(.name): \(.conclusion)"')
+          
+          # Get workflow run details
+          WORKFLOW_URL="${{ github.event.workflow_run.html_url }}"
+          
+          # Create PR context line
+          if [[ -n "$PR_NUMBER" ]]; then
+            PR_CONTEXT="**Pull Request:** #$PR_NUMBER"
+          else
+            PR_CONTEXT=""
+          fi
+          
+          # Build failure context using printf for better control
+          FAILURE_CONTEXT=$(printf "%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n\n%s\n\n%s" \
+            "## Test Failure Auto-Fix Request" \
+            "**Branch:** $BRANCH_NAME" \
+            "**Workflow:** ${{ github.event.workflow_run.name }}" \
+            "**Workflow Run URL:** $WORKFLOW_URL" \
+            "$PR_CONTEXT" \
+            "**Failed Jobs:**" \
+            "$FAILED_JOBS" \
+            "**Task:** Please analyze the test failures in the above workflow run and fix all failing tests. This is an automated fix request triggered by test failures." \
+            "**Critical Instructions:**" \
+            "1. Access the workflow run logs at the provided URL to understand what tests are failing" \
+            "2. Examine test failure messages, stack traces, and compilation errors" \
+            "3. Fix the underlying code issues causing the test failures" \
+            "4. Ensure ALL tests pass after your changes" \
+            "5. Maintain existing functionality while fixing the issues" \
+            "**Focus Areas:**" \
+            "- Unit test failures and assertion errors" \
+            "- Integration test failures" \
+            "- Compilation errors and missing imports" \
+            "- Missing dependencies or configuration issues" \
+            "- Code style and linting errors" \
+            "- Spring Security configuration issues" \
+            "- OAuth2 service implementation problems" \
+            "**Context:** This is an automated fix for existing PR test failures. The goal is to make all tests pass so the original PR can be merged successfully." \
+            "Please provide a comprehensive fix that addresses all test failures while maintaining code quality and existing functionality.")
+          
+          # Output the failure context and workflow URL
+          echo "failure-context<<EOF" >> $GITHUB_OUTPUT
+          echo "$FAILURE_CONTEXT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "workflow-run-url=$WORKFLOW_URL" >> $GITHUB_OUTPUT
+          
+          echo "Failure context prepared for branch $BRANCH_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      - name: Add comment to PR (if exists)
+        if: steps.get-pr-info.outputs.pr-number != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            const prNumber = '${{ steps.get-pr-info.outputs.pr-number }}';
+            const branchName = '${{ steps.check-failures.outputs.branch-name }}';
+            const workflowUrl = '${{ steps.get-failure-context.outputs.workflow-run-url }}';
+            
+            const comment = `🤖 **Auto-fix Triggered**
+            
+            Test failures detected on branch \`${branchName}\`. I've automatically triggered the agentic auto-fix workflow to analyze and fix the failing tests.
+            
+            **Failed Workflow:** [View Logs](${workflowUrl})
+            
+            The AI will:
+            - 🔍 Analyze the test failure logs at the provided URL
+            - 🛠️ Fix the underlying code issues causing test failures
+            - ✅ Ensure all tests pass after the fixes
+            - 🚀 Push fixes directly to this branch
+            
+            **What happens next:**
+            The auto-fix workflow will automatically push fixes to this branch. Once complete, tests should pass automatically and this PR will be ready to merge.
+            
+            You can monitor progress in the [Actions tab](https://github.com/${context.repo.owner}/${context.repo.repo}/actions).`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body: comment
+            });
+
+  auto-fix-implementation:
+    name: Auto-fix Test Failures Implementation
+    needs: check-test-failures
+    if: needs.check-test-failures.outputs.should-fix == 'true'
+    uses: IstiN/dmtools-agentic-workflows/.github/workflows/reusable-auto-fix-test-failures.yml@main
+    with:
+      # Required parameters
+      failure_context: ${{ needs.check-test-failures.outputs.failure-context }}
+      branch_name: ${{ needs.check-test-failures.outputs.branch-name }}
+      workflow_run_url: ${{ needs.check-test-failures.outputs.workflow-run-url }}
+      pr_number: ${{ needs.check-test-failures.outputs.pr-number }}
+      
+      # Project-specific customizations
+      custom_rules_file: 'test-fixing-rules.md'
+      
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
