@@ -197,8 +197,7 @@ jobs:
       # DMTools-specific rules and context (all rules except jira-admin)
       additional_context_files: '.cursor/rules/agents-jobs.mdc,.cursor/rules/core-server-separation.mdc,.cursor/rules/dagger-dependency-injection.mdc,.cursor/rules/gradle-dependencies.mdc,.cursor/rules/java-coding-style.mdc,.cursor/rules/networking-tools.mdc,.cursor/rules/testing-context.mdc,.cursor/rules/unit-testing.mdc'
       
-      # Java project configuration
-      enable_java_setup: true  # Enable Java 23 setup for DMTools project
+
       
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
