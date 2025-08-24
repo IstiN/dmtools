@@ -4,9 +4,9 @@ import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
 import com.github.istin.dmtools.auth.service.CustomOidcUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.github.istin.dmtools.auth.AuthConfigProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
@@ -19,7 +19,9 @@ import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationC
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -29,7 +31,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -49,13 +53,16 @@ public class SecurityConfig {
     private CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
 
     @Autowired(required = false)
-    private ClientRegistrationRepository clientRegistrationRepository;
+    private List<ClientRegistration> clientRegistrations;
 
     @Autowired(required = false)
     private CustomOAuth2UserService customOAuth2UserService;
 
     @Autowired(required = false)
     private CustomOidcUserService customOidcUserService;
+
+    @Autowired
+    private AuthConfigProperties authConfigProperties;
 
     public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
                          AuthDebugFilter authDebugFilter, 
@@ -68,6 +75,37 @@ public class SecurityConfig {
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
         this.activeProfile = activeProfile;
         logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
+    }
+
+    @Bean
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        if (authConfigProperties.isLocalStandaloneMode()) {
+            logger.warn("⚠️ Local standalone mode enabled. OAuth2 login disabled.");
+            return new InMemoryClientRegistrationRepository(Collections.emptyList());
+        }
+
+        if (clientRegistrations == null || clientRegistrations.isEmpty()) {
+            logger.warn("⚠️ No default ClientRegistrations found. OAuth2 login disabled.");
+            return new InMemoryClientRegistrationRepository(Collections.emptyList());
+        }
+
+        List<String> enabledProviders = authConfigProperties.getEnabledProvidersList();
+        if (enabledProviders.isEmpty()) {
+            logger.info("No specific OAuth2 providers configured. All available providers will be enabled.");
+            return new InMemoryClientRegistrationRepository(clientRegistrations);
+        }
+
+        List<ClientRegistration> filteredRegistrations = clientRegistrations.stream()
+                .filter(registration -> enabledProviders.contains(registration.getRegistrationId()))
+                .collect(Collectors.toList());
+        
+        if (filteredRegistrations.isEmpty()) {
+            logger.warn("⚠️ No OAuth2 providers enabled after filtering. OAuth2 login disabled.");
+            return new InMemoryClientRegistrationRepository(Collections.emptyList());
+        }
+
+        logger.info("✅ Enabled OAuth2 providers: {}", filteredRegistrations.stream().map(ClientRegistration::getRegistrationId).collect(Collectors.joining(", ")));
+        return new InMemoryClientRegistrationRepository(filteredRegistrations);
     }
 
     @Bean

@@ -28,7 +28,9 @@ jobs:
       - name: Run unit tests and build
         id: gradle
         continue-on-error: true
-        run: ./gradlew clean test :dmtools-core:shadowJar -x integrationTest
+        run: |
+          echo "JAVA_HOME before gradlew: $JAVA_HOME"
+          ./gradlew clean test :dmtools-core:shadowJar -x integrationTest --no-daemon --refresh-dependencies
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

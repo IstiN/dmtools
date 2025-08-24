@@ -1,18 +1,17 @@
 package com.github.istin.dmtools.auth.service;
 
+import com.github.istin.dmtools.auth.AuthConfigProperties;
 import com.github.istin.dmtools.auth.model.AuthProvider;
 import com.github.istin.dmtools.auth.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
@@ -28,6 +27,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private AuthConfigProperties authConfigProperties;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -45,6 +47,22 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             }
             // Extract user information based on provider
             String email = extractEmail(oauth2User, registrationId, userRequest);
+            
+            // AC 2 - Email Domain Restriction Configuration
+            List<String> permittedEmailDomains = authConfigProperties.getPermittedEmailDomainsList();
+            if (!permittedEmailDomains.isEmpty()) {
+                if (email == null) {
+                    logger.error("❌ OAuth2 User Service - Email not found for user from provider: {}", registrationId);
+                    throw new OAuth2AuthenticationException("Email not found for authentication.");
+                }
+                String domain = email.substring(email.indexOf("@") + 1);
+                if (!permittedEmailDomains.contains(domain)) {
+                    logger.error("❌ OAuth2 User Service - Email domain '{}' not permitted for authentication. Permitted domains: {}", domain, permittedEmailDomains);
+                    throw new OAuth2AuthenticationException("Email domain not permitted.");
+                }
+                logger.info("✅ OAuth2 User Service - Email domain '{}' is permitted.", domain);
+            }
+
             String name = extractName(oauth2User, registrationId);
             String givenName = extractGivenName(oauth2User, registrationId);
             String familyName = extractFamilyName(oauth2User, registrationId);
