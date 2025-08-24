@@ -132,28 +132,49 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
 
     @Override
     protected void initializeStandalone() {
+        logger.info("Initializing Teammate in STANDALONE mode using TeammateComponent with BasicGeminiAI");
+        
         // Use existing Dagger component for standalone mode
         if (teammateComponent == null) {
+            logger.info("Creating new DaggerTeammateComponent for standalone mode");
             teammateComponent = DaggerTeammateComponent.create();
         }
+        
+        logger.info("Injecting dependencies using TeammateComponent");
         teammateComponent.inject(this);
+        
+        logger.info("Teammate standalone initialization completed - AI type: {}", 
+                   (ai != null ? ai.getClass().getSimpleName() : "null"));
         
         // TeamAssistantAgent is now automatically injected by Dagger
     }
 
     @Override
     protected void initializeServerManaged(JSONObject resolvedIntegrations) {
+        logger.info("Initializing Teammate in SERVER_MANAGED mode using ServerManagedIntegrationsModule");
+        logger.info("Resolved integrations: {}", 
+                   (resolvedIntegrations != null ? resolvedIntegrations.length() + " integrations" : "null"));
+        
         // Create dynamic component with pre-resolved integrations
         try {
+            logger.info("Creating ServerManagedIntegrationsModule with resolved credentials");
             ServerManagedIntegrationsModule module = new ServerManagedIntegrationsModule(resolvedIntegrations);
+            
+            logger.info("Building ServerManagedExpertComponent for Teammate");
             ServerManagedExpertComponent component = DaggerTeammate_ServerManagedExpertComponent.builder()
                     .serverManagedIntegrationsModule(module)
                     .build();
+            
+            logger.info("Injecting dependencies using ServerManagedExpertComponent");
             component.inject(this);
+            
+            logger.info("Teammate server-managed initialization completed - AI type: {}", 
+                       (ai != null ? ai.getClass().getSimpleName() : "null"));
             
             // TeamAssistantAgent is now automatically injected by Dagger with server-managed dependencies
         } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize Expert in server-managed mode", e);
+            logger.error("Failed to initialize Teammate in server-managed mode: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to initialize Teammate in server-managed mode", e);
         }
     }
 
