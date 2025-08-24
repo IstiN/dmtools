@@ -31,6 +31,12 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
           
+      - name: Setup DMTools Environment
+        uses: ./.github/actions/setup-environment
+        with:
+          cache-key-suffix: '-auto-fix'
+          install-playwright: 'false'
+          
       - name: Check if failures are test-related
         id: check-failures
         run: |
