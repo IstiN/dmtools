@@ -306,4 +306,92 @@ The project focuses on development tools and AI-assisted workflows with strict a
 
 ---
 
+## Logging Gemini Actions in Autonomous Mode
+
+### 🎯 **How to Record What Gemini Does:**
+
+Since we use Gemini CLI in our workflows, we can log all its actions using built-in telemetry:
+
+#### **Method 1: Telemetry Output to File (Recommended):**
+```bash
+# Log all Gemini operations to file:
+gemini --telemetry \
+  --telemetry-target=local \
+  --telemetry-otlp-endpoint="" \
+  --telemetry-outfile=".gemini/gemini-operations.log" \
+  --prompt "Your request"
+```
+
+#### **Method 2: Enhanced with Debug Logging:**
+```bash
+# Detailed logging with debug info:
+gemini --debug \
+  --telemetry \
+  --telemetry-target=local \
+  --telemetry-otlp-endpoint="" \
+  --telemetry-outfile=".gemini/detailed-log.json" \
+  --prompt "Your request" 2>&1 | tee gemini-console.log
+```
+
+### 📊 **What Gets Logged:**
+
+The telemetry file will contain:
+- **File Operations**: Every `write_file`, `read_file`, `edit` operation
+- **Tool Calls**: All function calls with parameters and results  
+- **API Requests**: Gemini API interactions with token usage
+- **Shell Commands**: Any `run_shell_command` executions
+- **Error Handling**: Failed operations and error details
+- **Duration Metrics**: How long each operation took
+
+### 🔧 **Integration with Our Workflows:**
+
+#### **Update Reusable Workflow Commands:**
+```bash
+# In our scripts/run-gemini.sh, add telemetry:
+./gemini --telemetry \
+  --telemetry-outfile="outputs/gemini-actions.log" \
+  --telemetry-target=local \
+  --telemetry-otlp-endpoint="" \
+  --prompt "${encoded_request}"
+```
+
+#### **Parse Log for Summary:**
+```bash
+# Extract key actions from telemetry log:
+jq '.[] | select(.name == "gemini_cli.tool_call") | {function: .attributes.function_name, args: .attributes.function_args, success: .attributes.success}' outputs/gemini-actions.log
+```
+
+### 📝 **Example Workflow Integration:**
+
+Enable logging in our auto-fix workflow:
+
+```yaml
+# dmtools auto-fix with action logging
+uses: IstiN/dmtools-agentic-workflows/.github/workflows/reusable-gemini-implementation.yml@main
+with:
+  user_request: ${{ needs.prepare-auto-fix-request.outputs.enhanced_request }}
+  custom_implementation_prompt: 'auto-fix-test-failures-prompt.md'
+  skip_pr_creation: true
+  pr_base_branch: ${{ inputs.branch_name }}
+  additional_context_files: '.cursor/rules/testing-context.mdc,.cursor/rules/java-coding-style.mdc'
+  enable_action_logging: true  # ← Track what auto-fix does!
+```
+
+**Workflow Process:**
+1. **Run Gemini with logging** - captures all operations in telemetry
+2. **Auto-generate summary** - creates human-readable actions list  
+3. **Upload artifacts** - saves logs for 7 days in CI
+4. **Add to PR comments** - shows exactly what was fixed
+
+**Example Output Files:**
+- `gemini-telemetry_20250124_103000.json` - Complete OpenTelemetry data
+- `gemini-actions-summary_20250124_103000.md` - Human-readable summary
+- Enhanced response logs with telemetry file references
+
+📖 **Full Documentation:** See `dmtools-agentic-workflows/docs/ACTION_LOGGING.md`
+
+This gives us complete visibility into what Gemini does in autonomous mode!
+
+---
+
 **Remember: JAVA 23 VERSION IS MANDATORY - DO NOT CHANGE UNDER ANY CIRCUMSTANCES WITHOUT EXPLICIT EXPLANATION AND APPROVAL**
