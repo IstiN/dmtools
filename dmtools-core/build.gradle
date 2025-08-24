@@ -14,7 +14,10 @@ repositories {
     maven { url = uri("https://maven.pkg.github.com/IstiN/dmtools") }
 }
 
-// Define versions
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 def versions = [
         log4j    : '2.20.0',
         slf4j    : '2.0.7',
@@ -135,7 +138,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
-    configurations.all {
+configurations.all {
     resolutionStrategy {
         // Force specific versions for key dependencies
         force "org.seleniumhq.selenium:selenium-java:${versions.selenium}"

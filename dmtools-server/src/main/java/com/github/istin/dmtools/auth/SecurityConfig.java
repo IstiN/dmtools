@@ -6,7 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
@@ -19,7 +20,9 @@ import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationC
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -28,12 +31,16 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
+@EnableConfigurationProperties(AuthConfigProperties.class)
 public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
@@ -43,13 +50,11 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
     private final String activeProfile;
+    private final AuthConfigProperties authConfigProperties;
 
     // Optional OAuth2 components - may not be available if OAuth2 is not configured
     @Autowired(required = false)
     private CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
-
-    @Autowired(required = false)
-    private ClientRegistrationRepository clientRegistrationRepository;
 
     @Autowired(required = false)
     private CustomOAuth2UserService customOAuth2UserService;
@@ -61,13 +66,27 @@ public class SecurityConfig {
                          AuthDebugFilter authDebugFilter, 
                          JwtAuthenticationFilter jwtAuthenticationFilter, 
                          CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
-                         @Value("${spring.profiles.active:default}") String activeProfile) {
+                         @Value("${spring.profiles.active:default}") String activeProfile,
+                         AuthConfigProperties authConfigProperties) {
         this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
         this.activeProfile = activeProfile;
+        this.authConfigProperties = authConfigProperties;
         logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ClientRegistrationRepository.class)
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        DynamicClientRegistrationRepository repository = new DynamicClientRegistrationRepository(authConfigProperties);
+        // Spring's OAuth2ClientProperties will automatically create ClientRegistration beans
+        // from application.properties. We need to ensure our dynamic repository
+        // only provides registrations for explicitly enabled providers.
+        // If no providers are enabled, this repository will be empty, effectively disabling OAuth2.
+        return new InMemoryClientRegistrationRepository(StreamSupport.stream(repository.findAll().spliterator(), false)
+                .collect(Collectors.toList()));
     }
 
     @Bean
@@ -85,6 +104,8 @@ public class SecurityConfig {
             logger.debug("[OAuth2] Response status: {}", response.getStatusCode());
             logger.debug("[OAuth2] Response headers: {}", response.getHeaders());
             // Read response body for logging
+            
+        // Read response body for logging
             byte[] responseBody = response.getBody().readAllBytes();
             logger.debug("[OAuth2] Response body: {}", new String(responseBody));
             // Return a new response with the consumed body
@@ -170,7 +191,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/error").permitAll()
+                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
                     .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
                     .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                     .requestMatchers("/", "/test-*.html").permitAll()
@@ -185,9 +206,9 @@ public class SecurityConfig {
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Configure OAuth2 login only if ClientRegistrationRepository is available
-        if (clientRegistrationRepository != null) {
-            logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
+        // Configure OAuth2 login only if external providers are enabled
+        if (!authConfigProperties.isLocalStandaloneMode()) {
+            logger.info("🔐 External authentication providers enabled - configuring OAuth2 login");
             http.oauth2Login(oauth2 -> {
                 if (customOAuth2AuthorizationRequestResolver != null) {
                     oauth2.authorizationEndpoint(authorization -> authorization
@@ -206,7 +227,7 @@ public class SecurityConfig {
                 .failureHandler(customOAuth2AuthenticationFailureHandler);
             });
         } else {
-            logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");
+            logger.warn("⚠️ Local standalone mode active - OAuth2 login disabled");
         }
 
         // Configure logout

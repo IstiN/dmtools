@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.auth.service;
 
+import com.github.istin.dmtools.auth.AuthConfigProperties;
 import com.github.istin.dmtools.auth.model.AuthProvider;
 import com.github.istin.dmtools.auth.model.User;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserServ
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -28,6 +30,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private AuthConfigProperties authConfigProperties;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -45,6 +50,24 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             }
             // Extract user information based on provider
             String email = extractEmail(oauth2User, registrationId, userRequest);
+
+            // --- Email Domain Restriction (AC 2) ---
+            List<String> permittedDomains = authConfigProperties.getPermittedEmailDomainsList();
+            if (!permittedDomains.isEmpty()) {
+                if (email == null) {
+                    logger.warn("❌ OAuth2 User Service - Email not found for user from provider {} during domain validation.", registrationId);
+                    throw new OAuth2AuthenticationException(new OAuth2Error("invalid_email", "Email not found for domain restriction.", null));
+                }
+                String domain = email.substring(email.indexOf("@") + 1).toLowerCase();
+                if (!permittedDomains.contains(domain)) {
+                    logger.warn("❌ OAuth2 User Service - Email domain '{}' not permitted for user '{}' from provider {}. Permitted domains: {}", 
+                                domain, email, registrationId, permittedDomains);
+                    throw new OAuth2AuthenticationException(new OAuth2Error("unauthorized_email_domain", "Email domain not permitted.", null));
+                }
+                logger.info("✅ OAuth2 User Service - Email domain '{}' is permitted for user '{}'.", domain, email);
+            }
+            // --- End Email Domain Restriction ---
+
             String name = extractName(oauth2User, registrationId);
             String givenName = extractGivenName(oauth2User, registrationId);
             String familyName = extractFamilyName(oauth2User, registrationId);
@@ -242,4 +265,4 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 return (String) attributes.get("id");
         }
     }
-} 
+}  

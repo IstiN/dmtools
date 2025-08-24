@@ -27,15 +27,7 @@ public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final UserService userService;
     private final JwtUtils jwtUtils;
-
-    @Value("${auth.local.enabled:true}")
-    private boolean localAuthEnabled;
-
-    @Value("${auth.local.username:testuser}")
-    private String localUsername;
-
-    @Value("${auth.local.password:secret123}")
-    private String localPassword;
+    private final AuthConfigProperties authConfigProperties;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -43,9 +35,10 @@ public class AuthController {
     @Value("${auth.local.jwtExpirationMs:86400000}")
     private int jwtExpirationMs;
 
-    public AuthController(UserService userService, JwtUtils jwtUtils) {
+    public AuthController(UserService userService, JwtUtils jwtUtils, AuthConfigProperties authConfigProperties) {
         this.userService = userService;
         this.jwtUtils = jwtUtils;
+        this.authConfigProperties = authConfigProperties;
     }
 
     @GetMapping("/login/{provider}")
@@ -202,15 +195,17 @@ public class AuthController {
     @PostMapping("/local-login")
     public ResponseEntity<?> localLogin(@RequestBody Map<String, String> body, HttpServletResponse response) {
         logger.info("🔍 LOCAL AUTH - Login attempt for user: {}", body.get("username"));
-        logger.info("🔍 LOCAL AUTH - Local auth enabled: {}", localAuthEnabled);
 
-        if (!localAuthEnabled) {
-            logger.warn("❌ LOCAL AUTH - Local auth is disabled");
-            return ResponseEntity.status(403).body(Map.of("error", "Local auth disabled"));
+        if (!authConfigProperties.isLocalStandaloneMode()) {
+            logger.warn("❌ LOCAL AUTH - Local auth is disabled because external providers are enabled.");
+            return ResponseEntity.status(403).body(Map.of("error", "Local authentication is disabled."));
         }
         
-        if (!localUsername.equals(body.get("username")) || !localPassword.equals(body.get("password"))) {
-            logger.warn("❌ LOCAL AUTH - Invalid credentials for user: {}", body.get("username"));
+        String username = body.get("username");
+        String password = body.get("password");
+
+        if (!authConfigProperties.getAdminUsername().equals(username) || !authConfigProperties.getAdminPassword().equals(password)) {
+            logger.warn("❌ LOCAL AUTH - Invalid credentials for user: {}", username);
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
         
@@ -218,16 +213,16 @@ public class AuthController {
             logger.info("✅ LOCAL AUTH - Valid credentials, creating/updating user");
             
             // Create user if not exists - use proper email format
-            String email = localUsername.contains("@") ? localUsername : localUsername + "@local.test";
+            String email = username.contains("@") ? username : username + "@local.test";
             com.github.istin.dmtools.auth.model.User user = userService.createOrUpdateUser(
                 email, 
-                localUsername, 
-                localUsername, 
+                username, 
+                username, 
                 "", 
                 "", 
                 "en", 
                 com.github.istin.dmtools.auth.model.AuthProvider.LOCAL, 
-                localUsername
+                username
             );
             
             logger.info("✅ LOCAL AUTH - User created/updated: {}", user.getId());
@@ -242,7 +237,7 @@ public class AuthController {
             jwtCookie.setMaxAge(jwtExpirationMs / 1000);
             response.addCookie(jwtCookie);
             
-            logger.info("✅ LOCAL AUTH - Login successful for user: {}", localUsername);
+            logger.info("✅ LOCAL AUTH - Login successful for user: {}", username);
             
             // Get user role with fallback protection
             String userRole = userService.getUserRole(user);
@@ -252,7 +247,7 @@ public class AuthController {
                 "user", Map.of(
                     "id", user.getId(), 
                     "email", email, 
-                    "name", localUsername, 
+                    "name", username, 
                     "provider", "LOCAL",
                     "role", userRole != null ? userRole : "REGULAR_USER",
                     "authenticated", true
@@ -363,4 +358,4 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Cannot determine if user is local"));
         }
     }
-} 
+}  
