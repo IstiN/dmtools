@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.auth;
 
-import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
+import com.github.istin.dmtools.auth.config.AuthConfigProperties;
+import com.github.istin.dmtools.auth.security.CustomOAuth2UserServiceImpl;
 import com.github.istin.dmtools.auth.service.CustomOidcUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +20,9 @@ import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationC
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -30,6 +33,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -43,6 +47,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler;
     private final String activeProfile;
+    private final AuthConfigProperties authConfigProperties;
 
     // Optional OAuth2 components - may not be available if OAuth2 is not configured
     @Autowired(required = false)
@@ -52,7 +57,7 @@ public class SecurityConfig {
     private ClientRegistrationRepository clientRegistrationRepository;
 
     @Autowired(required = false)
-    private CustomOAuth2UserService customOAuth2UserService;
+    private CustomOAuth2UserServiceImpl customOAuth2UserServiceImpl;
 
     @Autowired(required = false)
     private CustomOidcUserService customOidcUserService;
@@ -61,12 +66,14 @@ public class SecurityConfig {
                          AuthDebugFilter authDebugFilter, 
                          JwtAuthenticationFilter jwtAuthenticationFilter, 
                          CustomOAuth2AuthenticationFailureHandler customOAuth2AuthenticationFailureHandler,
-                         @Value("${spring.profiles.active:default}") String activeProfile) {
+                         @Value("${spring.profiles.active:default}") String activeProfile,
+                         AuthConfigProperties authConfigProperties) {
         this.enhancedOAuth2AuthenticationSuccessHandler = enhancedOAuth2AuthenticationSuccessHandler;
         this.authDebugFilter = authDebugFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
         this.activeProfile = activeProfile;
+        this.authConfigProperties = authConfigProperties;
         logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
     }
 
@@ -169,44 +176,69 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/error").permitAll()
-                    .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
-                    .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
-                    .requestMatchers("/", "/test-*.html").permitAll()
-                    .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()  // Added /temp/** for test files
-                    .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-                    .requestMatchers("/actuator/**").permitAll()
-                    .requestMatchers("/api/v1/chat/**").permitAll()
-                    .requestMatchers("/mcp/stream/**").permitAll()  // Allow public access to MCP SSE streams
-                    .requestMatchers("/api/files/download/**").permitAll()  // Allow public access to file downloads
-                    .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()  // Allow webhook endpoints to use API key authentication
-                    .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(auth -> {
+                if (authConfigProperties.isLocalStandaloneMode()) {
+                    logger.info("🔒 Configuring for LOCAL STANDALONE MODE. Only local login and config endpoints are permitted publicly.");
+                    auth.requestMatchers("/api/auth/local-login", "/api/auth/config", "/error").permitAll()
+                        .anyRequest().authenticated();
+                } else {
+                    auth.requestMatchers("/api/auth/local-login", "/api/auth/user", "/api/auth/public-test", "/api/auth/config", "/error").permitAll()
+                        .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
+                        .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
+                        .requestMatchers("/", "/test-*.html").permitAll()
+                        .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()  // Added /temp/** for test files
+                        .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/api/v1/chat/**").permitAll()
+                        .requestMatchers("/mcp/stream/**").permitAll()  // Allow public access to MCP SSE streams
+                        .requestMatchers("/api/files/download/**").permitAll()  // Allow public access to file downloads
+                        .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()  // Allow webhook endpoints to use API key authentication
+                        .anyRequest().authenticated();
+                }
+            })
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Configure OAuth2 login only if ClientRegistrationRepository is available
-        if (clientRegistrationRepository != null) {
-            logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
-            http.oauth2Login(oauth2 -> {
-                if (customOAuth2AuthorizationRequestResolver != null) {
-                    oauth2.authorizationEndpoint(authorization -> authorization
-                            .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
-                    );
+        // Configure OAuth2 login only if not in local standalone mode
+        if (!authConfigProperties.isLocalStandaloneMode()) {
+            ClientRegistrationRepository effectiveClientRegistrationRepository = clientRegistrationRepository;
+            List<String> enabledProviders = authConfigProperties.getEnabledProviders();
+
+            if (clientRegistrationRepository != null && !enabledProviders.isEmpty()) {
+                if (clientRegistrationRepository instanceof InMemoryClientRegistrationRepository) {
+                    List<ClientRegistration> filteredRegistrations = ((InMemoryClientRegistrationRepository) clientRegistrationRepository).iterator()
+                            .stream()
+                            .filter(registration -> enabledProviders.contains(registration.getRegistrationId().toLowerCase()))
+                            .collect(Collectors.toList());
+                    effectiveClientRegistrationRepository = new InMemoryClientRegistrationRepository(filteredRegistrations);
+                } else {
+                    logger.warn("⚠️ ClientRegistrationRepository is not an InMemoryClientRegistrationRepository. Dynamic filtering of providers is not supported.");
                 }
-                oauth2.userInfoEndpoint(userInfo -> {
-                    if (customOAuth2UserService != null) {
-                        userInfo.userService(customOAuth2UserService);
+            }
+
+            // Configure OAuth2 login only if effectiveClientRegistrationRepository is available and has registrations
+            if (effectiveClientRegistrationRepository != null && effectiveClientRegistrationRepository.iterator().hasNext()) {
+                logger.info("🔐 OAuth2 ClientRegistrationRepository found - configuring OAuth2 login");
+                http.oauth2Login(oauth2 -> {
+                    oauth2.clientRegistrationRepository(effectiveClientRegistrationRepository); // Set the filtered repository
+                    if (customOAuth2AuthorizationRequestResolver != null) {
+                        oauth2.authorizationEndpoint(authorization -> authorization
+                                .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
+                        );
                     }
-                    if (customOidcUserService != null) {
-                        userInfo.oidcUserService(customOidcUserService);
-                    }
-                })
-                .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
-                .failureHandler(customOAuth2AuthenticationFailureHandler);
-            });
-        } else {
-            logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found - OAuth2 login disabled");
+                    oauth2.userInfoEndpoint(userInfo -> {
+                        if (customOAuth2UserServiceImpl != null) {
+                            userInfo.userService(customOAuth2UserServiceImpl);
+                        }
+                        if (customOidcUserService != null) {
+                            userInfo.oidcUserService(customOidcUserService);
+                        }
+                    })
+                    .successHandler(enhancedOAuth2AuthenticationSuccessHandler)
+                    .failureHandler(customOAuth2AuthenticationFailureHandler);
+                });
+            } else {
+                logger.warn("⚠️ OAuth2 ClientRegistrationRepository not found or no enabled providers - OAuth2 login disabled");
+            }
         }
 
         // Configure logout

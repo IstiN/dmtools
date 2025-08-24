@@ -6,6 +6,11 @@ plugins {
 
 apply plugin: 'maven-publish'
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
 group = 'com.github.istin'
 version = "${version}"
 
