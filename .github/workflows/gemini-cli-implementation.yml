@@ -37,8 +37,22 @@ permissions:
   issues: write
 
 jobs:
+  setup-environment:
+    name: Setup DMTools Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup DMTools Environment
+        uses: ./.github/actions/setup-environment
+        with:
+          cache-key-suffix: '-gemini-implementation'
+          install-playwright: 'false'
+
   ai-implementation:
     name: AI Code Implementation
+    needs: setup-environment
     uses: IstiN/dmtools-agentic-workflows/.github/workflows/reusable-gemini-implementation.yml@main
     with:
       user_request: ${{ inputs.user_request }}
