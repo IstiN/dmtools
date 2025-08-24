@@ -37,28 +37,65 @@ permissions:
   issues: write
 
 jobs:
-  setup-environment:
-    name: Setup DMTools Environment
+  verify-environment:
+    name: Verify DMTools Environment
     runs-on: ubuntu-latest
+    outputs:
+      java-home: ${{ steps.java-setup.outputs.java-home }}
+      java-path: ${{ steps.java-setup.outputs.java-path }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         
       - name: Setup DMTools Environment
+        id: java-setup
         uses: ./.github/actions/setup-environment
         with:
           cache-key-suffix: '-gemini-implementation'
           install-playwright: 'false'
 
+      - name: Verify Java Installation
+        run: |
+          echo "🔍 Verifying Java 23 installation..."
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "PATH: $PATH"
+          
+          echo "📋 Available Java versions:"
+          java -version
+          javac -version
+          
+          echo "🔧 Gradle Java detection:"
+          ./gradlew -version
+          
+          echo "⚡ Test compilation:"
+          ./gradlew compileJava testClasses --info --stacktrace || {
+            echo "❌ Java compilation test failed!"
+            echo "🔍 Java installations found:"
+            ls -la /usr/lib/jvm/ || echo "No JVM directory found"
+            ls -la /opt/hostedtoolcache/Java/ || echo "No hosted toolcache Java found"
+            exit 1
+          }
+          
+          echo "✅ Java 23 verification successful!"
+
+      - name: Export Java Environment
+        id: java-env
+        run: |
+          echo "java-home=$JAVA_HOME" >> $GITHUB_OUTPUT
+          echo "java-path=$PATH" >> $GITHUB_OUTPUT
+          echo "🔧 Java environment exported for next job"
+
   ai-implementation:
     name: AI Code Implementation
-    needs: setup-environment
+    needs: verify-environment
     uses: IstiN/dmtools-agentic-workflows/.github/workflows/reusable-gemini-implementation.yml@main
     with:
       user_request: ${{ inputs.user_request }}
       model: ${{ inputs.model }}
       pr_base_branch: ${{ inputs.pr_base_branch }}
       enable_debug_logging: ${{ inputs.enable_debug_logging }}
+      enable_action_logging: true  # Enable detailed action logging by default
+      enable_java_setup: true      # Enable Java 23 setup in target repository
       
       # DMTools-specific rules and context (all rules except jira-admin)
       additional_context_files: '.cursor/rules/agents-jobs.mdc,.cursor/rules/core-server-separation.mdc,.cursor/rules/dagger-dependency-injection.mdc,.cursor/rules/gradle-dependencies.mdc,.cursor/rules/java-coding-style.mdc,.cursor/rules/networking-tools.mdc,.cursor/rules/testing-context.mdc,.cursor/rules/unit-testing.mdc'
