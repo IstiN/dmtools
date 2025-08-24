@@ -106,28 +106,170 @@ List<ClientRegistration> registrations = Arrays.asList(testRegistration);
 - Never hardcode Java versions in workflows
 - Reusable workflows should remain language-agnostic
 
+## How to Work with Java in DMTools (CRITICAL INSTRUCTIONS)
+
+### 🔥 MANDATORY Java Commands - ALWAYS USE THESE:
+
+#### **Primary Test Command (use this for all testing):**
+```bash
+./gradlew clean test :dmtools-core:shadowJar -x integrationTest
+```
+
+#### **Compile and Test Specific Modules:**
+```bash
+# Core module only:
+./gradlew :dmtools-core:compileJava :dmtools-core:test
+
+# Server module only:
+./gradlew :dmtools-server:compileJava :dmtools-server:test
+
+# Compile everything without tests:
+./gradlew compileJava testClasses
+```
+
+#### **Quick Test Commands for Development:**
+```bash
+# Test specific class:
+./gradlew test --tests "ClassName"
+
+# Test specific method:
+./gradlew test --tests "ClassName.methodName"
+
+# Run with detailed info:
+./gradlew test --tests "ClassName" --info --stacktrace
+```
+
+### ⚠️ CRITICAL Environment Requirements:
+
+#### **Java Version MUST be 23:**
+- Current project uses JavaVersion.VERSION_23
+- All workflows use JDK 23 with temurin distribution
+- NEVER change this to Java 21 or any other version
+
+#### **Multi-Module Project Structure:**
+```
+dmtools/
+├── dmtools-core/          # Business logic (no Spring)
+├── dmtools-server/        # Web services (Spring Boot)
+├── dmtools-mcp-annotations/  # Annotations
+└── dmtools-annotation-processor/  # Processing
+```
+
+#### **Required JVM Arguments for Testing:**
+```bash
+# These are automatically configured, but important to know:
+-Dnet.bytebuddy.experimental=true
+-XX:+EnableDynamicAgentLoading
+```
+
+### 🚫 COMMON MISTAKES TO AVOID:
+
+#### **Wrong Commands (DO NOT USE):**
+```bash
+❌ java -cp ... com.github.istin...  # Don't use java directly
+❌ javac src/main/java/...           # Don't use javac directly  
+❌ ./gradlew run                     # Use bootRun for server
+❌ ./gradlew build --parallel        # Can cause issues
+❌ mvn test                          # This is Gradle project
+```
+
+#### **Correct Commands (ALWAYS USE):**
+```bash
+✅ ./gradlew clean test              # Standard testing
+✅ ./gradlew :dmtools-server:bootRun # Run server
+✅ ./gradlew compileJava             # Compile all modules
+✅ ./gradlew classes testClasses     # Quick compile
+```
+
+### 🔧 Working with Code Changes:
+
+#### **Step-by-Step Process:**
+1. **First**: Make your code changes
+2. **Then**: Run `./gradlew compileJava testClasses` to check compilation
+3. **Next**: Run `./gradlew test --tests "YourClass"` to test specific changes
+4. **Finally**: Run `./gradlew clean test :dmtools-core:shadowJar -x integrationTest`
+
+#### **If Compilation Fails:**
+```bash
+# Check what's wrong with detailed output:
+./gradlew compileJava --info --stacktrace
+
+# Clean and retry:
+./gradlew clean compileJava
+```
+
+#### **If Tests Fail:**
+```bash
+# Run with detailed failure info:
+./gradlew test --info --stacktrace
+
+# Test just the failing class:
+./gradlew test --tests "FailingClassName" --info
+```
+
+### 📦 Understanding Module Dependencies:
+
+```
+dmtools-server → dmtools-core  ✅ (allowed)
+dmtools-core → dmtools-server  ❌ (forbidden)
+```
+
+- **dmtools-core**: Standalone, uses Dagger, no Spring
+- **dmtools-server**: Web layer, uses Spring Boot, depends on core
+
+### 🧪 Testing Patterns You MUST Follow:
+
+#### **Spring Security Tests:**
+```java
+@SpringBootTest
+@AutoConfigureTestDatabase
+@TestPropertySource(properties = {
+    "auth.enabled-providers=test",
+    "auth.permitted-email-domains=test.com"
+})
+```
+
+#### **OAuth2 Mocking:**
+```java
+OAuth2User mockUser = mock(OAuth2User.class);
+when(mockUser.getAttribute("email")).thenReturn("test@test.com");
+```
+
+#### **Prevent Mockito Issues:**
+```java
+@Mock(lenient = true)
+private SomeService someService;
+
+// OR use lenient() in setup:
+lenient().when(mockService.method()).thenReturn(value);
+```
+
 ## AI Assistant Behavior Rules
 
 ### When Making Changes:
-1. **Read existing code patterns** before implementing
-2. **Follow existing architectural decisions** 
-3. **Use existing utilities and frameworks**
-4. **Maintain consistency** with current codebase
-5. **Add comprehensive unit tests** for all new functionality
+1. **ALWAYS use the Java commands specified above**
+2. **Read existing code patterns** before implementing
+3. **Follow existing architectural decisions** 
+4. **Use existing utilities and frameworks**
+5. **Test incrementally** using the commands provided
+6. **Add comprehensive unit tests** for all new functionality
 
 ### What NOT to Do:
-- ❌ Change Java versions (JavaVersion.VERSION_21 → VERSION_23 is forbidden)
+- ❌ Change Java versions (JavaVersion.VERSION_23 is mandatory)
+- ❌ Use `java` or `javac` directly - use Gradle commands
 - ❌ Add unnecessary external dependencies  
 - ❌ Mix Core and Server concerns
 - ❌ Skip unit test coverage
-- ❌ Hardcode configuration values
-- ❌ Create duplicate functionality
+- ❌ Run commands without `./gradlew` prefix
+- ❌ Use Maven commands (this is Gradle project)
 
-### Testing & Quality Assurance:
-- Run `./gradlew clean test :dmtools-core:shadowJar -x integrationTest` before submitting
-- Fix all compilation errors and test failures
-- Ensure consistent code style and formatting
-- Document any complex logic or architectural decisions
+### MANDATORY Before Finishing:
+```bash
+# ALWAYS run this final command before submitting:
+./gradlew clean test :dmtools-core:shadowJar -x integrationTest
+```
+
+If this command fails, **FIX THE ISSUES** before submitting your changes.
 
 ## Project Context
 

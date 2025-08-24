@@ -7,7 +7,7 @@ description: Java coding style and execution patterns for DMTools project
 
 ## Java Version & Configuration
 
-- **Java Version**: Java 21 (sourceCompatibility and targetCompatibility)
+- **Java Version**: Java 23 (sourceCompatibility and targetCompatibility) - MANDATORY
 - **Build Tool**: Gradle with Gradle Wrapper
 - **Testing Platform**: JUnit Platform with JUnit 4.13.2 and JUnit Jupiter 5.9.1
 
@@ -76,7 +76,7 @@ description: Java coding style and execution patterns for DMTools project
 - Mockito for mocking dependencies
 - PowerMock for advanced mocking scenarios
 - JaCoCo for coverage reporting
-- Specific JVM args for Java 21 compatibility:
+- Specific JVM args for Java 23 compatibility:
   - `-Dnet.bytebuddy.experimental=true`
   - `-XX:+EnableDynamicAgentLoading`
 
