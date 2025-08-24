@@ -24,6 +24,8 @@ import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
 import com.github.istin.dmtools.sm.ScrumMasterDaily;
 import com.github.istin.dmtools.sync.SourceCodeCommitTrackerSyncJob;
 import com.github.istin.dmtools.sync.SourceCodeTrackerSyncJob;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -31,6 +33,8 @@ import java.util.List;
 
 @Service
 public class JobService {
+
+    private static final Logger logger = LogManager.getLogger(JobService.class);
 
     protected static List<Job> JOBS = Arrays.asList(
             new PreSaleSupport(),
@@ -55,6 +59,10 @@ public class JobService {
     );
 
     public void executeJob(JobParams jobParams) throws Exception {
+        logger.warn("DEPRECATED: Server should use JobRunner instead of JobService for proper execution mode handling");
+        logger.info("Executing job: {} (mode: {})", jobParams.getName(),
+                   (jobParams.getExecutionMode() != null ? jobParams.getExecutionMode() : "null"));
+        
         for (Job job : JOBS) {
             if (job.getName().equalsIgnoreCase(jobParams.getName())) {
                 Object paramsByClass = jobParams.getParamsByClass(job.getParamsClass());

@@ -52,7 +52,7 @@ public class GitHubWorkflowIntegrationTest {
     }
     
     @Test
-    //@Disabled("Enable for manual testing with real GitHub credentials")
+    @Disabled("Enable for manual testing with real GitHub credentials")
     public void testSpecificWorkflowRunSummary() throws Exception {
         // Test with specific workflow run ID: https://github.com/IstiN/dmtools/actions/runs/16858480819
         String owner = "IstiN";
