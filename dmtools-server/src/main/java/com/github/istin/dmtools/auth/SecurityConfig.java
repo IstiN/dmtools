@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
@@ -19,7 +20,11 @@ import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationC
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -68,6 +73,28 @@ public class SecurityConfig {
         this.customOAuth2AuthenticationFailureHandler = customOAuth2AuthenticationFailureHandler;
         this.activeProfile = activeProfile;
         logger.info("SecurityConfig initialized with custom OAuth2 handlers and resolver.");
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ClientRegistrationRepository.class)
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        logger.warn("⚠️ No ClientRegistrationRepository bean found. Providing a default for testing purposes.");
+        return new InMemoryClientRegistrationRepository(Arrays.asList(
+                ClientRegistration.withRegistrationId("google")
+                        .clientId("test-google-client-id")
+                        .clientSecret("test-google-client-secret")
+                        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                        .redirectUri("{baseUrl}/oauth2/callback/{registrationId}")
+                        .scope("openid", "profile", "email")
+                        .authorizationUri("https://accounts.google.com/o/oauth2/v2/auth")
+                        .tokenUri("https://www.googleapis.com/oauth2/v4/token")
+                        .userInfoUri("https://www.googleapis.com/oauth2/v3/userinfo")
+                        .userNameAttributeName("name")
+                        .jwkSetUri("https://www.googleapis.com/oauth2/v3/certs")
+                        .clientName("Google")
+                        .build()
+        ));
     }
 
     @Bean
