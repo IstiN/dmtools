@@ -151,28 +151,44 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The PR is ready for review." >> $GITHUB_STEP_SUMMARY
             echo "✅ All tests passed - workflow succeeds"
-          elif [ "$failed_tests_found" = "true" ]; then
-            echo "❌ **Unit tests failed**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- ❌ **Unit tests**: FAILED" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Please fix the failing unit tests before merging." >> $GITHUB_STEP_SUMMARY
-            echo "❌ Tests failed - failing workflow"
-            exit 1
-          elif [ "$test_files_count" -eq 0 ]; then
-            echo "⚠️ **No test results found**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- ❌ **Build**: May have failed before tests could run" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Please check the build logs for compilation or setup errors." >> $GITHUB_STEP_SUMMARY
-            echo "❌ No test results found - failing workflow"
-            exit 1
           else
-            echo "⚠️ **Build completed with warnings**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- ⚠️ **Tests**: No failures detected, but build had issues" >> $GITHUB_STEP_SUMMARY
-            echo "- ⚠️ **Build**: Completed with warnings or non-critical errors" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Review the build logs for any issues that should be addressed." >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ Build had issues but no test failures - workflow succeeds with warnings"
+            # Gradle step failed - be more conservative about when to pass
+            echo "🔍 Debug: Gradle step failed, analyzing failure type..."
+            
+            if [ "$failed_tests_found" = "true" ]; then
+              echo "❌ **Unit tests failed**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- ❌ **Unit tests**: FAILED (detected in test results)" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Please fix the failing unit tests before merging." >> $GITHUB_STEP_SUMMARY
+              echo "❌ Tests failed - failing workflow"
+              exit 1
+            elif [ "$test_files_count" -eq 0 ]; then
+              echo "❌ **Build failed - no test results**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- ❌ **Build**: Failed before tests could run" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Please check the build logs for compilation or setup errors." >> $GITHUB_STEP_SUMMARY
+              echo "❌ No test results found - failing workflow"
+              exit 1
+            elif [ "$test_files_count" -gt 0 ]; then
+              # We have test files but no failures detected - this could be legitimate warnings
+              echo "⚠️ **Build completed with warnings**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- ⚠️ **Tests**: $test_files_count test files found, no failures detected" >> $GITHUB_STEP_SUMMARY
+              echo "- ⚠️ **Build**: Completed with warnings or non-critical errors" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Review the build logs for any issues that should be addressed." >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ Build had issues but no test failures - workflow succeeds with warnings"
+              echo "⚠️ WARNING: Gradle step failed but no test failures detected - allowing to pass"
+            else
+              # Fallback - if gradle failed and we can't determine why, fail conservatively
+              echo "❌ **Build failed**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- ❌ **Build**: Failed with exit code 1" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Please check the build logs for errors." >> $GITHUB_STEP_SUMMARY
+              echo "❌ Build failed - failing workflow conservatively"
+              exit 1
+            fi
           fi
