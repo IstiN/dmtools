@@ -14,7 +14,7 @@ import java.util.List;
 @Service
 public class CustomOAuth2UserServiceImpl extends DefaultOAuth2UserService {
 
-    private final AuthConfigProperties authConfigProperties;
+    protected final AuthConfigProperties authConfigProperties;
 
     public CustomOAuth2UserServiceImpl(AuthConfigProperties authConfigProperties) {
         this.authConfigProperties = authConfigProperties;
