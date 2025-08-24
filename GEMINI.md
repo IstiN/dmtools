@@ -17,7 +17,7 @@
    - What specific functionality requires different version
    - Impact analysis of the proposed change
    - Alternative solutions that don't require version change
-3. **Wait for explicit user approval** before proceeding
+3. **Java version change must be explicitly mentioned in user task request** - only proceed if user specifically requested Java version modification
 
 ### Current Java Configuration (DO NOT MODIFY):
 
