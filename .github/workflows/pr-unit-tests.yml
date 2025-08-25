@@ -404,9 +404,9 @@ jobs:
             const failedFiles = '${{ steps.analyze-compilation.outputs.FAILED_FILES }}';
             
             // Check exit codes for more accurate status determination
-            const coreExitCode = '${{ steps.core-tests.outputs.CORE_EXIT_CODE || '0' }}';
-            const serverExitCode = '${{ steps.server-tests.outputs.SERVER_EXIT_CODE || '0' }}';
-            const shadowJarExitCode = '${{ steps.gradle.outputs.SHADOW_JAR_EXIT_CODE || '0' }}';
+            const coreExitCode = '${{ steps.core-tests.outputs.CORE_EXIT_CODE }}' || '0';
+            const serverExitCode = '${{ steps.server-tests.outputs.SERVER_EXIT_CODE }}' || '0';
+            const shadowJarExitCode = '${{ steps.gradle.outputs.SHADOW_JAR_EXIT_CODE }}' || '0';
             
             // Overall build success requires ALL steps to pass AND have exit code 0
             const overallBuildSuccess = coreTestsSuccess && serverTestsSuccess && shadowJarSuccess && 
@@ -522,9 +522,14 @@ jobs:
           shadow_jar_success="${{ steps.gradle.outcome }}"
           
           # Also check the actual exit codes from gradle commands
-          core_exit_code="${{ steps.core-tests.outputs.CORE_EXIT_CODE || '0' }}"
-          server_exit_code="${{ steps.server-tests.outputs.SERVER_EXIT_CODE || '0' }}"
-          shadow_jar_exit_code="${{ steps.gradle.outputs.SHADOW_JAR_EXIT_CODE || '0' }}"
+          core_exit_code="${{ steps.core-tests.outputs.CORE_EXIT_CODE }}"
+          server_exit_code="${{ steps.server-tests.outputs.SERVER_EXIT_CODE }}"
+          shadow_jar_exit_code="${{ steps.gradle.outputs.SHADOW_JAR_EXIT_CODE }}"
+          
+          # Handle empty exit codes (default to 0)
+          core_exit_code="${core_exit_code:-0}"
+          server_exit_code="${server_exit_code:-0}"
+          shadow_jar_exit_code="${shadow_jar_exit_code:-0}"
           
           echo "🔍 Debug: Exit codes - core: $core_exit_code, server: $server_exit_code, shadowJar: $shadow_jar_exit_code"
           echo "🔍 Debug: Step outcomes - core: $core_success, server: $server_success, shadowJar: $shadow_jar_success"
