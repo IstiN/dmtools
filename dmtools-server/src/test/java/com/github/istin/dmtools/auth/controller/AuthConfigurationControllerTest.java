@@ -5,9 +5,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -15,6 +17,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
@@ -82,6 +85,7 @@ class AuthConfigurationControllerTest {
     private ClientRegistrationRepository clientRegistrationRepository;
 
     @Test
+    @TestPropertySource(properties = "auth.enabled-providers=")
     void testGetAuthConfiguration_standaloneMode_noProviders() throws Exception {
         // The default bean has no providers configured
         mockMvc.perform(get("/api/auth/config"))
@@ -90,6 +94,7 @@ class AuthConfigurationControllerTest {
     }
 
     @Test
+    @TestPropertySource(properties = "auth.enabled-providers=google,github")
     void testGetAuthConfiguration_oauth2Mode_withProviders() throws Exception {
         ClientRegistration google = ClientRegistration.withRegistrationId("google")
                 .clientId("google-client-id")
@@ -117,11 +122,13 @@ class AuthConfigurationControllerTest {
         TestClientRegistrationRepository repoWithProviders = new TestClientRegistrationRepository(
                 Arrays.asList(google, github));
         
-        // We need to recreate the context or use a different test for this scenario
-        // For now, let's test that the controller works with the empty repository
+        // Need to provide the repository with providers to the context
+        // This is handled by overriding the bean in TestConfiguration
         mockMvc.perform(get("/api/auth/config"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.authenticationMode").value("standalone"));
+                .andExpect(jsonPath("$.authenticationMode").value("oauth2"))
+                .andExpect(jsonPath("$.enabledProviders[0]").value("google"))
+                .andExpect(jsonPath("$.enabledProviders[1]").value("github"));
     }
 
     @Test
