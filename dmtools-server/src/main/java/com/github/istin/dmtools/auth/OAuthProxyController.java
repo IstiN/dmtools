@@ -7,6 +7,7 @@ import com.github.istin.dmtools.auth.JwtUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/oauth-proxy")
+@ConditionalOnProperty(name = "auth.enabled-providers", matchIfMissing = false)
 public class OAuthProxyController {
 
     private static final Logger logger = LoggerFactory.getLogger(OAuthProxyController.class);

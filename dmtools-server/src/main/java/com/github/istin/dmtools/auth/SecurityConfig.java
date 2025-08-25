@@ -7,7 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -60,9 +63,11 @@ public class SecurityConfig {
 
     // Optional OAuth2 components - may not be available if OAuth2 is not configured
     @Autowired(required = false)
+    @Lazy
     private CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
 
     @Autowired(required = false)
+    @Lazy
     private ClientRegistrationRepository clientRegistrationRepository;
 
     @Autowired(required = false)
@@ -118,15 +123,27 @@ public class SecurityConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "auth.enabled-providers", matchIfMissing = false)
     public ClientRegistrationRepository clientRegistrationRepository(@Autowired(required = false) List<ClientRegistration> clientRegistrations) {
         if (authConfigProperties.isLocalStandaloneMode()) {
             logger.warn("⚠️ Local standalone mode enabled. OAuth2 ClientRegistrationRepository disabled.");
-            return new InMemoryClientRegistrationRepository(List.of());
+            // Return null or don't create bean in standalone mode
+            throw new IllegalStateException("ClientRegistrationRepository should not be created in standalone mode");
         }
 
         if (clientRegistrations == null || clientRegistrations.isEmpty()) {
             logger.warn("⚠️ No ClientRegistration beans found. OAuth2 ClientRegistrationRepository will be empty.");
-            return new InMemoryClientRegistrationRepository(List.of());
+            // Create a dummy registration to avoid empty repository
+            ClientRegistration dummyRegistration = ClientRegistration.withRegistrationId("dummy")
+                    .clientId("dummy")
+                    .clientSecret("dummy")
+                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                    .authorizationUri("http://localhost/dummy")
+                    .tokenUri("http://localhost/dummy")
+                    .redirectUri("http://localhost/dummy")
+                    .userNameAttributeName("name")
+                    .build();
+            return new InMemoryClientRegistrationRepository(List.of(dummyRegistration));
         }
 
         Set<String> enabledProviders = authConfigProperties.getEnabledProvidersAsSet();
