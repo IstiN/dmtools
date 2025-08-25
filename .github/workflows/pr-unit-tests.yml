@@ -171,24 +171,25 @@ jobs:
               echo "Please check the build logs for compilation or setup errors." >> $GITHUB_STEP_SUMMARY
               echo "❌ No test results found - failing workflow"
               exit 1
-            elif [ "$test_files_count" -gt 0 ]; then
-              # We have test files but no failures detected - this could be legitimate warnings
-              echo "⚠️ **Build completed with warnings**" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "- ⚠️ **Tests**: $test_files_count test files found, no failures detected" >> $GITHUB_STEP_SUMMARY
-              echo "- ⚠️ **Build**: Completed with warnings or non-critical errors" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "Review the build logs for any issues that should be addressed." >> $GITHUB_STEP_SUMMARY
-              echo "⚠️ Build had issues but no test failures - workflow succeeds with warnings"
-              echo "⚠️ WARNING: Gradle step failed but no test failures detected - allowing to pass"
             else
-              # Fallback - if gradle failed and we can't determine why, fail conservatively
+              # CRITICAL: If gradle step failed with exit code 1, we should NOT pass
+              # This could be compilation errors, dependency issues, or other serious problems
               echo "❌ **Build failed**" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "- ❌ **Build**: Failed with exit code 1" >> $GITHUB_STEP_SUMMARY
+              if [ "$test_files_count" -gt 0 ]; then
+                echo "- 📋 **Note**: $test_files_count test files found, but gradle step failed" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- 📋 **Note**: No test files found" >> $GITHUB_STEP_SUMMARY
+              fi
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "Please check the build logs for errors." >> $GITHUB_STEP_SUMMARY
-              echo "❌ Build failed - failing workflow conservatively"
+              echo "**Common causes:**" >> $GITHUB_STEP_SUMMARY
+              echo "- Compilation errors in Java code" >> $GITHUB_STEP_SUMMARY
+              echo "- Missing dependencies or classpath issues" >> $GITHUB_STEP_SUMMARY
+              echo "- Build configuration problems" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Please check the build logs for specific error details." >> $GITHUB_STEP_SUMMARY
+              echo "❌ Build failed - failing workflow (gradle exit code 1 means serious error)"
               exit 1
             fi
           fi
