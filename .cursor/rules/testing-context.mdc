@@ -96,6 +96,64 @@ Test ClientRegistrationRepository without empty registrations:
 // Always provide at least one test registration
 List<ClientRegistration> registrations = Arrays.asList(testRegistration);
 
+** OAUTH2/SPRING SECURITY TEST FIXING STRATEGY **
+
+When you encounter OAuth2/WebMvcTest compilation errors, follow this EXACT sequence:
+
+1. **FIRST: Fix @WebMvcTest annotation syntax**
+   - ❌ WRONG: @WebMvcTest(MyController.class, properties = "auth.enabled-providers=google")
+   - ✅ CORRECT: @WebMvcTest(MyController.class)
+                @TestPropertySource(properties = "auth.enabled-providers=google")
+
+2. **SECOND: Choose ONE approach (don't overthink):**
+   
+   **Option A - Enable OAuth2 (for OAuth2 functionality tests):**
+   ```java
+   @WebMvcTest(MyController.class)
+   @TestPropertySource(properties = "auth.enabled-providers=google")
+   @Import({SecurityConfig.class, AuthConfigProperties.class})
+   ```
+   
+   **Option B - Disable OAuth2 (for non-OAuth2 tests):**
+   ```java
+   @WebMvcTest(MyController.class) 
+   @TestPropertySource(properties = "auth.enabled-providers=")
+   ```
+
+3. **THIRD: If OAuth2 enabled, add required beans:**
+   ```java
+   @TestConfiguration
+   static class TestConfig {
+       @Bean @Primary
+       public ClientRegistrationRepository clientRegistrationRepository() {
+           ClientRegistration registration = ClientRegistration
+               .withRegistrationId("google")
+               .clientId("test-client")
+               .clientSecret("test-secret")
+               .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+               .redirectUri("http://localhost/login/oauth2/code/google")
+               .authorizationUri("https://accounts.google.com/o/oauth2/auth")
+               .tokenUri("https://oauth2.googleapis.com/token")
+               .userInfoUri("https://www.googleapis.com/oauth2/v2/userinfo")
+               .build();
+           return new InMemoryClientRegistrationRepository(registration);
+       }
+   }
+   ```
+
+4. **DECISION RULE: Stop analysis, pick approach, implement**
+   - If test name contains "OAuth2" or "Login" → Use Option A
+   - If test checks basic controller functionality → Use Option B
+   - Don't spend time analyzing "what should be tested" - just fix the compilation error
+
+** ANTI-ANALYSIS-PARALYSIS RULES **
+
+🚫 **STOP** endless commenting about "what the test should do"
+✅ **START** by fixing the immediate compilation error
+🚫 **STOP** writing multiple paragraphs about different approaches  
+✅ **START** implementing the first viable solution
+🚫 **STOP** second-guessing - if it compiles and the test makes sense, commit it
+
 ** COMMON TEST ANTI-PATTERNS TO AVOID **
 
 ❌ Empty ClientRegistration list - causes "registrations cannot be empty"
@@ -103,6 +161,7 @@ List<ClientRegistration> registrations = Arrays.asList(testRegistration);
 ❌ Unnecessary mock stubs - clean up unused when() calls
 ❌ Testing exceptions without proper mock setup to trigger them
 ❌ Using @WebMvcTest without importing required security configs
+❌ Analysis paralysis - endless comments without action
 
 ** BEFORE COMMIT **
 Quick validation:

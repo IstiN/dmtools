@@ -69,14 +69,17 @@ jobs:
     timeout-minutes: 10
     runs-on: 'ubuntu-latest'
     steps:
-      - name: 'Generate GitHub App Token'
+      - name: 'Setup GitHub Token'
         id: 'generate_token'
-        if: |-
-          ${{ vars.APP_ID }}
-        uses: 'actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b' # ratchet:actions/create-github-app-token@v2
-        with:
-          app-id: '${{ vars.APP_ID }}'
-          private-key: '${{ secrets.APP_PRIVATE_KEY }}'
+        run: |
+          # Use PAT_TOKEN if available, fallback to GITHUB_TOKEN
+          if [[ -n "${{ secrets.PAT_TOKEN }}" ]]; then
+            echo "Using PAT_TOKEN for enhanced permissions"
+            echo "token=${{ secrets.PAT_TOKEN }}" >> $GITHUB_OUTPUT
+          else
+            echo "Using default GITHUB_TOKEN"
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: 'Get context from event'
         id: 'get_context'
@@ -205,6 +208,7 @@ jobs:
           USER_REQUEST: '${{ steps.get_context.outputs.user_request }}'
           ISSUE_NUMBER: '${{ steps.get_context.outputs.issue_number }}'
           IS_PR: '${{ steps.get_context.outputs.is_pr }}'
+          GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}'
         with:
           gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
           gcp_workload_identity_provider: '${{ vars.GCP_WIF_PROVIDER }}'
@@ -213,8 +217,6 @@ jobs:
           gcp_service_account: '${{ vars.SERVICE_ACCOUNT_EMAIL }}'
           use_vertex_ai: '${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}'
           use_gemini_code_assist: '${{ vars.GOOGLE_GENAI_USE_GCA }}'
-          gemini_debug: '${{ fromJSON(vars.DEBUG || vars.ACTIONS_STEP_DEBUG || false) }}'
-          gemini_model: '${{ vars.GEMINI_MODEL }}'
           settings: |-
             {
               "maxSessionTurns": 50,

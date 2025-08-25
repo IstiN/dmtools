@@ -151,6 +151,76 @@ public void testSecurityConfiguration() {
 #### "CircularReferenceException"  
 - **Solution**: Check dependency injection setup, may need to break circular dependencies
 
+## Anti-Analysis-Paralysis Rules for OAuth2 Test Fixes
+
+**CRITICAL**: When fixing OAuth2/WebMvcTest compilation errors, follow these EXACT steps:
+
+### Step 1: Fix @WebMvcTest Syntax (FIRST)
+```java
+// ❌ WRONG - causes compilation error
+@WebMvcTest(AuthConfigurationController.class, properties = "auth.enabled-providers=google")
+
+// ✅ CORRECT - separate annotations
+@WebMvcTest(AuthConfigurationController.class)
+@TestPropertySource(properties = "auth.enabled-providers=google")
+```
+
+### Step 2: Choose ONE Approach (NO OVERTHINKING)
+**Decision Rule**: Look at test class name and pick immediately:
+- If name contains "OAuth2" or "Google" → Enable OAuth2 (Option A)
+- If name contains "NoProvider" or "Empty" → Disable OAuth2 (Option B)  
+- If unsure → Pick Option B (simpler)
+
+**Option A - Enable OAuth2:**
+```java
+@WebMvcTest(AuthConfigurationController.class)
+@TestPropertySource(properties = "auth.enabled-providers=google")
+@Import({SecurityConfig.class, AuthConfigProperties.class})
+
+@TestConfiguration
+static class TestConfig {
+    @Bean @Primary
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        ClientRegistration registration = ClientRegistration
+            .withRegistrationId("google")
+            .clientId("test-client")
+            .clientSecret("test-secret")
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .redirectUri("http://localhost/login/oauth2/code/google")
+            .authorizationUri("https://accounts.google.com/o/oauth2/auth")
+            .tokenUri("https://oauth2.googleapis.com/token")
+            .userInfoUri("https://www.googleapis.com/oauth2/v2/userinfo")
+            .build();
+        return new InMemoryClientRegistrationRepository(registration);
+    }
+}
+```
+
+**Option B - Disable OAuth2:**
+```java
+@WebMvcTest(AuthConfigurationController.class)
+@TestPropertySource(properties = "auth.enabled-providers=")
+```
+
+### Step 3: STOP Writing Comments About "What Should Be Tested"
+- ❌ Don't analyze what the test "should" do in comments
+- ❌ Don't write paragraphs about different approaches
+- ❌ Don't second-guess the approach once chosen
+- ✅ Fix compilation error, run test, done
+
+### Step 4: Common OAuth2 Imports (Add If Missing)
+```java
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Import;
+```
+
 ## Success Criteria for Auto-Fix
 
 1. **All tests pass**: The primary goal
@@ -159,6 +229,7 @@ public void testSecurityConfiguration() {
 4. **Proper mocking**: Use appropriate mocking strategies for external dependencies
 5. **Security context**: Properly handle authentication in security tests
 6. **Configuration coverage**: Ensure all configuration scenarios are tested
+7. **NO ANALYSIS PARALYSIS**: Fix quickly, don't overthink
 
 ## Example Fix Commands
 
