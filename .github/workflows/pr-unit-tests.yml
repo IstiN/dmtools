@@ -64,95 +64,190 @@ jobs:
           reporter: java-junit
           fail-on-error: false
 
-      - name: 🔍 Analyze Compilation Errors for AI
+      - name: 🔍 Create Detailed Failure Summary for AI Auto-Fix
         if: always()
         id: analyze-compilation
         run: |
-          echo "## 🤖 AI-Readable Failure Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          # Check if there are any failures before proceeding
+          core_failed="${{ steps.core-tests.outcome != 'success' }}"
+          server_failed="${{ steps.server-tests.outcome != 'success' }}"
+          build_failed="${{ steps.gradle.outcome != 'success' }}"
           
-          # Create structured error report for Gemini AI
-          echo "COMPILATION_ERRORS_FOUND=false" >> $GITHUB_OUTPUT
-          echo "ERROR_SUMMARY=" >> $GITHUB_OUTPUT
-          echo "FAILED_FILES=" >> $GITHUB_OUTPUT
-          
-          # Analyze each log file for compilation errors
-          compilation_errors=""
-          failed_files=""
-          
-          for log_file in core-test-output.log server-test-output.log shadowjar-output.log; do
-            if [ -f "$log_file" ]; then
-              echo "### 📋 Analyzing $log_file" >> $GITHUB_STEP_SUMMARY
-              
-              # Check for compilation errors
-              if grep -q "cannot find symbol\|package does not exist\|error:" "$log_file"; then
-                echo "COMPILATION_ERRORS_FOUND=true" >> $GITHUB_OUTPUT
-                echo "#### ❌ Compilation Errors Found in $log_file:" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$core_failed" = "true" ] || [ "$server_failed" = "true" ] || [ "$build_failed" = "true" ]; then
+            echo "COMPILATION_ERRORS_FOUND=false" >> $GITHUB_OUTPUT
+            echo "ERROR_SUMMARY=" >> $GITHUB_OUTPUT
+            echo "FAILED_FILES=" >> $GITHUB_OUTPUT
+            
+            # Create detailed failure summary file for AI auto-fix
+            echo "# 🤖 Detailed Test Failure Analysis for AI Auto-Fix" > failure-summary.md
+            echo "" >> failure-summary.md
+            echo "## Build Status Overview" >> failure-summary.md
+            echo "- **core:unitTests**: ${{ steps.core-tests.outcome }}" >> failure-summary.md
+            echo "- **server:unitTests**: ${{ steps.server-tests.outcome }}" >> failure-summary.md
+            echo "- **shadowJar build**: ${{ steps.gradle.outcome }}" >> failure-summary.md
+            echo "" >> failure-summary.md
+            
+            # Variables for collecting error information
+            compilation_errors=""
+            failed_files=""
+            has_compilation_errors=false
+            
+            # Analyze each log file for compilation errors and detailed failure information
+            for log_file in core-test-output.log server-test-output.log shadowjar-output.log; do
+              if [ -f "$log_file" ]; then
+                echo "### 📋 Analysis of $log_file" >> failure-summary.md
+                echo "" >> failure-summary.md
                 
-                # Extract specific compilation errors with context
-                echo "**COMPILATION ERROR DETAILS:**" >> $GITHUB_STEP_SUMMARY
-                echo '```' >> $GITHUB_STEP_SUMMARY
-                
-                # Extract error lines and surrounding context
-                grep -n -A 2 -B 1 "error:\|cannot find symbol\|package does not exist" "$log_file" | head -20 >> $GITHUB_STEP_SUMMARY
-                
-                echo '```' >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                
-                # Extract file paths with errors
-                error_files=$(grep -o '[^[:space:]]*/[^[:space:]]*\.java:[0-9]*:' "$log_file" | cut -d: -f1 | sort -u)
-                if [ -n "$error_files" ]; then
-                  echo "**Files with compilation errors:**" >> $GITHUB_STEP_SUMMARY
-                  echo "$error_files" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
-                  failed_files="$failed_files $error_files"
+                # Check for compilation errors
+                if grep -q "error:\|cannot find symbol\|package does not exist\|Compilation failed\|BUILD FAILED" "$log_file"; then
+                  has_compilation_errors=true
+                  echo "COMPILATION_ERRORS_FOUND=true" >> $GITHUB_OUTPUT
+                  
+                  echo "#### ❌ Compilation Errors Found" >> failure-summary.md
+                  echo "" >> failure-summary.md
+                  
+                  # Extract detailed compilation error information
+                  echo "**Detailed Error Messages:**" >> failure-summary.md
+                  echo '```' >> failure-summary.md
+                  grep -n -A 3 -B 1 "error:\|cannot find symbol\|package does not exist" "$log_file" | head -50 >> failure-summary.md
+                  echo '```' >> failure-summary.md
+                  echo "" >> failure-summary.md
+                  
+                  # Extract specific error file locations
+                  error_files=$(grep -o '[^[:space:]]*/[^[:space:]]*\.java:[0-9]*:' "$log_file" | cut -d: -f1 | sort -u)
+                  if [ -n "$error_files" ]; then
+                    echo "**Files requiring fixes:**" >> failure-summary.md
+                    echo "$error_files" | sed 's/^/- /' >> failure-summary.md
+                    failed_files="$failed_files $error_files"
+                    echo "" >> failure-summary.md
+                  fi
+                  
+                  # Extract specific error types for categorization
+                  specific_errors=$(grep -o "error: [^,]*" "$log_file" | head -10)
+                  if [ -n "$specific_errors" ]; then
+                    echo "**Error Types:**" >> failure-summary.md
+                    echo "$specific_errors" | sed 's/^/- /' >> failure-summary.md
+                    compilation_errors="$compilation_errors $specific_errors"
+                    echo "" >> failure-summary.md
+                  fi
+                  
+                  # Extract full compilation failure context
+                  echo "**Complete Error Context:**" >> failure-summary.md
+                  echo '```' >> failure-summary.md
+                  if grep -q "BUILD FAILED" "$log_file"; then
+                    # Get the build failure section with full context
+                    sed -n '/BUILD FAILED/,/BUILD FAILED\|Deprecated Gradle features\|$/{p}' "$log_file" | head -100 >> failure-summary.md
+                  else
+                    # Get error context around compilation failures
+                    grep -A 10 -B 5 "error:\|cannot find symbol\|package does not exist" "$log_file" | head -100 >> failure-summary.md
+                  fi
+                  echo '```' >> failure-summary.md
+                  echo "" >> failure-summary.md
+                else
+                  echo "✅ No compilation errors found in $log_file" >> failure-summary.md
+                  echo "" >> failure-summary.md
                 fi
-                echo "" >> $GITHUB_STEP_SUMMARY
-                
-                # Extract specific error messages for AI analysis
-                specific_errors=$(grep -o "error: [^,]*" "$log_file" | head -5)
-                if [ -n "$specific_errors" ]; then
-                  compilation_errors="$compilation_errors $specific_errors"
-                fi
-              else
-                echo "✅ No compilation errors found in $log_file" >> $GITHUB_STEP_SUMMARY
               fi
-              echo "" >> $GITHUB_STEP_SUMMARY
+            done
+            
+            # Set outputs for AI analysis
+            if [ -n "$compilation_errors" ]; then
+              echo "ERROR_SUMMARY<<EOF" >> $GITHUB_OUTPUT
+              echo "$compilation_errors" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
             fi
-          done
-          
-          # Set outputs for AI analysis
-          if [ -n "$compilation_errors" ]; then
-            echo "ERROR_SUMMARY<<EOF" >> $GITHUB_OUTPUT
-            echo "$compilation_errors" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
-          
-          if [ -n "$failed_files" ]; then
-            echo "FAILED_FILES<<EOF" >> $GITHUB_OUTPUT
-            echo "$failed_files" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
-          
-          # Create AI-friendly structured summary
-          echo "### 🤖 For AI Analysis:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Build Status:**" >> $GITHUB_STEP_SUMMARY
-          echo "- core:unitTests: ${{ steps.core-tests.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "- server:unitTests: ${{ steps.server-tests.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "- shadowJar build: ${{ steps.gradle.outcome }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -n "$compilation_errors" ]; then
-            echo "**Primary Issue:** Compilation errors preventing build" >> $GITHUB_STEP_SUMMARY
-            echo "**Error Type:** Java compilation failure" >> $GITHUB_STEP_SUMMARY
-            echo "**Fix Required:** Resolve compilation errors in Java source files" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.core-tests.outcome }}" != "success" ] || [ "${{ steps.server-tests.outcome }}" != "success" ]; then
-            echo "**Primary Issue:** Unit test failures (after successful compilation)" >> $GITHUB_STEP_SUMMARY
-            echo "**Error Type:** Test execution failure" >> $GITHUB_STEP_SUMMARY
-            echo "**Fix Required:** Fix failing unit tests" >> $GITHUB_STEP_SUMMARY
+            
+            if [ -n "$failed_files" ]; then
+              echo "FAILED_FILES<<EOF" >> $GITHUB_OUTPUT
+              echo "$failed_files" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+            fi
+            
+            # Add test failure analysis from XML files if compilation succeeded
+            if [ "$has_compilation_errors" = "false" ]; then
+              echo "## Test Failure Analysis" >> failure-summary.md
+              echo "" >> failure-summary.md
+              
+              failed_tests_found=false
+              if find . -path "*/build/test-results/test/TEST-*.xml" -type f | head -1 | read -r first_file; then
+                for test_file in $(find . -path "*/build/test-results/test/TEST-*.xml" -type f); do
+                  if grep -q 'failures="[1-9]' "$test_file" || grep -q 'errors="[1-9]' "$test_file"; then
+                    failed_tests_found=true
+                    echo "### Failed Test: $test_file" >> failure-summary.md
+                    echo "" >> failure-summary.md
+                    
+                    class_name=$(xmllint --xpath "string(//testsuite/@name)" "$test_file" 2>/dev/null || echo "Unknown")
+                    echo "**Test Class:** $class_name" >> failure-summary.md
+                    echo "" >> failure-summary.md
+                    
+                    echo "**Failed Methods:**" >> failure-summary.md
+                    xmllint --xpath "//testcase[failure or error]/@name" "$test_file" 2>/dev/null | tr ' ' '\n' | sed 's/name=//g' | sed 's/"//g' | sed 's/^/- /' >> failure-summary.md || echo "- Could not extract method names" >> failure-summary.md
+                    echo "" >> failure-summary.md
+                    
+                    echo "**Detailed Failure Messages:**" >> failure-summary.md
+                    echo '```' >> failure-summary.md
+                    xmllint --xpath "//failure/text() | //error/text()" "$test_file" 2>/dev/null >> failure-summary.md || echo "Could not extract failure details" >> failure-summary.md
+                    echo '```' >> failure-summary.md
+                    echo "" >> failure-summary.md
+                  fi
+                done
+              fi
+              
+              if [ "$failed_tests_found" = "false" ]; then
+                echo "No test failures found in XML files - issues may be build-related." >> failure-summary.md
+                echo "" >> failure-summary.md
+              fi
+            fi
+            
+            # Add AI-specific analysis and recommendations
+            echo "## 🤖 AI Auto-Fix Instructions" >> failure-summary.md
+            echo "" >> failure-summary.md
+            
+            if [ "$has_compilation_errors" = "true" ]; then
+              echo "**Primary Issue:** Java compilation errors preventing build completion" >> failure-summary.md
+              echo "**Priority:** CRITICAL - Must fix compilation errors before tests can run" >> failure-summary.md
+              echo "" >> failure-summary.md
+              echo "**Recommended Actions:**" >> failure-summary.md
+              echo "1. Fix annotation syntax errors (especially @WebMvcTest usage)" >> failure-summary.md
+              echo "2. Resolve missing imports or dependency issues" >> failure-summary.md
+              echo "3. Address 'cannot find symbol' errors" >> failure-summary.md
+              echo "4. Ensure proper parameter syntax in annotations" >> failure-summary.md
+            elif [ "${{ steps.core-tests.outcome != 'success' }}" = "true" ] || [ "${{ steps.server-tests.outcome != 'success' }}" = "true" ]; then
+              echo "**Primary Issue:** Test execution failures after successful compilation" >> failure-summary.md
+              echo "**Priority:** HIGH - Fix failing unit tests" >> failure-summary.md
+              echo "" >> failure-summary.md
+              echo "**Recommended Actions:**" >> failure-summary.md
+              echo "1. Review and fix failing test assertions" >> failure-summary.md
+              echo "2. Check test configuration and setup" >> failure-summary.md
+              echo "3. Verify mock configurations and test data" >> failure-summary.md
+              echo "4. Ensure proper test isolation and cleanup" >> failure-summary.md
+            else
+              echo "**Primary Issue:** Build configuration or dependency problems" >> failure-summary.md
+              echo "**Priority:** MEDIUM - Investigate build setup" >> failure-summary.md
+            fi
+            
+            echo "" >> failure-summary.md
+            echo "**Context:** This analysis was generated for PR #${{ github.event.number }} on branch ${{ github.head_ref }}" >> failure-summary.md
+            echo "**Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> failure-summary.md
+            
+            # Also add to step summary (only summary for human readability)
+            echo "## 🤖 AI-Readable Failure Analysis" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "A detailed failure summary has been created for the AI auto-fix workflow." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Quick Summary:**" >> $GITHUB_STEP_SUMMARY
+            if [ "$has_compilation_errors" = "true" ]; then
+              echo "- ❌ **Primary Issue:** Compilation errors in Java code" >> $GITHUB_STEP_SUMMARY
+              echo "- 🎯 **Focus:** Fix annotation syntax and compilation errors" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ **Primary Issue:** Test execution failures" >> $GITHUB_STEP_SUMMARY
+              echo "- 🎯 **Focus:** Fix failing unit tests and assertions" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📄 **Detailed failure summary created:** \`failure-summary.md\`" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**Primary Issue:** Unknown build failure" >> $GITHUB_STEP_SUMMARY
+            echo "✅ All tests and build passed - no failure analysis needed" >> $GITHUB_STEP_SUMMARY
+            echo "COMPILATION_ERRORS_FOUND=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Print Failed Tests and Build Issues
@@ -242,6 +337,7 @@ jobs:
             core-test-output.log
             server-test-output.log
             shadowjar-output.log
+            failure-summary.md
           retention-days: 7
 
       - name: Comment PR with unit test results

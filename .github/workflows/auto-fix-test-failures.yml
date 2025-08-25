@@ -80,22 +80,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - name: Get failure context
+      - name: Download and analyze failure artifacts
         id: get-failure-context
         if: steps.check-failures.outputs.should-fix == 'true'
         run: |
           WORKFLOW_RUN_ID="${{ github.event.workflow_run.id }}"
           BRANCH_NAME="${{ steps.check-failures.outputs.branch-name }}"
           PR_NUMBER="${{ steps.get-pr-info.outputs.pr-number }}"
-          
-          # Get workflow run logs and job details
-          echo "Fetching failure details for workflow run $WORKFLOW_RUN_ID..."
-          
-          # Get jobs for this workflow run
-          JOBS_JSON=$(gh api "repos/${{ github.repository }}/actions/runs/$WORKFLOW_RUN_ID/jobs" --jq '.jobs')
-          
-          # Extract failed job details
-          FAILED_JOBS=$(echo "$JOBS_JSON" | jq -r '.[] | select(.conclusion == "failure") | "\(.name): \(.conclusion)"')
           
           # Get workflow run details
           WORKFLOW_URL="${{ github.event.workflow_run.html_url }}"
@@ -107,32 +98,93 @@ jobs:
             PR_CONTEXT=""
           fi
           
-          # Build failure context using printf for better control
-          FAILURE_CONTEXT=$(printf "%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s\n\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n\n%s\n\n%s" \
-            "## Test Failure Auto-Fix Request" \
-            "**Branch:** $BRANCH_NAME" \
-            "**Workflow:** ${{ github.event.workflow_run.name }}" \
-            "**Workflow Run URL:** $WORKFLOW_URL" \
-            "$PR_CONTEXT" \
-            "**Failed Jobs:**" \
-            "$FAILED_JOBS" \
-            "**Task:** Please analyze the test failures in the above workflow run and fix all failing tests. This is an automated fix request triggered by test failures." \
-            "**Critical Instructions:**" \
-            "1. Access the workflow run logs at the provided URL to understand what tests are failing" \
-            "2. Examine test failure messages, stack traces, and compilation errors" \
-            "3. Fix the underlying code issues causing the test failures" \
-            "4. Ensure ALL tests pass after your changes" \
-            "5. Maintain existing functionality while fixing the issues" \
-            "**Focus Areas:**" \
-            "- Unit test failures and assertion errors" \
-            "- Integration test failures" \
-            "- Compilation errors and missing imports" \
-            "- Missing dependencies or configuration issues" \
-            "- Code style and linting errors" \
-            "- Spring Security configuration issues" \
-            "- OAuth2 service implementation problems" \
-            "**Context:** This is an automated fix for existing PR test failures. The goal is to make all tests pass so the original PR can be merged successfully." \
-            "Please provide a comprehensive fix that addresses all test failures while maintaining code quality and existing functionality.")
+          echo "Fetching failure artifacts for workflow run $WORKFLOW_RUN_ID..."
+          
+          # Download artifacts from the failed workflow run
+          # First, get the list of artifacts for this workflow run
+          ARTIFACTS_JSON=$(gh api "repos/${{ github.repository }}/actions/runs/$WORKFLOW_RUN_ID/artifacts")
+          
+          # Find the unit test results artifact
+          ARTIFACT_ID=$(echo "$ARTIFACTS_JSON" | jq -r '.artifacts[] | select(.name | contains("unit-test-results")) | .id' | head -1)
+          
+          DETAILED_FAILURE_SUMMARY=""
+          if [[ -n "$ARTIFACT_ID" && "$ARTIFACT_ID" != "null" ]]; then
+            echo "Found artifact ID: $ARTIFACT_ID"
+            
+            # Download the artifact
+            gh api "repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID/zip" > artifacts.zip
+            
+            # Extract the zip file
+            unzip -q artifacts.zip
+            
+            # Look for the failure-summary.md file
+            if [[ -f "failure-summary.md" ]]; then
+              echo "Found detailed failure summary!"
+              DETAILED_FAILURE_SUMMARY=$(cat failure-summary.md)
+            else
+              echo "No failure-summary.md found, checking directory contents:"
+              find . -name "*.md" -o -name "*failure*" -o -name "*summary*" | head -10
+              
+              # Fallback: try to extract error information from log files
+              if [[ -f "server-test-output.log" ]]; then
+                echo "Extracting error information from server-test-output.log"
+                # Create a simple error summary from log file
+                echo "# Compilation Errors from Logs" > temp-failure-summary.md
+                echo "" >> temp-failure-summary.md
+                echo "## Server Test Output Errors" >> temp-failure-summary.md
+                echo '```' >> temp-failure-summary.md
+                grep -A 10 -B 5 "error:\|BUILD FAILED\|Compilation failed" server-test-output.log >> temp-failure-summary.md || echo "No specific errors found" >> temp-failure-summary.md
+                echo '```' >> temp-failure-summary.md
+                DETAILED_FAILURE_SUMMARY=$(cat temp-failure-summary.md)
+              fi
+            fi
+          else
+            echo "No artifacts found for workflow run $WORKFLOW_RUN_ID"
+          fi
+          
+          # Create comprehensive failure context
+          if [[ -n "$DETAILED_FAILURE_SUMMARY" ]]; then
+            # Use the detailed failure summary from artifacts
+            FAILURE_CONTEXT=$(printf "%s\n\n%s\n%s\n%s\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n%s\n%s\n%s\n%s\n\n%s" \
+              "## Test Failure Auto-Fix Request with Detailed Analysis" \
+              "**Branch:** $BRANCH_NAME" \
+              "**Workflow:** ${{ github.event.workflow_run.name }}" \
+              "**Workflow Run URL:** $WORKFLOW_URL" \
+              "$PR_CONTEXT" \
+              "**Task:** Fix all test failures and compilation errors based on the detailed analysis below. This is an automated fix request with comprehensive failure information." \
+              "$DETAILED_FAILURE_SUMMARY" \
+              "**Critical Instructions:**" \
+              "1. Review the detailed failure analysis above - it contains all necessary information" \
+              "2. Fix the specific compilation errors and test failures identified" \
+              "3. Focus on the recommended actions provided in the analysis" \
+              "4. Ensure ALL tests pass after your changes" \
+              "5. Maintain existing functionality while fixing the issues" \
+              "**Context:** This is an automated fix with detailed failure analysis. All necessary error information is provided above - no need to check external workflow logs.")
+          else
+            # Fallback to basic context if no detailed summary is available
+            FAILURE_CONTEXT=$(printf "%s\n\n%s\n%s\n%s\n%s\n\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n\n%s" \
+              "## Test Failure Auto-Fix Request" \
+              "**Branch:** $BRANCH_NAME" \
+              "**Workflow:** ${{ github.event.workflow_run.name }}" \
+              "**Workflow Run URL:** $WORKFLOW_URL" \
+              "$PR_CONTEXT" \
+              "**Task:** Please analyze the test failures in the above workflow run and fix all failing tests. This is an automated fix request triggered by test failures." \
+              "**Critical Instructions:**" \
+              "1. Access the workflow run logs at the provided URL to understand what tests are failing" \
+              "2. Examine test failure messages, stack traces, and compilation errors" \
+              "3. Fix the underlying code issues causing the test failures" \
+              "4. Ensure ALL tests pass after your changes" \
+              "5. Maintain existing functionality while fixing the issues" \
+              "**Focus Areas:**" \
+              "- Unit test failures and assertion errors" \
+              "- Integration test failures" \
+              "- Compilation errors and missing imports" \
+              "- Missing dependencies or configuration issues" \
+              "- Code style and linting errors" \
+              "- Spring Security configuration issues" \
+              "- OAuth2 service implementation problems" \
+              "**Context:** This is an automated fix for existing PR test failures. The goal is to make all tests pass so the original PR can be merged successfully.")
+          fi
           
           # Output the failure context and workflow URL
           echo "failure-context<<EOF" >> $GITHUB_OUTPUT
@@ -155,20 +207,26 @@ jobs:
             const branchName = '${{ steps.check-failures.outputs.branch-name }}';
             const workflowUrl = '${{ steps.get-failure-context.outputs.workflow-run-url }}';
             
-            const comment = `🤖 **Auto-fix Triggered**
+            const comment = `🤖 **Auto-fix Triggered with Detailed Analysis**
             
-            Test failures detected on branch \`${branchName}\`. I've automatically triggered the agentic auto-fix workflow to analyze and fix the failing tests.
+            Test failures detected on branch \`${branchName}\`. I've automatically triggered the agentic auto-fix workflow with comprehensive failure analysis.
             
             **Failed Workflow:** [View Logs](${workflowUrl})
             
             The AI will:
-            - 🔍 Analyze the test failure logs at the provided URL
-            - 🛠️ Fix the underlying code issues causing test failures
+            - 📋 Use detailed failure summary with specific error information
+            - 🔍 Analyze compilation errors and test failures from structured data
+            - 🛠️ Fix the underlying code issues based on detailed analysis
             - ✅ Ensure all tests pass after the fixes
             - 🚀 Push fixes directly to this branch
             
+            **Enhanced Features:**
+            - ✨ **No manual log checking required** - All error details are pre-analyzed
+            - 🎯 **Focused fix approach** - Specific compilation errors and recommendations provided
+            - 📊 **Structured error analysis** - File-by-file breakdown of issues
+            
             **What happens next:**
-            The auto-fix workflow will automatically push fixes to this branch. Once complete, tests should pass automatically and this PR will be ready to merge.
+            The auto-fix workflow will automatically push fixes to this branch using the detailed failure analysis. Once complete, tests should pass automatically and this PR will be ready to merge.
             
             You can monitor progress in the [Actions tab](https://github.com/${context.repo.owner}/${context.repo.repo}/actions).`;
             
