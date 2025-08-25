@@ -428,20 +428,20 @@ jobs:
               const serverActuallyPassed = serverTestsSuccess && serverExitCode === '0';
               const shadowJarActuallyPassed = shadowJarSuccess && shadowJarExitCode === '0';
               
-              comment += `- ${coreActuallyPassed ? '✅' : '❌'} **core:unitTests**: ${coreActuallyPassed ? 'PASSED' : `FAILED (exit: ${coreExitCode})`}\n`;
-              comment += `- ${serverActuallyPassed ? '✅' : '❌'} **server:unitTests**: ${serverActuallyPassed ? 'PASSED' : `FAILED (exit: ${serverExitCode})`}\n`;
-              comment += `- ${shadowJarActuallyPassed ? '✅' : '❌'} **shadowJar build**: ${shadowJarActuallyPassed ? 'PASSED' : `FAILED (exit: ${shadowJarExitCode})`}\n`;
+              comment += '- ' + (coreActuallyPassed ? '✅' : '❌') + ' **core:unitTests**: ' + (coreActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + coreExitCode + ')') + '\n';
+              comment += '- ' + (serverActuallyPassed ? '✅' : '❌') + ' **server:unitTests**: ' + (serverActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + serverExitCode + ')') + '\n';
+              comment += '- ' + (shadowJarActuallyPassed ? '✅' : '❌') + ' **shadowJar build**: ' + (shadowJarActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + shadowJarExitCode + ')') + '\n';
               
               // Add debug information
               comment += '\n<details><summary>🔍 Debug Information</summary>\n\n';
               comment += '**Step Outcomes:**\n';
-              comment += `- core-tests outcome: ${coreTestsSuccess ? 'success' : '${{ steps.core-tests.outcome }}'}\n`;
-              comment += `- server-tests outcome: ${serverTestsSuccess ? 'success' : '${{ steps.server-tests.outcome }}'}\n`;
-              comment += `- gradle outcome: ${shadowJarSuccess ? 'success' : '${{ steps.gradle.outcome }}'}\n`;
+              comment += '- core-tests outcome: ' + (coreTestsSuccess ? 'success' : '${{ steps.core-tests.outcome }}') + '\n';
+              comment += '- server-tests outcome: ' + (serverTestsSuccess ? 'success' : '${{ steps.server-tests.outcome }}') + '\n';
+              comment += '- gradle outcome: ' + (shadowJarSuccess ? 'success' : '${{ steps.gradle.outcome }}') + '\n';
               comment += '\n**Exit Codes:**\n';
-              comment += `- core-tests exit code: ${coreExitCode}\n`;
-              comment += `- server-tests exit code: ${serverExitCode}\n`;
-              comment += `- shadowJar exit code: ${shadowJarExitCode}\n`;
+              comment += '- core-tests exit code: ' + coreExitCode + '\n';
+              comment += '- server-tests exit code: ' + serverExitCode + '\n';
+              comment += '- shadowJar exit code: ' + shadowJarExitCode + '\n';
               comment += '\n</details>\n';
               
               // Add AI-friendly compilation error analysis
@@ -452,14 +452,14 @@ jobs:
                 
                 if (errorSummary) {
                   comment += '**Error Types:**\n';
-                  comment += `\`\`\`\n${errorSummary}\n\`\`\`\n\n`;
+                  comment += '```\n' + errorSummary + '\n```\n\n';
                 }
                 
                 if (failedFiles) {
                   comment += '**Files requiring fixes:**\n';
                   const files = failedFiles.split(' ').filter(f => f.trim());
                   files.forEach(file => {
-                    if (file.trim()) comment += `- \`${file.trim()}\`\n`;
+                    if (file.trim()) comment += '- `' + file.trim() + '`\n';
                   });
                   comment += '\n';
                 }
