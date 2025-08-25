@@ -93,8 +93,29 @@ runs:
           echo "🚀 Skipping browser download - using cached browsers"
         else
           echo "📥 Installing Playwright browsers and system dependencies..."
-          # Install browsers with system dependencies
-          npx playwright install --with-deps chromium
+          
+          # Set non-interactive mode to prevent hanging
+          export DEBIAN_FRONTEND=noninteractive
+          export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+          
+          # Install system dependencies first with proper options
+          echo "🔧 Installing system dependencies..."
+          timeout 300 sudo apt-get update -qq
+          timeout 600 sudo apt-get install -y -qq --no-install-recommends \
+            libnss3-dev \
+            libatk-bridge2.0-dev \
+            libdrm2 \
+            libxkbcommon-dev \
+            libxcomposite-dev \
+            libxdamage-dev \
+            libxrandr-dev \
+            libgbm-dev \
+            libxss1 \
+            libasound2-dev
+          
+          # Install browsers without system deps (since we handled them above)
+          echo "📥 Installing Playwright browsers..."
+          timeout 600 npx playwright install chromium
           echo "✅ Playwright browser installation completed"
         fi
         
@@ -107,5 +128,6 @@ runs:
     - name: Install xmllint
       shell: bash
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libxml2-utils
+        export DEBIAN_FRONTEND=noninteractive
+        timeout 300 sudo apt-get update -qq
+        timeout 300 sudo apt-get install -y -qq --no-install-recommends libxml2-utils
