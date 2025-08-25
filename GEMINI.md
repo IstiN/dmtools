@@ -127,6 +127,31 @@ When creating or modifying CI workflows, use clear module-specific step names:
 - Better PR comments with module-specific results
 - Simplified debugging and troubleshooting
 
+#### **AI-Friendly Workflow Analysis:**
+The `pr-unit-tests.yml` workflow is enhanced for AI analysis and auto-fix capabilities:
+
+**🤖 Compilation Error Detection:**
+- Automatic detection of compilation errors in build logs
+- Structured extraction of error types, file paths, and line numbers
+- Clear differentiation between compilation vs test execution failures
+
+**📋 AI-Readable Summaries:**
+- `🔍 Analyze Compilation Errors for AI` step creates structured failure analysis
+- GitHub Step Summary includes `🤖 AI-Readable Failure Analysis` section
+- PR comments include `🤖 AI Analysis` section with actionable guidance
+
+**📥 Enhanced Artifacts:**
+- Build logs captured for AI analysis (core-test-output.log, server-test-output.log, shadowjar-output.log)
+- Detailed compilation errors preserved with full context
+- Downloadable artifacts for offline AI analysis
+
+**🎯 Smart Prioritization:**
+- Compilation errors marked as HIGH priority (block all testing)
+- Test failures handled separately after successful compilation
+- Clear messaging about root cause vs symptoms
+
+This enables Gemini AI to automatically understand and fix build failures with minimal human intervention.
+
 **Required format:** `moduleName:testType` for test steps (e.g., `core:unitTests`, `server:integrationTests`)
 
 ## How to Work with Java in DMTools (CRITICAL INSTRUCTIONS)
