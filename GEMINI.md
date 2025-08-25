@@ -106,6 +106,29 @@ List<ClientRegistration> registrations = Arrays.asList(testRegistration);
 - Never hardcode Java versions in workflows
 - Reusable workflows should remain language-agnostic
 
+#### **Workflow Step Naming Conventions:**
+When creating or modifying CI workflows, use clear module-specific step names:
+
+```yaml
+# ✅ GOOD: Clear module identification
+- name: 🧪 core:unitTests
+  run: ./gradlew :dmtools-core:test
+
+- name: 🧪 server:unitTests  
+  run: ./gradlew :dmtools-server:test
+
+- name: 📦 Build core shadow JAR
+  run: ./gradlew :dmtools-core:shadowJar
+```
+
+**Benefits:**
+- Easy identification of which module failed
+- Clear CI job status visibility
+- Better PR comments with module-specific results
+- Simplified debugging and troubleshooting
+
+**Required format:** `moduleName:testType` for test steps (e.g., `core:unitTests`, `server:integrationTests`)
+
 ## How to Work with Java in DMTools (CRITICAL INSTRUCTIONS)
 
 ### 🔥 MANDATORY Java Commands - ALWAYS USE THESE:

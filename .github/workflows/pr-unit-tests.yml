@@ -25,10 +25,29 @@ jobs:
         with:
           cache-key-suffix: '-unit-tests'
 
-      - name: Run unit tests and build
+      - name: 🧹 Clean build directories
+        run: ./gradlew clean
+        
+      - name: 🧪 core:unitTests
+        id: core-tests
+        continue-on-error: true
+        run: ./gradlew :dmtools-core:test -x integrationTest
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: 🧪 server:unitTests  
+        id: server-tests
+        continue-on-error: true
+        run: ./gradlew :dmtools-server:test -x integrationTest
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: 📦 Build core shadow JAR
         id: gradle
         continue-on-error: true
-        run: ./gradlew clean :dmtools-core:test :dmtools-server:test :dmtools-core:shadowJar -x integrationTest
+        run: ./gradlew :dmtools-core:shadowJar
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,18 +112,22 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const gradleSuccess = '${{ steps.gradle.outcome }}' === 'success';
+            const coreTestsSuccess = '${{ steps.core-tests.outcome }}' === 'success';
+            const serverTestsSuccess = '${{ steps.server-tests.outcome }}' === 'success';
+            const buildSuccess = '${{ steps.gradle.outcome }}' === 'success';
             
             let comment = '## 🧪 Unit Test Results\n\n';
             
-            if (gradleSuccess) {
+            if (coreTestsSuccess && serverTestsSuccess && buildSuccess) {
               comment += '✅ **All unit tests passed!**\n\n';
-              comment += '- ✅ dmtools-core tests: PASSED\n';
-              comment += '- ✅ dmtools-server tests: PASSED\n';
-              comment += '- ✅ Build: PASSED\n';
+              comment += '- ✅ **core:unitTests**: PASSED\n';
+              comment += '- ✅ **server:unitTests**: PASSED\n';
+              comment += '- ✅ **Build**: PASSED\n';
             } else {
-              comment += '❌ **Unit tests failed**\n\n';
-              comment += `- ❌ Unit tests: Check individual module results below\n`;
+              comment += '❌ **Unit tests or build failed**\n\n';
+              comment += `- ${coreTestsSuccess ? '✅' : '❌'} **core:unitTests**: ${coreTestsSuccess ? 'PASSED' : 'FAILED'}\n`;
+              comment += `- ${serverTestsSuccess ? '✅' : '❌'} **server:unitTests**: ${serverTestsSuccess ? 'PASSED' : 'FAILED'}\n`;
+              comment += `- ${buildSuccess ? '✅' : '❌'} **Build**: ${buildSuccess ? 'PASSED' : 'FAILED'}\n`;
               comment += '\n📋 Check the workflow run for detailed test results and artifacts.\n';
             }
             
@@ -143,53 +166,65 @@ jobs:
           echo "🔍 Debug: Test files found = $test_files_count"
           echo "🔍 Debug: Failed tests found = $failed_tests_found"
           
-          if [ "${{ steps.gradle.outcome }}" = "success" ]; then
-            echo "✅ **Unit tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
+          # Check outcomes of all test and build steps
+          core_success="${{ steps.core-tests.outcome }}"
+          server_success="${{ steps.server-tests.outcome }}"
+          build_success="${{ steps.gradle.outcome }}"
+          
+          if [ "$core_success" = "success" ] && [ "$server_success" = "success" ] && [ "$build_success" = "success" ]; then
+            echo "✅ **All tests and build passed successfully!**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ **Unit tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **core:unitTests**: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **server:unitTests**: PASSED" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ **Build**: PASSED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The PR is ready for review." >> $GITHUB_STEP_SUMMARY
-            echo "✅ All tests passed - workflow succeeds"
+            echo "✅ All tests and build passed - workflow succeeds"
           else
-            # Gradle step failed - be more conservative about when to pass
-            echo "🔍 Debug: Gradle step failed, analyzing failure type..."
+            # One or more steps failed - analyze which ones
+            echo "🔍 Debug: Some steps failed - core: $core_success, server: $server_success, build: $build_success"
+            
+            # Show detailed status for each step
+            echo "❌ **Tests or build failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "$core_success" = "success" ]; then
+              echo "- ✅ **core:unitTests**: PASSED" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ **core:unitTests**: FAILED" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            if [ "$server_success" = "success" ]; then
+              echo "- ✅ **server:unitTests**: PASSED" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ **server:unitTests**: FAILED" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            if [ "$build_success" = "success" ]; then
+              echo "- ✅ **Build**: PASSED" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ **Build**: FAILED" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
             
             if [ "$failed_tests_found" = "true" ]; then
-              echo "❌ **Unit tests failed**" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "- ❌ **Unit tests**: FAILED (detected in test results)" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Issue:** Unit test failures detected in test results." >> $GITHUB_STEP_SUMMARY
               echo "Please fix the failing unit tests before merging." >> $GITHUB_STEP_SUMMARY
               echo "❌ Tests failed - failing workflow"
               exit 1
-            elif [ "$test_files_count" -eq 0 ]; then
-              echo "❌ **Build failed - no test results**" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "- ❌ **Build**: Failed before tests could run" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "Please check the build logs for compilation or setup errors." >> $GITHUB_STEP_SUMMARY
-              echo "❌ No test results found - failing workflow"
-              exit 1
             else
-              # CRITICAL: If gradle step failed with exit code 1, we should NOT pass
-              # This could be compilation errors, dependency issues, or other serious problems
-              echo "❌ **Build failed**" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "- ❌ **Build**: Failed with exit code 1" >> $GITHUB_STEP_SUMMARY
-              if [ "$test_files_count" -gt 0 ]; then
-                echo "- 📋 **Note**: $test_files_count test files found, but gradle step failed" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "- 📋 **Note**: No test files found" >> $GITHUB_STEP_SUMMARY
-              fi
+              # Any step failure means workflow should fail
+              echo "**Issue:** One or more steps failed. Check the build logs for specific details." >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Common causes:**" >> $GITHUB_STEP_SUMMARY
               echo "- Compilation errors in Java code" >> $GITHUB_STEP_SUMMARY
+              echo "- Unit test failures" >> $GITHUB_STEP_SUMMARY
               echo "- Missing dependencies or classpath issues" >> $GITHUB_STEP_SUMMARY
               echo "- Build configuration problems" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "Please check the build logs for specific error details." >> $GITHUB_STEP_SUMMARY
-              echo "❌ Build failed - failing workflow (gradle exit code 1 means serious error)"
+              echo "Please fix the issues before merging." >> $GITHUB_STEP_SUMMARY
+              echo "❌ Steps failed - failing workflow"
               exit 1
             fi
           fi
