@@ -24,6 +24,7 @@ jobs:
         uses: ./.github/actions/setup-environment
         with:
           cache-key-suffix: '-unit-tests'
+          install-playwright: 'false'
 
       - name: 🧹 Clean build directories
         run: ./gradlew clean

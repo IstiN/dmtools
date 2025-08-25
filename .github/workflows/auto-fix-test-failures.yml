@@ -249,6 +249,9 @@ jobs:
       workflow_run_url: ${{ needs.check-test-failures.outputs.workflow-run-url }}
       pr_number: ${{ needs.check-test-failures.outputs.pr-number }}
       
+      # Gemini model configuration
+      model: 'gemini-2.5-flash-lite'
+      
       # Project-specific customizations
       custom_rules_file: 'test-fixing-rules.md'
       

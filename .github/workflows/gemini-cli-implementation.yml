@@ -12,8 +12,9 @@ on:
         description: 'Gemini model to use'
         required: false
         type: choice
-        default: 'gemini-2.5-flash-preview-05-20'
+        default: 'gemini-2.5-flash-lite'
         options:
+          - gemini-2.5-flash-lite
           - gemini-2.0-flash-exp
           - gemini-1.5-pro-latest
           - gemini-1.5-flash-latest
