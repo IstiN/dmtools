@@ -33,9 +33,17 @@ jobs:
         continue-on-error: true
         run: |
           set +e  # Don't exit on error, we want to capture the exit code
+          
+          # Use bash PIPEFAIL to get the correct exit code when using tee
+          set -o pipefail
+          
+          # Run gradle and capture both output and exit code properly
           ./gradlew :dmtools-core:test -x integrationTest 2>&1 | tee core-test-output.log
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}  # Get exit code from gradle, not tee
+          
           echo "CORE_EXIT_CODE=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "🔍 Debug: Gradle core test exit code = $EXIT_CODE"
+          
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ Core tests failed with exit code $EXIT_CODE"
             exit $EXIT_CODE  # This will make the step fail but continue-on-error allows workflow to continue
@@ -51,9 +59,17 @@ jobs:
         continue-on-error: true
         run: |
           set +e  # Don't exit on error, we want to capture the exit code
+          
+          # Use bash PIPEFAIL to get the correct exit code when using tee
+          set -o pipefail
+          
+          # Run gradle and capture both output and exit code properly
           ./gradlew :dmtools-server:test -x integrationTest 2>&1 | tee server-test-output.log
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}  # Get exit code from gradle, not tee
+          
           echo "SERVER_EXIT_CODE=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "🔍 Debug: Gradle server test exit code = $EXIT_CODE"
+          
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ Server tests failed with exit code $EXIT_CODE"
             exit $EXIT_CODE  # This will make the step fail but continue-on-error allows workflow to continue
@@ -69,9 +85,17 @@ jobs:
         continue-on-error: true
         run: |
           set +e  # Don't exit on error, we want to capture the exit code
+          
+          # Use bash PIPEFAIL to get the correct exit code when using tee
+          set -o pipefail
+          
+          # Run gradle and capture both output and exit code properly
           ./gradlew :dmtools-core:shadowJar 2>&1 | tee shadowjar-output.log
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}  # Get exit code from gradle, not tee
+          
           echo "SHADOW_JAR_EXIT_CODE=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "🔍 Debug: Gradle shadow JAR exit code = $EXIT_CODE"
+          
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ Shadow JAR build failed with exit code $EXIT_CODE"
             exit $EXIT_CODE  # This will make the step fail but continue-on-error allows workflow to continue
