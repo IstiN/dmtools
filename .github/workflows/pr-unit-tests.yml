@@ -32,7 +32,16 @@ jobs:
         id: core-tests
         continue-on-error: true
         run: |
+          set +e  # Don't exit on error, we want to capture the exit code
           ./gradlew :dmtools-core:test -x integrationTest 2>&1 | tee core-test-output.log
+          EXIT_CODE=$?
+          echo "CORE_EXIT_CODE=$EXIT_CODE" >> $GITHUB_OUTPUT
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ Core tests failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE  # This will make the step fail but continue-on-error allows workflow to continue
+          else
+            echo "✅ Core tests passed"
+          fi
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -41,7 +50,16 @@ jobs:
         id: server-tests
         continue-on-error: true
         run: |
+          set +e  # Don't exit on error, we want to capture the exit code
           ./gradlew :dmtools-server:test -x integrationTest 2>&1 | tee server-test-output.log
+          EXIT_CODE=$?
+          echo "SERVER_EXIT_CODE=$EXIT_CODE" >> $GITHUB_OUTPUT
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ Server tests failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE  # This will make the step fail but continue-on-error allows workflow to continue
+          else
+            echo "✅ Server tests passed"
+          fi
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -50,7 +68,16 @@ jobs:
         id: gradle
         continue-on-error: true
         run: |
+          set +e  # Don't exit on error, we want to capture the exit code
           ./gradlew :dmtools-core:shadowJar 2>&1 | tee shadowjar-output.log
+          EXIT_CODE=$?
+          echo "SHADOW_JAR_EXIT_CODE=$EXIT_CODE" >> $GITHUB_OUTPUT
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ Shadow JAR build failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE  # This will make the step fail but continue-on-error allows workflow to continue
+          else
+            echo "✅ Shadow JAR build passed"
+          fi
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -352,8 +379,14 @@ jobs:
             const errorSummary = '${{ steps.analyze-compilation.outputs.ERROR_SUMMARY }}';
             const failedFiles = '${{ steps.analyze-compilation.outputs.FAILED_FILES }}';
             
-            // Overall build success requires ALL steps to pass (including compilation)
-            const overallBuildSuccess = coreTestsSuccess && serverTestsSuccess && shadowJarSuccess;
+            // Check exit codes for more accurate status determination
+            const coreExitCode = '${{ steps.core-tests.outputs.CORE_EXIT_CODE || '0' }}';
+            const serverExitCode = '${{ steps.server-tests.outputs.SERVER_EXIT_CODE || '0' }}';
+            const shadowJarExitCode = '${{ steps.gradle.outputs.SHADOW_JAR_EXIT_CODE || '0' }}';
+            
+            // Overall build success requires ALL steps to pass AND have exit code 0
+            const overallBuildSuccess = coreTestsSuccess && serverTestsSuccess && shadowJarSuccess && 
+                                       coreExitCode === '0' && serverExitCode === '0' && shadowJarExitCode === '0';
             
             let comment = '## 🧪 Unit Test Results\n\n';
             
@@ -364,9 +397,27 @@ jobs:
               comment += '- ✅ **Build**: PASSED\n';
             } else {
               comment += '❌ **Unit tests or build failed**\n\n';
-              comment += `- ${coreTestsSuccess ? '✅' : '❌'} **core:unitTests**: ${coreTestsSuccess ? 'PASSED' : 'FAILED'}\n`;
-              comment += `- ${serverTestsSuccess ? '✅' : '❌'} **server:unitTests**: ${serverTestsSuccess ? 'PASSED' : 'FAILED'}\n`;
-              comment += `- ❌ **Build**: FAILED (compilation or build issues)\n`;
+              
+              // More detailed status with exit codes
+              const coreActuallyPassed = coreTestsSuccess && coreExitCode === '0';
+              const serverActuallyPassed = serverTestsSuccess && serverExitCode === '0';
+              const shadowJarActuallyPassed = shadowJarSuccess && shadowJarExitCode === '0';
+              
+              comment += `- ${coreActuallyPassed ? '✅' : '❌'} **core:unitTests**: ${coreActuallyPassed ? 'PASSED' : `FAILED (exit: ${coreExitCode})`}\n`;
+              comment += `- ${serverActuallyPassed ? '✅' : '❌'} **server:unitTests**: ${serverActuallyPassed ? 'PASSED' : `FAILED (exit: ${serverExitCode})`}\n`;
+              comment += `- ${shadowJarActuallyPassed ? '✅' : '❌'} **shadowJar build**: ${shadowJarActuallyPassed ? 'PASSED' : `FAILED (exit: ${shadowJarExitCode})`}\n`;
+              
+              // Add debug information
+              comment += '\n<details><summary>🔍 Debug Information</summary>\n\n';
+              comment += '**Step Outcomes:**\n';
+              comment += `- core-tests outcome: ${coreTestsSuccess ? 'success' : '${{ steps.core-tests.outcome }}'}\n`;
+              comment += `- server-tests outcome: ${serverTestsSuccess ? 'success' : '${{ steps.server-tests.outcome }}'}\n`;
+              comment += `- gradle outcome: ${shadowJarSuccess ? 'success' : '${{ steps.gradle.outcome }}'}\n`;
+              comment += '\n**Exit Codes:**\n';
+              comment += `- core-tests exit code: ${coreExitCode}\n`;
+              comment += `- server-tests exit code: ${serverExitCode}\n`;
+              comment += `- shadowJar exit code: ${shadowJarExitCode}\n`;
+              comment += '\n</details>\n';
               
               // Add AI-friendly compilation error analysis
               if (compilationErrorsFound) {
@@ -441,15 +492,23 @@ jobs:
           echo "🔍 Debug: Test files found = $test_files_count"
           echo "🔍 Debug: Failed tests found = $failed_tests_found"
           
-          # Check outcomes of all test and build steps
+          # Check outcomes and exit codes of all test and build steps
           core_success="${{ steps.core-tests.outcome }}"
           server_success="${{ steps.server-tests.outcome }}"
           shadow_jar_success="${{ steps.gradle.outcome }}"
           
-          # Overall build is successful only if ALL compilation and build steps pass
-          # If core-tests or server-tests fail due to compilation, overall build failed
+          # Also check the actual exit codes from gradle commands
+          core_exit_code="${{ steps.core-tests.outputs.CORE_EXIT_CODE || '0' }}"
+          server_exit_code="${{ steps.server-tests.outputs.SERVER_EXIT_CODE || '0' }}"
+          shadow_jar_exit_code="${{ steps.gradle.outputs.SHADOW_JAR_EXIT_CODE || '0' }}"
+          
+          echo "🔍 Debug: Exit codes - core: $core_exit_code, server: $server_exit_code, shadowJar: $shadow_jar_exit_code"
+          echo "🔍 Debug: Step outcomes - core: $core_success, server: $server_success, shadowJar: $shadow_jar_success"
+          
+          # Overall build is successful only if ALL steps pass AND have exit code 0
           overall_build_success="success"
-          if [ "$core_success" != "success" ] || [ "$server_success" != "success" ] || [ "$shadow_jar_success" != "success" ]; then
+          if [ "$core_success" != "success" ] || [ "$server_success" != "success" ] || [ "$shadow_jar_success" != "success" ] || 
+             [ "$core_exit_code" != "0" ] || [ "$server_exit_code" != "0" ] || [ "$shadow_jar_exit_code" != "0" ]; then
             overall_build_success="failure"
           fi
           
@@ -467,27 +526,34 @@ jobs:
             echo "✅ All tests and build passed - workflow succeeds"
           else
             # One or more steps failed - analyze which ones
-            echo "🔍 Debug: Some steps failed - core: $core_success, server: $server_success, shadowJar: $shadow_jar_success"
+            echo "🔍 Debug: Build failed - step outcomes: core=$core_success, server=$server_success, shadowJar=$shadow_jar_success"
+            echo "🔍 Debug: Exit codes: core=$core_exit_code, server=$server_exit_code, shadowJar=$shadow_jar_exit_code"
             echo "🔍 Debug: Compilation errors found: $compilation_errors_found"
             
             # Show detailed status for each step
             echo "❌ **Tests or build failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
-            if [ "$core_success" = "success" ]; then
+            # Core tests status
+            if [ "$core_success" = "success" ] && [ "$core_exit_code" = "0" ]; then
               echo "- ✅ **core:unitTests**: PASSED" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- ❌ **core:unitTests**: FAILED" >> $GITHUB_STEP_SUMMARY
+              echo "- ❌ **core:unitTests**: FAILED (outcome: $core_success, exit code: $core_exit_code)" >> $GITHUB_STEP_SUMMARY
             fi
             
-            if [ "$server_success" = "success" ]; then
+            # Server tests status
+            if [ "$server_success" = "success" ] && [ "$server_exit_code" = "0" ]; then
               echo "- ✅ **server:unitTests**: PASSED" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- ❌ **server:unitTests**: FAILED" >> $GITHUB_STEP_SUMMARY
+              echo "- ❌ **server:unitTests**: FAILED (outcome: $server_success, exit code: $server_exit_code)" >> $GITHUB_STEP_SUMMARY
             fi
             
-            # Build status should reflect overall compilation success
-            echo "- ❌ **Build**: FAILED (due to compilation or build issues)" >> $GITHUB_STEP_SUMMARY
+            # Shadow JAR build status  
+            if [ "$shadow_jar_success" = "success" ] && [ "$shadow_jar_exit_code" = "0" ]; then
+              echo "- ✅ **shadowJar build**: PASSED" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ **shadowJar build**: FAILED (outcome: $shadow_jar_success, exit code: $shadow_jar_exit_code)" >> $GITHUB_STEP_SUMMARY
+            fi
             
             echo "" >> $GITHUB_STEP_SUMMARY
             
