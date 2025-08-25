@@ -1,0 +1,35 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../dmtools-agentic-workflows"
+		},
+		{
+			"path": "../cursor_demo/gemini-cli"
+		}
+	],
+	"settings": {
+		"java.debug.settings.onBuildFailureProceed": true,
+		"java.import.gradle.enabled": true,
+		"java.import.gradle.wrapper.enabled": true,
+		"java.configuration.updateBuildConfiguration": "automatic",
+		"spring-boot.ls.checkJVM": false,
+		"java.compile.nullAnalysis.mode": "automatic",
+		"files.associations": {
+			"*.gradle": "gradle",
+			"*.yaml": "yaml",
+			"*.yml": "yaml"
+		},
+		"java.project.sourcePaths": [
+			"dmtools-core/src/main/java",
+			"dmtools-server/src/main/java"
+		],
+		"java.debug.settings.enableRunDebugCodeLens": true,
+		"java.debug.settings.showHex": false,
+		"java.debug.settings.showStaticVariables": false,
+		"java.debug.settings.showQualifiedNames": false,
+		"java.configuration.maven.userSettings": null
+	}
+}
