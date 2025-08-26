@@ -41,7 +41,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         logger.info("🔍 OAuth2 User Service - Loading user from provider: {}", registrationId);
         
         try {
-            OAuth2User oauth2User = super.loadUser(userRequest);
+            OAuth2User oauth2User = callSuperLoadUser(userRequest);
             logger.info("✅ OAuth2 User Service - Successfully loaded user from provider: {}", registrationId);
             logger.info("🔍 OAuth2 User Service - User attributes: {}", oauth2User.getAttributes());
             
@@ -263,5 +263,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             default:
                 return (String) attributes.get("id");
         }
+    }
+    
+    // Protected method for testing
+    protected OAuth2User callSuperLoadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        return super.loadUser(userRequest);
     }
 }
