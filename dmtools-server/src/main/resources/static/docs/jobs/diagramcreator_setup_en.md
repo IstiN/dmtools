@@ -36,15 +36,14 @@ This document provides instructions on how to set up and use the DiagramCreator 
 
 To generate a diagram for stories in the 'DMC' project:
 
-```bash
 curl -X POST https://your-dmtools-url/api/v1/jobs/execute \
      -H "Content-Type: application/json" \
-     -d 
-{
+     -d '{
            "jobType": "DiagramCreator", 
            "configParams": {
              "storiesJql": "project = DMC AND type = Story",
              "labelNameToMarkAsReviewed": "diagrams-generated"
            }
+         }'
          }
 ```
