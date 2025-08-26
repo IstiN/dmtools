@@ -1,0 +1,48 @@
+{
+  "type": "DiagramCreator",
+  "displayName": "AI Diagram Generator", 
+  "description": "Generates technical diagrams for tickets using AI analysis of ticket context and relationships",
+  "categories": ["AI", "Diagram", "Documentation"],
+  "executionModes": ["STANDALONE", "SERVER_MANAGED"],
+  "requiredIntegrations": ["TrackerClient", "AI"],
+  "optionalIntegrations": [],
+  "iconUrl": "/img/jobs/diagram-icon.svg",
+  "setupDocumentation": {
+    "en": "/docs/jobs/diagramcreator_setup_en.md"
+  },
+  "configParams": [
+    {
+      "key": "storiesJql",
+      "displayName": "Stories Query (JQL)",
+      "description": "JQL query to select tickets for diagram generation",
+      "required": true,
+      "inputType": "text",
+      "validation": {"pattern": "^.+$"},
+      "examples": ["project = DMC AND type = Story", "key = DMC-123"]
+    },
+    {
+      "key": "labelNameToMarkAsReviewed", 
+      "displayName": "Review Label",
+      "description": "Label to add after diagram generation",
+      "required": false,
+      "inputType": "text",
+      "examples": ["diagrams-generated", "reviewed"]
+    },
+    {
+      "key": "roleSpecific",
+      "displayName": "Role Context",
+      "description": "Role-specific context for diagram generation",
+      "required": false,
+      "inputType": "text",
+      "examples": ["Technical Architect", "Business Analyst"]
+    },
+    {
+      "key": "projectSpecific",
+      "displayName": "Project Context", 
+      "description": "Project-specific context for diagrams",
+      "required": false,
+      "inputType": "text",
+      "examples": ["E-commerce Platform", "Mobile Banking App"]
+    }
+  ]
+}
