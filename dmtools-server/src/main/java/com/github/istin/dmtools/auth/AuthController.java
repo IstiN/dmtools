@@ -1,21 +1,25 @@
 package com.github.istin.dmtools.auth;
 
 import com.github.istin.dmtools.auth.config.AuthConfigProperties;
+import com.github.istin.dmtools.auth.dto.*;
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.Optional;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,6 +27,7 @@ import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "User authentication and authorization endpoints")
 public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
@@ -66,14 +71,31 @@ public class AuthController {
                 .body(Map.of("message", "Login successful"));
     }
 
+    @GetMapping("/protected")
+    @Operation(summary = "Protected test endpoint", description = "Test endpoint that requires authentication")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Access granted",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Access denied - authentication required",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<MessageResponse> protectedEndpoint() {
+        return ResponseEntity.ok(new MessageResponse("This is a protected endpoint"));
+    }
+
     @GetMapping("/user")
-    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+    @Operation(summary = "Get current authenticated user", description = "Returns information about the currently authenticated user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "User information retrieved successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserResponse.class)))
+    })
+    public ResponseEntity<AuthUserResponse> getCurrentUser(Authentication authentication) {
         logger.info("🔍 AUTH DEBUG - getCurrentUser called, authentication: {}", 
                    authentication != null ? authentication.getClass().getSimpleName() : "null");
         
         if (authentication == null || !authentication.isAuthenticated()) {
             logger.info("🔍 AUTH DEBUG - No authentication or not authenticated");
-            return ResponseEntity.ok(Map.of("authenticated", false));
+            return ResponseEntity.ok(new AuthUserResponse(false));
         }
 
         Object principal = authentication.getPrincipal();
@@ -139,13 +161,13 @@ public class AuthController {
         } else if (authentication instanceof com.github.istin.dmtools.auth.PlaceholderAuthentication) {
             // Handle PlaceholderAuthentication during OAuth flow
             logger.info("🔍 AUTH DEBUG - PlaceholderAuthentication detected, authentication still in progress");
-            return ResponseEntity.ok(Map.of("authenticated", false, "message", "Authentication in progress"));
+            return ResponseEntity.ok(new AuthUserResponse(false));
         } else if (principal instanceof String) {
             // Handle String principals, but check if it's a placeholder
             String principalStr = (String) principal;
             if (principalStr.startsWith("placeholder_")) {
                 logger.info("🔍 AUTH DEBUG - Placeholder principal detected: {}", principalStr);
-                return ResponseEntity.ok(Map.of("authenticated", false, "message", "Authentication in progress"));
+                return ResponseEntity.ok(new AuthUserResponse(false));
             }
             email = principalStr;
             logger.info("🔍 AUTH DEBUG - String principal email: {}", email);
@@ -155,32 +177,33 @@ public class AuthController {
         if (user != null) {
             logger.info("✅ AUTH DEBUG - User found: {}, picture: {}", user.getEmail(), user.getPictureUrl());
 
-            Map<String, Object> userMap = new java.util.HashMap<>();
-            userMap.put("authenticated", true);
-            userMap.put("id", user.getId());
-            if (user.getEmail() != null) userMap.put("email", user.getEmail());
-            if (user.getName() != null) userMap.put("name", user.getName());
-            if (user.getGivenName() != null) userMap.put("givenName", user.getGivenName());
-            if (user.getFamilyName() != null) userMap.put("familyName", user.getFamilyName());
-            if (user.getPictureUrl() != null) {
-                userMap.put("pictureUrl", user.getPictureUrl());
-                userMap.put("picture", user.getPictureUrl()); // For backward compatibility
-            }
-            if (user.getProvider() != null) userMap.put("provider", user.getProvider());
+            AuthUserResponse response = new AuthUserResponse(true);
+            response.setId(user.getId());
+            response.setEmail(user.getEmail());
+            response.setName(user.getName());
+            response.setGivenName(user.getGivenName());
+            response.setFamilyName(user.getFamilyName());
+            response.setPictureUrl(user.getPictureUrl());
+            response.setProvider(user.getProvider() != null ? user.getProvider().toString() : null);
             
             // Add role information
             String userRole = userService.getUserRole(user);
-            userMap.put("role", userRole);
+            response.setRole(userRole);
 
-            return ResponseEntity.ok(userMap);
+            return ResponseEntity.ok(response);
         }
 
         logger.warn("❌ AUTH DEBUG - No user found for email: {}", email);
-        return ResponseEntity.ok(Map.of("authenticated", false));
+        return ResponseEntity.ok(new AuthUserResponse(false));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(jakarta.servlet.http.HttpServletRequest request) {
+    @Operation(summary = "Logout user", description = "Invalidates the user session and logs out the user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Logout successful",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageResponse.class)))
+    })
+    public ResponseEntity<MessageResponse> logout(jakarta.servlet.http.HttpServletRequest request) {
         // Invalidate the session
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         if (session != null) {
@@ -190,25 +213,34 @@ public class AuthController {
             logger.info("🔍 AUTH DEBUG - No session to invalidate");
         }
         
-        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+        return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
     }
 
     @PostMapping("/local-login")
-    public ResponseEntity<?> localLogin(@RequestBody Map<String, String> body, HttpServletResponse response) {
-        logger.info("🔍 LOCAL AUTH - Login attempt for user: {}", body.get("username"));
+    @Operation(summary = "Local login", description = "Authenticate user with local credentials (standalone mode only)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Login successful",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = LocalLoginResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Invalid credentials",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Local auth disabled",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<?> localLogin(@RequestBody LocalLoginRequest body, HttpServletResponse response) {
+        logger.info("🔍 LOCAL AUTH - Login attempt for user: {}", body.getUsername());
         logger.info("🔍 LOCAL AUTH - Local standalone mode: {}", authConfigProperties.isLocalStandaloneMode());
 
         if (!authConfigProperties.isLocalStandaloneMode()) {
             logger.warn("❌ LOCAL AUTH - Local auth is disabled as not in standalone mode");
-            return ResponseEntity.status(403).body(Map.of("error", "Local auth disabled"));
+            return ResponseEntity.status(403).body(new ErrorResponse("Local auth disabled"));
         }
         
-        String username = body.get("username");
-        String password = body.get("password");
+        String username = body.getUsername();
+        String password = body.getPassword();
 
         if (!authConfigProperties.getAdminUsername().equals(username) || !authConfigProperties.getAdminPassword().equals(password)) {
             logger.warn("❌ LOCAL AUTH - Invalid credentials for user: {}", username);
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+            return ResponseEntity.status(401).body(new ErrorResponse("Invalid credentials"));
         }
         
         try {
@@ -244,103 +276,33 @@ public class AuthController {
             // Get user role with fallback protection
             String userRole = userService.getUserRole(user);
             
-            return ResponseEntity.ok(Map.of(
-                "token", jwt,
-                "user", Map.of(
-                    "id", user.getId(), 
-                    "email", email, 
-                    "name", username, 
-                    "provider", "LOCAL",
-                    "role", userRole != null ? userRole : "REGULAR_USER",
-                    "authenticated", true
-                )
-            ));
+            LocalLoginResponse.UserInfo userInfo = new LocalLoginResponse.UserInfo(
+                user.getId(),
+                email,
+                username,
+                "LOCAL",
+                userRole != null ? userRole : "REGULAR_USER",
+                true
+            );
+            
+            return ResponseEntity.ok(new LocalLoginResponse(jwt, userInfo));
         } catch (Exception e) {
             logger.error("❌ LOCAL AUTH - Error during login: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of("error", "Login failed: " + e.getMessage()));
+            return ResponseEntity.status(500).body(new ErrorResponse("Login failed: " + e.getMessage()));
         }
-    }
-
-    @GetMapping("/test-jwt")
-    public ResponseEntity<?> testJwt(org.springframework.security.core.Authentication authentication) {
-        logger.info("🔍 TEST JWT - testJwt called");
-        
-        if (authentication == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "No authentication"));
-        }
-        
-        if (!authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
-        }
-        
-        Object principal = authentication.getPrincipal();
-        logger.info("✅ TEST JWT - Principal type: {}", principal.getClass().getName());
-        
-        if (principal instanceof User) {
-            User user = (User) principal;
-            return ResponseEntity.ok(Map.of(
-                "message", "JWT authentication working",
-                "userId", user.getId(),
-                "email", user.getEmail(),
-                "principalType", principal.getClass().getSimpleName()
-            ));
-        }
-        
-        return ResponseEntity.ok(Map.of(
-            "message", "Authentication working but not JWT",
-            "principalType", principal.getClass().getSimpleName(),
-            "authType", authentication.getClass().getSimpleName()
-        ));
-    }
-
-    @GetMapping("/simple-test")
-    public ResponseEntity<String> simpleTest(org.springframework.security.core.Authentication authentication) {
-        if (authentication == null) {
-            return ResponseEntity.status(401).body("No authentication");
-        }
-        
-        if (!authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).body("Not authenticated");
-        }
-        
-        Object principal = authentication.getPrincipal();
-        return ResponseEntity.ok("Authentication working! Principal type: " + principal.getClass().getSimpleName());
-    }
-
-    @GetMapping("/basic-test")
-    public ResponseEntity<String> basicTest() {
-        logger.info("🔍 BASIC TEST - endpoint called");
-        
-        // Get authentication from SecurityContextHolder directly
-        org.springframework.security.core.Authentication auth = 
-            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        
-        if (auth == null) {
-            logger.warn("❌ BASIC TEST - No authentication in SecurityContext");
-            return ResponseEntity.status(401).body("No authentication");
-        }
-        
-        logger.info("✅ BASIC TEST - Authentication found: {}", auth.getClass().getSimpleName());
-        logger.info("✅ BASIC TEST - Is authenticated: {}", auth.isAuthenticated());
-        logger.info("✅ BASIC TEST - Principal type: {}", auth.getPrincipal().getClass().getSimpleName());
-        
-        return ResponseEntity.ok("Authentication working! Principal: " + auth.getName());
-    }
-
-    @GetMapping("/public-test")
-    public ResponseEntity<Map<String, String>> publicTest() {
-        logger.info("🔍 PUBLIC TEST - endpoint called");
-        return ResponseEntity.ok(Map.of(
-            "status", "ok",
-            "message", "Server is running",
-            "timestamp", String.valueOf(System.currentTimeMillis())
-        ));
     }
 
     @GetMapping("/is-local")
+    @Operation(summary = "Check if user is local", description = "Determines if the authenticated user is a local user (not OAuth)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Check completed successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = IsLocalResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Not authenticated",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<?> isLocal(org.springframework.security.core.Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse("Not authenticated"));
         }
 
         Object principal = authentication.getPrincipal();
@@ -348,16 +310,16 @@ public class AuthController {
 
         if (principal instanceof User) {
             logger.info("✅ AUTH - User principal is of type User");
-            return ResponseEntity.ok(Map.of("isLocal", true));
+            return ResponseEntity.ok(new IsLocalResponse(true));
         } else if (principal instanceof UserDetails) {
             logger.info("✅ AUTH - Principal is UserDetails");
-            return ResponseEntity.ok(Map.of("isLocal", false));
+            return ResponseEntity.ok(new IsLocalResponse(false));
         } else if (principal instanceof OAuth2User) {
             logger.info("✅ AUTH - Principal is OAuth2User");
-            return ResponseEntity.ok(Map.of("isLocal", false));
+            return ResponseEntity.ok(new IsLocalResponse(false));
         } else {
             logger.error("❌ AUTH - Unknown principal type: {}. Cannot determine if user is local.", principal.getClass().getName());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Cannot determine if user is local"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse("Cannot determine if user is local"));
         }
     }
 } 

@@ -227,13 +227,17 @@ public class SecurityConfig {
                 if (authConfigProperties.isLocalStandaloneMode()) {
                     logger.info("🔒 Local standalone mode enabled. Permitting /api/auth/local-login and /api/auth/config");
                     auth.requestMatchers("/api/auth/local-login", "/api/auth/config").permitAll();
+                    // Block OAuth2 endpoints in standalone mode
+                    auth.requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").denyAll();
                 } else {
                     auth.requestMatchers("/api/auth/local-login").denyAll(); // Deny local login if not in standalone mode
+                    // Allow OAuth2 endpoints only in non-standalone mode
+                    auth.requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll();
                 }
                 auth
+                    .requestMatchers("/api/auth/protected").authenticated()  // Explicitly require auth for protected endpoint
                     .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
                     .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
-                    .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                     .requestMatchers("/", "/test-*.html").permitAll()
                     .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()  // Added /temp/** for test files
                     .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()

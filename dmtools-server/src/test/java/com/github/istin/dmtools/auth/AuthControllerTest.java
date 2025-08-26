@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.auth;
 
 import com.github.istin.dmtools.auth.config.AuthConfigProperties;
+import com.github.istin.dmtools.auth.dto.*;
 import com.github.istin.dmtools.auth.model.AuthProvider;
 import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.auth.service.UserService;
@@ -17,7 +18,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -104,8 +104,8 @@ public class AuthControllerTest {
         // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertEquals(false, responseBody.get("authenticated"));
+        AuthUserResponse responseBody = (AuthUserResponse) response.getBody();
+        assertEquals(false, responseBody.isAuthenticated());
     }
 
     @Test
@@ -130,12 +130,12 @@ public class AuthControllerTest {
         // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertEquals(true, responseBody.get("authenticated"));
-        assertEquals("test@example.com", responseBody.get("email"));
-        assertEquals("Test User", responseBody.get("name"));
-        assertEquals("https://example.com/avatar.jpg", responseBody.get("picture"));
-        assertEquals(AuthProvider.GOOGLE, responseBody.get("provider"));
+        AuthUserResponse responseBody = (AuthUserResponse) response.getBody();
+        assertEquals(true, responseBody.isAuthenticated());
+        assertEquals("test@example.com", responseBody.getEmail());
+        assertEquals("Test User", responseBody.getName());
+        assertEquals("https://example.com/avatar.jpg", responseBody.getPictureUrl());
+        assertEquals("GOOGLE", responseBody.getProvider());
     }
 
     @Test
@@ -160,10 +160,10 @@ public class AuthControllerTest {
         // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertEquals(true, responseBody.get("authenticated"));
-        assertEquals("test@example.com", responseBody.get("email"));
-        assertEquals("Test User", responseBody.get("name"));
+        AuthUserResponse responseBody = (AuthUserResponse) response.getBody();
+        assertEquals(true, responseBody.isAuthenticated());
+        assertEquals("test@example.com", responseBody.getEmail());
+        assertEquals("Test User", responseBody.getName());
     }
 
     @Test
@@ -179,8 +179,8 @@ public class AuthControllerTest {
         verify(session).invalidate();
         assertEquals(HttpStatus.OK, response.getStatusCode());
         
-        Map<String, String> responseBody = (Map<String, String>) response.getBody();
-        assertEquals("Logged out successfully", responseBody.get("message"));
+        MessageResponse responseBody = (MessageResponse) response.getBody();
+        assertEquals("Logged out successfully", responseBody.getMessage());
     }
 
     @Test
@@ -194,17 +194,14 @@ public class AuthControllerTest {
         // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         
-        Map<String, String> responseBody = (Map<String, String>) response.getBody();
-        assertEquals("Logged out successfully", responseBody.get("message"));
+        MessageResponse responseBody = (MessageResponse) response.getBody();
+        assertEquals("Logged out successfully", responseBody.getMessage());
     }
 
     @Test
     void localLogin_WithValidCredentials_ShouldReturnToken() {
         // Arrange
-        Map<String, String> loginRequest = Map.of(
-            "username", "testuser",
-            "password", "secret123"
-        );
+        LocalLoginRequest loginRequest = new LocalLoginRequest("testuser", "secret123");
         
         User user = new User();
         user.setId("user-id");
@@ -239,8 +236,8 @@ public class AuthControllerTest {
         // Assert
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
         
-        Map<String, Object> responseBody = (Map<String, Object>) responseEntity.getBody();
-        assertEquals("mock-jwt-token", responseBody.get("token"));
+        LocalLoginResponse responseBody = (LocalLoginResponse) responseEntity.getBody();
+        assertEquals("mock-jwt-token", responseBody.getToken());
         
         // Verify cookie
         Cookie[] cookies = response.getCookies();
@@ -253,10 +250,7 @@ public class AuthControllerTest {
     @Test
     void localLogin_WithInvalidCredentials_ShouldReturnUnauthorized() {
         // Arrange
-        Map<String, String> loginRequest = Map.of(
-            "username", "testuser",
-            "password", "wrong-password"
-        );
+        LocalLoginRequest loginRequest = new LocalLoginRequest("testuser", "wrong-password");
         
         MockHttpServletResponse response = new MockHttpServletResponse();
         
@@ -266,8 +260,8 @@ public class AuthControllerTest {
         // Assert
         assertEquals(HttpStatus.UNAUTHORIZED, responseEntity.getStatusCode());
         
-        Map<String, String> responseBody = (Map<String, String>) responseEntity.getBody();
-        assertEquals("Invalid credentials", responseBody.get("error"));
+        ErrorResponse responseBody = (ErrorResponse) responseEntity.getBody();
+        assertEquals("Invalid credentials", responseBody.getError());
     }
 
     @Test
@@ -275,10 +269,7 @@ public class AuthControllerTest {
         // Arrange
         when(authConfigProperties.isLocalStandaloneMode()).thenReturn(false);
         
-        Map<String, String> loginRequest = Map.of(
-            "username", "testuser",
-            "password", "secret123"
-        );
+        LocalLoginRequest loginRequest = new LocalLoginRequest("testuser", "secret123");
         
         MockHttpServletResponse response = new MockHttpServletResponse();
         
@@ -288,7 +279,7 @@ public class AuthControllerTest {
         // Assert
         assertEquals(HttpStatus.FORBIDDEN, responseEntity.getStatusCode());
         
-        Map<String, String> responseBody = (Map<String, String>) responseEntity.getBody();
-        assertEquals("Local auth disabled", responseBody.get("error"));
+        ErrorResponse responseBody = (ErrorResponse) responseEntity.getBody();
+        assertEquals("Local auth disabled", responseBody.getError());
     }
 } 

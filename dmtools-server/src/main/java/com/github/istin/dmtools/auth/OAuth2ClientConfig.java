@@ -78,11 +78,17 @@ public class OAuth2ClientConfig {
     private List<ClientRegistration> createClientRegistrations() {
         List<ClientRegistration> registrations = new ArrayList<>();
         
+        if (oAuth2ClientProperties.getRegistration() == null || oAuth2ClientProperties.getRegistration().isEmpty()) {
+            logger.debug("🔧 No OAuth2 client registrations found in properties");
+            return registrations;
+        }
+        
         for (String registrationId : oAuth2ClientProperties.getRegistration().keySet()) {
             OAuth2ClientProperties.Registration registration = oAuth2ClientProperties.getRegistration().get(registrationId);
-            OAuth2ClientProperties.Provider provider = oAuth2ClientProperties.getProvider().get(registrationId);
+            OAuth2ClientProperties.Provider provider = oAuth2ClientProperties.getProvider() != null ? 
+                    oAuth2ClientProperties.getProvider().get(registrationId) : null;
             
-            if (registration.getClientId() == null || "placeholder".equals(registration.getClientId())) {
+            if (registration == null || registration.getClientId() == null || "placeholder".equals(registration.getClientId())) {
                 logger.debug("🔧 Skipping OAuth2 registration '{}' - client ID is placeholder or null", registrationId);
                 continue;
             }
@@ -90,11 +96,15 @@ public class OAuth2ClientConfig {
             try {
                 ClientRegistration.Builder builder = ClientRegistration.withRegistrationId(registrationId)
                         .clientId(registration.getClientId())
-                        .clientSecret(registration.getClientSecret())
+                        .clientSecret(registration.getClientSecret() != null ? registration.getClientSecret() : "")
                         .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                        .redirectUri(registration.getRedirectUri())
-                        .scope(registration.getScope());
+                        .redirectUri(registration.getRedirectUri() != null ? registration.getRedirectUri() : "http://localhost:8080/login/oauth2/code/" + registrationId);
+                
+                // Add scopes if they exist
+                if (registration.getScope() != null && !registration.getScope().isEmpty()) {
+                    builder.scope(registration.getScope());
+                }
 
                 // Configure provider-specific settings
                 if (provider != null) {

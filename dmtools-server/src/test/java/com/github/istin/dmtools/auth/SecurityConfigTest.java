@@ -104,7 +104,7 @@ class SecurityConfigTest {
         // In standalone mode, this should be denied if not explicitly permitted.
         // Since the property is {"auth.enabled-providers="}, it's standalone mode.
         // The default behavior for anyRequest().authenticated() should apply.
-        mockMvc.perform(get("/api/protected"))
+        mockMvc.perform(get("/api/auth/protected"))
                 .andExpect(status().isForbidden()); // Expecting forbidden as it's not permitted and not authenticated
     }
 }

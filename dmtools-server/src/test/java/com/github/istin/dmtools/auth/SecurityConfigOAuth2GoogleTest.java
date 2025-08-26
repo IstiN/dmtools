@@ -28,6 +28,7 @@ import java.util.stream.StreamSupport;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = DmToolsServerApplication.class, properties = {
@@ -102,7 +103,9 @@ class SecurityConfigOAuth2GoogleTest {
     @Test
     void testSecurityFilterChain_oauth2Mode_denyLocalLogin() throws Exception {
         // In OAuth2 mode, /api/auth/local-login should be denied
-        mockMvc.perform(get("/api/auth/local-login"))
+        mockMvc.perform(post("/api/auth/local-login")
+                        .contentType("application/json")
+                        .content("{}"))
                 .andExpect(status().isForbidden());
     }
 
