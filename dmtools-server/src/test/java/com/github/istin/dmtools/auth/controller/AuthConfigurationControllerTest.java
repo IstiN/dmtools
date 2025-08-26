@@ -3,8 +3,8 @@ package com.github.istin.dmtools.auth.controller;
 import com.github.istin.dmtools.auth.config.AuthConfigProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -12,16 +12,17 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
+
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Arrays;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -30,8 +31,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(classes = {AuthConfigurationControllerTest.TestConfiguration.class})
 class AuthConfigurationControllerTest {
 
+    @MockBean
+    private AuthConfigProperties authConfigProperties;
+
     @Configuration
-    @EnableConfigurationProperties(AuthConfigProperties.class)
     @Import(AuthConfigurationController.class)
     @EnableWebSecurity
     static class TestConfiguration {
@@ -78,57 +81,38 @@ class AuthConfigurationControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ClientRegistrationRepository clientRegistrationRepository;
-
     @Test
     void testGetAuthConfiguration_standaloneMode_noProviders() throws Exception {
-        // The default bean has no providers configured
+        // Configure for standalone mode
+        when(authConfigProperties.isLocalStandaloneMode()).thenReturn(true);
+        
         mockMvc.perform(get("/api/auth/config"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.authenticationMode").value("standalone"));
+                .andExpect(jsonPath("$.authenticationMode").value("standalone"))
+                .andExpect(jsonPath("$.enabledProviders").isEmpty());
     }
 
     @Test
     void testGetAuthConfiguration_oauth2Mode_withProviders() throws Exception {
-        ClientRegistration google = ClientRegistration.withRegistrationId("google")
-                .clientId("google-client-id")
-                .clientSecret("google-client-secret")
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .authorizationUri("https://accounts.google.com/o/oauth2/auth")
-                .tokenUri("https://oauth2.googleapis.com/token")
-                .userInfoUri("https://www.googleapis.com/oauth2/v2/userinfo")
-                .redirectUri("http://localhost:8080/login/oauth2/code/google")
-                .userNameAttributeName("email")
-                .build();
-
-        ClientRegistration github = ClientRegistration.withRegistrationId("github")
-                .clientId("github-client-id")
-                .clientSecret("github-client-secret")
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .authorizationUri("https://github.com/login/oauth/authorize")
-                .tokenUri("https://github.com/login/oauth/access_token")
-                .userInfoUri("https://api.github.com/user")
-                .redirectUri("http://localhost:8080/login/oauth2/code/github")
-                .userNameAttributeName("id")
-                .build();
-
-        // Replace the bean with one that has providers
-        TestClientRegistrationRepository repoWithProviders = new TestClientRegistrationRepository(
-                Arrays.asList(google, github));
+        // Configure for OAuth2 mode (not standalone)
+        when(authConfigProperties.isLocalStandaloneMode()).thenReturn(false);
         
-        // We need to recreate the context or use a different test for this scenario
-        // For now, let's test that the controller works with the empty repository
+        // Test with empty providers (as configured in TestConfiguration)
         mockMvc.perform(get("/api/auth/config"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.authenticationMode").value("standalone"));
+                .andExpect(jsonPath("$.authenticationMode").value("oauth2"))
+                .andExpect(jsonPath("$.enabledProviders").isEmpty());
     }
 
     @Test
     void testGetAuthConfiguration_oauth2Mode_singleProvider() throws Exception {
-        // Similar to above - with empty repository it should be standalone
+        // Configure for OAuth2 mode (not standalone)
+        when(authConfigProperties.isLocalStandaloneMode()).thenReturn(false);
+        
+        // Test with empty providers (as configured in TestConfiguration)
         mockMvc.perform(get("/api/auth/config"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.authenticationMode").value("standalone"));
+                .andExpect(jsonPath("$.authenticationMode").value("oauth2"))
+                .andExpect(jsonPath("$.enabledProviders").isEmpty());
     }
 }

@@ -122,43 +122,7 @@ public class SecurityConfig {
         return new ProviderManager(authenticationProvider);
     }
 
-    @Bean
-    @ConditionalOnProperty(name = "auth.enabled-providers", matchIfMissing = false)
-    public ClientRegistrationRepository clientRegistrationRepository(@Autowired(required = false) List<ClientRegistration> clientRegistrations) {
-        if (authConfigProperties.isLocalStandaloneMode()) {
-            logger.warn("⚠️ Local standalone mode enabled. OAuth2 ClientRegistrationRepository disabled.");
-            // Return null or don't create bean in standalone mode
-            throw new IllegalStateException("ClientRegistrationRepository should not be created in standalone mode");
-        }
-
-        if (clientRegistrations == null || clientRegistrations.isEmpty()) {
-            logger.warn("⚠️ No ClientRegistration beans found. OAuth2 ClientRegistrationRepository will be empty.");
-            // Create a dummy registration to avoid empty repository
-            ClientRegistration dummyRegistration = ClientRegistration.withRegistrationId("dummy")
-                    .clientId("dummy")
-                    .clientSecret("dummy")
-                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                    .authorizationUri("http://localhost/dummy")
-                    .tokenUri("http://localhost/dummy")
-                    .redirectUri("http://localhost/dummy")
-                    .userNameAttributeName("name")
-                    .build();
-            return new InMemoryClientRegistrationRepository(List.of(dummyRegistration));
-        }
-
-        Set<String> enabledProviders = authConfigProperties.getEnabledProvidersAsSet();
-        List<ClientRegistration> filteredRegistrations = clientRegistrations.stream()
-                .filter(reg -> enabledProviders.isEmpty() || enabledProviders.contains(reg.getRegistrationId()))
-                .collect(Collectors.toList());
-
-        if (filteredRegistrations.isEmpty()) {
-            logger.warn("⚠️ No enabled OAuth2 providers found based on 'auth.enabled-providers'. OAuth2 login disabled.");
-        } else {
-            logger.info("🔐 Configured OAuth2 ClientRegistrationRepository with providers: {}",
-                    filteredRegistrations.stream().map(ClientRegistration::getRegistrationId).collect(Collectors.joining(", ")));
-        }
-        return new InMemoryClientRegistrationRepository(filteredRegistrations);
-    }
+    // ClientRegistrationRepository bean removed - now handled by OAuth2ClientConfig class
 
     @Bean
     public OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient() {

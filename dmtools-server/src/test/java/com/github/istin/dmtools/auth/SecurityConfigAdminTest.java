@@ -5,6 +5,7 @@ import com.github.istin.dmtools.auth.controller.AuthConfigurationController;
 import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
 import com.github.istin.dmtools.auth.service.CustomOidcUserService;
 import com.github.istin.dmtools.server.DmToolsServerApplication;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;

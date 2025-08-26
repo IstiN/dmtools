@@ -5,6 +5,7 @@ import com.github.istin.dmtools.auth.controller.AuthConfigurationController;
 import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
 import com.github.istin.dmtools.auth.service.CustomOidcUserService;
 import com.github.istin.dmtools.server.DmToolsServerApplication;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -14,15 +15,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.List;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -76,9 +70,10 @@ class SecurityConfigTest {
         // When auth.enabled-providers is empty, it should be in standalone mode
         assertTrue(authConfigProperties.isLocalStandaloneMode());
 
-        // The clientRegistrationRepository bean should be empty
-        List<ClientRegistration> registrations = StreamSupport.stream(((InMemoryClientRegistrationRepository) clientRegistrationRepository).spliterator(), false).toList();
-        assertTrue(registrations.isEmpty());
+        // The clientRegistrationRepository should return null for any registration ID in standalone mode
+        assertNull(clientRegistrationRepository.findByRegistrationId("google"));
+        assertNull(clientRegistrationRepository.findByRegistrationId("github"));
+        assertNull(clientRegistrationRepository.findByRegistrationId("any-provider"));
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.github.istin.dmtools.auth.controller.AuthConfigurationController;
 import com.github.istin.dmtools.auth.service.CustomOAuth2UserService;
 import com.github.istin.dmtools.auth.service.CustomOidcUserService;
 import com.github.istin.dmtools.server.DmToolsServerApplication;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,7 +29,15 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = DmToolsServerApplication.class, properties = {"auth.enabled-providers=google,github"})
+@SpringBootTest(classes = DmToolsServerApplication.class, properties = {
+    "auth.enabled-providers=google,github",
+    "spring.security.oauth2.client.registration.google.client-id=test-google-client-id",
+    "spring.security.oauth2.client.registration.google.client-secret=test-google-client-secret",
+    "spring.security.oauth2.client.registration.google.scope=openid,profile,email",
+    "spring.security.oauth2.client.registration.github.client-id=test-github-client-id",
+    "spring.security.oauth2.client.registration.github.client-secret=test-github-client-secret",
+    "spring.security.oauth2.client.registration.github.scope=read:user,user:email"
+})
 @AutoConfigureMockMvc
 class SecurityConfigOAuth2GoogleGithubTest {
 
@@ -75,10 +84,9 @@ class SecurityConfigOAuth2GoogleGithubTest {
         // When auth.enabled-providers specifies google,github, it should not be in standalone mode
         assertFalse(authConfigProperties.isLocalStandaloneMode());
 
-        // The clientRegistrationRepository bean should contain both google and github
-        List<ClientRegistration> registrations = StreamSupport.stream(((InMemoryClientRegistrationRepository) clientRegistrationRepository).spliterator(), false).toList();
-        assertEquals(2, registrations.size());
-        assertTrue(registrations.stream().anyMatch(r -> r.getRegistrationId().equals("google")));
-        assertTrue(registrations.stream().anyMatch(r -> r.getRegistrationId().equals("github")));
+        // The clientRegistrationRepository should have both google and github configurations
+        assertNotNull(clientRegistrationRepository.findByRegistrationId("google"));
+        assertNotNull(clientRegistrationRepository.findByRegistrationId("github"));
+        assertNull(clientRegistrationRepository.findByRegistrationId("microsoft")); // Not configured
     }
 }
