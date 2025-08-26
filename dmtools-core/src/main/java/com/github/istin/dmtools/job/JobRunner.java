@@ -50,7 +50,7 @@ public class JobRunner {
             case "jestimator": return new JEstimator();
             case "testcasesgenerator": return new TestCasesGenerator();
             case "solutionarchitecturecreator": return new SolutionArchitectureCreator();
-            case "diagramscreator": return new DiagramsCreator();
+            case "diagramscreator", "diagramcreator": return new DiagramsCreator();
             case "codegenerator": return new CodeGenerator();
             case "devproductivityreport": return new DevProductivityReport();
             case "baproductivityreport": return new BAProductivityReport();
