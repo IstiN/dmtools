@@ -29,7 +29,24 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+@WebMvcTest(AuthController.class)
+@TestPropertySource(properties = {
+    "auth.enabled-providers=",
+    "local.auth.enabled=true",
+    "local.auth.username=testuser",
+    "local.auth.password=secret123",
+    "jwt.secret=testSecretKeyMustBeLongEnoughForHmacSha256Algorithm",
+    "jwt.expirationMs=3600000"
+})
+@Import({SecurityConfig.class, AuthConfigProperties.class}) // Import security configurations
 public class AuthControllerTest {
 
     @Mock
