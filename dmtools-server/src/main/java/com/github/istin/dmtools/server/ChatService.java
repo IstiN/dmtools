@@ -1,13 +1,20 @@
 package com.github.istin.dmtools.server;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.agent.ToolSelectorAgent;
+import com.github.istin.dmtools.ai.dial.DialAIClient;
+import com.github.istin.dmtools.ai.js.JSAIClient;
 import com.github.istin.dmtools.auth.controller.DynamicMCPController;
+import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
 import com.github.istin.dmtools.dto.ChatMessage;
 import com.github.istin.dmtools.dto.ChatRequest;
 import com.github.istin.dmtools.dto.ChatResponse;
+import com.github.istin.dmtools.dto.IntegrationDto;
 import com.github.istin.dmtools.dto.ToolCallRequest;
+import com.github.istin.dmtools.server.service.IntegrationResolutionHelper;
+import org.json.JSONObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +37,14 @@ public class ChatService {
     @Autowired
     private ToolSelectorAgent toolSelectorAgent;
 
+    @Autowired
+    private IntegrationResolutionHelper integrationResolutionHelper;
+
     public ChatResponse chat(ChatRequest request) {
+        return chat(request, null);
+    }
+
+    public ChatResponse chat(ChatRequest request, String userId) {
         try {
             if (request.getMessages() == null || request.getMessages().isEmpty()) {
                 logger.warn("Chat request received with no messages.");
@@ -38,14 +52,17 @@ public class ChatService {
             }
             logger.info("Processing chat request with {} messages", request.getMessages().size());
             
+            // Resolve AI integration if specified
+            AIResolutionResult resolutionResult = resolveAIFromRequestWithStatus(request, userId);
+            
             // Convert ChatMessage DTOs to AI Message objects
             List<Message> messages = convertToAIMessages(request.getMessages());
             
             // Check if agent tools are enabled
             if (request.getAgentTools() != null && request.getAgentTools().isEnabled()) {
-                return chatWithMcpTools(messages, request);
+                return chatWithMcpTools(messages, request, resolutionResult.ai, resolutionResult.resolvedIntegrationId);
             } else {
-                return chatWithoutTools(messages, request);
+                return chatWithoutTools(messages, request, resolutionResult.ai, resolutionResult.resolvedIntegrationId);
             }
             
         } catch (Exception e) {
@@ -55,18 +72,25 @@ public class ChatService {
     }
 
     public ChatResponse chatWithFiles(ChatRequest request, List<File> files) {
+        return chatWithFiles(request, files, null);
+    }
+
+    public ChatResponse chatWithFiles(ChatRequest request, List<File> files, String userId) {
         try {
             logger.info("Processing chat request with {} messages and {} files", 
                        request.getMessages().size(), files != null ? files.size() : 0);
+            
+            // Resolve AI integration if specified
+            AIResolutionResult resolutionResult = resolveAIFromRequestWithStatus(request, userId);
             
             // Convert ChatMessage DTOs to AI Message objects, attaching files to the last user message
             List<Message> messages = convertToAIMessagesWithFiles(request.getMessages(), files);
             
             // Check if agent tools are enabled
             if (request.getAgentTools() != null && request.getAgentTools().isEnabled()) {
-                return chatWithMcpTools(messages, request);
+                return chatWithMcpTools(messages, request, resolutionResult.ai, resolutionResult.resolvedIntegrationId);
             } else {
-                return chatWithoutTools(messages, request);
+                return chatWithoutTools(messages, request, resolutionResult.ai, resolutionResult.resolvedIntegrationId);
             }
             
         } catch (Exception e) {
@@ -76,18 +100,66 @@ public class ChatService {
     }
 
     public ChatResponse simpleChatMessage(String message, String model) {
+        return simpleChatMessage(message, model, null, null);
+    }
+
+    public ChatResponse simpleChatMessage(String message, String model, String aiIntegrationId, String userId) {
         try {
             logger.info("Processing simple chat message");
             
+            // Resolve AI integration - either specified or automatically detect user's first AI integration
+            String resolvedIntegrationId = null;
+            AI aiToUse = null;
+            
+            if (userId == null) {
+                logger.error("❌ [ChatService] User ID is required for AI integration selection");
+                return ChatResponse.error("User authentication is required for AI integration selection");
+            }
+            
+            try {
+                JSONObject integrationConfig;
+                String actualIntegrationId;
+                
+                if (aiIntegrationId != null && !aiIntegrationId.trim().isEmpty()) {
+                    // Use specific integration ID provided by user
+                    logger.info("🤖 [ChatService] AI integration selection requested for ID: {}", aiIntegrationId);
+                    integrationConfig = integrationResolutionHelper.resolveSingleIntegrationId(aiIntegrationId, userId);
+                    actualIntegrationId = aiIntegrationId;
+                } else {
+                    // Automatically use user's first AI integration
+                    logger.info("🤖 [ChatService] No AI integration specified, auto-selecting user's first AI integration");
+                    integrationConfig = integrationResolutionHelper.resolveUserFirstAIIntegration(userId);
+                    
+                    // Extract the actual integration ID from the resolved config
+                    IntegrationDto firstAI = integrationResolutionHelper.findUserFirstAIIntegration(userId);
+                    actualIntegrationId = firstAI != null ? firstAI.getId() : null;
+                }
+                
+                // Create the specific AI instance
+                AI integrationAI = createAIFromIntegrationConfig(integrationConfig, actualIntegrationId);
+                if (integrationAI != null) {
+                    logger.info("✅ [ChatService] Successfully created AI instance from integration: {}", actualIntegrationId);
+                    aiToUse = integrationAI;
+                    resolvedIntegrationId = actualIntegrationId; // Mark as successfully resolved
+                } else {
+                    logger.error("❌ [ChatService] Failed to create AI instance from integration: {}", actualIntegrationId);
+                    return ChatResponse.error("Failed to create AI instance from integration. Please check your integration configuration.");
+                }
+                
+            } catch (Exception e) {
+                logger.error("❌ [ChatService] Failed to resolve AI integration: {}", e.getMessage());
+                return ChatResponse.error("Failed to resolve AI integration: " + e.getMessage());
+            }
+            
             String response;
             if (model != null && !model.trim().isEmpty()) {
-                response = ai.chat(model, message);
+                response = aiToUse.chat(model, message);
             } else {
-                response = ai.chat(message);
+                response = aiToUse.chat(message);
             }
             
             logger.info("Successfully processed simple chat message");
-            return ChatResponse.success(response, model);
+            return ChatResponse.success(response, model, resolvedIntegrationId);
             
         } catch (Exception e) {
             logger.error("Error processing simple chat message", e);
@@ -95,20 +167,20 @@ public class ChatService {
         }
     }
 
-    private ChatResponse chatWithoutTools(List<Message> messages, ChatRequest request) throws Exception {
+    private ChatResponse chatWithoutTools(List<Message> messages, ChatRequest request, AI aiToUse, String resolvedIntegrationId) throws Exception {
         // Use the AI service to get response without tools
         String response;
         if (request.getModel() != null && !request.getModel().trim().isEmpty()) {
-            response = ai.chat(request.getModel(), messages.toArray(new Message[0]));
+            response = aiToUse.chat(request.getModel(), messages.toArray(new Message[0]));
         } else {
-            response = ai.chat(messages.toArray(new Message[0]));
+            response = aiToUse.chat(messages.toArray(new Message[0]));
         }
         
         logger.info("Successfully processed chat request without tools");
-        return ChatResponse.success(response, request.getModel());
+        return ChatResponse.success(response, request.getModel(), resolvedIntegrationId);
     }
 
-    private ChatResponse chatWithMcpTools(List<Message> messages, ChatRequest request) {
+    private ChatResponse chatWithMcpTools(List<Message> messages, ChatRequest request, AI aiToUse, String resolvedIntegrationId) {
         try {
             logger.info("Processing chat request with MCP tools enabled");
             
@@ -119,7 +191,7 @@ public class ChatService {
             
             // if (availableTools == null || availableTools.isEmpty()) {
             //     logger.warn("No MCP tools available, falling back to regular chat");
-            //     return chatWithoutTools(messages, request);
+            //     return chatWithoutTools(messages, request, aiToUse, resolvedIntegrationId);
             // }
             
             // List<Map<String, Object>> filteredTools = filterToolsBasedOnConfig(availableTools, request.getAgentTools());
@@ -130,17 +202,17 @@ public class ChatService {
             // List<ToolCallRequest> toolCalls = toolSelectorAgent.run(params);
 
             // if (toolCalls != null && !toolCalls.isEmpty()) {
-            //     return executeToolCallsAndRespond(toolCalls, messages, request);
+            //     return executeToolCallsAndRespond(toolCalls, messages, request, aiToUse);
             // } else {
-            //     return chatWithoutTools(messages, request);
+            //     return chatWithoutTools(messages, request, aiToUse, resolvedIntegrationId);
             // }
-            return chatWithoutTools(messages, request); // Placeholder
+            return chatWithoutTools(messages, request, aiToUse, resolvedIntegrationId); // Placeholder
         } catch (Exception e) {
             logger.error("Error in chat with MCP tools", e);
             // Fallback to regular chat if tool integration fails
             logger.warn("Falling back to regular chat without tools");
             try {
-                return chatWithoutTools(messages, request);
+                return chatWithoutTools(messages, request, aiToUse, resolvedIntegrationId);
             } catch (Exception fallbackError) {
                 logger.error("Error in fallback chat", fallbackError);
                 return ChatResponse.error("Failed to process chat request: " + e.getMessage());
@@ -275,7 +347,8 @@ public class ChatService {
             messages.addAll(toolCallResponses);
             
             // Continue the conversation with the tool results
-            return chatWithoutTools(messages, request);
+            // Note: This code is currently placeholder and would need aiToUse parameter when MCP tools are implemented
+            throw new UnsupportedOperationException("MCP tools execution not yet implemented");
             
         } catch (Exception e) {
             logger.error("Error executing tool calls", e);
@@ -394,5 +467,253 @@ public class ChatService {
             sb.append("  Description: ").append(description).append("\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * Inner class to hold AI resolution result
+     */
+    private static class AIResolutionResult {
+        final AI ai;
+        final String resolvedIntegrationId; // null if default AI was used
+        
+        AIResolutionResult(AI ai, String resolvedIntegrationId) {
+            this.ai = ai;
+            this.resolvedIntegrationId = resolvedIntegrationId;
+        }
+    }
+
+    /**
+     * Resolves AI instance from ChatRequest.
+     */
+    private AI resolveAIFromRequest(ChatRequest request, String userId) {
+        return resolveAIFromIntegrationId(request.getAi(), userId);
+    }
+
+    /**
+     * Resolves AI instance from ChatRequest, returning both AI and resolution status.
+     */
+    private AIResolutionResult resolveAIFromRequestWithStatus(ChatRequest request, String userId) {
+        if (userId == null) {
+            logger.error("❌ [ChatService] User ID is required for AI integration selection");
+            throw new RuntimeException("User authentication is required for AI integration selection");
+        }
+        
+        try {
+            JSONObject integrationConfig;
+            String actualIntegrationId;
+            
+            if (request.getAi() != null && !request.getAi().trim().isEmpty()) {
+                // Use specific integration ID provided by user
+                logger.info("🤖 [ChatService] AI integration selection requested for ID: {}", request.getAi());
+                integrationConfig = integrationResolutionHelper.resolveSingleIntegrationId(request.getAi(), userId);
+                actualIntegrationId = request.getAi();
+            } else {
+                // Automatically use user's first AI integration
+                logger.info("🤖 [ChatService] No AI integration specified, auto-selecting user's first AI integration");
+                integrationConfig = integrationResolutionHelper.resolveUserFirstAIIntegration(userId);
+                
+                // Extract the actual integration ID from the resolved config
+                IntegrationDto firstAI = integrationResolutionHelper.findUserFirstAIIntegration(userId);
+                actualIntegrationId = firstAI != null ? firstAI.getId() : null;
+            }
+            
+            // Create the specific AI instance
+            AI integrationAI = createAIFromIntegrationConfig(integrationConfig, actualIntegrationId);
+            if (integrationAI != null) {
+                logger.info("✅ [ChatService] Successfully created AI instance from integration: {}", actualIntegrationId);
+                return new AIResolutionResult(integrationAI, actualIntegrationId); // Successfully resolved
+            } else {
+                logger.error("❌ [ChatService] Failed to create AI instance from integration: {}", actualIntegrationId);
+                throw new RuntimeException("Failed to create AI instance from integration. Please check your integration configuration.");
+            }
+            
+        } catch (Exception e) {
+            logger.error("❌ [ChatService] Failed to resolve AI integration: {}", e.getMessage());
+            throw new RuntimeException("Failed to resolve AI integration: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Creates an AI instance from resolved integration configuration by recreating the AI creation logic.
+     * This replicates the logic from ServerManagedIntegrationsModule.provideAI() for direct use.
+     */
+    private AI createAIFromIntegrationConfig(JSONObject integrationConfig, String integrationId) {
+        try {
+            logger.info("🔧 [ChatService] Creating AI instance from integration config for ID: {}", integrationId);
+            
+            if (integrationConfig == null || integrationConfig.isEmpty()) {
+                logger.warn("⚠️ [ChatService] Empty integration configuration provided");
+                return null;
+            }
+            
+            logger.info("🔍 [ChatService] Available integration types in config: {}", integrationConfig.keySet());
+            
+            // Create a ConversationObserver for the AI instance
+            ConversationObserver observer = new ConversationObserver();
+            
+            // The IntegrationResolutionHelper returns nested structure: { "gemini": { "GEMINI_API_KEY": "...", ... } }
+            // We need to iterate through the available integration types and create the AI instance
+            for (String integrationType : integrationConfig.keySet()) {
+                logger.info("🔍 [ChatService] Processing integration type: {}", integrationType);
+                
+                JSONObject typeConfig = integrationConfig.getJSONObject(integrationType);
+                logger.info("🔧 [ChatService] Configuration for type '{}': {} parameters", integrationType, typeConfig.length());
+                
+                switch (integrationType.toLowerCase()) {
+                    case "gemini":
+                        AI geminiAI = createGeminiAI(typeConfig, observer);
+                        if (geminiAI != null) {
+                            logger.info("✅ [ChatService] Successfully created Gemini AI instance");
+                            return geminiAI;
+                        }
+                        break;
+                    case "dial":
+                        AI dialAI = createDialAI(typeConfig, observer);
+                        if (dialAI != null) {
+                            logger.info("✅ [ChatService] Successfully created Dial AI instance");
+                            return dialAI;
+                        }
+                        break;
+                    default:
+                        logger.warn("⚠️ [ChatService] Unsupported integration type: {}", integrationType);
+                        break;
+                }
+            }
+            
+            logger.warn("⚠️ [ChatService] No suitable AI integration found in configuration");
+            return null;
+            
+        } catch (Exception e) {
+            logger.error("❌ [ChatService] Failed to create AI instance from integration config: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+    
+
+    
+    /**
+     * Creates a Gemini AI instance from configuration.
+     * Handles both real application format (uppercase) and test format (lowercase).
+     */
+    private AI createGeminiAI(JSONObject config, ConversationObserver observer) {
+        try {
+            // Handle both uppercase and lowercase format for flexibility
+            String apiKey = config.optString("GEMINI_API_KEY", 
+                           config.optString("gemini_api_key", 
+                           config.optString("api_key", null)));
+            String model = config.optString("GEMINI_DEFAULT_MODEL", 
+                          config.optString("gemini_default_model",
+                          config.optString("model", "gemini-1.5-flash")));
+            String basePath = config.optString("GEMINI_BASE_PATH", 
+                             config.optString("gemini_base_path", null));
+            
+            if (apiKey == null || apiKey.isEmpty()) {
+                logger.warn("⚠️ [ChatService] Gemini configuration missing API key");
+                return null;
+            }
+            
+            logger.info("✅ [ChatService] Creating custom Gemini JSAIClient with resolved credentials");
+            
+            // Create configuration JSON for JSAIClient (replicating ServerManagedIntegrationsModule.createCustomGeminiAI)
+            JSONObject configJson = new JSONObject();
+            configJson.put("jsScriptPath", "js/geminiChatViaJs.js");
+            configJson.put("clientName", "GeminiJSAIClientViaChatService");
+            configJson.put("defaultModel", model);
+            
+            if (basePath != null && !basePath.trim().isEmpty()) {
+                configJson.put("basePath", basePath);
+            }
+            
+            // Set up secrets with resolved API key
+            JSONObject secretsJson = new JSONObject();
+            secretsJson.put("GEMINI_API_KEY", apiKey);
+            configJson.put("secrets", secretsJson);
+            
+            logger.info("✅ [ChatService] Initializing Gemini JSAIClient with model: {}", model);
+            return new JSAIClient(configJson, observer);
+            
+        } catch (Exception e) {
+            logger.error("❌ [ChatService] Failed to create Gemini AI: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    /**
+     * Creates a Dial AI instance from configuration.
+     * Handles both real application format (uppercase) and test format (lowercase).
+     */
+    private AI createDialAI(JSONObject config, ConversationObserver observer) {
+        try {
+            // Handle both uppercase and lowercase format for flexibility
+            String apiKey = config.optString("DIAL_AI_API_KEY", 
+                           config.optString("dial_ai_api_key", 
+                           config.optString("api_key", null)));
+            String model = config.optString("DIAL_AI_MODEL", 
+                          config.optString("dial_ai_model",
+                          config.optString("model", "gpt-4")));
+            String basePath = config.optString("DIAL_AI_BATH_PATH", 
+                             config.optString("dial_ai_bath_path", "https://api.openai.com/v1"));
+            
+            if (apiKey == null || apiKey.isEmpty()) {
+                logger.warn("⚠️ [ChatService] Dial configuration missing API key");
+                return null;
+            }
+            
+            logger.info("✅ [ChatService] Creating custom DialAIClient with resolved credentials");
+            return new DialAIClient(basePath, apiKey, model, observer);
+            
+        } catch (Exception e) {
+            logger.error("❌ [ChatService] Failed to create Dial AI: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Resolves AI instance from integration ID or automatically selects user's first AI integration.
+     * Creates the specific AI instance using ServerManagedIntegrationsModule.
+     * 
+     * @param integrationId The integration ID to resolve (null/empty for automatic selection)
+     * @param userId The user ID for access control
+     * @return AI instance (specific integration AI)
+     * @throws RuntimeException if AI integration resolution fails
+     */
+    private AI resolveAIFromIntegrationId(String integrationId, String userId) {
+        if (userId == null) {
+            throw new RuntimeException("User authentication is required for AI integration selection");
+        }
+
+        try {
+            JSONObject integrationConfig;
+            String actualIntegrationId;
+            
+            if (integrationId != null && !integrationId.trim().isEmpty()) {
+                // Use specific integration ID provided by user
+                logger.info("🤖 [ChatService] AI integration selection requested for ID: {}", integrationId);
+                integrationConfig = integrationResolutionHelper.resolveSingleIntegrationId(integrationId, userId);
+                actualIntegrationId = integrationId;
+            } else {
+                // Automatically use user's first AI integration
+                logger.info("🤖 [ChatService] No AI integration specified, auto-selecting user's first AI integration");
+                integrationConfig = integrationResolutionHelper.resolveUserFirstAIIntegration(userId);
+                
+                // Extract the actual integration ID from the resolved config
+                IntegrationDto firstAI = integrationResolutionHelper.findUserFirstAIIntegration(userId);
+                actualIntegrationId = firstAI != null ? firstAI.getId() : null;
+            }
+            
+            // Create the specific AI instance
+            AI integrationAI = createAIFromIntegrationConfig(integrationConfig, actualIntegrationId);
+            if (integrationAI != null) {
+                logger.info("✅ [ChatService] Successfully created AI instance from integration: {}", actualIntegrationId);
+                return integrationAI;
+            } else {
+                logger.error("❌ [ChatService] Failed to create AI instance from integration: {}", actualIntegrationId);
+                throw new RuntimeException("Failed to create AI instance from integration. Please check your integration configuration.");
+            }
+            
+        } catch (Exception e) {
+            logger.error("❌ [ChatService] Failed to resolve AI integration: {}", e.getMessage());
+            throw new RuntimeException("Failed to resolve AI integration: " + e.getMessage());
+        }
     }
 } 

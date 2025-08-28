@@ -19,6 +19,7 @@ import com.github.istin.dmtools.job.ExecutionMode;
 import com.github.istin.dmtools.job.JobParams;
 import com.github.istin.dmtools.job.JobRunner;
 import com.github.istin.dmtools.server.service.JobConfigurationLoader;
+import com.github.istin.dmtools.server.service.IntegrationResolutionHelper;
 import com.github.istin.dmtools.server.util.IntegrationConfigMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -69,9 +70,12 @@ public class JobExecutionController {
     @Autowired
     private JobConfigurationService jobConfigurationService;
     
-    @Autowired
+        @Autowired
     private UserService userService;
-    
+
+    @Autowired
+    private IntegrationResolutionHelper integrationResolutionHelper;
+
     @Autowired
     private JobExecutionRepository jobExecutionRepository;
     
@@ -204,67 +208,6 @@ public class JobExecutionController {
     }
 
     /**
-     * Resolves integration IDs from the database to JSONObject format for job execution.
-     * 
-     * @param integrationIds List of integration IDs to resolve
-     * @param userId The user ID for access control
-     * @return JSONObject containing resolved integration configurations
-     */
-    private JSONObject resolveIntegrationIds(List<String> integrationIds, String userId) {
-        JSONObject resolved = new JSONObject();
-        
-        for (String integrationId : integrationIds) {
-            try {
-                logger.info("🔍 Resolving integration ID: {}", integrationId);
-                
-                // Get integration configuration from database with sensitive data
-                var integrationDto = integrationService.getIntegrationById(integrationId, userId, true);
-                
-                // Log detailed config parameters for debugging
-                logger.info("🔧 Integration '{}' (type: {}) has {} config parameters:", 
-                    integrationId, integrationDto.getType(), 
-                    integrationDto.getConfigParams() != null ? integrationDto.getConfigParams().size() : 0);
-                
-                if (integrationDto.getConfigParams() != null) {
-                    for (var param : integrationDto.getConfigParams()) {
-                        logger.info("  📋 Parameter: {}={}", param.getParamKey(), 
-                            param.isSensitive() ? "[SENSITIVE]" : param.getParamValue());
-                    }
-                }
-                
-                // Convert to JSONObject format expected by job execution based on integration type
-                JSONObject integrationConfig = IntegrationConfigMapper.mapIntegrationConfig(integrationDto, configurationLoader);
-                
-                // Log the final mapped configuration
-                logger.info("🎯 Final mapped config for integration '{}' (type: {}): {}", 
-                    integrationId, integrationDto.getType(), 
-                    integrationConfig.keySet().stream()
-                        .map(key -> key + "=" + (key.toLowerCase().contains("key") || key.toLowerCase().contains("token") || key.toLowerCase().contains("password") ? "[SENSITIVE]" : integrationConfig.get(key)))
-                        .toList());
-                
-                // Use integration type as key for job execution compatibility
-                resolved.put(integrationDto.getType(), integrationConfig);
-                
-                logger.info("✅ Successfully resolved integration ID '{}' as type '{}' with {} config parameters", 
-                    integrationId, integrationDto.getType(), integrationConfig.length());
-                
-                // Record usage
-                integrationService.recordIntegrationUsage(integrationId);
-                
-            } catch (Exception e) {
-                logger.error("❌ Failed to resolve integration ID '{}': {}", integrationId, e.getMessage(), e);
-                // Continue with other integrations even if one fails
-            }
-        }
-        
-        return resolved;
-    }
-    
-
-
-
-
-    /**
      * Request model for job execution
      */
     public static class JobExecutionRequest {
@@ -345,7 +288,7 @@ public class JobExecutionController {
             JSONObject resolvedIntegrations;
             if (hasIntegrationIds) {
                 logger.info("🆔 Detected integration IDs (UUIDs), resolving from database");
-                resolvedIntegrations = resolveIntegrationIds(requiredIntegrations, getUserId(authentication));
+                resolvedIntegrations = integrationResolutionHelper.resolveIntegrationIds(requiredIntegrations, getUserId(authentication));
             } else {
                 logger.info("🔧 Detected integration types, resolving from properties");
                 resolvedIntegrations = integrationResolutionService.resolveIntegrationsForJob(
@@ -602,7 +545,7 @@ public class JobExecutionController {
             JSONObject resolvedIntegrations;
             if (hasIntegrationIds) {
                 logger.info("🆔 Detected integration IDs (UUIDs) in saved job configuration, resolving from database");
-                resolvedIntegrations = resolveIntegrationIds(integrationValues, userId);
+                resolvedIntegrations = integrationResolutionHelper.resolveIntegrationIds(integrationValues, userId);
                 
                 // For Expert job, automatically include Confluence integration if available and not already included
                 if ("Expert".equals(executionParams.getJobType()) && !resolvedIntegrations.has("confluence")) {
@@ -617,7 +560,7 @@ public class JobExecutionController {
                         if (!confluenceIntegrations.isEmpty()) {
                             String confluenceId = confluenceIntegrations.get(0).getId();
                             logger.info("✅ Found user's Confluence integration: {}, adding to resolved integrations", confluenceId);
-                            JSONObject confluenceConfig = resolveIntegrationIds(List.of(confluenceId), userId);
+                            JSONObject confluenceConfig = integrationResolutionHelper.resolveIntegrationIds(List.of(confluenceId), userId);
                             if (confluenceConfig.has("confluence")) {
                                 resolvedIntegrations.put("confluence", confluenceConfig.getJSONObject("confluence"));
                                 logger.info("✅ Successfully added Confluence integration for Expert job");
