@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.auth.controller;
 
 import com.github.istin.dmtools.auth.service.IntegrationService;
+import com.github.istin.dmtools.server.service.IntegrationResolutionHelper;
 import com.github.istin.dmtools.auth.service.McpConfigurationService;
 import com.github.istin.dmtools.auth.service.IntegrationConfigurationLoader;
 import com.github.istin.dmtools.auth.model.McpConfiguration;
@@ -97,12 +98,14 @@ public class DynamicMCPController {
     private final IntegrationService integrationService;
     private final IntegrationConfigurationLoader configurationLoader;
     private final FileDownloadService fileDownloadService;
+    private final IntegrationResolutionHelper integrationResolutionHelper;
 
-    public DynamicMCPController(McpConfigurationService mcpConfigurationService, IntegrationService integrationService, IntegrationConfigurationLoader configurationLoader, FileDownloadService fileDownloadService) {
+    public DynamicMCPController(McpConfigurationService mcpConfigurationService, IntegrationService integrationService, IntegrationConfigurationLoader configurationLoader, FileDownloadService fileDownloadService, IntegrationResolutionHelper integrationResolutionHelper) {
         this.mcpConfigurationService = mcpConfigurationService;
         this.integrationService = integrationService;
         this.configurationLoader = configurationLoader;
         this.fileDownloadService = fileDownloadService;
+        this.integrationResolutionHelper = integrationResolutionHelper;
     }
 
 
@@ -419,7 +422,7 @@ public class DynamicMCPController {
         logger.info("Creating client instances for user {} with integrations: {}", userId, integrationIds);
 
         // Resolve integrations from IDs (same as JobExecutionController)
-        JSONObject resolvedIntegrations = resolveIntegrationIds(integrationIds, userId);
+        JSONObject resolvedIntegrations = integrationResolutionHelper.resolveIntegrationIds(integrationIds, userId);
         
         logger.info("Resolved integrations: {}", resolvedIntegrations.keySet());
 
@@ -464,38 +467,7 @@ public class DynamicMCPController {
         return clientInstances;
     }
 
-    /**
-     * Resolves integration IDs to JSONObject configuration.
-     * Uses the common IntegrationConfigMapper utility.
-     */
-    private JSONObject resolveIntegrationIds(List<String> integrationIds, String userId) {
-        JSONObject resolved = new JSONObject();
-        
-        for (String integrationId : integrationIds) {
-            try {
-                logger.info("Resolving integration ID: {}", integrationId);
-                
-                // Get integration configuration from database with sensitive data
-                IntegrationDto integrationDto = integrationService.getIntegrationById(integrationId, userId, true);
-                
-                // Convert to JSONObject format expected by ServerManagedIntegrationsModule using common utility
-                JSONObject integrationConfig = IntegrationConfigMapper.mapIntegrationConfig(integrationDto, configurationLoader);
-                
-                // Use integration type as key
-                resolved.put(integrationDto.getType(), integrationConfig);
-                
-                logger.info("Successfully resolved integration ID '{}' as type '{}'", integrationId, integrationDto.getType());
-                
-                // Record usage
-                integrationService.recordIntegrationUsage(integrationId);
-                
-            } catch (Exception e) {
-                logger.error("Failed to resolve integration ID '{}': {}", integrationId, e.getMessage(), e);
-            }
-        }
-        
-        return resolved;
-    }
+
 
     private void sendError(SseEmitter emitter, Object id, int code, String message) {
         try {

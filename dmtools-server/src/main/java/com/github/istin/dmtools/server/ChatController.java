@@ -3,10 +3,14 @@ package com.github.istin.dmtools.server;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.dto.ChatRequest;
 import com.github.istin.dmtools.dto.ChatResponse;
+import com.github.istin.dmtools.auth.service.UserService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,8 +35,11 @@ public class ChatController {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private UserService userService;
+
     @PostMapping("/completions")
-    public ResponseEntity<ChatResponse> chatCompletions(@RequestBody ChatRequest request) {
+    public ResponseEntity<ChatResponse> chatCompletions(@RequestBody ChatRequest request, Authentication authentication) {
         logger.info("Received chat completions request with {} messages", 
                    request.getMessages() != null ? request.getMessages().size() : 0);
         
@@ -41,7 +48,20 @@ public class ChatController {
                     .body(ChatResponse.error("Messages cannot be empty"));
         }
         
-        ChatResponse response = chatService.chat(request);
+        // Get user ID from authentication, allowing null for backwards compatibility
+        String userId = null;
+        try {
+            if (authentication != null) {
+                userId = getUserId(authentication);
+                logger.info("Processing chat request for user: {}", userId);
+            } else {
+                logger.info("Processing chat request without authentication context");
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to extract user ID from authentication: {}", e.getMessage());
+        }
+        
+        ChatResponse response = chatService.chat(request, userId);
         
         if (response.isSuccess()) {
             return ResponseEntity.ok(response);
@@ -53,7 +73,8 @@ public class ChatController {
     @PostMapping(value = "/completions-with-files", consumes = {"multipart/form-data"})
     public ResponseEntity<ChatResponse> chatCompletionsWithFiles(
             @RequestParam("chatRequest") String chatRequestJson,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+            @RequestParam(value = "files", required = false) List<MultipartFile> files,
+            Authentication authentication) {
         
         logger.info("Received chat completions request with files: {} files attached", 
                    files != null ? files.size() : 0);
@@ -67,6 +88,19 @@ public class ChatController {
                         .body(ChatResponse.error("Messages cannot be empty"));
             }
             
+            // Get user ID from authentication, allowing null for backwards compatibility
+            String userId = null;
+            try {
+                if (authentication != null) {
+                    userId = getUserId(authentication);
+                    logger.info("Processing chat request with files for user: {}", userId);
+                } else {
+                    logger.info("Processing chat request with files without authentication context");
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to extract user ID from authentication: {}", e.getMessage());
+            }
+            
             // Process uploaded files and save them temporarily
             List<File> tempFiles = new ArrayList<>();
             if (files != null && !files.isEmpty()) {
@@ -74,7 +108,7 @@ public class ChatController {
                 logger.info("Saved {} temporary files for processing", tempFiles.size());
             }
             
-            ChatResponse response = chatService.chatWithFiles(request, tempFiles);
+            ChatResponse response = chatService.chatWithFiles(request, tempFiles, userId);
             
             // Clean up temporary files
             cleanupTempFiles(tempFiles);
@@ -95,7 +129,9 @@ public class ChatController {
     @PostMapping("/simple")
     public ResponseEntity<ChatResponse> simpleChat(
             @RequestParam String message,
-            @RequestParam(required = false) String model) {
+            @RequestParam(required = false) String model,
+            @RequestParam(required = false) String ai,
+            Authentication authentication) {
         logger.info("Received simple chat request");
         
         if (message == null || message.trim().isEmpty()) {
@@ -103,7 +139,20 @@ public class ChatController {
                     .body(ChatResponse.error("Message cannot be empty"));
         }
         
-        ChatResponse response = chatService.simpleChatMessage(message.trim(), model);
+        // Get user ID from authentication, allowing null for backwards compatibility
+        String userId = null;
+        try {
+            if (authentication != null) {
+                userId = getUserId(authentication);
+                logger.info("Processing simple chat request for user: {}", userId);
+            } else {
+                logger.info("Processing simple chat request without authentication context");
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to extract user ID from authentication: {}", e.getMessage());
+        }
+        
+        ChatResponse response = chatService.simpleChatMessage(message.trim(), model, ai, userId);
         
         if (response.isSuccess()) {
             return ResponseEntity.ok(response);
@@ -156,6 +205,36 @@ public class ChatController {
             } catch (Exception e) {
                 logger.warn("Error cleaning up temporary file: {}", tempFile.getPath(), e);
             }
+        }
+    }
+
+    private String getUserId(Authentication authentication) {
+        // Handle PlaceholderAuthentication during OAuth flow
+        if (authentication instanceof com.github.istin.dmtools.auth.PlaceholderAuthentication) {
+            throw new IllegalArgumentException("Authentication still in progress, cannot extract user ID");
+        }
+        
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof OAuth2User) {
+            return ((OAuth2User) principal).getAttribute("sub");
+        } else if (principal instanceof UserDetails) {
+            // For JWT authentication, the username is the email
+            // We need to find the user by email and return the user ID
+            String email = ((UserDetails) principal).getUsername();
+            return userService.findByEmail(email)
+                    .map(user -> user.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("User not found for email: " + email));
+        } else if (principal instanceof String) {
+            String principalStr = (String) principal;
+            // Check if it's a placeholder string from PlaceholderAuthentication
+            if (principalStr.startsWith("placeholder_")) {
+                throw new IllegalArgumentException("Authentication still in progress, cannot extract user ID");
+            }
+            // For string principal, assume it's the user ID directly
+            return principalStr;
+        } else {
+            throw new IllegalArgumentException("Unsupported principal type: " + 
+                (principal != null ? principal.getClass().getName() : "null"));
         }
     }
 } 
