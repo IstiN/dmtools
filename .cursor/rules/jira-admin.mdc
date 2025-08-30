@@ -22,6 +22,8 @@ Before doing everything you must to have ticket for that if that not provided by
    4. https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11632836/Template+Task
 4. When you need to commit changes you must follow the rules: https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11436325/Branching+and+Commit+Rules
 
+https://dmtools.atlassian.net/wiki/spaces/AINA/pages/18186241/Template+Jira+Markdown
+
 Examples of JQLs: 
 project = DMC and issueType in (epic) - get list of epics
 project = DMC and issueType in (story) and parent in (DMC-100) - get all stories inside epic
