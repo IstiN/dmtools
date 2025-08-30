@@ -125,6 +125,76 @@ public abstract class AbstractRestClient implements RestClient {
         }
     }
 
+    /**
+     * Sanitizes a URL by redacting sensitive query parameters to prevent credential exposure in logs.
+     * 
+     * @param url The URL to sanitize
+     * @return The sanitized URL with sensitive parameters redacted
+     */
+    public static String sanitizeUrl(String url) {
+        if (url == null) {
+            return null;
+        }
+        
+        try {
+            // Define sensitive parameter names that should be redacted
+            String[] sensitiveParams = {"key", "token", "password", "secret", "apikey", "api_key", "access_token", "auth", "authorization"};
+            
+            String result = url;
+            
+            // Check if URL contains query parameters
+            if (result.contains("?")) {
+                String[] urlParts = result.split("\\?", 2);
+                String baseUrl = urlParts[0];
+                String queryString = urlParts[1];
+                
+                // Process each query parameter
+                StringBuilder sanitizedQuery = new StringBuilder();
+                String[] params = queryString.split("&");
+                
+                for (int i = 0; i < params.length; i++) {
+                    String param = params[i];
+                    String[] keyValue = param.split("=", 2);
+                    
+                    if (keyValue.length == 2) {
+                        String paramName = keyValue[0].toLowerCase();
+                        String paramValue = keyValue[1];
+                        
+                        // Check if this is a sensitive parameter
+                        boolean isSensitive = false;
+                        for (String sensitiveParam : sensitiveParams) {
+                            if (paramName.equals(sensitiveParam) || paramName.contains(sensitiveParam)) {
+                                isSensitive = true;
+                                break;
+                            }
+                        }
+                        
+                        if (isSensitive) {
+                            sanitizedQuery.append(keyValue[0]).append("=***REDACTED***");
+                        } else {
+                            sanitizedQuery.append(param);
+                        }
+                    } else {
+                        // Parameter without value
+                        sanitizedQuery.append(param);
+                    }
+                    
+                    if (i < params.length - 1) {
+                        sanitizedQuery.append("&");
+                    }
+                }
+                
+                result = baseUrl + "?" + sanitizedQuery.toString();
+            }
+            
+            return result;
+        } catch (Exception e) {
+            // If sanitization fails, return a safe fallback
+            logger.warn("Failed to sanitize URL, using safe fallback: {}", e.getMessage());
+            return url.contains("?") ? url.split("\\?")[0] + "?[QUERY_PARAMS_REDACTED]" : url;
+        }
+    }
+
     public static IOException printAndCreateException(Request request, Response response) throws IOException {
         int code = response.code();
         String body = response.body() != null ? response.body().string() : "";
@@ -137,7 +207,8 @@ public abstract class AbstractRestClient implements RestClient {
         } else if (body.contains("rate")) {
             return new RateLimitException("rate limit", body, response);
         }
-        String responseError = "printAndCreateException error: " + request.url() + "\n" + body + "\n" + response.message() + "\n" + code;
+        String sanitizedUrl = sanitizeUrl(request.url().toString());
+        String responseError = "printAndCreateException error: " + sanitizedUrl + "\n" + body + "\n" + response.message() + "\n" + code;
         logger.error(responseError);
         return new RestClient.RestClientException(responseError, body);
     }
