@@ -8,6 +8,9 @@ import com.github.istin.dmtools.auth.model.User;
 import com.github.istin.dmtools.dto.IntegrationDto;
 import com.github.istin.dmtools.dto.IntegrationConfigDto;
 import com.github.istin.dmtools.server.service.FileDownloadService;
+import com.github.istin.dmtools.server.service.McpConfigurationResolverService;
+import com.github.istin.dmtools.auth.model.mcp.McpToolsListResponse;
+import com.github.istin.dmtools.auth.model.mcp.McpToolCallResponse;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,7 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -55,6 +59,9 @@ public class DynamicMCPControllerTest {
 
     @Mock
     private FileDownloadService fileDownloadService;
+    
+    @Mock
+    private McpConfigurationResolverService mcpConfigurationResolverService;
 
     @InjectMocks
     private DynamicMCPController dynamicMCPController;
@@ -136,8 +143,13 @@ public class DynamicMCPControllerTest {
         String configId = "test-config-id";
         McpConfiguration mockConfig = createMockMcpConfigurationWithIntegrations(configId);
         
-        when(mcpConfigurationService.findById(configId)).thenReturn(mockConfig);
+        lenient().when(mcpConfigurationService.findById(configId)).thenReturn(mockConfig);
         mockIntegrationService(mockConfig);
+        
+        // Mock the generateToolsList call
+        McpToolsListResponse mockResponse = new McpToolsListResponse(Arrays.asList());
+        lenient().when(mcpConfigurationResolverService.generateToolsList(configId))
+                .thenReturn(mockResponse);
 
         String toolsListRequest = new JSONObject()
                 .put("jsonrpc", "2.0")
@@ -162,8 +174,13 @@ public class DynamicMCPControllerTest {
         String configId = "test-config-id";
         McpConfiguration mockConfig = createMockMcpConfigurationWithIntegrations(configId);
         
-        when(mcpConfigurationService.findById(configId)).thenReturn(mockConfig);
+        lenient().when(mcpConfigurationService.findById(configId)).thenReturn(mockConfig);
         mockIntegrationService(mockConfig);
+        
+        // Mock the processToolCall call
+        McpToolCallResponse mockResponse = McpToolCallResponse.text("Test result");
+        lenient().when(mcpConfigurationResolverService.processToolCall(eq(configId), eq("jira_get_ticket"), 
+                any(JSONObject.class), any())).thenReturn(mockResponse);
 
         String toolCallRequest = new JSONObject()
                 .put("jsonrpc", "2.0")
@@ -192,8 +209,13 @@ public class DynamicMCPControllerTest {
         String configId = "test-config-id";
         McpConfiguration mockConfig = createMockMcpConfigurationWithIntegrations(configId);
         
-        when(mcpConfigurationService.findById(configId)).thenReturn(mockConfig);
+        lenient().when(mcpConfigurationService.findById(configId)).thenReturn(mockConfig);
         mockIntegrationService(mockConfig);
+        
+        // Mock the generateToolsList call for auto-send after initialization
+        McpToolsListResponse mockResponse = new McpToolsListResponse(Arrays.asList());
+        lenient().when(mcpConfigurationResolverService.generateToolsList(configId))
+                .thenReturn(mockResponse);
 
         String initializeRequest = new JSONObject()
                 .put("jsonrpc", "2.0")
@@ -317,7 +339,7 @@ public class DynamicMCPControllerTest {
         
         mockIntegration.setConfigParams(configParams);
         
-        when(integrationService.getIntegrationById(eq("integration-1"), anyString(), anyBoolean()))
+        lenient().when(integrationService.getIntegrationById(eq("integration-1"), anyString(), anyBoolean()))
                 .thenReturn(mockIntegration);
     }
 }

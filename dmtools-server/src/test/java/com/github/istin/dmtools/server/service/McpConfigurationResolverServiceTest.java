@@ -119,13 +119,27 @@ class McpConfigurationResolverServiceTest {
         // Given
         when(mcpConfigurationService.findById(configId)).thenReturn(testConfiguration);
         
+        // Mock integrations
+        IntegrationDto jiraIntegration = new IntegrationDto();
+        jiraIntegration.setId("jira-integration");
+        jiraIntegration.setType("jira");
+        
+        IntegrationDto confluenceIntegration = new IntegrationDto();
+        confluenceIntegration.setId("confluence-integration");
+        confluenceIntegration.setType("confluence");
+        
+        when(integrationService.getIntegrationById("jira-integration", "user123", false))
+            .thenReturn(jiraIntegration);
+        when(integrationService.getIntegrationById("confluence-integration", "user123", false))
+            .thenReturn(confluenceIntegration);
+        
         try (MockedStatic<MCPSchemaGenerator> mockedSchemaGenerator = Mockito.mockStatic(MCPSchemaGenerator.class)) {
             Map<String, Object> expectedTools = Map.of(
                 "tools", Arrays.asList(
                     Map.of("name", "jira-get-ticket", "description", "Get Jira ticket information")
                 )
             );
-            mockedSchemaGenerator.when(() -> MCPSchemaGenerator.generateToolsListResponse(any(Set.class)))
+            mockedSchemaGenerator.when(() -> MCPSchemaGenerator.generateToolsListResponse(eq(Set.of("jira", "confluence"))))
                 .thenReturn(expectedTools);
 
             // When
@@ -133,7 +147,7 @@ class McpConfigurationResolverServiceTest {
 
             // Then
             assertEquals(expectedTools, result);
-            mockedSchemaGenerator.verify(() -> MCPSchemaGenerator.generateToolsListResponse(any(Set.class)));
+            mockedSchemaGenerator.verify(() -> MCPSchemaGenerator.generateToolsListResponse(eq(Set.of("jira", "confluence"))));
         }
     }
 
@@ -171,7 +185,14 @@ class McpConfigurationResolverServiceTest {
         // Given
         String toolName = "jira-get-ticket";
         Map<String, Object> arguments = Map.of("ticketKey", "DMC-100");
-        Map<String, Object> resolvedIntegrations = Map.of("jira", Map.of("url", "https://test.atlassian.net"));
+        Map<String, Object> resolvedIntegrationsMap = Map.of("jira", Map.of("url", "https://test.atlassian.net"));
+        
+        // Mock the JSONObject for resolved integrations
+        JSONObject resolvedIntegrationsJson = new JSONObject();
+        resolvedIntegrationsJson.put("jira", Map.of("url", "https://test.atlassian.net"));
+        
+        when(integrationResolutionHelper.resolveIntegrationIds(eq(Arrays.asList("jira-integration")), eq("user123")))
+            .thenReturn(resolvedIntegrationsJson);
         
         McpConfigurationResolverService.McpConfigurationResult configResult = 
             new McpConfigurationResolverService.McpConfigurationResult(
@@ -184,7 +205,7 @@ class McpConfigurationResolverServiceTest {
         Object expectedResult = Map.of("key", "DMC-100", "summary", "Test ticket");
         
         try (MockedStatic<MCPToolExecutor> mockedExecutor = Mockito.mockStatic(MCPToolExecutor.class)) {
-            mockedExecutor.when(() -> MCPToolExecutor.executeTool(eq(toolName), any(Map.class), eq(resolvedIntegrations)))
+            mockedExecutor.when(() -> MCPToolExecutor.executeTool(eq(toolName), any(Map.class), any(Map.class)))
                 .thenReturn(expectedResult);
 
             // When
@@ -192,7 +213,7 @@ class McpConfigurationResolverServiceTest {
 
             // Then
             assertEquals(expectedResult, result);
-            mockedExecutor.verify(() -> MCPToolExecutor.executeTool(eq(toolName), any(Map.class), eq(resolvedIntegrations)));
+            mockedExecutor.verify(() -> MCPToolExecutor.executeTool(eq(toolName), any(Map.class), any(Map.class)));
         }
     }
 
@@ -201,14 +222,35 @@ class McpConfigurationResolverServiceTest {
         // Given
         String toolName = "jira-get-ticket";
         Map<String, Object> arguments = Map.of("ticketKey", "DMC-100");
-        Map<String, Object> resolvedIntegrations = Map.of("jira", Map.of("url", "https://test.atlassian.net"));
         
         when(mcpConfigurationService.findById(configId)).thenReturn(testConfiguration);
+        
+        // Mock integrations
+        IntegrationDto jiraIntegration = new IntegrationDto();
+        jiraIntegration.setId("jira-integration");
+        jiraIntegration.setType("jira");
+        
+        IntegrationDto confluenceIntegration = new IntegrationDto();
+        confluenceIntegration.setId("confluence-integration");
+        confluenceIntegration.setType("confluence");
+        
+        when(integrationService.getIntegrationById("jira-integration", "user123", false))
+            .thenReturn(jiraIntegration);
+        when(integrationService.getIntegrationById("confluence-integration", "user123", false))
+            .thenReturn(confluenceIntegration);
+            
+        // Mock the JSONObject for resolved integrations
+        JSONObject resolvedIntegrationsJson = new JSONObject();
+        resolvedIntegrationsJson.put("jira", Map.of("url", "https://test.atlassian.net"));
+        
+        when(integrationResolutionHelper.resolveIntegrationIds(
+                eq(Arrays.asList("jira-integration", "confluence-integration")), eq("user123")))
+            .thenReturn(resolvedIntegrationsJson);
         
         Object expectedResult = Map.of("key", "DMC-100", "summary", "Test ticket");
         
         try (MockedStatic<MCPToolExecutor> mockedExecutor = Mockito.mockStatic(MCPToolExecutor.class)) {
-            mockedExecutor.when(() -> MCPToolExecutor.executeTool(eq(toolName), any(Map.class), eq(resolvedIntegrations)))
+            mockedExecutor.when(() -> MCPToolExecutor.executeTool(eq(toolName), any(Map.class), any(Map.class)))
                 .thenReturn(expectedResult);
 
             // When
@@ -217,7 +259,7 @@ class McpConfigurationResolverServiceTest {
             // Then
             assertEquals(expectedResult, result);
             verify(mcpConfigurationService).findById(configId);
-            mockedExecutor.verify(() -> MCPToolExecutor.executeTool(eq(toolName), any(Map.class), eq(resolvedIntegrations)));
+            mockedExecutor.verify(() -> MCPToolExecutor.executeTool(eq(toolName), any(Map.class), any(Map.class)));
         }
     }
 }
