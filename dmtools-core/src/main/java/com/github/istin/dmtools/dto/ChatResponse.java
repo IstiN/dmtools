@@ -1,61 +1,42 @@
 package com.github.istin.dmtools.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Response from the chat API containing the AI's response and execution status")
 public class ChatResponse {
     
+    @Schema(
+        description = "The AI's response content, potentially including tool execution results formatted in markdown",
+        example = "Based on the Jira ticket DMC-123, here are the details:\n\n## Tools Used\n- **jira-get-ticket**: Retrieved ticket information\n\n```json\n{\"key\": \"DMC-123\", \"summary\": \"Fix login bug\"}\n```\n\nThe ticket shows that...",
+        required = false
+    )
     private String content;
-    private String model;
-    private String ai; // AI integration ID used for the response
+    
+    @Schema(
+        description = "Indicates whether the chat request was processed successfully",
+        example = "true",
+        required = true
+    )
     private boolean success;
+    
+    @Schema(
+        description = "Error message if the request failed (null if successful)",
+        example = "AI service temporarily unavailable",
+        required = false
+    )
     private String error;
-    private ResponseSource source;
-    private List<AgentExecutionResponse> agentExecutions; // Results from agents if any were used
     
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ResponseSource {
-        private String type; // "llm", "agent", "orchestrator", "hybrid"
-        private String name; // name of agent/orchestrator if applicable
-        
-        public static ResponseSource llm() {
-            return new ResponseSource("llm", null);
-        }
-        
-        public static ResponseSource agent(String agentName) {
-            return new ResponseSource("agent", agentName);
-        }
-        
-        public static ResponseSource orchestrator(String orchestratorName) {
-            return new ResponseSource("orchestrator", orchestratorName);
-        }
-        
-        public static ResponseSource hybrid() {
-            return new ResponseSource("hybrid", null);
-        }
-    }
-    
-    public static ChatResponse success(String content, String model) {
-        return new ChatResponse(content, model, null, true, null, ResponseSource.llm(), null);
-    }
-    
-    public static ChatResponse success(String content, String model, ResponseSource source, List<AgentExecutionResponse> agentExecutions) {
-        return new ChatResponse(content, model, null, true, null, source, agentExecutions);
-    }
-    
-    public static ChatResponse success(String content, String model, String ai) {
-        return new ChatResponse(content, model, ai, true, null, ResponseSource.llm(), null);
+    public static ChatResponse success(String content) {
+        return new ChatResponse(content, true, null);
     }
     
     public static ChatResponse error(String error) {
-        return new ChatResponse(error, null, null, false, error, null, null);
+        return new ChatResponse(null, false, error);
     }
 } 

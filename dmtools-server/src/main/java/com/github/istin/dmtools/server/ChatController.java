@@ -4,6 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.istin.dmtools.dto.ChatRequest;
 import com.github.istin.dmtools.dto.ChatResponse;
 import com.github.istin.dmtools.auth.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +33,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/chat")
 @CrossOrigin(origins = "*")
+@Tag(name = "Chat Controller", description = "AI Chat API with MCP Tools Integration")
 public class ChatController {
 
     private static final Logger logger = LogManager.getLogger(ChatController.class);
@@ -39,7 +48,110 @@ public class ChatController {
     private UserService userService;
 
     @PostMapping("/completions")
-    public ResponseEntity<ChatResponse> chatCompletions(@RequestBody ChatRequest request, Authentication authentication) {
+    @Operation(
+        summary = "Chat Completions with MCP Tools Support", 
+        description = "Process chat messages with AI and optionally execute MCP (Multi-Cloud Platform) tools for enhanced functionality. " +
+                     "When mcpConfigId is provided, the system can automatically select and execute relevant tools based on the conversation context."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200", 
+            description = "Chat completion successful",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class),
+                examples = @ExampleObject(
+                    name = "Successful Response",
+                    value = """
+                        {
+                          "content": "Based on the Jira ticket DMC-123, here are the key details: [Tool execution results and AI analysis]",
+                          "success": true,
+                          "error": null
+                        }"""
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "Invalid request - missing or empty messages",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class),
+                examples = @ExampleObject(
+                    name = "Bad Request",
+                    value = """
+                        {
+                          "content": null,
+                          "success": false,
+                          "error": "Messages cannot be empty"
+                        }"""
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "Internal server error during chat processing",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class),
+                examples = @ExampleObject(
+                    name = "Server Error",
+                    value = """
+                        {
+                          "content": null,
+                          "success": false,
+                          "error": "Failed to process chat request: AI service unavailable"
+                        }"""
+                )
+            )
+        )
+    })
+    public ResponseEntity<ChatResponse> chatCompletions(
+        @Parameter(
+            description = "Chat request containing messages and optional MCP configuration. " +
+                         "The mcpConfigId enables tool integration for enhanced AI responses.",
+            required = true,
+            schema = @Schema(implementation = ChatRequest.class),
+            examples = {
+                @ExampleObject(
+                    name = "Basic Chat Request",
+                    summary = "Simple chat without tools",
+                    value = """
+                        {
+                          "messages": [
+                            {
+                              "role": "user",
+                              "content": "Hello, how are you?",
+                              "fileNames": null
+                            }
+                          ],
+                          "model": "gpt-4",
+                          "ai": "openai-integration",
+                          "mcpConfigId": null
+                        }"""
+                ),
+                @ExampleObject(
+                    name = "Chat with MCP Tools",
+                    summary = "Chat request with MCP tools integration",
+                    value = """
+                        {
+                          "messages": [
+                            {
+                              "role": "user",
+                              "content": "Get me information from ticket DMC-123 and create a summary",
+                              "fileNames": null
+                            }
+                          ],
+                          "model": "gpt-4",
+                          "ai": "openai-integration",
+                          "mcpConfigId": "mcp-config-jira-confluence"
+                        }"""
+                )
+            }
+        )
+        @RequestBody ChatRequest request, 
+        Authentication authentication
+    ) {
         logger.info("Received chat completions request with {} messages", 
                    request.getMessages() != null ? request.getMessages().size() : 0);
         
@@ -71,8 +183,60 @@ public class ChatController {
     }
 
     @PostMapping(value = "/completions-with-files", consumes = {"multipart/form-data"})
+    @Operation(
+        summary = "Chat Completions with File Upload and MCP Tools",
+        description = "Process chat messages with uploaded files and optional MCP tools integration. " +
+                     "Files are processed and their content is made available to the AI for analysis."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Chat completion with files successful",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid request or file processing error",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error during processing",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class)
+            )
+        )
+    })
     public ResponseEntity<ChatResponse> chatCompletionsWithFiles(
+            @Parameter(
+                description = "JSON string containing the chat request (same structure as /completions)",
+                required = true,
+                example = """
+                    {
+                      "messages": [
+                        {
+                          "role": "user",
+                          "content": "Analyze the uploaded document and provide a summary",
+                          "fileNames": null
+                        }
+                      ],
+                      "model": "gpt-4",
+                      "ai": "openai-integration",
+                      "mcpConfigId": "mcp-config-document-analysis"
+                    }"""
+            )
             @RequestParam("chatRequest") String chatRequestJson,
+            @Parameter(
+                description = "List of files to upload and analyze (optional)",
+                required = false
+            )
             @RequestParam(value = "files", required = false) List<MultipartFile> files,
             Authentication authentication) {
         
@@ -127,9 +291,64 @@ public class ChatController {
     }
 
     @PostMapping("/simple")
+    @Operation(
+        summary = "Simple Chat Message",
+        description = "Send a simple text message to the AI without file upload or MCP tools integration. " +
+                     "This is a simplified endpoint for basic chat functionality."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Simple chat successful",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class),
+                examples = @ExampleObject(
+                    name = "Simple Chat Response",
+                    value = """
+                        {
+                          "content": "Hello! I'm here to help you. How can I assist you today?",
+                          "success": true,
+                          "error": null
+                        }"""
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid request - empty message",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ChatResponse.class)
+            )
+        )
+    })
     public ResponseEntity<ChatResponse> simpleChat(
+            @Parameter(
+                description = "The text message to send to the AI",
+                required = true,
+                example = "Hello, how can you help me today?"
+            )
             @RequestParam String message,
+            @Parameter(
+                description = "AI model to use (optional)",
+                required = false,
+                example = "gpt-4"
+            )
             @RequestParam(required = false) String model,
+            @Parameter(
+                description = "AI integration to use (optional)",
+                required = false,
+                example = "openai-integration"
+            )
             @RequestParam(required = false) String ai,
             Authentication authentication) {
         logger.info("Received simple chat request");
@@ -162,6 +381,22 @@ public class ChatController {
     }
 
     @GetMapping("/health")
+    @Operation(
+        summary = "Health Check",
+        description = "Check if the chat service is running and accessible"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Service is healthy",
+            content = @Content(
+                mediaType = "text/plain",
+                examples = @ExampleObject(
+                    value = "Chat service is running"
+                )
+            )
+        )
+    })
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Chat service is running");
     }

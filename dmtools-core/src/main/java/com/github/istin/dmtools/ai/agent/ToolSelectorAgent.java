@@ -2,9 +2,11 @@ package com.github.istin.dmtools.ai.agent;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.utils.AIResponseParser;
 import com.github.istin.dmtools.di.DaggerToolSelectorAgentComponent;
 import com.github.istin.dmtools.dto.ToolCallRequest;
-import com.github.istin.dmtools.ai.utils.AIResponseParser;
+import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,9 +25,17 @@ public class ToolSelectorAgent extends AbstractSimpleAgent<ToolSelectorAgent.Par
         private String availableTools;
     }
 
+    // Default constructor - dependencies will be injected by Dagger
     public ToolSelectorAgent() {
         super("agents/tool-selector");
         DaggerToolSelectorAgentComponent.create().inject(this);
+    }
+
+    // Constructor for server-managed mode with injected dependencies
+    public ToolSelectorAgent(AI ai, IPromptTemplateReader promptTemplateReader) {
+        super("agents/tool-selector");
+        this.ai = ai;
+        this.promptTemplateReader = promptTemplateReader;
     }
 
     @Override

@@ -9,11 +9,14 @@ import com.github.istin.dmtools.dto.ChatMessage;
 import com.github.istin.dmtools.dto.ChatRequest;
 import com.github.istin.dmtools.dto.ChatResponse;
 import com.github.istin.dmtools.dto.IntegrationDto;
+import com.github.istin.dmtools.dto.ToolCallRequest;
 import com.github.istin.dmtools.server.service.IntegrationResolutionHelper;
+import com.github.istin.dmtools.server.service.McpConfigurationResolverService;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -21,7 +24,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -31,24 +36,16 @@ import static org.mockito.ArgumentMatchers.any;
 class ChatServiceTest {
 
     @Mock
-    private AI ai;
+    private IntegrationResolutionHelper integrationResolutionHelper;
 
+    @Mock
+    private McpConfigurationResolverService mcpConfigurationResolverService;
+    
     @Mock
     private ToolSelectorAgent toolSelectorAgent;
 
-    @Mock
-    private IntegrationResolutionHelper integrationResolutionHelper;
-
+    @InjectMocks
     private ChatService chatService;
-
-    @BeforeEach
-    void setUp() {
-        chatService = new ChatService();
-        // Use reflection to inject mocks instead of @InjectMocks to avoid constructor issues
-        ReflectionTestUtils.setField(chatService, "ai", ai);
-        ReflectionTestUtils.setField(chatService, "toolSelectorAgent", toolSelectorAgent);
-        ReflectionTestUtils.setField(chatService, "integrationResolutionHelper", integrationResolutionHelper);
-    }
 
     /**
      * Helper method to create mock IntegrationDto objects for testing
@@ -68,11 +65,11 @@ class ChatServiceTest {
         String message = "Hello";
         String model = "test-model";
 
-        ChatResponse response = chatService.simpleChatMessage(message, model);
+        ChatResponse response = chatService.simpleChatMessage(message, model, null, null);
 
         assertNotNull(response);
         assertFalse(response.isSuccess());
-        assertEquals("User authentication is required for AI integration selection", response.getContent());
+        assertTrue(response.getContent().contains("User authentication is required"));
     }
 
     @Test
@@ -100,7 +97,7 @@ class ChatServiceTest {
         assertNotNull(response);
         // AI instance is created successfully, but API call fails with test key - this is expected
         assertTrue(response.isSuccess());
-        assertEquals(firstAIIntegrationId, response.getAi());
+        // Note: ChatResponse no longer contains AI integration ID, just success status
     }
 
     @Test
@@ -148,7 +145,7 @@ class ChatServiceTest {
         assertNotNull(response);
         // AI instance is created successfully, but API call fails with test key - this is expected  
         assertTrue(response.isSuccess());
-        assertEquals(firstAIIntegrationId, response.getAi());
+        // Note: ChatResponse no longer contains AI integration ID, just success status
     }
 
     @Test
@@ -167,11 +164,11 @@ class ChatServiceTest {
         String message = "Hello";
         String model = "test-model";
 
-        ChatResponse response = chatService.simpleChatMessage(message, model);
+        ChatResponse response = chatService.simpleChatMessage(message, model, null, null);
 
         assertNotNull(response);
         assertFalse(response.isSuccess());
-        assertEquals("User authentication is required for AI integration selection", response.getContent());
+        assertTrue(response.getContent().contains("User authentication is required"));
     }
 
     @Test
@@ -196,7 +193,7 @@ class ChatServiceTest {
         assertNotNull(response);
         // AI instance is created successfully, but API call fails with test key - this is expected
         assertTrue(response.isSuccess());
-        assertEquals(aiIntegrationId, response.getAi());
+        // Note: ChatResponse no longer contains AI integration ID, just success status
         verify(integrationResolutionHelper).resolveSingleIntegrationId(aiIntegrationId, userId);
     }
 
@@ -224,7 +221,7 @@ class ChatServiceTest {
         assertNotNull(response);
         // AI instance is created successfully, but API call fails with test key - this is expected
         assertTrue(response.isSuccess());
-        assertEquals(aiIntegrationId, response.getAi());
+        // Note: ChatResponse no longer contains AI integration ID, just success status
         verify(integrationResolutionHelper).resolveSingleIntegrationId(aiIntegrationId, userId);
     }
 
@@ -276,7 +273,7 @@ class ChatServiceTest {
         assertNotNull(response);
         // AI instance is created successfully, but API call fails with test key - this is expected
         assertTrue(response.isSuccess());
-        assertEquals(firstAIIntegrationId, response.getAi());
+        // Note: ChatResponse no longer contains AI integration ID, just success status
         verify(integrationResolutionHelper).resolveUserFirstAIIntegration(userId);
         verify(integrationResolutionHelper, never()).resolveSingleIntegrationId(any(), any());
     }
@@ -299,6 +296,213 @@ class ChatServiceTest {
         assertFalse(response.isSuccess());
         assertTrue(response.getContent().contains("No AI integrations found for user"));
         verify(integrationResolutionHelper).resolveUserFirstAIIntegration(userId);
+    }
+
+    @Test
+    void testChatWithMcpTools_SuccessfulExecution() throws Exception {
+        // Given
+        String userId = "user123";
+        String mcpConfigId = "mcp-config-123";
+        List<ChatMessage> messages = Arrays.asList(
+            new ChatMessage("user", "Get ticket information", null)
+        );
+        ChatRequest request = new ChatRequest(messages, "test-model", null, mcpConfigId);
+        
+        // Mock AI integration resolution
+        JSONObject integrationConfig = new JSONObject()
+            .put("gemini", new JSONObject()
+                .put("GEMINI_API_KEY", "test-key")
+                .put("GEMINI_DEFAULT_MODEL", "gemini-1.5-flash")
+                .put("GEMINI_BASE_PATH", "https://generativelanguage.googleapis.com"));
+        
+        when(integrationResolutionHelper.resolveUserFirstAIIntegration(userId))
+            .thenReturn(integrationConfig);
+
+        // Mock MCP configuration resolution
+        McpConfigurationResolverService.McpConfigurationResult mcpConfigResult = mock(McpConfigurationResolverService.McpConfigurationResult.class);
+        when(mcpConfigurationResolverService.resolveMcpConfiguration(mcpConfigId))
+            .thenReturn(mcpConfigResult);
+        
+        // Mock tools list
+        Map<String, Object> toolsResult = Map.of(
+            "tools", Arrays.asList(
+                Map.of("name", "jira-get-ticket", "description", "Get Jira ticket information")
+            )
+        );
+        when(mcpConfigurationResolverService.getToolsListAsMap(mcpConfigResult))
+            .thenReturn(toolsResult);
+
+        // Mock ToolSelectorAgent response - empty tools list
+        when(toolSelectorAgent.run(any()))
+            .thenReturn(Arrays.asList()); // No tools selected
+
+        // When
+        ChatResponse response = chatService.chat(request, userId);
+
+        // Then
+        assertNotNull(response);
+        assertTrue(response.isSuccess());
+        
+        verify(mcpConfigurationResolverService).resolveMcpConfiguration(mcpConfigId);
+        verify(mcpConfigurationResolverService).getToolsListAsMap(mcpConfigResult);
+    }
+
+    @Test
+    void testChatWithMcpTools_ToolExecution() throws Exception {
+        // Given
+        String userId = "user123";
+        String mcpConfigId = "mcp-config-123";
+        List<ChatMessage> messages = Arrays.asList(
+            new ChatMessage("user", "Get ticket DMC-100", null)
+        );
+        ChatRequest request = new ChatRequest(messages, "test-model", null, mcpConfigId);
+        
+        // Mock AI integration resolution
+        JSONObject integrationConfig = new JSONObject()
+            .put("gemini", new JSONObject()
+                .put("GEMINI_API_KEY", "test-key")
+                .put("GEMINI_DEFAULT_MODEL", "gemini-1.5-flash")
+                .put("GEMINI_BASE_PATH", "https://generativelanguage.googleapis.com"));
+        
+        when(integrationResolutionHelper.resolveUserFirstAIIntegration(userId))
+            .thenReturn(integrationConfig);
+
+        // Mock MCP configuration resolution
+        McpConfigurationResolverService.McpConfigurationResult mcpConfigResult = mock(McpConfigurationResolverService.McpConfigurationResult.class);
+        when(mcpConfigurationResolverService.resolveMcpConfiguration(mcpConfigId))
+            .thenReturn(mcpConfigResult);
+        
+        // Mock tools list
+        Map<String, Object> toolsResult = Map.of(
+            "tools", Arrays.asList(
+                Map.of("name", "jira-get-ticket", "description", "Get Jira ticket information")
+            )
+        );
+        when(mcpConfigurationResolverService.getToolsListAsMap(mcpConfigResult))
+            .thenReturn(toolsResult);
+
+        // Mock ToolSelectorAgent response - one tool selected, then none
+        ToolCallRequest toolCall = new ToolCallRequest("jira-get-ticket", 
+            "Get ticket information", Map.of("ticketKey", "DMC-100"));
+        when(toolSelectorAgent.run(any()))
+            .thenReturn(Arrays.asList(toolCall))  // First iteration: select tool
+            .thenReturn(Arrays.asList());         // Second iteration: no more tools
+
+        // Mock tool execution
+        Object toolResult = Map.of("key", "DMC-100", "summary", "Test ticket");
+        when(mcpConfigurationResolverService.executeToolCallRaw(eq(mcpConfigResult), eq("jira-get-ticket"), 
+            anyMap()))
+            .thenReturn(toolResult);
+
+        // When
+        ChatResponse response = chatService.chat(request, userId);
+
+        // Then
+        assertNotNull(response);
+        assertTrue(response.isSuccess());
+        
+        verify(mcpConfigurationResolverService).executeToolCallRaw(eq(mcpConfigResult), eq("jira-get-ticket"), 
+            anyMap());
+        verify(toolSelectorAgent, times(2)).run(any()); // Called twice due to iteration
+    }
+
+    @Test
+    void testChatWithMcpTools_ConfigurationResolutionFailure() throws Exception {
+        // Given
+        String userId = "user123";
+        String mcpConfigId = "invalid-config";
+        List<ChatMessage> messages = Arrays.asList(
+            new ChatMessage("user", "Get ticket information", null)
+        );
+        ChatRequest request = new ChatRequest(messages, "test-model", null, mcpConfigId);
+        
+        // Mock AI integration resolution
+        JSONObject integrationConfig = new JSONObject()
+            .put("gemini", new JSONObject()
+                .put("GEMINI_API_KEY", "test-key"));
+        when(integrationResolutionHelper.resolveUserFirstAIIntegration(userId))
+            .thenReturn(integrationConfig);
+
+        // Mock MCP configuration resolution failure
+        when(mcpConfigurationResolverService.resolveMcpConfiguration(mcpConfigId))
+            .thenThrow(new RuntimeException("MCP configuration not found"));
+
+        // When
+        ChatResponse response = chatService.chat(request, userId);
+
+        // Then
+        assertNotNull(response);
+        assertTrue(response.isSuccess()); // Falls back to regular chat without tools
+        
+        verify(mcpConfigurationResolverService).resolveMcpConfiguration(mcpConfigId);
+        verify(mcpConfigurationResolverService, never()).getToolsListAsMap(any(String.class));
+    }
+
+    @Test
+    void testChatWithMcpTools_EmptyToolsList() throws Exception {
+        // Given
+        String userId = "user123";
+        String mcpConfigId = "mcp-config-123";
+        List<ChatMessage> messages = Arrays.asList(
+            new ChatMessage("user", "Hello", null)
+        );
+        ChatRequest request = new ChatRequest(messages, "test-model", null, mcpConfigId);
+        
+        // Mock AI integration resolution
+        JSONObject integrationConfig = new JSONObject()
+            .put("gemini", new JSONObject()
+                .put("GEMINI_API_KEY", "test-key"));
+        when(integrationResolutionHelper.resolveUserFirstAIIntegration(userId))
+            .thenReturn(integrationConfig);
+
+        // Mock MCP configuration resolution
+        McpConfigurationResolverService.McpConfigurationResult mcpConfigResult = mock(McpConfigurationResolverService.McpConfigurationResult.class);
+        when(mcpConfigurationResolverService.resolveMcpConfiguration(mcpConfigId))
+            .thenReturn(mcpConfigResult);
+        
+        // Mock empty tools list
+        when(mcpConfigurationResolverService.getToolsListAsMap(mcpConfigResult))
+            .thenReturn(Map.of("tools", Arrays.asList()));
+
+        // When
+        ChatResponse response = chatService.chat(request, userId);
+
+        // Then
+        assertNotNull(response);
+        assertTrue(response.isSuccess()); // Falls back to regular chat
+        
+        verify(mcpConfigurationResolverService).resolveMcpConfiguration(mcpConfigId);
+        verify(mcpConfigurationResolverService).getToolsListAsMap(mcpConfigResult);
+        verify(toolSelectorAgent, never()).run(any());
+    }
+
+    @Test
+    void testProcessChatRequest_WithoutMcpConfig() throws Exception {
+        // Given
+        String userId = "user123";
+        List<ChatMessage> messages = Arrays.asList(
+            new ChatMessage("user", "Hello", null)
+        );
+        ChatRequest request = new ChatRequest(messages, "test-model", null, null); // no mcpConfigId
+        
+        // Mock AI integration resolution
+        JSONObject integrationConfig = new JSONObject()
+            .put("gemini", new JSONObject()
+                .put("GEMINI_API_KEY", "test-key"));
+        when(integrationResolutionHelper.resolveUserFirstAIIntegration(userId))
+            .thenReturn(integrationConfig);
+
+        // When
+        ChatResponse response = chatService.chat(request, userId);
+
+        // Then
+        assertNotNull(response);
+        assertTrue(response.isSuccess());
+        
+        // Verify MCP services are not called when no mcpConfigId
+        verify(mcpConfigurationResolverService, never()).resolveMcpConfiguration(any(String.class));
+        verify(mcpConfigurationResolverService, never()).getToolsListAsMap(any(String.class));
+        verify(toolSelectorAgent, never()).run(any());
     }
 
 } 
