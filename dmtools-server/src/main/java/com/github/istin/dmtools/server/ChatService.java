@@ -2,12 +2,19 @@ package com.github.istin.dmtools.server;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.Message;
-import com.github.istin.dmtools.ai.agent.ToolSelectorAgent;
-import com.github.istin.dmtools.auth.controller.DynamicMCPController;
+
+
 import com.github.istin.dmtools.dto.ChatMessage;
 import com.github.istin.dmtools.dto.ChatRequest;
 import com.github.istin.dmtools.dto.ChatResponse;
+import com.github.istin.dmtools.dto.IntegrationDto;
+
+import com.github.istin.dmtools.server.service.IntegrationResolutionHelper;
+import com.github.istin.dmtools.server.service.McpConfigurationResolverService;
+import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
+import com.github.istin.dmtools.ai.agent.ToolSelectorAgent;
 import com.github.istin.dmtools.dto.ToolCallRequest;
+import org.json.JSONObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,31 +29,76 @@ public class ChatService {
     private static final Logger logger = LogManager.getLogger(ChatService.class);
 
     @Autowired
-    private AI ai;
-
+    private IntegrationResolutionHelper integrationResolutionHelper;
+    
     @Autowired
-    private DynamicMCPController mcpController;
-
-    @Autowired
-    private ToolSelectorAgent toolSelectorAgent;
+    private McpConfigurationResolverService mcpConfigurationResolverService;
 
     public ChatResponse chat(ChatRequest request) {
+        return chat(request, null);
+    }
+
+    public ChatResponse chat(ChatRequest request, String userId) {
+        return chatWithFiles(request, null, userId);
+    }
+
+    public ChatResponse chatWithFiles(ChatRequest request, List<File> files) {
+        return chatWithFiles(request, files, null);
+    }
+
+    public ChatResponse chatWithFiles(ChatRequest request, List<File> files, String userId) {
+        return processChatRequest(request, files, userId);
+    }
+
+    public ChatResponse simpleChatMessage(String message, String model, String aiIntegrationId, String userId) {
+        // Create a simple ChatRequest with single message
+        ChatRequest request = new ChatRequest();
+        request.setMessages(Arrays.asList(new ChatMessage("user", message, null))); // null for fileNames
+        request.setModel(model);
+        request.setAi(aiIntegrationId); // Set AI integration ID if provided
+        
+        return processChatRequest(request, null, userId);
+    }
+
+    /**
+     * Main processing method that handles all chat request types with unified resolution logic
+     */
+    private ChatResponse processChatRequest(ChatRequest request, List<File> files, String userId) {
         try {
+            // Validate request
             if (request.getMessages() == null || request.getMessages().isEmpty()) {
                 logger.warn("Chat request received with no messages.");
                 return ChatResponse.error("Failed to process chat request: Message list cannot be empty.");
             }
-            logger.info("Processing chat request with {} messages", request.getMessages().size());
             
-            // Convert ChatMessage DTOs to AI Message objects
-            List<Message> messages = convertToAIMessages(request.getMessages());
+            logger.info("Processing chat request with {} messages and {} files", 
+                       request.getMessages().size(), files != null ? files.size() : 0);
             
-            // Check if agent tools are enabled
-            if (request.getAgentTools() != null && request.getAgentTools().isEnabled()) {
-                return chatWithMcpTools(messages, request);
-            } else {
-                return chatWithoutTools(messages, request);
+            // Step 1: Resolve AI integration (required)
+            AI aiToUse = resolveAIFromRequest(request, userId);
+            
+            // Step 2: Convert ChatMessage DTOs to AI Message objects (with or without files)
+            List<Message> messages = (files != null && !files.isEmpty()) 
+                ? convertToAIMessagesWithFiles(request.getMessages(), files)
+                : convertToAIMessages(request.getMessages());
+            
+                    // Step 3: Process with or without MCP tools based on configuration
+        if (request.getMcpConfigId() != null && !request.getMcpConfigId().trim().isEmpty()) {
+            // Resolve MCP configuration once
+            McpConfigurationResolverService.McpConfigurationResult mcpConfigResult;
+            Map<String, Object> toolsResult;
+            try {
+                mcpConfigResult = mcpConfigurationResolverService.resolveMcpConfiguration(request.getMcpConfigId());
+                toolsResult = mcpConfigurationResolverService.getToolsListAsMap(mcpConfigResult);
+            } catch (Exception e) {
+                logger.error("Failed to load MCP tools for config {}: {}", request.getMcpConfigId(), e.getMessage());
+                return chatWithoutTools(messages, request, aiToUse);
             }
+            
+            return chatWithMcpTools(messages, request, aiToUse, toolsResult, mcpConfigResult);
+        } else {
+            return chatWithoutTools(messages, request, aiToUse);
+        }
             
         } catch (Exception e) {
             logger.error("Error processing chat request", e);
@@ -54,93 +106,113 @@ public class ChatService {
         }
     }
 
-    public ChatResponse chatWithFiles(ChatRequest request, List<File> files) {
-        try {
-            logger.info("Processing chat request with {} messages and {} files", 
-                       request.getMessages().size(), files != null ? files.size() : 0);
-            
-            // Convert ChatMessage DTOs to AI Message objects, attaching files to the last user message
-            List<Message> messages = convertToAIMessagesWithFiles(request.getMessages(), files);
-            
-            // Check if agent tools are enabled
-            if (request.getAgentTools() != null && request.getAgentTools().isEnabled()) {
-                return chatWithMcpTools(messages, request);
-            } else {
-                return chatWithoutTools(messages, request);
-            }
-            
-        } catch (Exception e) {
-            logger.error("Error processing chat request with files", e);
-            return ChatResponse.error("Failed to process chat request with files: " + e.getMessage());
-        }
-    }
-
-    public ChatResponse simpleChatMessage(String message, String model) {
-        try {
-            logger.info("Processing simple chat message");
-            
-            String response;
-            if (model != null && !model.trim().isEmpty()) {
-                response = ai.chat(model, message);
-            } else {
-                response = ai.chat(message);
-            }
-            
-            logger.info("Successfully processed simple chat message");
-            return ChatResponse.success(response, model);
-            
-        } catch (Exception e) {
-            logger.error("Error processing simple chat message", e);
-            return ChatResponse.error("Failed to process message: " + e.getMessage());
-        }
-    }
-
-    private ChatResponse chatWithoutTools(List<Message> messages, ChatRequest request) throws Exception {
+    private ChatResponse chatWithoutTools(List<Message> messages, ChatRequest request, AI aiToUse) throws Exception {
         // Use the AI service to get response without tools
         String response;
         if (request.getModel() != null && !request.getModel().trim().isEmpty()) {
-            response = ai.chat(request.getModel(), messages.toArray(new Message[0]));
+            response = aiToUse.chat(request.getModel(), messages.toArray(new Message[0]));
         } else {
-            response = ai.chat(messages.toArray(new Message[0]));
+            response = aiToUse.chat(messages.toArray(new Message[0]));
         }
         
         logger.info("Successfully processed chat request without tools");
-        return ChatResponse.success(response, request.getModel());
+        return ChatResponse.success(response);
     }
 
-    private ChatResponse chatWithMcpTools(List<Message> messages, ChatRequest request) {
+    private ChatResponse chatWithMcpTools(List<Message> messages, ChatRequest request, AI aiToUse, Map<String, Object> toolsResult, McpConfigurationResolverService.McpConfigurationResult mcpConfigResult) {
         try {
-            logger.info("Processing chat request with MCP tools enabled");
+            logger.info("Processing chat request with MCP tools enabled using ToolSelectorAgent workflow");
             
-            // TODO: Uncomment this logic after the MCP generated classes are available
-            // Map<String, Object> toolsResult = getToolsListSafely();
-            // @SuppressWarnings("unchecked")
-            // List<Map<String, Object>> availableTools = (List<Map<String, Object>>) toolsResult.get("tools");
+            // Extract available tools from resolved MCP configuration
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> availableTools = (List<Map<String, Object>>) toolsResult.get("tools");
             
-            // if (availableTools == null || availableTools.isEmpty()) {
-            //     logger.warn("No MCP tools available, falling back to regular chat");
-            //     return chatWithoutTools(messages, request);
-            // }
+            if (availableTools == null || availableTools.isEmpty()) {
+                logger.warn("No MCP tools available for config {}, falling back to regular chat", request.getMcpConfigId());
+                return chatWithoutTools(messages, request, aiToUse);
+            }
             
-            // List<Map<String, Object>> filteredTools = filterToolsBasedOnConfig(availableTools, request.getAgentTools());
+            logger.info("Found {} MCP tools available for config {}", availableTools.size(), request.getMcpConfigId());
             
-            // String lastUserMessage = getLastUserMessage(messages);
-            // String formattedTools = formatToolsToString(filteredTools);
-            // ToolSelectorAgent.Params params = new ToolSelectorAgent.Params(lastUserMessage, formattedTools);
-            // List<ToolCallRequest> toolCalls = toolSelectorAgent.run(params);
-
-            // if (toolCalls != null && !toolCalls.isEmpty()) {
-            //     return executeToolCallsAndRespond(toolCalls, messages, request);
-            // } else {
-            //     return chatWithoutTools(messages, request);
-            // }
-            return chatWithoutTools(messages, request); // Placeholder
+            // Step 2: Create ToolSelectorAgent instance
+            ToolSelectorAgent toolSelectorAgent = new ToolSelectorAgent(aiToUse, new com.github.istin.dmtools.prompt.PromptManager());
+            logger.info("Created ToolSelectorAgent with provided AI instance");
+            
+            // Step 3: Iteratively call tools until no more tools are needed
+            List<Message> workingMessages = new ArrayList<>(messages);
+            List<ToolCallRequest> allSelectedToolCalls = new ArrayList<>();
+            List<String> allToolResults = new ArrayList<>();
+            String availableToolsString = formatToolsForToolSelector(availableTools);
+            
+            int iteration = 0;
+            final int MAX_ITERATIONS = 5; // Prevent infinite loops
+            
+            while (iteration < MAX_ITERATIONS) {
+                iteration++;
+                logger.info("ToolSelector iteration {}", iteration);
+                
+                // Prepare parameters for ToolSelectorAgent with current conversation state
+                String currentMessages = formatMessagesForToolSelector(workingMessages);
+                ToolSelectorAgent.Params toolSelectorParams = new ToolSelectorAgent.Params(currentMessages, availableToolsString);
+                
+                // Call ToolSelectorAgent to determine which tools to use
+                List<ToolCallRequest> selectedToolCalls;
+                try {
+                    selectedToolCalls = toolSelectorAgent.run(toolSelectorParams);
+                    logger.info("ToolSelectorAgent iteration {} selected {} tools", iteration, 
+                        selectedToolCalls != null ? selectedToolCalls.size() : 0);
+                } catch (Exception e) {
+                    logger.error("ToolSelectorAgent execution failed on iteration {}: {}", iteration, e.getMessage());
+                    break; // Exit loop on error
+                }
+                
+                // If no tools selected, we're done
+                if (selectedToolCalls == null || selectedToolCalls.isEmpty()) {
+                    logger.info("ToolSelectorAgent returned no tools on iteration {}, stopping", iteration);
+                    break;
+                }
+                
+                // Execute selected tools and add results to working messages
+                ToolExecutionResult iterationResult = executeToolsAndPrepareMessages(
+                    workingMessages, selectedToolCalls, mcpConfigResult);
+                
+                // Update working messages with new tool results
+                workingMessages = iterationResult.messages;
+                
+                // Track all tool calls and results for final formatting
+                allSelectedToolCalls.addAll(selectedToolCalls);
+                allToolResults.addAll(iterationResult.toolResults);
+                
+                logger.info("Completed iteration {} with {} tools executed", iteration, selectedToolCalls.size());
+            }
+            
+            if (iteration >= MAX_ITERATIONS) {
+                logger.warn("Reached maximum iterations ({}) for tool selection", MAX_ITERATIONS);
+            }
+            
+            logger.info("Tool selection completed after {} iterations with {} total tools executed", 
+                iteration, allSelectedToolCalls.size());
+            
+            // Step 4: Send all messages to AI for final response
+            String finalResponse;
+            if (request.getModel() != null && !request.getModel().trim().isEmpty()) {
+                finalResponse = aiToUse.chat(request.getModel(), workingMessages.toArray(new Message[0]));
+            } else {
+                finalResponse = aiToUse.chat(workingMessages.toArray(new Message[0]));
+            }
+            
+            // Step 5: Format final response with tool execution information
+            String formattedResponse = formatFinalResponseWithToolInfo(finalResponse, allSelectedToolCalls, allToolResults);
+            
+            logger.info("Successfully processed chat request with MCP tools using ToolSelectorAgent workflow");
+            return ChatResponse.success(formattedResponse);
+            
         } catch (Exception e) {
             logger.error("Error in chat with MCP tools", e);
             // Fallback to regular chat if tool integration fails
             logger.warn("Falling back to regular chat without tools");
             try {
-                return chatWithoutTools(messages, request);
+                return chatWithoutTools(messages, request, aiToUse);
             } catch (Exception fallbackError) {
                 logger.error("Error in fallback chat", fallbackError);
                 return ChatResponse.error("Failed to process chat request: " + e.getMessage());
@@ -148,75 +220,7 @@ public class ChatService {
         }
     }
 
-    private Map<String, Object> getToolsListSafely() {
-        try {
-            return new HashMap<>();//mcpController.handleToolsList(null); // Passing null for userId, adjust if needed
-        } catch (Exception e) {
-            logger.error("Error getting tools list: {}", e.getMessage(), e);
-            return Map.of("tools", new ArrayList<>());
-        }
-    }
 
-    private Map<String, Object> callMcpToolSafely(String toolName, Map<String, Object> arguments) {
-        try {
-            Map<String, Object> params = new HashMap<>();
-            params.put("name", toolName);
-            params.put("arguments", arguments);
-            return new HashMap<>();//mcpController.handleToolCall(params, null); // Passing null for userId, adjust if needed
-        } catch (Exception e) {
-            logger.error("Error calling MCP tool {}: {}", toolName, e.getMessage(), e);
-            return Map.of("content", List.of(Map.of("text", "Error executing tool " + toolName + ": " + e.getMessage())));
-        }
-    }
-
-    private List<Map<String, Object>> filterToolsBasedOnConfig(List<Map<String, Object>> allTools, ChatRequest.AgentToolsConfig config) {
-        if (config.getAvailableAgents() == null && config.getAvailableOrchestrators() == null) {
-            // Return all tools if no specific filtering requested
-            return allTools;
-        }
-        
-        List<Map<String, Object>> filteredTools = new ArrayList<>();
-        
-        for (Map<String, Object> tool : allTools) {
-            String toolName = (String) tool.get("name");
-            
-            // Check if tool matches available agents
-            if (config.getAvailableAgents() != null) {
-                for (String agentName : config.getAvailableAgents()) {
-                    if (toolName.contains(agentName.toLowerCase()) || toolName.contains("agent")) {
-                        filteredTools.add(tool);
-                        break;
-                    }
-                }
-            }
-            
-            // Check if tool matches available orchestrators
-            if (config.getAvailableOrchestrators() != null) {
-                for (String orchestratorName : config.getAvailableOrchestrators()) {
-                    if (toolName.contains(orchestratorName.toLowerCase()) || toolName.contains("orchestrator")) {
-                        filteredTools.add(tool);
-                        break;
-                    }
-                }
-            }
-            
-            // Include basic tools if no specific filtering
-            if (toolName.startsWith("dmtools_jira_") || toolName.startsWith("dmtools_github_") || toolName.startsWith("dmtools_confluence_")) {
-                filteredTools.add(tool);
-            }
-        }
-        
-        return filteredTools;
-    }
-
-    private String getLastUserMessage(List<Message> messages) {
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            if ("user".equals(messages.get(i).getRole())) {
-                return messages.get(i).getText();
-            }
-        }
-        return "";
-    }
 
     private List<Message> convertToAIMessages(List<ChatMessage> chatMessages) {
         List<Message> messages = new ArrayList<>();
@@ -257,142 +261,227 @@ public class ChatService {
         return true;
     }
 
-    private ChatResponse executeToolCallsAndRespond(List<ToolCallRequest> toolCalls, List<Message> messages, ChatRequest request) {
-        try {
-            List<Message> toolCallResponses = new ArrayList<>();
-            for (ToolCallRequest toolCall : toolCalls) {
-                logger.info("Executing tool: {}", toolCall.getToolName());
-                Map<String, Object> arguments = toolCall.getArguments();
-                Map<String, Object> toolResult = callMcpToolSafely(toolCall.getToolName(), arguments);
-                String formattedResult = formatToolResult(toolCall.getToolName(), toolResult);
-                
-                // Create a message with the tool result
-                Message resultMessage = new Message("assistant", formattedResult, null);
-                toolCallResponses.add(resultMessage);
-            }
-            
-            // Add tool responses to the conversation
-            messages.addAll(toolCallResponses);
-            
-            // Continue the conversation with the tool results
-            return chatWithoutTools(messages, request);
-            
-        } catch (Exception e) {
-            logger.error("Error executing tool calls", e);
-            return ChatResponse.error("Failed to execute tool calls: " + e.getMessage());
+
+
+    
+    /**
+     * Inner class to hold tool execution results
+     */
+    private static class ToolExecutionResult {
+        final List<Message> messages;
+        final List<String> toolResults;
+        
+        ToolExecutionResult(List<Message> messages, List<String> toolResults) {
+            this.messages = messages;
+            this.toolResults = toolResults;
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private String formatToolResult(String toolName, Map<String, Object> result) {
-        StringBuilder formatted = new StringBuilder();
-        if (true) {
-            return result.toString();
+
+
+    /**
+     * Resolves AI instance from ChatRequest
+     */
+    private AI resolveAIFromRequest(ChatRequest request, String userId) {
+        if (userId == null) {
+            logger.error("❌ [ChatService] User ID is required for AI integration selection");
+            throw new RuntimeException("User authentication is required for AI integration selection");
         }
-        if (toolName.contains("jira_get_ticket")) {
-            // Format JIRA ticket results
-            Object ticket = result.get("content");
-            if (ticket instanceof Map) {
-                Map<String, Object> ticketData = (Map<String, Object>) ticket;
-                formatted.append("**JIRA Ticket Information:**\n");
-                formatted.append("- **Key:** ").append(ticketData.get("key")).append("\n");
-                formatted.append("- **Summary:** ").append(ticketData.get("summary")).append("\n");
-                formatted.append("- **Status:** ").append(ticketData.get("status")).append("\n");
-                Object assignee = ticketData.get("assignee");
-                if (assignee != null) {
-                    formatted.append("- **Assignee:** ").append(assignee).append("\n");
-                }
-                Object priority = ticketData.get("priority");
-                if (priority != null) {
-                    formatted.append("- **Priority:** ").append(priority).append("\n");
-                }
-                formatted.append("- **Description:** ").append(ticketData.get("description")).append("\n");
-            }
-        } else if (toolName.contains("jira_search")) {
-            // Format JIRA search results
-            Object issues = result.get("issues");
-            if (issues instanceof List) {
-                List<Map<String, Object>> issueList = (List<Map<String, Object>>) issues;
-                formatted.append("**JIRA Search Results:**\n");
-                if (issueList.isEmpty()) {
-                    formatted.append("No tickets found matching the search criteria.\n");
-                } else {
-                    for (Map<String, Object> issue : issueList) {
-                        formatted.append("- **").append(issue.get("key")).append(":** ")
-                                 .append(issue.get("summary"));
-                        Object status = issue.get("status");
-                        if (status != null) {
-                            formatted.append(" (").append(status).append(")");
-                        }
-                        formatted.append("\n");
-                    }
-                }
-            }
-        } else if (toolName.contains("github_get_pull_requests")) {
-            // Format GitHub PR results
-            Object pullRequests = result.get("pullRequests");
-            if (pullRequests instanceof List) {
-                List<Map<String, Object>> prs = (List<Map<String, Object>>) pullRequests;
-                formatted.append("**GitHub Pull Requests:**\n");
-                for (Map<String, Object> pr : prs) {
-                    formatted.append("- **#").append(pr.get("number")).append("** ")
-                             .append(pr.get("title")).append(" (").append(pr.get("state")).append(")\n");
-                }
-            }
-        } else if (toolName.contains("confluence_search")) {
-            // Format Confluence search results
-            Object pages = result.get("results");
-            if (pages instanceof List) {
-                List<Map<String, Object>> pageList = (List<Map<String, Object>>) pages;
-                formatted.append("**Confluence Search Results:**\n");
-                for (Map<String, Object> page : pageList) {
-                    formatted.append("- **").append(page.get("title")).append("**\n");
-                    Object excerpt = page.get("excerpt");
-                    if (excerpt != null) {
-                        formatted.append("  ").append(excerpt).append("\n");
-                    }
-                }
-            }
-        } else {
-            // Generic formatting for other tools
-            formatted.append("**Tool Result (").append(toolName).append("):**\n");
+        
+        try {
+            JSONObject integrationConfig;
+            String actualIntegrationId;
             
-            // Try to extract meaningful content from the result
-            Object content = result.get("content");
-            if (content instanceof List) {
-                List<?> contentList = (List<?>) content;
-                for (Object item : contentList) {
-                    if (item instanceof Map) {
-                        Map<?, ?> itemMap = (Map<?, ?>) item;
-                        Object text = itemMap.get("text");
-                        if (text != null) {
-                            formatted.append(text.toString()).append("\n");
-                        }
-                    } else {
-                        formatted.append(item.toString()).append("\n");
-                    }
-                }
-            } else if (content != null) {
-                formatted.append(content.toString());
+            if (request.getAi() != null && !request.getAi().trim().isEmpty()) {
+                // Use specific integration ID provided by user
+                logger.info("🤖 [ChatService] AI integration selection requested for ID: {}", request.getAi());
+                integrationConfig = integrationResolutionHelper.resolveSingleIntegrationId(request.getAi(), userId);
+                actualIntegrationId = request.getAi();
             } else {
-                formatted.append(result.toString());
+                // Automatically use user's first AI integration
+                logger.info("🤖 [ChatService] No AI integration specified, auto-selecting user's first AI integration");
+                integrationConfig = integrationResolutionHelper.resolveUserFirstAIIntegration(userId);
+                
+                // Extract the actual integration ID from the resolved config
+                IntegrationDto firstAI = integrationResolutionHelper.findUserFirstAIIntegration(userId);
+                actualIntegrationId = firstAI != null ? firstAI.getId() : null;
+            }
+            
+            // Create the specific AI instance using ServerManagedIntegrationsModule directly
+            ServerManagedIntegrationsModule integrationsModule = new ServerManagedIntegrationsModule(integrationConfig);
+            AI integrationAI = integrationsModule.createAI();
+            if (integrationAI != null) {
+                logger.info("✅ [ChatService] Successfully created AI instance from integration: {}", actualIntegrationId);
+                return integrationAI; // Successfully resolved
+            } else {
+                logger.error("❌ [ChatService] Failed to create AI instance from integration: {}", actualIntegrationId);
+                throw new RuntimeException("Failed to create AI instance from integration. Please check your integration configuration.");
+            }
+            
+        } catch (Exception e) {
+            logger.error("❌ [ChatService] Failed to resolve AI integration: {}", e.getMessage());
+            throw new RuntimeException("Failed to resolve AI integration: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Formats all messages for ToolSelectorAgent consumption
+     */
+    private String formatMessagesForToolSelector(List<Message> messages) {
+        StringBuilder messageText = new StringBuilder();
+        for (Message message : messages) {
+            messageText.append(message.getRole()).append(": ").append(message.getText()).append("\n\n");
+        }
+        return messageText.toString().trim();
+    }
+
+    /**
+     * Formats available tools for ToolSelectorAgent consumption
+     */
+    private String formatToolsForToolSelector(List<Map<String, Object>> tools) {
+        try {
+            // Convert tools list to JSON string for ToolSelectorAgent
+            JSONObject toolsJson = new JSONObject();
+            toolsJson.put("tools", tools);
+            return toolsJson.toString(2); // Pretty print with indent
+        } catch (Exception e) {
+            logger.error("Error formatting tools for ToolSelectorAgent: {}", e.getMessage());
+            // Fallback to simple string representation
+            StringBuilder toolsInfo = new StringBuilder();
+            for (Map<String, Object> tool : tools) {
+                String name = (String) tool.get("name");
+                String description = (String) tool.get("description");
+                toolsInfo.append("Tool: ").append(name).append(" - ").append(description).append("\n");
+            }
+            return toolsInfo.toString();
+        }
+    }
+
+    /**
+     * Executes selected tools and prepares messages with results inserted before last user message
+     */
+    private ToolExecutionResult executeToolsAndPrepareMessages(List<Message> originalMessages, 
+                                                         List<ToolCallRequest> toolCalls, 
+                                                         McpConfigurationResolverService.McpConfigurationResult mcpConfigResult) {
+        List<Message> messagesWithResults = new ArrayList<>(originalMessages);
+        
+        // If no tools were selected, return original messages
+        if (toolCalls == null || toolCalls.isEmpty()) {
+            logger.info("No tools selected for execution, proceeding with original messages");
+            return new ToolExecutionResult(messagesWithResults, new ArrayList<>());
+        }
+        
+        // Find the index of the last user message
+        int lastUserMessageIndex = -1;
+        for (int i = messagesWithResults.size() - 1; i >= 0; i--) {
+            if ("user".equals(messagesWithResults.get(i).getRole())) {
+                lastUserMessageIndex = i;
+                break;
             }
         }
         
-        return formatted.toString();
+        // If no user message found, insert tool results at the end
+        if (lastUserMessageIndex == -1) {
+            lastUserMessageIndex = messagesWithResults.size();
+        }
+        
+        // Execute each tool and insert results as model messages before the last user message
+        List<String> toolExecutionResults = new ArrayList<>();
+        for (ToolCallRequest toolCall : toolCalls) {
+            try {
+                logger.info("Executing tool: {} with arguments: {}", toolCall.getToolName(), toolCall.getArguments());
+                
+                // Execute the tool
+                Object result = mcpConfigurationResolverService.executeToolCallRaw(
+                    mcpConfigResult, toolCall.getToolName(), toolCall.getArguments());
+                
+                String resultString = result != null ? result.toString() : "Tool executed successfully but returned no result.";
+                
+                // Store result for final response formatting
+                String toolReason = (toolCall.getReason() != null && !toolCall.getReason().trim().isEmpty()) 
+                    ? String.format(" (%s)", toolCall.getReason()) 
+                    : "";
+                toolExecutionResults.add(String.format("Tool: %s%s\nResult: %s", toolCall.getToolName(), toolReason, resultString));
+                
+                // Create model message with tool execution result
+                Message toolResultMessage = new Message("model", 
+                    String.format("Tool execution result for '%s'%s: %s", toolCall.getToolName(), toolReason, resultString), 
+                    null);
+                
+                // Insert before the last user message
+                messagesWithResults.add(lastUserMessageIndex, toolResultMessage);
+                lastUserMessageIndex++; // Adjust index for next insertion
+                
+            } catch (Exception e) {
+                logger.error("Failed to execute tool {}: {}", toolCall.getToolName(), e.getMessage());
+                
+                String errorMsg = String.format("Error executing tool '%s': %s", toolCall.getToolName(), e.getMessage());
+                toolExecutionResults.add(String.format("Tool: %s\nError: %s", toolCall.getToolName(), e.getMessage()));
+                
+                // Create model message with error
+                Message errorMessage = new Message("model", errorMsg, null);
+                messagesWithResults.add(lastUserMessageIndex, errorMessage);
+                lastUserMessageIndex++;
+            }
+        }
+        
+        logger.info("Executed {} tools and inserted results into message chain", toolCalls.size());
+        return new ToolExecutionResult(messagesWithResults, toolExecutionResults);
     }
 
-    private String formatToolsToString(List<Map<String, Object>> tools) {
-        if (tools == null || tools.isEmpty()) {
-            return "";
+    /**
+     * Formats the final response with markdown showing tool executions BEFORE the AI response
+     */
+    private String formatFinalResponseWithToolInfo(String finalResponse, List<ToolCallRequest> toolCalls, List<String> toolResults) {
+        if (toolCalls == null || toolCalls.isEmpty()) {
+            return finalResponse;
         }
-        StringBuilder sb = new StringBuilder();
-        for (Map<String, Object> tool : tools) {
-            String name = (String) tool.get("name");
-            String description = (String) tool.get("description");
-            sb.append("- Name: ").append(name).append("\n");
-            sb.append("  Description: ").append(description).append("\n");
+        
+        StringBuilder formattedResponse = new StringBuilder();
+        
+        // Add tool execution information as markdown FIRST
+        formattedResponse.append("## Tools Used\n\n");
+        
+        for (int i = 0; i < toolCalls.size(); i++) {
+            ToolCallRequest toolCall = toolCalls.get(i);
+            formattedResponse.append(String.format("**%d. %s**\n", i + 1, toolCall.getToolName()));
+            
+            if (toolCall.getReason() != null && !toolCall.getReason().trim().isEmpty()) {
+                formattedResponse.append("- Reason: ").append(toolCall.getReason()).append("\n");
+            }
+            
+            if (toolCall.getArguments() != null && !toolCall.getArguments().isEmpty()) {
+                formattedResponse.append("- Arguments: `").append(formatArgumentsForDisplay(toolCall.getArguments())).append("`\n");
+            }
+            
+            // Add tool result as code block
+            if (toolResults != null && i < toolResults.size()) {
+                formattedResponse.append("- Response:\n```\n");
+                formattedResponse.append(toolResults.get(i));
+                formattedResponse.append("\n```\n");
+            }
+            
+            formattedResponse.append("\n");
         }
-        return sb.toString();
+        
+        // Add separator and then the AI response
+        formattedResponse.append("---\n\n");
+        formattedResponse.append(finalResponse);
+        
+        return formattedResponse.toString();
     }
+    
+    /**
+     * Helper method to format arguments for display in markdown
+     */
+    private String formatArgumentsForDisplay(Map<String, Object> arguments) {
+        try {
+            JSONObject argsJson = new JSONObject(arguments);
+            return argsJson.toString();
+        } catch (Exception e) {
+            return arguments.toString();
+        }
+    }
+
+
 } 
