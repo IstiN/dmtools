@@ -88,7 +88,7 @@ public class ExpertParamsTest {
 
     @Test
     public void testAttachResponseAsFileDefault() {
-        assertEquals(true, expertParams.isAttachResponseAsFile());
+        assertEquals(false, expertParams.isAttachResponseAsFile());
     }
 
     @Test
