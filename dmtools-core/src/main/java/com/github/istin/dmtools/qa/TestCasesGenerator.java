@@ -126,16 +126,16 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
                 result.append("Summary: ").append(testCase.getSummary()).append("<br>");
                 result.append("Priority: ").append(testCase.getPriority()).append("<br>");
-                result.append("Description: ").append(testCase.getDescription()).append("<br>");
+                result.append("Description: ").append(StringUtils.convertToMarkdown(testCase.getDescription())).append("<br>");
             }
             trackerClient.postComment(key, result.toString());
         } else {
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
                 String projectCode = key.split("-")[0];
                 String description = testCase.getDescription();
-                if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
+                //if (trackerClient.getTextType() == TrackerClient.TextType.MARKDOWN) {
                     description = StringUtils.convertToMarkdown(description);
-                }
+                //}
                 Ticket createdTestCase = new Ticket(trackerClient.createTicketInProject(projectCode, params.getTestCaseIssueType(), testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
                     @Override
                     public void init(TrackerClient.TrackerTicketFields fields) {
