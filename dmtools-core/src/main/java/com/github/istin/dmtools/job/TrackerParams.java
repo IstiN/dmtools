@@ -30,7 +30,7 @@ public class TrackerParams {
     private Metadata metadata;
 
     @SerializedName(ATTACH_RESPONSE_AS_FILE)
-    private boolean attachResponseAsFile = true;
+    private boolean attachResponseAsFile = false;
 
     public static final String TICKET_CONTEXT_DEPTH = "ticketContextDepth";
     public static final String CHUNKS_PROCESSING_TIMEOUT_IN_MINUTES = "chunksProcessingTimeout";

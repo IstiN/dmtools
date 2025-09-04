@@ -28,6 +28,13 @@ public class DialAIClient extends AbstractRestClient implements AI {
 
     private final Logger logger;  // Changed from static to instance member
 
+    /**
+     * -- GETTER --
+     *  Gets the model name used by this client
+     *
+     * @return The model name
+     */
+    @Getter
     private final String model;
 
     @Setter
@@ -57,14 +64,6 @@ public class DialAIClient extends AbstractRestClient implements AI {
     }
 
     public String getName() {
-        return model;
-    }
-
-    /**
-     * Gets the model name used by this client
-     * @return The model name
-     */
-    public String getModel() {
         return model;
     }
 
