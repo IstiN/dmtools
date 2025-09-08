@@ -190,8 +190,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
         List<IComment> comments = JSONModel.convertToModels(GitHubComment.class, new JSONArray(response));
         result.addAll(comments);
         result.addAll(pullRequestCommentsFromIssue(workspace, repository, pullRequestId));
-        comments.sort((c1, c2) -> c1.getCreated().compareTo(c2.getCreated()));
-        return comments;
+        result.sort((c1, c2) -> c1.getCreated().compareTo(c2.getCreated()));
+        return result;
     }
 
     public List<IComment> pullRequestCommentsFromIssue(String workspace, String repository, String pullRequestId) throws IOException {
