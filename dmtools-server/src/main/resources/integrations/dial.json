@@ -4,6 +4,7 @@
   "descriptionKey": "integration.dial.description",
   "iconUrl": "/img/integrations/dial-icon.svg",
   "categories": ["AI"],
+  "supportsMcp": true,
   "setupDocumentation": {
     "en": "/docs/integrations/dial_setup_en.md",
     "ru": "/docs/integrations/dial_setup_ru.md"

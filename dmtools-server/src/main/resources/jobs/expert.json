@@ -467,6 +467,27 @@
         "true",
         "false"
       ]
+    },
+    {
+      "key": "postJSAction",
+      "displayName": "Post-Action JavaScript",
+      "description": "JavaScript code to execute after AI expert analysis. Can be inline JavaScript, resource path (e.g., 'agentFunctions/expertPipeline.js'), or GitHub URL. The script receives jobParams, ticket, response, initiator, systemRequest, and request as parameters and has access to all 61 MCP tools (Jira, Confluence, AI, etc.).",
+      "displayNameKey": "expert.postJSAction.displayName",
+      "descriptionKey": "expert.postJSAction.description",
+      "instructionsKey": "expert.postJSAction.instructions",
+      "required": false,
+      "sensitive": false,
+      "advanced": true,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 500000
+      },
+      "examples": [
+        "function action(params) {\n  var jobConfig = JSON.parse(params.jobParams);\n  var ticket = JSON.parse(params.ticket);\n  var response = params.response;\n  // Create analysis report\n  return jira_create_ticket_with_parent({\n    project: ticket.key.split('-')[0],\n    issueType: 'Sub-task',\n    summary: 'AI Analysis: ' + ticket.summary,\n    description: response,\n    parentKey: ticket.key\n  });\n}",
+        "agentFunctions/expertAnalysis.js",
+        "https://github.com/company/dmtools-scripts/blob/main/expert/postAnalysis.js"
+      ]
     }
   ],
   "webhookExamples": [

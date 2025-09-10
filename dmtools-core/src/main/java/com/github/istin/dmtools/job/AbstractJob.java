@@ -5,17 +5,22 @@ import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
 import dagger.Component;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import javax.inject.Singleton;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-public abstract class AbstractJob<Params, Result> implements Job<Params, Result>{
+public abstract class AbstractJob<T, R> implements Job<T, R>{
+
+    private static final Logger logger = LogManager.getLogger(AbstractJob.class);
 
     @Getter
     @Setter
     protected AI ai;
+    
 
     /**
      * Default constructor
@@ -37,8 +42,9 @@ public abstract class AbstractJob<Params, Result> implements Job<Params, Result>
     }
 
     @Override
-    public Class<Params> getParamsClass() {
-        return (Class<Params>) getTemplateParameterClass(getClass());
+    @SuppressWarnings("unchecked")
+    public Class<T> getParamsClass() {
+        return (Class<T>) getTemplateParameterClass(getClass());
     }
 
     private Class<?> getTemplateParameterClass(Class<?> clazz) {
@@ -54,7 +60,7 @@ public abstract class AbstractJob<Params, Result> implements Job<Params, Result>
     }
     
     @Override
-    public Result runJob(Params params) throws Exception {
+    public R runJob(T params) throws Exception {
         return executeJob(params);
     }
     
@@ -63,7 +69,7 @@ public abstract class AbstractJob<Params, Result> implements Job<Params, Result>
      * @param params The job parameters
      * @throws Exception If an error occurs
      */
-    protected Result executeJob(Params params) throws Exception {
+    protected R executeJob(T params) throws Exception {
         // Default implementation calls the old runJob method for backwards compatibility
         // This allows existing job implementations to continue working without changes
         return runJobImpl(params);
@@ -75,7 +81,7 @@ public abstract class AbstractJob<Params, Result> implements Job<Params, Result>
      * @param params The job parameters
      * @throws Exception If an error occurs
      */
-    protected Result runJobImpl(Params params) throws Exception {
+    protected R runJobImpl(T params) throws Exception {
         // This method should be overridden by subclasses that don't implement executeJob
         throw new UnsupportedOperationException("Either executeJob or runJobImpl must be implemented");
     }
@@ -126,5 +132,26 @@ public abstract class AbstractJob<Params, Result> implements Job<Params, Result>
     @Component(modules = {ServerManagedIntegrationsModule.class})
     public interface ServerManagedComponent {
         // Injection methods will be defined by specific job implementations
+    }
+    
+    // =====================================================
+    // JavaScript Execution Support
+    // =====================================================
+    
+    /**
+     * Creates a fluent JavaScript executor for clean execution syntax
+     * 
+     * Usage:
+     * js(jsCode)
+     *   .mcp(trackerClient, ai, confluence, sourceCode)
+     *   .withJobContext(params, ticket, response)
+     *   .with("initiator", "user@example.com")
+     *   .execute();
+     * 
+     * @param jsCode JavaScript code to execute
+     * @return JavaScriptExecutor for fluent configuration
+     */
+    protected JavaScriptExecutor js(String jsCode) {
+        return new JavaScriptExecutor(jsCode);
     }
 }

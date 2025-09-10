@@ -297,6 +297,27 @@
         "true",
         "false"
       ]
+    },
+    {
+      "key": "postJSAction",
+      "displayName": "Post-Action JavaScript",
+      "description": "JavaScript code to execute after AI processing. Can be inline JavaScript, resource path (e.g., 'agentFunctions/postProcess.js'), or GitHub URL. The script receives jobParams, ticket, response, and initiator as parameters and has access to all 61 MCP tools (Jira, Confluence, AI, etc.).",
+      "displayNameKey": "teammate.postJSAction.displayName",
+      "descriptionKey": "teammate.postJSAction.description",
+      "instructionsKey": "teammate.postJSAction.instructions",
+      "required": false,
+      "sensitive": false,
+      "advanced": true,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 500000
+      },
+      "examples": [
+        "function action(params) {\n  var ticket = JSON.parse(params.ticket);\n  var response = params.response;\n  // Create follow-up task\n  return jira_create_ticket_basic({\n    project: 'DMC',\n    issueType: 'Task',\n    summary: 'Follow-up: ' + ticket.summary,\n    description: response\n  });\n}",
+        "agentFunctions/teammatePipeline.js",
+        "https://github.com/company/dmtools-scripts/blob/main/teammate/postProcess.js"
+      ]
     }
   ],
   "webhookExamples": [
