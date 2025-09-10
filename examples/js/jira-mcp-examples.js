@@ -21,7 +21,7 @@ function action(params) {
         // Get ticket details
         console.log("1. Getting ticket details...");
         const ticketDetails = jira_get_ticket({
-            ticketKey: ticketKey,
+            key: ticketKey,
             fields: ["summary", "status", "assignee", "labels"]
         });
         results.ticketDetails = ticketDetails;
@@ -99,7 +99,7 @@ function action(params) {
         // Get subtasks
         console.log("11. Getting subtasks...");
         const subtasks = jira_get_subtasks({
-            ticketKey: ticketKey
+            key: ticketKey
         });
         results.subtasks = subtasks;
         
@@ -115,7 +115,7 @@ function action(params) {
         // Post a comment
         console.log("13. Posting comment...");
         const commentResult = jira_post_comment({
-            ticketKey: ticketKey,
+            key: ticketKey,
             comment: "This is an automated comment from JavaScript MCP example. Timestamp: " + new Date().toISOString()
         });
         results.commentResult = commentResult;
@@ -123,7 +123,7 @@ function action(params) {
         // Post comment if not exists
         console.log("14. Posting comment if not exists...");
         const conditionalComment = jira_post_comment_if_not_exists({
-            ticketKey: ticketKey,
+            key: ticketKey,
             comment: "This comment will only be posted once - JavaScript MCP Example"
         });
         results.conditionalComment = conditionalComment;
@@ -152,7 +152,7 @@ function action(params) {
         // Set priority
         console.log("17. Setting priority...");
         const priorityUpdate = jira_set_priority({
-            ticket: ticketKey,
+            key: ticketKey,
             priority: "Medium"
         });
         results.priorityUpdate = priorityUpdate;
@@ -161,7 +161,7 @@ function action(params) {
         if (fixVersions && fixVersions.length > 0) {
             console.log("18. Adding fix version...");
             const fixVersionUpdate = jira_add_fix_version({
-                ticket: ticketKey,
+                key: ticketKey,
                 fixVersion: fixVersions[0].name
             });
             results.fixVersionUpdate = fixVersionUpdate;
@@ -172,7 +172,7 @@ function action(params) {
         // Get available transitions
         console.log("19. Getting available transitions...");
         const transitions = jira_get_transitions({
-            ticket: ticketKey
+            key: ticketKey
         });
         results.transitions = transitions;
         
@@ -182,7 +182,7 @@ function action(params) {
         if (transitions && transitions.length > 0) {
             console.log("20. Moving to status...");
             const statusMove = jira_move_to_status({
-                ticketKey: ticketKey,
+                key: ticketKey,
                 statusName: transitions[0].name
             });
             results.statusMove = statusMove;
@@ -263,7 +263,7 @@ function action(params) {
         // Uncomment if you want to test field clearing
         /*
         const clearResult = jira_clear_field({
-            ticketKey: ticketKey,
+            key: ticketKey,
             field: "environment" // Safe field to clear
         });
         results.clearResult = clearResult;
@@ -282,7 +282,7 @@ function action(params) {
         if (myProfile && myProfile.emailAddress) {
             console.log("29. Assigning ticket...");
             const assignResult = jira_assign_ticket_to({
-                ticketKey: ticketKey,
+                key: ticketKey,
                 userName: myProfile.emailAddress
             });
             results.assignResult = assignResult;

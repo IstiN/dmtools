@@ -25,7 +25,7 @@ function action(params) {
         // Test 2: Post a comment
         console.log("Test 2: Posting test comment...");
         const commentResult = jira_post_comment({
-            ticketKey: params.ticket.key,
+            key: params.ticket.key,
             comment: `✅ JavaScript MCP bridge test successful! 
             
 Executed at: ${new Date().toISOString()}
@@ -39,7 +39,7 @@ This comment was posted by the JavaScript MCP bridge to verify functionality.`
         // Test 3: Get ticket information
         console.log("Test 3: Retrieving ticket information...");
         const ticketInfo = jira_get_ticket({
-            ticketKey: params.ticket.key,
+            key: params.ticket.key,
             fields: ["summary", "status", "labels", "description"]
         });
         results.ticketInfo = ticketInfo;

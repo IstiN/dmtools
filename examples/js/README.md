@@ -214,9 +214,9 @@ if (params.ticket.status === "In Progress") {
 ```javascript
 // Process multiple operations
 const operations = [
-    () => jira_post_comment({ticketKey: params.ticket.key, comment: "Processing started"}),
+    () => jira_post_comment({key: params.ticket.key, comment: "Processing started"}),
     () => jira_update_field({key: params.ticket.key, field: "labels", value: ["processed"]}),
-    () => jira_post_comment({ticketKey: params.ticket.key, comment: "Processing completed"})
+    () => jira_post_comment({key: params.ticket.key, comment: "Processing completed"})
 ];
 
 const results = operations.map(op => {
@@ -231,7 +231,7 @@ const results = operations.map(op => {
 ### 3. Cross-Platform Integration
 ```javascript
 // Combine Jira and Confluence operations
-const ticketInfo = jira_get_ticket({ticketKey: params.ticket.key});
+const ticketInfo = jira_get_ticket({key: params.ticket.key});
 const confluencePage = confluence_create_page({
     title: `Documentation for ${params.ticket.key}`,
     body: `<h1>${ticketInfo.summary}</h1><p>${ticketInfo.description}</p>`,
