@@ -326,10 +326,8 @@ public class JobJavaScriptBridge {
      * Load JavaScript code from inline string, resource file, or remote source code URL
      */
     private String loadJavaScriptCode(String jsSourceOrPath) throws IOException {
-        // Source code URL support (GitHub, GitLab, etc.)
-        if (jsSourceOrPath.startsWith("http://github.com/") || jsSourceOrPath.startsWith("https://github.com/") ||
-            jsSourceOrPath.startsWith("http://gitlab.com/") || jsSourceOrPath.startsWith("https://gitlab.com/") ||
-            jsSourceOrPath.startsWith("http://") || jsSourceOrPath.startsWith("https://")) {
+        // Source code URL support (any HTTP/HTTPS URL)
+        if (jsSourceOrPath.startsWith("http://") || jsSourceOrPath.startsWith("https://")) {
             return loadFromSourceCode(jsSourceOrPath);
         }
         

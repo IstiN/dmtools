@@ -13,7 +13,7 @@ import javax.inject.Singleton;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-public abstract class AbstractJob<T, R> implements Job<T, R>{
+public abstract class AbstractJob<Params, Result> implements Job<Params, Result>{
 
     private static final Logger logger = LogManager.getLogger(AbstractJob.class);
 
@@ -43,8 +43,8 @@ public abstract class AbstractJob<T, R> implements Job<T, R>{
 
     @Override
     @SuppressWarnings("unchecked")
-    public Class<T> getParamsClass() {
-        return (Class<T>) getTemplateParameterClass(getClass());
+    public Class<Params> getParamsClass() {
+        return (Class<Params>) getTemplateParameterClass(getClass());
     }
 
     private Class<?> getTemplateParameterClass(Class<?> clazz) {
@@ -60,7 +60,7 @@ public abstract class AbstractJob<T, R> implements Job<T, R>{
     }
     
     @Override
-    public R runJob(T params) throws Exception {
+    public Result runJob(Params params) throws Exception {
         return executeJob(params);
     }
     
@@ -69,7 +69,7 @@ public abstract class AbstractJob<T, R> implements Job<T, R>{
      * @param params The job parameters
      * @throws Exception If an error occurs
      */
-    protected R executeJob(T params) throws Exception {
+    protected Result executeJob(Params params) throws Exception {
         // Default implementation calls the old runJob method for backwards compatibility
         // This allows existing job implementations to continue working without changes
         return runJobImpl(params);
@@ -81,7 +81,7 @@ public abstract class AbstractJob<T, R> implements Job<T, R>{
      * @param params The job parameters
      * @throws Exception If an error occurs
      */
-    protected R runJobImpl(T params) throws Exception {
+    protected Result runJobImpl(Params params) throws Exception {
         // This method should be overridden by subclasses that don't implement executeJob
         throw new UnsupportedOperationException("Either executeJob or runJobImpl must be implemented");
     }
