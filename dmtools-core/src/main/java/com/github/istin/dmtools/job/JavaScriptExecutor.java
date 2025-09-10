@@ -5,7 +5,9 @@ import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.ai.AI;
+import com.google.gson.Gson;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,8 +146,21 @@ public class JavaScriptExecutor {
                 }
                 jsParams.put(entry.getKey(), ticketJson);
             } else {
-                // For other objects, use toString()
-                jsParams.put(entry.getKey(), value.toString());
+                // For other objects, try to put directly first, fallback to Gson serialization
+                try {
+                    jsParams.put(entry.getKey(), value);
+                } catch (JSONException e) {
+                    // Fallback for unsupported types - use Gson to serialize and parse
+                    try {
+                        Gson gson = new Gson();
+                        String jsonString = gson.toJson(value);
+                        Object parsedValue = gson.fromJson(jsonString, Object.class);
+                        jsParams.put(entry.getKey(), parsedValue);
+                    } catch (Exception fallbackException) {
+                        // Final fallback to toString()
+                        jsParams.put(entry.getKey(), value.toString());
+                    }
+                }
             }
         }
         
