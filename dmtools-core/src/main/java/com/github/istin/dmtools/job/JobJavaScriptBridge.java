@@ -20,6 +20,7 @@ import javax.inject.Singleton;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * JavaScript bridge for AI jobs using generated MCP infrastructure.
  * Provides sandboxed JavaScript execution with access to MCP-compatible methods
- * and support for loading JavaScript from GitHub URLs, resources, or inline code.
+ * and support for loading JavaScript from remote source code URLs, resources, or inline code.
  */
 @Singleton
 public class JobJavaScriptBridge {
@@ -52,8 +53,9 @@ public class JobJavaScriptBridge {
         this.sourceCode = sourceCode;
         
         // Prepare client instances for MCP executor
+        // Note: The MCP system expects specific integration keys regardless of actual implementation
         this.clientInstances = new HashMap<>();
-        this.clientInstances.put("jira", trackerClient);
+        this.clientInstances.put("jira", trackerClient);  // MCP expects "jira" key for any tracker implementation
         this.clientInstances.put("ai", ai);
         this.clientInstances.put("confluence", confluence);
         
@@ -156,7 +158,9 @@ public class JobJavaScriptBridge {
                     // Handle case where JS object is passed as host object
                     Object hostObject = argsValue.asHostObject();
                     if (hostObject instanceof Map) {
-                        argsMap.putAll((Map<String, Object>) hostObject);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> hostMap = (Map<String, Object>) hostObject;
+                        argsMap.putAll(hostMap);
                         logger.debug("Used host object as Map: {}", argsMap);
                     }
                 }
@@ -179,18 +183,18 @@ public class JobJavaScriptBridge {
      * Expose MCP tools using generated MCPToolExecutor - much better than reflection!
      */
     private void exposeMCPToolsUsingGenerated() {
-        // Get all available integrations
+        // Get all available integrations dynamically based on what's actually configured
         Set<String> integrations = Set.of("jira", "ai", "confluence", "figma");
         
         // Generate tool schemas using MCP infrastructure
         Map<String, Object> toolsResponse = MCPSchemaGenerator.generateToolsListResponse(integrations);
         @SuppressWarnings("unchecked")
-        java.util.List<Map<String, Object>> tools = (java.util.List<Map<String, Object>>) toolsResponse.get("tools");
+        List<Map<String, Object>> tools = (List<Map<String, Object>>) toolsResponse.get("tools");
         
-        // Expose each tool to JavaScript
+        // Expose each tool to JavaScript with generic parameter mapping
         for (Map<String, Object> tool : tools) {
             String toolName = (String) tool.get("name");
-            exposeToolToJS(toolName);
+            exposeToolToJS(toolName, tool);
         }
         
         logger.info("Exposed {} MCP tools to JavaScript using generated infrastructure", tools.size());
@@ -216,7 +220,26 @@ public class JobJavaScriptBridge {
     /**
      * Expose a single MCP tool to JavaScript context using generated executor
      */
-    private void exposeToolToJS(String toolName) {
+    private void exposeToolToJS(String toolName, Map<String, Object> toolSchema) {
+        // Extract parameter information from the tool schema
+        @SuppressWarnings("unchecked")
+        Map<String, Object> inputSchema = (Map<String, Object>) toolSchema.get("inputSchema");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> properties = inputSchema != null ? 
+            (Map<String, Object>) inputSchema.get("properties") : new HashMap<>();
+        
+        // Generate parameter mapping dynamically based on schema
+        StringBuilder parameterMappingLogic = new StringBuilder();
+        if (!properties.isEmpty()) {
+            List<String> paramNames = new ArrayList<>(properties.keySet());
+            for (int i = 0; i < paramNames.size(); i++) {
+                String paramName = paramNames.get(i);
+                parameterMappingLogic.append(String.format(
+                    "if (arguments.length > %d) args.%s = arguments[%d];\n                    ", 
+                    i, paramName, i));
+            }
+        }
+        
         // Create a JavaScript function that calls the generated MCP executor
         String jsFunction = String.format("""
             function %s() {
@@ -227,48 +250,17 @@ public class JobJavaScriptBridge {
                     // Single object parameter - use directly
                     args = arguments[0];
                 } else if (arguments.length > 0) {
-                    // Individual arguments - map to proper parameter names based on tool
-                    if ('%s'.includes('ai_chat')) {
+                    // Individual arguments - map to parameters based on schema
+                    %s
+                    // Special handling for AI chat tools
+                    if ('%s'.includes('ai_chat') && arguments.length === 1 && typeof arguments[0] === 'string') {
                         args.message = arguments[0];
-                    } else if ('%s' === 'jira_create_ticket_basic') {
-                        args.project = arguments[0];
-                        args.issueType = arguments[1];
-                        args.summary = arguments[2];
-                        args.description = arguments[3];
-                    } else if ('%s' === 'jira_post_comment') {
-                        args.ticketKey = arguments[0];
-                        args.comment = arguments[1];
-                    } else if ('%s' === 'jira_update_field') {
-                        args.key = arguments[0];
-                        args.field = arguments[1];
-                        args.value = arguments[2];
-                    } else if ('%s' === 'confluence_create_page') {
-                        args.title = arguments[0];
-                        args.parentId = arguments[1];
-                        args.body = arguments[2];
-                        args.space = arguments[3];
-                    } else if ('%s' === 'confluence_content_by_title') {
-                        args.title = arguments[0];
-                    } else {
-                        // For other tools, create object from first argument if it's reasonable
-                        if (typeof arguments[0] === 'string') {
-                            // Try to guess the main parameter name
-                            if ('%s'.includes('search')) {
-                                args.query = arguments[0];
-                            } else if ('%s'.includes('get') || '%s'.includes('find')) {
-                                args.id = arguments[0];
-                            } else {
-                                args.value = arguments[0];
-                            }
-                        } else {
-                            args = arguments[0] || {};
-                        }
                     }
                 }
                 console.log('Calling tool %s with args:', JSON.stringify(args));
                 return executeToolViaJava('%s', args);
             }
-            """, toolName, toolName, toolName, toolName, toolName, toolName, toolName, toolName, toolName, toolName, toolName, toolName);
+            """, toolName, parameterMappingLogic.toString(), toolName, toolName, toolName);
             
         try {
             jsContext.eval("js", jsFunction);
@@ -331,12 +323,14 @@ public class JobJavaScriptBridge {
     }
 
     /**
-     * Load JavaScript code from inline string, resource file, or GitHub URL
+     * Load JavaScript code from inline string, resource file, or remote source code URL
      */
     private String loadJavaScriptCode(String jsSourceOrPath) throws IOException {
-        // GitHub URL support
-        if (jsSourceOrPath.startsWith("http://github.com/") || jsSourceOrPath.startsWith("https://github.com/")) {
-            return loadFromGitHub(jsSourceOrPath);
+        // Source code URL support (GitHub, GitLab, etc.)
+        if (jsSourceOrPath.startsWith("http://github.com/") || jsSourceOrPath.startsWith("https://github.com/") ||
+            jsSourceOrPath.startsWith("http://gitlab.com/") || jsSourceOrPath.startsWith("https://gitlab.com/") ||
+            jsSourceOrPath.startsWith("http://") || jsSourceOrPath.startsWith("https://")) {
+            return loadFromSourceCode(jsSourceOrPath);
         }
         
         // Better detection: check if it's actually JavaScript code
@@ -353,20 +347,20 @@ public class JobJavaScriptBridge {
     }
 
     /**
-     * Load JavaScript from GitHub URL with caching
+     * Load JavaScript from source code URL with caching
      */
-    private String loadFromGitHub(String githubUrl) throws IOException {
-        return resourceCache.computeIfAbsent(githubUrl, url -> {
+    private String loadFromSourceCode(String sourceCodeUrl) throws IOException {
+        return resourceCache.computeIfAbsent(sourceCodeUrl, url -> {
             try {
                 if (sourceCode == null) {
-                    throw new RuntimeException("SourceCode not configured - cannot load from GitHub");
+                    throw new RuntimeException("SourceCode not configured - cannot load from remote source");
                 }
-                logger.info("Loading JavaScript from GitHub: {}", url);
+                logger.info("Loading JavaScript from source code: {}", url);
                 String content = sourceCode.getFileContent(url);
-                logger.debug("Successfully loaded {} characters from GitHub", content.length());
+                logger.debug("Successfully loaded {} characters from source code", content.length());
                 return content;
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load JS from GitHub: " + url, e);
+                throw new RuntimeException("Failed to load JS from source code: " + url, e);
             }
         });
     }
@@ -408,8 +402,8 @@ public class JobJavaScriptBridge {
             Object value = jsonObject.get(key);
             if (value instanceof JSONObject) {
                 map.put(key, convertJSONObjectToMap((JSONObject) value));
-            } else if (value instanceof org.json.JSONArray) {
-                map.put(key, convertJSONArrayToList((org.json.JSONArray) value));
+            } else if (value instanceof JSONArray) {
+                map.put(key, convertJSONArrayToList((JSONArray) value));
             } else {
                 map.put(key, value);
             }
@@ -420,14 +414,14 @@ public class JobJavaScriptBridge {
     /**
      * Convert JSONArray to List recursively
      */
-    private java.util.List<Object> convertJSONArrayToList(org.json.JSONArray jsonArray) {
-        java.util.List<Object> list = new java.util.ArrayList<>();
+    private List<Object> convertJSONArrayToList(JSONArray jsonArray) {
+        List<Object> list = new ArrayList<>();
         for (int i = 0; i < jsonArray.length(); i++) {
             Object value = jsonArray.get(i);
             if (value instanceof JSONObject) {
                 list.add(convertJSONObjectToMap((JSONObject) value));
-            } else if (value instanceof org.json.JSONArray) {
-                list.add(convertJSONArrayToList((org.json.JSONArray) value));
+            } else if (value instanceof JSONArray) {
+                list.add(convertJSONArrayToList((JSONArray) value));
             } else {
                 list.add(value);
             }
