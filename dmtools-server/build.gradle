@@ -22,7 +22,6 @@ dependencies {
     
     // Use regular jar instead of fat JAR by referencing compiled classes  
     implementation(project(':dmtools-core')) {
-        exclude group: 'org.jboss.logging', module: 'jboss-logging'
         exclude module: 'dmtools-v1.5.26-all'
     }
 
@@ -59,6 +58,7 @@ dependencies {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'ch.qos.logback', module: 'logback-core'
         exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+        exclude group: 'org.jboss.logging', module: 'jboss-logging'
     }
     runtimeOnly 'com.h2database:h2'
     

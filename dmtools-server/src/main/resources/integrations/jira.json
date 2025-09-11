@@ -89,6 +89,20 @@
       "sensitive": false,
       "inputType": "string",
       "defaultValue": null
+    },
+    {
+      "key": "JIRA_MAX_SEARCH_RESULTS",
+      "displayNameKey": "jira.maxSearchResults.displayName",
+      "descriptionKey": "jira.maxSearchResults.description",
+      "instructionsKey": "jira.maxSearchResults.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "-1",
+      "validation": {
+        "min": -1,
+        "max": 5000
+      }
     }
   ]
 } 

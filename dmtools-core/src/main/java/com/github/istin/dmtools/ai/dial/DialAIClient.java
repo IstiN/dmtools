@@ -28,6 +28,13 @@ public class DialAIClient extends AbstractRestClient implements AI {
 
     private final Logger logger;  // Changed from static to instance member
 
+    /**
+     * -- GETTER --
+     *  Gets the model name used by this client
+     *
+     * @return The model name
+     */
+    @Getter
     private final String model;
 
     @Setter
@@ -60,12 +67,9 @@ public class DialAIClient extends AbstractRestClient implements AI {
         return model;
     }
 
-    /**
-     * Gets the model name used by this client
-     * @return The model name
-     */
-    public String getModel() {
-        return model;
+    @Override
+    public String roleName() {
+        return "assistant";
     }
 
     @Override
@@ -173,9 +177,12 @@ public class DialAIClient extends AbstractRestClient implements AI {
             model = this.model;
         }
 
+        // Normalize message roles to ensure compatibility with this AI provider
+        Message[] normalizedMessages = normalizeMessageRoles(messages);
+
         logger.info("-------- start chat ai with messages --------");
         JSONArray messagesArray = new JSONArray();
-        for (Message message : messages) {
+        for (Message message : normalizedMessages) {
             if (conversationObserver != null) {
                 // Assuming ConversationObserver.Message can be created from com.github.istin.dmtools.ai.Message
                 // If not, this part might need adjustment or a new constructor/method in ConversationObserver.Message

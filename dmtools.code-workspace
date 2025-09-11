@@ -7,6 +7,9 @@
 			"path": "../dmtools-agentic-workflows"
 		},
 		{
+			"path": "../dmtools-flutter"
+		},
+		{
 			"path": "../cursor_demo/gemini-cli"
 		}
 	],
