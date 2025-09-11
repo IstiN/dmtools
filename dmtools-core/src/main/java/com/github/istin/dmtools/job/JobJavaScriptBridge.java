@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -191,13 +192,16 @@ public class JobJavaScriptBridge {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> tools = (List<Map<String, Object>>) toolsResponse.get("tools");
         
+        // Ensure deterministic order by tool name
+        tools.sort(Comparator.comparing(t -> (String) t.get("name")));
+
         // Expose each tool to JavaScript with generic parameter mapping
         for (Map<String, Object> tool : tools) {
             String toolName = (String) tool.get("name");
             exposeToolToJS(toolName, tool);
         }
         
-        logger.info("Exposed {} MCP tools to JavaScript using generated infrastructure", tools.size());
+        logger.debug("Exposed {} MCP tools to JavaScript using generated infrastructure", tools.size());
     }
 
     /**

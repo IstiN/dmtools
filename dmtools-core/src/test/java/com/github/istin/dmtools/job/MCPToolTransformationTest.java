@@ -351,4 +351,25 @@ class MCPToolTransformationTest {
             assertTrue(resultStr.contains("jira_create_ticket_basic")); // attempted tool
         }
     }
+
+    @Test
+    void testMissingRequiredParameter_throwsHelpfulError() throws Exception {
+        String jsMissingParam = """
+            function action(params) {
+                // Missing required 'project' argument
+                return jira_create_ticket_basic(null, 'Task', 'Summary', 'Desc');
+            }
+            """;
+
+        JSONObject params = new JSONObject();
+
+        try (MockedStatic<MCPToolExecutor> mcpMock = mockStatic(MCPToolExecutor.class)) {
+            mcpMock.when(() -> MCPToolExecutor.executeTool(
+                eq("jira_create_ticket_basic"), any(Map.class), any(Map.class)
+            )).thenThrow(new IllegalArgumentException("Required parameter 'project' is missing"));
+
+            RuntimeException ex = assertThrows(RuntimeException.class, () -> bridge.executeJavaScript(jsMissingParam, params));
+            assertTrue(ex.getMessage().contains("Required parameter 'project' is missing"));
+        }
+    }
 }
