@@ -4,6 +4,7 @@
   "descriptionKey": "integration.gemini.description",
   "iconUrl": "/img/integrations/gemini-icon.svg",
   "categories": ["AI"],
+  "supportsMcp": true,
   "setupDocumentation": {
     "en": "/docs/integrations/gemini_setup_en.md",
     "ru": "/docs/integrations/gemini_setup_ru.md"
