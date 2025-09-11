@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -36,6 +37,7 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -222,32 +224,62 @@ public class SecurityConfig {
 
         http
             .csrf(AbstractHttpConfigurer::disable)
+            .anonymous(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> {
                 if (authConfigProperties.isLocalStandaloneMode()) {
                     logger.info("🔒 Local standalone mode enabled. Permitting /api/auth/local-login and /api/auth/config");
-                    auth.requestMatchers("/api/auth/local-login", "/api/auth/config").permitAll();
+                    auth.requestMatchers(new AntPathRequestMatcher("/api/auth/local-login", "POST")).permitAll();
+                    auth.requestMatchers("/api/auth/config").permitAll();
+                    // Allow OAuth proxy endpoints (controller won't be present in standalone, so calls may 404, but not 403)
+                    auth.requestMatchers("/api/oauth-proxy/**").permitAll();
                     // Block OAuth2 endpoints in standalone mode
-                    auth.requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").denyAll();
+                    auth.requestMatchers(
+                            new AntPathRequestMatcher("/oauth2/authorization/**"),
+                            new AntPathRequestMatcher("/login/oauth2/code/**"),
+                            new AntPathRequestMatcher("/oauth2/**"),
+                            new AntPathRequestMatcher("/login/**")
+                    ).denyAll();
                 } else {
-                    auth.requestMatchers("/api/auth/local-login").denyAll(); // Deny local login if not in standalone mode
+                    auth.requestMatchers(new AntPathRequestMatcher("/api/auth/local-login", "POST")).denyAll(); // Deny local login if not in standalone mode
                     // Allow OAuth2 endpoints only in non-standalone mode
-                    auth.requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll();
+                    auth.requestMatchers(
+                            new AntPathRequestMatcher("/oauth2/authorization/**"),
+                            new AntPathRequestMatcher("/login/oauth2/code/**")
+                    ).permitAll();
+                    // Allow OAuth proxy endpoints in OAuth2 mode
+                    auth.requestMatchers("/api/oauth-proxy/**").permitAll();
                 }
-                auth
-                    .requestMatchers("/api/auth/protected").authenticated()  // Explicitly require auth for protected endpoint
-                    .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
-                    .requestMatchers("/api/oauth/**", "/api/oauth-proxy/**").permitAll()  // Allow OAuth proxy endpoints
-                    .requestMatchers("/", "/test-*.html").permitAll()
-                    .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()  // Added /temp/** for test files
-                    .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-                    .requestMatchers("/actuator/**").permitAll()
-                    .requestMatchers("/api/v1/chat/**").permitAll()
-                    .requestMatchers("/mcp/stream/**").permitAll()  // Allow public access to MCP SSE streams
-                    .requestMatchers("/api/files/download/**").permitAll()  // Allow public access to file downloads
-                    .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()  // Allow webhook endpoints to use API key authentication
-                    .anyRequest().authenticated();
+                if (authConfigProperties.isLocalStandaloneMode()) {
+                    auth
+                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
+                        .requestMatchers("/", "/test-*.html").permitAll()
+                        .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()
+                        .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/mcp/stream/**").permitAll()
+                        .requestMatchers("/api/files/download/**").permitAll()
+                        .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()
+                        .anyRequest().denyAll();
+                } else {
+                    auth
+                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error").permitAll()
+                        .requestMatchers("/", "/test-*.html").permitAll()
+                        .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()
+                        .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/api/v1/chat/**").permitAll()
+                        .requestMatchers("/mcp/stream/**").permitAll()
+                        .requestMatchers("/api/files/download/**").permitAll()
+                        .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()
+                        .anyRequest().authenticated();
+                }
             })
+            // Return 403 for unauthenticated access attempts to align with policy and tests
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> response.sendError(403))
+                .accessDeniedHandler((request, response, accessDeniedException) -> response.sendError(403))
+            )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // Configure OAuth2 login only if ClientRegistrationRepository is available and not in standalone mode

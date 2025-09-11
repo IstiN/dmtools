@@ -15,9 +15,9 @@
 	],
 	"settings": {
 		"java.debug.settings.onBuildFailureProceed": true,
-		"java.import.gradle.enabled": true,
-		"java.import.gradle.wrapper.enabled": true,
-		"java.configuration.updateBuildConfiguration": "automatic",
+		"java.import.gradle.enabled": false,
+		"java.import.gradle.wrapper.enabled": false,
+		"java.configuration.updateBuildConfiguration": "manual",
 		"spring-boot.ls.checkJVM": false,
 		"java.compile.nullAnalysis.mode": "automatic",
 		"files.associations": {
