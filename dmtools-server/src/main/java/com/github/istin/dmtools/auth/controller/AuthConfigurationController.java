@@ -39,6 +39,8 @@ public class AuthConfigurationController {
         if (authConfigProperties.isLocalStandaloneMode()) {
             config.put("authenticationMode", "standalone");
             config.put("enabledProviders", List.of());
+            config.put("skipProviderSelection", true);
+            config.put("showLoginFormDirectly", true);
             logger.info("AuthConfigurationController: Local standalone mode enabled.");
         } else {
             config.put("authenticationMode", "oauth2");
@@ -49,6 +51,8 @@ public class AuthConfigurationController {
                         .collect(Collectors.toList());
             }
             config.put("enabledProviders", enabledProviders);
+            config.put("skipProviderSelection", false);
+            config.put("showLoginFormDirectly", false);
             logger.info("AuthConfigurationController: OAuth2 mode enabled with providers: {}", enabledProviders);
         }
         return ResponseEntity.ok(config);

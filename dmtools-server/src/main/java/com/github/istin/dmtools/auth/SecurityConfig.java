@@ -38,6 +38,7 @@ import org.springframework.security.oauth2.core.http.converter.OAuth2AccessToken
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -253,18 +254,22 @@ public class SecurityConfig {
                 if (authConfigProperties.isLocalStandaloneMode()) {
                     auth
                         .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
-                        .requestMatchers("/", "/test-*.html").permitAll()
+                        .requestMatchers("/", "/index.html", "/test-*.html").permitAll()
+                        .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
+                        .requestMatchers("/*.js", "/*.css", "/assets/**", "/icons/**", "/favicon.ico", "/manifest.json", "/version.json").permitAll()
                         .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/mcp/stream/**").permitAll()
                         .requestMatchers("/api/files/download/**").permitAll()
                         .requestMatchers("/api/v1/job-configurations/*/webhook").permitAll()
-                        .anyRequest().denyAll();
+                        .anyRequest().authenticated();
                 } else {
                     auth
-                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error").permitAll()
-                        .requestMatchers("/", "/test-*.html").permitAll()
+                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
+                        .requestMatchers("/", "/index.html", "/test-*.html").permitAll()
+                        .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
+                        .requestMatchers("/*.js", "/*.css", "/assets/**", "/icons/**", "/favicon.ico", "/manifest.json", "/version.json").permitAll()
                         .requestMatchers("/temp/**", "/styleguide/**", "/css/**", "/js/**", "/img/**", "/components/**").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
