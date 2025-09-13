@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = AuthConfigurationController.class)
+@WebMvcTest(AuthConfigurationController.class)
 @ContextConfiguration(classes = {AuthConfigurationControllerOAuth2Test.TestConfiguration.class})
 @TestPropertySource(properties = {"auth.enabled-providers=google,github"})
 class AuthConfigurationControllerOAuth2Test {
