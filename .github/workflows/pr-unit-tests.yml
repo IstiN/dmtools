@@ -413,27 +413,27 @@ jobs:
             var overallBuildSuccess = coreTestsSuccess && serverTestsSuccess && shadowJarSuccess && 
                                        coreExitCode === '0' && serverExitCode === '0' && shadowJarExitCode === '0';
             
-            var comment = '## 🧪 Unit Test Results\n\n';
+            var comment = '## Unit Test Results\n\n';
             
             if (overallBuildSuccess) {
-              comment += '✅ **All unit tests passed!**\n\n';
-              comment += '- ✅ **core:unitTests**: PASSED\n';
-              comment += '- ✅ **server:unitTests**: PASSED\n';
-              comment += '- ✅ **Build**: PASSED\n';
+              comment += '**All unit tests passed!**\n\n';
+              comment += '- **core:unitTests**: PASSED\n';
+              comment += '- **server:unitTests**: PASSED\n';
+              comment += '- **Build**: PASSED\n';
             } else {
-              comment += '❌ **Unit tests or build failed**\n\n';
+              comment += '**Unit tests or build failed**\n\n';
               
               // More detailed status with exit codes
               var coreActuallyPassed = coreTestsSuccess && coreExitCode === '0';
               var serverActuallyPassed = serverTestsSuccess && serverExitCode === '0';
               var shadowJarActuallyPassed = shadowJarSuccess && shadowJarExitCode === '0';
               
-              comment += '- ' + (coreActuallyPassed ? '✅' : '❌') + ' **core:unitTests**: ' + (coreActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + coreExitCode + ')') + '\n';
-              comment += '- ' + (serverActuallyPassed ? '✅' : '❌') + ' **server:unitTests**: ' + (serverActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + serverExitCode + ')') + '\n';
-              comment += '- ' + (shadowJarActuallyPassed ? '✅' : '❌') + ' **shadowJar build**: ' + (shadowJarActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + shadowJarExitCode + ')') + '\n';
+              comment += '- ' + (coreActuallyPassed ? '[PASS]' : '[FAIL]') + ' **core:unitTests**: ' + (coreActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + coreExitCode + ')') + '\n';
+              comment += '- ' + (serverActuallyPassed ? '[PASS]' : '[FAIL]') + ' **server:unitTests**: ' + (serverActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + serverExitCode + ')') + '\n';
+              comment += '- ' + (shadowJarActuallyPassed ? '[PASS]' : '[FAIL]') + ' **shadowJar build**: ' + (shadowJarActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + shadowJarExitCode + ')') + '\n';
               
               // Add debug information
-              comment += '\n<details><summary>🔍 Debug Information</summary>\n\n';
+              comment += '\n<details><summary>Debug Information</summary>\n\n';
               comment += '**Step Outcomes:**\n';
               comment += '- core-tests outcome: ' + (coreTestsSuccess ? 'success' : '${{ steps.core-tests.outcome }}') + '\n';
               comment += '- server-tests outcome: ' + (serverTestsSuccess ? 'success' : '${{ steps.server-tests.outcome }}') + '\n';
@@ -446,7 +446,7 @@ jobs:
               
               // Add AI-friendly compilation error analysis
               if (compilationErrorsFound) {
-                comment += '\n### 🤖 AI Analysis: Compilation Errors Detected\n\n';
+                comment += '\n### AI Analysis: Compilation Errors Detected\n\n';
                 comment += '**Primary Issue:** Java compilation failure\n';
                 comment += '**Root Cause:** Code compilation errors preventing build completion\n\n';
                 
@@ -468,22 +468,22 @@ jobs:
                 comment += '**Action Required:** Fix compilation errors before tests can run\n';
                 comment += '**Priority:** HIGH - blocks all testing\n\n';
               } else {
-                comment += '\n### 🤖 AI Analysis: Test Execution Issues\n\n';
+                comment += '\n### AI Analysis: Test Execution Issues\n\n';
                 comment += '**Primary Issue:** Tests failed after successful compilation\n';
                 comment += '**Root Cause:** Unit test failures or build configuration issues\n';
                 comment += '**Action Required:** Review test failures and fix failing tests\n\n';
               }
               
-              comment += '\n📋 Check the workflow run for detailed test results and artifacts.\n';
+              comment += '\nCheck the workflow run for detailed test results and artifacts.\n';
               
               // Add specific guidance for compilation failures
               if (!coreTestsSuccess || !serverTestsSuccess) {
-                comment += '\n⚠️ **Note**: If tests failed due to compilation errors, no test XML files will be generated.\n';
+                comment += '\n**Note**: If tests failed due to compilation errors, no test XML files will be generated.\n';
               }
             }
             
-            comment += '\n🔗 [View full test results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
-            comment += '\n📥 [Download build logs and test results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
+            comment += '\n[View full test results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
+            comment += '\n[Download build logs and test results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
