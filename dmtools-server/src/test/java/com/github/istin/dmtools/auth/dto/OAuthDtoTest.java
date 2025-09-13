@@ -2,6 +2,7 @@ package com.github.istin.dmtools.auth.dto;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -221,8 +222,9 @@ public class OAuthDtoTest {
         assertTrue(stateData.getCreatedAt().isBefore(afterCreation));
         assertTrue(stateData.getExpiresAt().isAfter(stateData.getCreatedAt()));
         
-        // Verify expiration is 5 minutes after creation
-        assertEquals(5, stateData.getExpiresAt().getMinute() - stateData.getCreatedAt().getMinute());
+        // Verify expiration is 5 minutes after creation (using Duration for accuracy)
+        Duration timeDifference = Duration.between(stateData.getCreatedAt(), stateData.getExpiresAt());
+        assertEquals(5, timeDifference.toMinutes());
     }
 
     @Test

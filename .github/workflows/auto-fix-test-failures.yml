@@ -2,11 +2,13 @@
 name: Auto-fix Test Failures
 
 on:
-  workflow_run:
-    workflows: ["PR Unit Tests"]  # Target the main unit test workflow
-    types:
-      - completed
-    branches: ["**"]  # Run on all branches
+  # Disabled temporarily to prevent auto-triggering
+  # workflow_run:
+  #   workflows: ["PR Unit Tests"]  # Target the main unit test workflow
+  #   types:
+  #     - completed
+  #   branches: ["**"]  # Run on all branches
+  workflow_dispatch:  # Manual trigger only
 
 permissions:
   contents: write
