@@ -397,23 +397,23 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const coreTestsSuccess = '${{ steps.core-tests.outcome }}' === 'success';
-            const serverTestsSuccess = '${{ steps.server-tests.outcome }}' === 'success';
-            const shadowJarSuccess = '${{ steps.gradle.outcome }}' === 'success';
-            const compilationErrorsFound = '${{ steps.analyze-compilation.outputs.COMPILATION_ERRORS_FOUND }}' === 'true';
-            const errorSummary = '${{ steps.analyze-compilation.outputs.ERROR_SUMMARY }}';
-            const failedFiles = '${{ steps.analyze-compilation.outputs.FAILED_FILES }}';
+            var coreTestsSuccess = '${{ steps.core-tests.outcome }}' === 'success';
+            var serverTestsSuccess = '${{ steps.server-tests.outcome }}' === 'success';
+            var shadowJarSuccess = '${{ steps.gradle.outcome }}' === 'success';
+            var compilationErrorsFound = '${{ steps.analyze-compilation.outputs.COMPILATION_ERRORS_FOUND }}' === 'true';
+            var errorSummary = '${{ steps.analyze-compilation.outputs.ERROR_SUMMARY }}';
+            var failedFiles = '${{ steps.analyze-compilation.outputs.FAILED_FILES }}';
             
             // Check exit codes for more accurate status determination
-            const coreExitCode = '${{ steps.core-tests.outputs.CORE_EXIT_CODE }}' || '0';
-            const serverExitCode = '${{ steps.server-tests.outputs.SERVER_EXIT_CODE }}' || '0';
-            const shadowJarExitCode = '${{ steps.gradle.outputs.SHADOW_JAR_EXIT_CODE }}' || '0';
+            var coreExitCode = '${{ steps.core-tests.outputs.CORE_EXIT_CODE }}' || '0';
+            var serverExitCode = '${{ steps.server-tests.outputs.SERVER_EXIT_CODE }}' || '0';
+            var shadowJarExitCode = '${{ steps.gradle.outputs.SHADOW_JAR_EXIT_CODE }}' || '0';
             
             // Overall build success requires ALL steps to pass AND have exit code 0
-            const overallBuildSuccess = coreTestsSuccess && serverTestsSuccess && shadowJarSuccess && 
+            var overallBuildSuccess = coreTestsSuccess && serverTestsSuccess && shadowJarSuccess && 
                                        coreExitCode === '0' && serverExitCode === '0' && shadowJarExitCode === '0';
             
-            let comment = '## 🧪 Unit Test Results\n\n';
+            var comment = '## 🧪 Unit Test Results\n\n';
             
             if (overallBuildSuccess) {
               comment += '✅ **All unit tests passed!**\n\n';
@@ -424,9 +424,9 @@ jobs:
               comment += '❌ **Unit tests or build failed**\n\n';
               
               // More detailed status with exit codes
-              const coreActuallyPassed = coreTestsSuccess && coreExitCode === '0';
-              const serverActuallyPassed = serverTestsSuccess && serverExitCode === '0';
-              const shadowJarActuallyPassed = shadowJarSuccess && shadowJarExitCode === '0';
+              var coreActuallyPassed = coreTestsSuccess && coreExitCode === '0';
+              var serverActuallyPassed = serverTestsSuccess && serverExitCode === '0';
+              var shadowJarActuallyPassed = shadowJarSuccess && shadowJarExitCode === '0';
               
               comment += '- ' + (coreActuallyPassed ? '✅' : '❌') + ' **core:unitTests**: ' + (coreActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + coreExitCode + ')') + '\n';
               comment += '- ' + (serverActuallyPassed ? '✅' : '❌') + ' **server:unitTests**: ' + (serverActuallyPassed ? 'PASSED' : 'FAILED (exit: ' + serverExitCode + ')') + '\n';
@@ -457,9 +457,9 @@ jobs:
                 
                 if (failedFiles) {
                   comment += '**Files requiring fixes:**\n';
-                  const files = failedFiles.split(' ').filter(function(f) { return f.trim(); });
-                  for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
+                  var files = failedFiles.split(' ').filter(function(f) { return f.trim(); });
+                  for (var i = 0; i < files.length; i++) {
+                    var file = files[i];
                     if (file.trim()) comment += '- `' + file.trim() + '`\n';
                   }
                   comment += '\n';

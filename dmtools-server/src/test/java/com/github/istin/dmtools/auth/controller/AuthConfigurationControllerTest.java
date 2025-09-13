@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -88,7 +89,6 @@ class AuthConfigurationControllerTest {
     }
 
     @Test
-    @TestPropertySource(properties = "auth.enabled-providers=google") // Explicitly enable google provider for this test
     void testGetAuthConfiguration_oauth2Mode_withProviders() throws Exception {
         // Configure for OAuth2 mode (not standalone)
         when(authConfigProperties.isLocalStandaloneMode()).thenReturn(false);
@@ -100,7 +100,6 @@ class AuthConfigurationControllerTest {
     }
 
     @Test
-    @TestPropertySource(properties = "auth.enabled-providers=google") // Explicitly enable google provider for this test
     void testGetAuthConfiguration_oauth2Mode_singleProvider() throws Exception {
         // Configure for OAuth2 mode (not standalone)
         when(authConfigProperties.isLocalStandaloneMode()).thenReturn(false);
