@@ -36,6 +36,7 @@ config.properties
 # Exception: Allow standalone configuration (safe for public repo)
 !**/application-standalone.properties
 !**/application-test.properties
+!**/src/test/resources/application.properties
 
 .gradle/
 build/
