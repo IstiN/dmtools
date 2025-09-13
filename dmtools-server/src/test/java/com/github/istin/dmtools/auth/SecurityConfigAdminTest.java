@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = DmToolsServerApplication.class, properties = {"auth.enabled-providers=", "auth.admin-username=testadmin", "auth.admin-password=testpass"})
+@SpringBootTest(classes = DmToolsServerApplication.class, properties = {"auth.enabled-providers=", "auth.admin-username=testadmin", "auth.admin-password=testpass", "jwt.secret=a3b2c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"})
 @AutoConfigureMockMvc
 class SecurityConfigAdminTest {
 
