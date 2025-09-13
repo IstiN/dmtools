@@ -457,10 +457,11 @@ jobs:
                 
                 if (failedFiles) {
                   comment += '**Files requiring fixes:**\n';
-                  const files = failedFiles.split(' ').filter(f => f.trim());
-                  files.forEach(file => {
+                  const files = failedFiles.split(' ').filter(function(f) { return f.trim(); });
+                  for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
                     if (file.trim()) comment += '- `' + file.trim() + '`\n';
-                  });
+                  }
                   comment += '\n';
                 }
                 
