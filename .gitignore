@@ -33,6 +33,9 @@ config.properties
 **/config.properties
 **/application*.properties
 
+# Exception: Allow standalone configuration (safe for public repo)
+!**/application-standalone.properties
+
 .gradle/
 build/
 local.properties
