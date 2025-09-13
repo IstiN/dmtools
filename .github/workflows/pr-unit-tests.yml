@@ -395,14 +395,17 @@ jobs:
       - name: Comment PR with unit test results
         if: always()
         uses: actions/github-script@v7
+        env:
+          ERROR_SUMMARY: ${{ steps.analyze-compilation.outputs.ERROR_SUMMARY }}
+          FAILED_FILES: ${{ steps.analyze-compilation.outputs.FAILED_FILES }}
         with:
           script: |
             var coreTestsSuccess = '${{ steps.core-tests.outcome }}' === 'success';
             var serverTestsSuccess = '${{ steps.server-tests.outcome }}' === 'success';
             var shadowJarSuccess = '${{ steps.gradle.outcome }}' === 'success';
             var compilationErrorsFound = '${{ steps.analyze-compilation.outputs.COMPILATION_ERRORS_FOUND }}' === 'true';
-            var errorSummary = '${{ steps.analyze-compilation.outputs.ERROR_SUMMARY }}';
-            var failedFiles = '${{ steps.analyze-compilation.outputs.FAILED_FILES }}';
+            var errorSummary = process.env.ERROR_SUMMARY || '';
+            var failedFiles = process.env.FAILED_FILES || '';
             
             // Check exit codes for more accurate status determination
             var coreExitCode = '${{ steps.core-tests.outputs.CORE_EXIT_CODE }}' || '0';
