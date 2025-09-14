@@ -4,6 +4,8 @@ import com.github.istin.dmtools.auth.service.OAuthProxyService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
@@ -11,6 +13,7 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "auth.enabled-providers", matchIfMissing = false)
 public class CustomOAuth2AuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(CustomOAuth2AuthorizationRequestResolver.class);
@@ -18,8 +21,8 @@ public class CustomOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
     private final DefaultOAuth2AuthorizationRequestResolver defaultResolver;
     private final OAuthProxyService oAuthProxyService;
 
-    public CustomOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository,
-                                                   OAuthProxyService oAuthProxyService) {
+    public CustomOAuth2AuthorizationRequestResolver(@Lazy ClientRegistrationRepository clientRegistrationRepository,
+                                                   @Lazy OAuthProxyService oAuthProxyService) {
         this.defaultResolver = new DefaultOAuth2AuthorizationRequestResolver(
                 clientRegistrationRepository, "/oauth2/authorization");
         this.oAuthProxyService = oAuthProxyService;

@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -24,7 +25,7 @@ public class CustomOAuth2AuthenticationFailureHandler extends SimpleUrlAuthentic
     
     private final OAuthProxyService oAuthProxyService;
 
-    public CustomOAuth2AuthenticationFailureHandler(OAuthProxyService oAuthProxyService) {
+    public CustomOAuth2AuthenticationFailureHandler(@Lazy OAuthProxyService oAuthProxyService) {
         this.oAuthProxyService = oAuthProxyService;
         logger.info("🔧 CustomOAuth2AuthenticationFailureHandler initialized");
     }

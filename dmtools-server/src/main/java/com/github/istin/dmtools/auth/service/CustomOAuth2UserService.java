@@ -1,33 +1,39 @@
 package com.github.istin.dmtools.auth.service;
 
+import com.github.istin.dmtools.auth.config.AuthConfigProperties;
 import com.github.istin.dmtools.auth.model.AuthProvider;
 import com.github.istin.dmtools.auth.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(CustomOAuth2UserService.class);
     
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+    private final AuthConfigProperties authConfigProperties;
+
+    public CustomOAuth2UserService(UserService userService, AuthConfigProperties authConfigProperties) {
+        this.userService = userService;
+        this.authConfigProperties = authConfigProperties;
+    }
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -35,7 +41,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         logger.info("🔍 OAuth2 User Service - Loading user from provider: {}", registrationId);
         
         try {
-            OAuth2User oauth2User = super.loadUser(userRequest);
+            OAuth2User oauth2User = callSuperLoadUser(userRequest);
             logger.info("✅ OAuth2 User Service - Successfully loaded user from provider: {}", registrationId);
             logger.info("🔍 OAuth2 User Service - User attributes: {}", oauth2User.getAttributes());
             
@@ -54,6 +60,22 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             
             logger.info("✅ OAuth2 User Service - Extracted user data: email={}, name={}, picture={}", 
                        email, name, pictureUrl);
+
+            // AC 2 - Email Domain Restriction Configuration
+            Set<String> permittedDomains = authConfigProperties.getPermittedEmailDomainsAsSet();
+            if (!permittedDomains.isEmpty()) {
+                if (email == null) {
+                    logger.warn("⚠️ OAuth2 User Service - Email not found for user from provider {}. Cannot perform domain validation.", registrationId);
+                    throw new OAuth2AuthenticationException(new OAuth2Error("invalid_email_domain"), "Email not found for domain validation.");
+                }
+                String domain = email.substring(email.indexOf("@") + 1).toLowerCase();
+                if (!permittedDomains.contains(domain)) {
+                    logger.warn("❌ OAuth2 User Service - Email domain '{}' not permitted for user '{}' from provider {}. Permitted domains: {}",
+                            domain, email, registrationId, permittedDomains);
+                    throw new OAuth2AuthenticationException(new OAuth2Error("invalid_email_domain"), "Email domain not permitted.");
+                }
+                logger.info("✅ OAuth2 User Service - Email domain '{}' is permitted.", domain);
+            }
             
             // Create or update user in database
             AuthProvider authProvider = AuthProvider.valueOf(registrationId.toUpperCase());
@@ -242,4 +264,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 return (String) attributes.get("id");
         }
     }
-} 
+    
+    // Protected method for testing
+    protected OAuth2User callSuperLoadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        return super.loadUser(userRequest);
+    }
+}

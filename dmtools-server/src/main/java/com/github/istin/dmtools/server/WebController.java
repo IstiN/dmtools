@@ -14,10 +14,7 @@ public class WebController {
         this.systemCommandService = systemCommandService;
     }
 
-    @GetMapping("/")
-    public String index() {
-        return "redirect:/swagger-ui.html";
-    }
+    // Root mapping handled by SpaForwardController to serve SPA index.html or swagger fallback
 
     // Removed create-agent redirect since the HTML file was deleted
     // @GetMapping("/create-agent")
