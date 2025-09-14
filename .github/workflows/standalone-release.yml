@@ -184,12 +184,15 @@ jobs:
           BUNDLES_DIR="${STANDALONE_DIR}/bundles"
           mkdir -p "${BUNDLES_DIR}"
           
-          # Define platforms and their JRE download URLs
+          # Define platforms and their JRE download URLs (process in order: macOS first, then Windows)
           declare -A platforms=(
             ["macos-aarch64"]="https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_aarch64_mac_hotspot_23.0.1_11.tar.gz"
             ["macos-x64"]="https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_x64_mac_hotspot_23.0.1_11.tar.gz"
             ["windows-x64"]="https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_x64_windows_hotspot_23.0.1_11.zip"
           )
+          
+          # Process platforms in specific order to ensure consistent behavior
+          platform_order=("macos-aarch64" "macos-x64" "windows-x64")
           
           # Create launcher scripts
           create_unix_launcher() {
@@ -209,8 +212,8 @@ jobs:
           EOF
           }
           
-          # Create bundles for each platform
-          for platform in "${!platforms[@]}"; do
+          # Create bundles for each platform in defined order
+          for platform in "${platform_order[@]}"; do
             echo "Creating bundle for ${platform}..."
             
             BUNDLE_DIR="${BUNDLES_DIR}/dmtools-standalone-${platform}"
@@ -239,13 +242,22 @@ jobs:
               # Extract Windows ZIP
               unzip -q "${JRE_FILE}" -d "${BUNDLE_DIR}/jre-temp"
               
+              echo "Extracted Windows ZIP contents:"
+              ls -la "${BUNDLE_DIR}/jre-temp"
+              
               # Find the actual JRE directory and move it to jre/
-              JRE_ROOT=$(find "${BUNDLE_DIR}/jre-temp" -name "bin" -type d | head -1 | dirname)
-              if [ -n "${JRE_ROOT}" ] && [ -d "${JRE_ROOT}" ]; then
+              BIN_DIR=$(find "${BUNDLE_DIR}/jre-temp" -name "bin" -type d | head -1)
+              if [ -n "${BIN_DIR}" ]; then
+                JRE_ROOT=$(dirname "${BIN_DIR}")
+                echo "Found bin directory at: ${BIN_DIR}"
+                echo "Using JRE root: ${JRE_ROOT}"
                 mv "${JRE_ROOT}" "${BUNDLE_DIR}/jre"
               else
-                echo "ERROR: Could not find JRE structure in Windows ZIP for ${platform}"
-                ls -la "${BUNDLE_DIR}/jre-temp"
+                echo "ERROR: Could not find bin directory in Windows ZIP for ${platform}"
+                echo "Directory structure:"
+                find "${BUNDLE_DIR}/jre-temp" -type d | head -20
+                echo "Looking for JRE patterns:"
+                find "${BUNDLE_DIR}/jre-temp" -type d -name "*jdk*" -o -name "*jre*" | head -10
                 exit 1
               fi
               rm -rf "${BUNDLE_DIR}/jre-temp"
