@@ -175,12 +175,119 @@ jobs:
           echo "jar_size=${JAR_SIZE}" >> $GITHUB_OUTPUT
           echo "war_size=${WAR_SIZE}" >> $GITHUB_OUTPUT
 
+      - name: Create Portable Bundles with Embedded Java
+        id: create_portable_bundles
+        run: |
+          echo "Creating portable bundles with embedded Temurin Java 23..."
+          
+          STANDALONE_DIR="dmtools-server/build/standalone"
+          BUNDLES_DIR="${STANDALONE_DIR}/bundles"
+          mkdir -p "${BUNDLES_DIR}"
+          
+          # Define platforms and their JRE download URLs
+          declare -A platforms=(
+            ["macos-aarch64"]="https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_aarch64_mac_hotspot_23.0.1_11.tar.gz"
+            ["macos-x64"]="https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_x64_mac_hotspot_23.0.1_11.tar.gz"
+            ["windows-x64"]="https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_x64_windows_hotspot_23.0.1_11.zip"
+          )
+          
+          # Create launcher scripts
+          create_unix_launcher() {
+            cat > "$1" << 'EOF'
+          #!/usr/bin/env bash
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          exec "$DIR/jre/bin/java" -jar "$DIR/dmtools-standalone.jar" "$@"
+          EOF
+            chmod +x "$1"
+          }
+          
+          create_windows_launcher() {
+            cat > "$1" << 'EOF'
+          @echo off
+          set DIR=%~dp0
+          "%DIR%jre\bin\java.exe" -jar "%DIR%dmtools-standalone.jar" %*
+          EOF
+          }
+          
+          # Create bundles for each platform
+          for platform in "${!platforms[@]}"; do
+            echo "Creating bundle for ${platform}..."
+            
+            BUNDLE_DIR="${BUNDLES_DIR}/dmtools-standalone-${platform}"
+            mkdir -p "${BUNDLE_DIR}"
+            
+            # Copy standalone JAR
+            cp "${STANDALONE_DIR}/dmtools-standalone.jar" "${BUNDLE_DIR}/"
+            
+            # Download and extract JRE
+            JRE_URL="${platforms[$platform]}"
+            JRE_FILE="jre-${platform}.$(basename "${JRE_URL}" | sed 's/.*\.//')"
+            
+            echo "Downloading JRE for ${platform} from ${JRE_URL}"
+            curl -L -o "${JRE_FILE}" "${JRE_URL}"
+            
+            # Extract JRE
+            if [[ "${platform}" == *"windows"* ]]; then
+              unzip -q "${JRE_FILE}" -d "${BUNDLE_DIR}/jre-temp"
+              # Move contents from nested directory to jre/
+              mv "${BUNDLE_DIR}/jre-temp"/*/* "${BUNDLE_DIR}/jre/" 2>/dev/null || \
+              mv "${BUNDLE_DIR}/jre-temp"/* "${BUNDLE_DIR}/jre/" 2>/dev/null || \
+              find "${BUNDLE_DIR}/jre-temp" -mindepth 1 -maxdepth 1 -exec mv {} "${BUNDLE_DIR}/jre/" \;
+              rm -rf "${BUNDLE_DIR}/jre-temp"
+              
+              # Create Windows launcher
+              create_windows_launcher "${BUNDLE_DIR}/run.cmd"
+            else
+              mkdir -p "${BUNDLE_DIR}/jre"
+              tar -xzf "${JRE_FILE}" -C "${BUNDLE_DIR}/jre" --strip-components=1
+              
+              # Create Unix launcher
+              create_unix_launcher "${BUNDLE_DIR}/run.sh"
+            fi
+            
+            # Clean up downloaded JRE archive
+            rm "${JRE_FILE}"
+            
+            # Create ZIP bundle
+            cd "${BUNDLES_DIR}"
+            ZIP_NAME="dmtools-standalone-${platform}.zip"
+            zip -r "${ZIP_NAME}" "dmtools-standalone-${platform}/"
+            
+            # Get bundle size
+            BUNDLE_SIZE=$(du -h "${ZIP_NAME}" | cut -f1)
+            echo "Created ${ZIP_NAME} (${BUNDLE_SIZE})"
+            
+            cd - > /dev/null
+          done
+          
+          # Set outputs with bundle paths and sizes
+          echo "macos_aarch64_bundle=${BUNDLES_DIR}/dmtools-standalone-macos-aarch64.zip" >> $GITHUB_OUTPUT
+          echo "macos_x64_bundle=${BUNDLES_DIR}/dmtools-standalone-macos-x64.zip" >> $GITHUB_OUTPUT
+          echo "windows_x64_bundle=${BUNDLES_DIR}/dmtools-standalone-windows-x64.zip" >> $GITHUB_OUTPUT
+          
+          # Get bundle sizes
+          MACOS_ARM_SIZE=$(du -h "${BUNDLES_DIR}/dmtools-standalone-macos-aarch64.zip" | cut -f1)
+          MACOS_X64_SIZE=$(du -h "${BUNDLES_DIR}/dmtools-standalone-macos-x64.zip" | cut -f1)
+          WINDOWS_X64_SIZE=$(du -h "${BUNDLES_DIR}/dmtools-standalone-windows-x64.zip" | cut -f1)
+          
+          echo "macos_aarch64_size=${MACOS_ARM_SIZE}" >> $GITHUB_OUTPUT
+          echo "macos_x64_size=${MACOS_X64_SIZE}" >> $GITHUB_OUTPUT
+          echo "windows_x64_size=${WINDOWS_X64_SIZE}" >> $GITHUB_OUTPUT
+          
+          echo "All portable bundles created successfully!"
+          echo "  macOS Apple Silicon: ${MACOS_ARM_SIZE}"
+          echo "  macOS Intel: ${MACOS_X64_SIZE}"
+          echo "  Windows x64: ${WINDOWS_X64_SIZE}"
+
       - name: Generate Release Notes
         id: release_notes
         run: |
           FLUTTER_TAG="${{ steps.flutter_tag.outputs.flutter_tag }}"
           JAR_SIZE="${{ steps.create_standalone.outputs.jar_size }}"
           WAR_SIZE="${{ steps.create_standalone.outputs.war_size }}"
+          MACOS_ARM_SIZE="${{ steps.create_portable_bundles.outputs.macos_aarch64_size }}"
+          MACOS_X64_SIZE="${{ steps.create_portable_bundles.outputs.macos_x64_size }}"
+          WINDOWS_X64_SIZE="${{ steps.create_portable_bundles.outputs.windows_x64_size }}"
           
           cat > release_notes.md << EOF
           # 🚀 DMTools Standalone Release
@@ -197,7 +304,35 @@ jobs:
           
           ## 🎯 Quick Start
           
-          ### Option 1: JAR (Recommended)
+          ### Option 1: Portable Bundles (No Java Required) ⭐ NEW!
+          
+          Download the bundle for your platform and run directly:
+          
+          **macOS Apple Silicon:**
+          \`\`\`bash
+          # Download dmtools-standalone-macos-aarch64.zip
+          unzip dmtools-standalone-macos-aarch64.zip
+          cd dmtools-standalone-macos-aarch64
+          ./run.sh
+          \`\`\`
+          
+          **macOS Intel:**
+          \`\`\`bash
+          # Download dmtools-standalone-macos-x64.zip
+          unzip dmtools-standalone-macos-x64.zip
+          cd dmtools-standalone-macos-x64
+          ./run.sh
+          \`\`\`
+          
+          **Windows:**
+          \`\`\`cmd
+          :: Download dmtools-standalone-windows-x64.zip
+          unzip dmtools-standalone-windows-x64.zip
+          cd dmtools-standalone-windows-x64
+          run.cmd
+          \`\`\`
+          
+          ### Option 2: JAR (Requires Java 23+)
           \`\`\`bash
           # Download and run
           java -jar dmtools-standalone.jar
@@ -206,11 +341,18 @@ jobs:
           # Login: admin / admin
           \`\`\`
           
-          ### Option 2: WAR (for application servers)
+          ### Option 3: WAR (for application servers)
           Deploy \`dmtools-standalone.war\` to your favorite servlet container (Tomcat, Jetty, etc.)
           
           ## 📋 System Requirements
           
+          ### Portable Bundles (Recommended)
+          - **No Java installation required** ✅
+          - **2GB RAM** minimum, 4GB recommended
+          - **1GB disk space** for application and data
+          - **Port 8080** available (configurable)
+          
+          ### JAR/WAR Options
           - **Java 23+** (required)
           - **2GB RAM** minimum, 4GB recommended
           - **1GB disk space** for application and data
@@ -237,6 +379,9 @@ jobs:
           - **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
           - **JAR Size:** ${JAR_SIZE}
           - **WAR Size:** ${WAR_SIZE}
+          - **macOS Apple Silicon Bundle:** ${MACOS_ARM_SIZE}
+          - **macOS Intel Bundle:** ${MACOS_X64_SIZE}
+          - **Windows x64 Bundle:** ${WINDOWS_X64_SIZE}
           - **Git Commit:** \`${GITHUB_SHA:0:8}\`
           
           ## 🔒 Security Notes
@@ -288,6 +433,9 @@ jobs:
           files: |
             ${{ steps.create_standalone.outputs.jar_path }}
             ${{ steps.create_standalone.outputs.war_path }}
+            ${{ steps.create_portable_bundles.outputs.macos_aarch64_bundle }}
+            ${{ steps.create_portable_bundles.outputs.macos_x64_bundle }}
+            ${{ steps.create_portable_bundles.outputs.windows_x64_bundle }}
 
 
       - name: Upload Test Results
@@ -310,13 +458,28 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Release:** [${{ github.event.inputs.release_tag }}](${{ steps.create_release.outputs.url }})" >> $GITHUB_STEP_SUMMARY
           echo "**Flutter SPA:** ${{ steps.flutter_tag.outputs.flutter_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "**JAR Size:** ${{ steps.create_standalone.outputs.jar_size }}" >> $GITHUB_STEP_SUMMARY
-          echo "**WAR Size:** ${{ steps.create_standalone.outputs.war_size }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 Quick Start" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts Created" >> $GITHUB_STEP_SUMMARY
+          echo "- **JAR:** ${{ steps.create_standalone.outputs.jar_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **WAR:** ${{ steps.create_standalone.outputs.war_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **macOS Apple Silicon Bundle:** ${{ steps.create_portable_bundles.outputs.macos_aarch64_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **macOS Intel Bundle:** ${{ steps.create_portable_bundles.outputs.macos_x64_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Windows x64 Bundle:** ${{ steps.create_portable_bundles.outputs.windows_x64_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Quick Start Options" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Option 1: Portable Bundle (No Java Required) ⭐**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Download the appropriate bundle for your platform, then:" >> $GITHUB_STEP_SUMMARY
+          echo "unzip dmtools-standalone-<platform>.zip" >> $GITHUB_STEP_SUMMARY
+          echo "cd dmtools-standalone-<platform>" >> $GITHUB_STEP_SUMMARY
+          echo "./run.sh  # (macOS) or run.cmd (Windows)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Option 2: JAR (Requires Java 23+)**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "# Download the JAR from the release page, then:" >> $GITHUB_STEP_SUMMARY
-          echo "java -jar dmtools-standalone-${{ github.event.inputs.release_tag }}.jar" >> $GITHUB_STEP_SUMMARY
-          echo "# Access at http://localhost:8080" >> $GITHUB_STEP_SUMMARY
-          echo "# Login: admin / admin" >> $GITHUB_STEP_SUMMARY
+          echo "java -jar dmtools-standalone.jar" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Access:** http://localhost:8080 | **Login:** admin / admin" >> $GITHUB_STEP_SUMMARY
