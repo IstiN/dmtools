@@ -222,6 +222,11 @@ jobs:
             # Copy standalone JAR
             cp "${STANDALONE_DIR}/dmtools-standalone.jar" "${BUNDLE_DIR}/"
             
+            # Copy README for users
+            if [ -f "dmtools-server/src/main/resources/bundle-readme.md" ]; then
+              cp "dmtools-server/src/main/resources/bundle-readme.md" "${BUNDLE_DIR}/README.md"
+            fi
+            
             # Download and extract JRE
             JRE_URL="${platforms[$platform]}"
             JRE_FILE="jre-${platform}.$(basename "${JRE_URL}" | sed 's/.*\.//')"
@@ -414,6 +419,11 @@ jobs:
           ./run.sh
           \`\`\`
           
+          ⚠️ **macOS Security Note:** If you see '"java" Not Opened' security warning:
+          - **Option 1:** Click "Done", then run: \`xattr -dr com.apple.quarantine .\`
+          - **Option 2:** Go to System Preferences → Privacy & Security → Allow
+          - **Option 3:** Right-click \`run.sh\` → Open → Open (bypass Gatekeeper)
+          
           **Windows:**
           \`\`\`cmd
           :: Download dmtools-standalone-windows-x64.zip
@@ -421,6 +431,10 @@ jobs:
           cd dmtools-standalone-windows-x64
           run.cmd
           \`\`\`
+          
+          ⚠️ **Windows Security Note:** If Windows Defender blocks execution:
+          - Click "More info" → "Run anyway"
+          - Or add folder to Windows Defender exclusions
           
           ### Option 2: JAR (Requires Java 23+)
           \`\`\`bash
@@ -492,9 +506,41 @@ jobs:
           ### Common Issues
           
           1. **Port already in use:** Use \`--server.port=XXXX\` to change port
-          2. **Java version:** Ensure Java 23+ is installed (\`java -version\`)
+          2. **Java version (JAR only):** Ensure Java 23+ is installed (\`java -version\`)
           3. **Memory issues:** Increase heap size with \`-Xmx4g\`
           4. **Database locked:** Ensure no other instances are running
+          
+          ### Security Warnings (Portable Bundles)
+          
+          #### macOS "java Not Opened" Warning
+          This happens because the embedded Java runtime isn't code-signed by Apple.
+          
+          **Quick Fix:**
+          \`\`\`bash
+          # Navigate to the extracted bundle directory
+          cd dmtools-standalone-macos-*
+          # Remove quarantine attribute
+          xattr -dr com.apple.quarantine .
+          # Now run normally
+          ./run.sh
+          \`\`\`
+          
+          **Alternative Methods:**
+          - **System Preferences:** Go to System Preferences → Privacy & Security → Allow
+          - **Right-click method:** Right-click \`run.sh\` → Open → Open (bypasses Gatekeeper)
+          - **Terminal override:** \`sudo spctl --master-disable\` (not recommended)
+          
+          #### Windows Defender Warning
+          Windows may flag the Java executable as potentially harmful.
+          
+          **Quick Fix:**
+          1. Click "More info" when Windows Defender appears
+          2. Click "Run anyway"
+          
+          **Permanent Fix:**
+          1. Open Windows Security → Virus & threat protection
+          2. Add an exclusion for the DMTools folder
+          3. Choose "Folder" and select your \`dmtools-standalone-windows-x64\` directory
           
           ### Getting Help
           
@@ -565,6 +611,8 @@ jobs:
           echo "cd dmtools-standalone-<platform>" >> $GITHUB_STEP_SUMMARY
           echo "./run.sh  # (macOS) or run.cmd (Windows)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Security Note:** If you see warnings, check the release notes for bypass instructions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Option 2: JAR (Requires Java 23+)**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
