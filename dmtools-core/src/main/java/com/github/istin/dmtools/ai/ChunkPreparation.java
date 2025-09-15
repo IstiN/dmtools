@@ -3,6 +3,7 @@ package com.github.istin.dmtools.ai;
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.utils.PropertyReader;
 import lombok.Data;
+import lombok.Getter;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +13,7 @@ import java.util.regex.Pattern;
 
 public class ChunkPreparation {
     // Configuration fields
+    @Getter
     private final int tokenLimit;
     private final long maxSingleFileSize;
     private final long maxTotalFilesSize;

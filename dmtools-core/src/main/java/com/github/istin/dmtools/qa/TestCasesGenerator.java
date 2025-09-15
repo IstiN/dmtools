@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.qa;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.ChunkPreparation;
 import com.github.istin.dmtools.ai.ConfluencePagesContext;
 import com.github.istin.dmtools.ai.TicketContext;
 import com.github.istin.dmtools.ai.agent.RelatedTestCaseAgent;
@@ -155,14 +156,15 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     public List<ITicket> findAndLinkSimilarTestCasesBySummary(TicketContext ticketContext, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink, String relationship) throws Exception {
         List<ITicket> finaResults = new ArrayList<>();
         String extraRelatedTestCaseRulesFromConfluence = new ConfluencePagesContext(new String[]{relatedTestCasesRulesLink}, confluence, false).toText();
-        int batchSize = 50;
-        for (int i = 0; i < listOfAllTestCases.size(); i += batchSize) {
-            List<? extends ITicket> batch = listOfAllTestCases.subList(i, Math.min(i + batchSize, listOfAllTestCases.size()));
-            JSONArray testCaseKeys = relatedTestCasesAgent.run(new RelatedTestCasesAgent.Params(ticketContext.toText(), ToText.Utils.toText(batch), extraRelatedTestCaseRulesFromConfluence));
+        ChunkPreparation chunkPreparation = new ChunkPreparation();
+        int tokenLimit = (int)(((double)chunkPreparation.getTokenLimit()) / 1.5d);
+        List<ChunkPreparation.Chunk> chunks = chunkPreparation.prepareChunks(listOfAllTestCases, tokenLimit);
+        for (ChunkPreparation.Chunk chunk : chunks) {
+            JSONArray testCaseKeys = relatedTestCasesAgent.run(new RelatedTestCasesAgent.Params(ticketContext.toText(), chunk.getText(), extraRelatedTestCaseRulesFromConfluence));
             //find relevant test case from batch
             for (int j = 0; j < testCaseKeys.length(); j++) {
                 String testCaseKey = testCaseKeys.getString(j);
-                ITicket testCase = batch.stream().filter(t -> t.getKey().equals(testCaseKey)).findFirst().orElse(null);
+                ITicket testCase = listOfAllTestCases.stream().filter(t -> t.getKey().equals(testCaseKey)).findFirst().orElse(null);
                 if (testCase != null) {
                     boolean isConfirmed = relatedTestCaseAgent.run(new RelatedTestCaseAgent.Params(ticketContext.toText(), testCase.toText(), extraRelatedTestCaseRulesFromConfluence));
                     if (isConfirmed) {
