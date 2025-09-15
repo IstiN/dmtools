@@ -1,9 +1,6 @@
 package com.github.istin.dmtools.qa;
 
-import com.github.istin.dmtools.ai.AI;
-import com.github.istin.dmtools.ai.ChunkPreparation;
-import com.github.istin.dmtools.ai.ConfluencePagesContext;
-import com.github.istin.dmtools.ai.TicketContext;
+import com.github.istin.dmtools.ai.*;
 import com.github.istin.dmtools.ai.agent.RelatedTestCaseAgent;
 import com.github.istin.dmtools.ai.agent.RelatedTestCasesAgent;
 import com.github.istin.dmtools.ai.agent.TestCaseGeneratorAgent;
@@ -27,6 +24,8 @@ import org.json.JSONObject;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, List<TestCasesGenerator.TestCasesResult>> {
@@ -157,7 +156,12 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         List<ITicket> finaResults = new ArrayList<>();
         String extraRelatedTestCaseRulesFromConfluence = new ConfluencePagesContext(new String[]{relatedTestCasesRulesLink}, confluence, false).toText();
         ChunkPreparation chunkPreparation = new ChunkPreparation();
-        int tokenLimit = (int)(((double)chunkPreparation.getTokenLimit()) / 1.5d);
+        int storyTokens = new Claude35TokenCounter().countTokens(ticketContext.toText());
+        System.out.println("STORY TOKENS: " + storyTokens);
+        int systemTokenLimits = chunkPreparation.getTokenLimit();
+        System.out.println("SYSTEM TOKEN LIMITS: " + systemTokenLimits);
+        int tokenLimit = (systemTokenLimits - storyTokens)/2;
+        System.out.println("TESTCASES TOKEN LIMITS: " + systemTokenLimits);
         List<ChunkPreparation.Chunk> chunks = chunkPreparation.prepareChunks(listOfAllTestCases, tokenLimit);
         for (ChunkPreparation.Chunk chunk : chunks) {
             JSONArray testCaseKeys = relatedTestCasesAgent.run(new RelatedTestCasesAgent.Params(ticketContext.toText(), chunk.getText(), extraRelatedTestCaseRulesFromConfluence));
