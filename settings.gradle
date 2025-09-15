@@ -1,1 +1,1 @@
-include 'dmtools-core', 'dmtools-server', 'dmtools-mcp-annotations', 'dmtools-annotation-processor'
+include 'dmtools-core', 'dmtools-server', 'dmtools-automation', 'dmtools-mcp-annotations', 'dmtools-annotation-processor'

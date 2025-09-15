@@ -1,0 +1,93 @@
+plugins {
+    id 'java-library'
+    id 'jacoco'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'com.github.istin'
+version = "${version}"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_23
+    targetCompatibility = JavaVersion.VERSION_23
+}
+
+repositories {
+    mavenCentral()
+    maven { url = uri("https://maven.pkg.github.com/IstiN/dmtools") }
+}
+
+// Define versions for automation dependencies
+def versions = [
+    selenium : '4.11.0',
+    appium   : '8.3.0',
+    playwright: '1.50.0'
+]
+
+dependencies {
+    // Core DMTools dependency (for base classes and interfaces)
+    api project(':dmtools-core')
+    
+    // Selenium & Browser Automation
+    api("org.seleniumhq.selenium:selenium-java:${versions.selenium}") {
+        exclude group: 'com.google.guava'
+    }
+    
+    // Appium for Mobile Automation
+    api("io.appium:java-client:${versions.appium}") {
+        exclude group: 'org.seleniumhq.selenium'
+        exclude group: 'com.google.guava'
+    }
+    
+    // Playwright for Modern Web Testing
+    api "com.microsoft.playwright:playwright:${versions.playwright}"
+    
+    // WebDriver Manager for automatic driver management
+    api('io.github.bonigarcia:webdrivermanager:5.9.2') {
+        exclude group: 'com.google.guava'
+    }
+    
+    // Testing dependencies
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.18.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.18.0'
+    testRuntimeOnly 'org.junit.vintage:junit-vintage-engine:5.8.2'
+    testImplementation platform('org.junit:junit-bom:5.9.1')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+configurations.all {
+    resolutionStrategy {
+        // Force specific versions for key dependencies to avoid conflicts
+        force "org.seleniumhq.selenium:selenium-java:${versions.selenium}"
+        force "io.appium:java-client:${versions.appium}"
+    }
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs '-Dnet.bytebuddy.experimental=true'
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        exceptionFormat "full"
+    }
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+shadowJar {
+    archiveClassifier.set('automation')
+    mergeServiceFiles()
+    zip64 = true
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}

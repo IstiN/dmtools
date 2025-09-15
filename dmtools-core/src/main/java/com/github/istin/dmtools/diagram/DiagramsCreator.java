@@ -123,7 +123,24 @@ public class DiagramsCreator extends AbstractJob<DiagramsCreatorParams, List<Dia
         
         // Use injected dependencies instead of manual instantiation
         JAssistant jAssistant = new JAssistant(trackerClient, null, ai, promptTemplateReader);
-        DiagramsDrawer diagramsDrawer = new DiagramsDrawer();
+        
+        // Try to get DiagramsDrawer if automation module is available
+        IDiagramDrawer tempDrawer = null;
+        try {
+            // Use reflection to load DiagramsDrawer from automation module if available
+            Class<?> drawerClass = Class.forName("com.github.istin.dmtools.diagram.DiagramsDrawer");
+            tempDrawer = (IDiagramDrawer) drawerClass.getDeclaredConstructor().newInstance();
+            if (!tempDrawer.isAvailable()) {
+                logger.warn("DiagramsDrawer not available, diagrams will not be rendered");
+                tempDrawer = null;
+            }
+        } catch (ClassNotFoundException e) {
+            logger.info("DiagramsDrawer not found - automation module not included. Diagrams will not be rendered.");
+        } catch (Exception e) {
+            logger.warn("Failed to initialize DiagramsDrawer: " + e.getMessage());
+        }
+        final IDiagramDrawer diagramsDrawer = tempDrawer;
+        
         List<Result> resultItems = new ArrayList<>();
         
         trackerClient.searchAndPerform(ticket -> {
@@ -132,8 +149,21 @@ public class DiagramsCreator extends AbstractJob<DiagramsCreatorParams, List<Dia
 
             List<Diagram> diagrams = jAssistant.createDiagrams(ticketContext, roleSpecific, projectSpecific);
             for (Diagram diagram : diagrams) {
-                File screenshot = diagramsDrawer.draw(ticket.getTicketTitle() + "_" + diagram.getType(), diagram);
-                trackerClient.attachFileToTicket(ticket.getTicketKey(), screenshot.getName(), null, screenshot);
+                if (diagramsDrawer != null) {
+                    try {
+                        String outputPath = "diagrams/" + ticket.getTicketTitle() + "_" + diagram.getType() + ".png";
+                        diagramsDrawer.drawDiagram(diagram, outputPath);
+                        File screenshot = new File(outputPath);
+                        if (screenshot.exists()) {
+                            trackerClient.attachFileToTicket(ticket.getTicketKey(), screenshot.getName(), null, screenshot);
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Failed to draw diagram for ticket {}: {}", ticket.getKey(), e.getMessage());
+                    }
+                } else {
+                    logger.info("Skipping diagram rendering for ticket {} - DiagramsDrawer not available", ticket.getKey());
+                }
+                // Always post the diagram code as a comment, even if rendering fails
                 trackerClient.postCommentIfNotExists(ticket.getKey(), diagram.getType() + " \n " + diagram.getCode());
             }
             trackerClient.addLabelIfNotExists(ticket, labelNameToMarkAsReviewed);

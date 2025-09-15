@@ -18,8 +18,6 @@ repositories {
 def versions = [
         log4j    : '2.20.0',
         slf4j    : '2.0.7',
-        selenium : '4.11.0',
-        appium   : '8.3.0',
         guava    : '31.1-jre',
         graalvm  : '24.1.1'
 ]
@@ -72,22 +70,14 @@ dependencies {
     api 'org.apache.pdfbox:pdfbox:3.0.2'
     api 'io.github.furstenheim:copy_down:1.1'
 
-    // Selenium & Appium
-    api("org.seleniumhq.selenium:selenium-java:${versions.selenium}") {
-        exclude group: 'com.google.guava'
-    }
-    api("io.appium:java-client:${versions.appium}") {
-        exclude group: 'org.seleniumhq.selenium'
-        exclude group: 'com.google.guava'
-    }
+    // Selenium & Appium dependencies moved to dmtools-automation module
 
     // Guava and its dependencies
     api "com.google.guava:guava:${versions.guava}"
     api 'com.google.guava:failureaccess:1.0.1'
     api 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
 
-    // Playwright
-    api 'com.microsoft.playwright:playwright:1.50.0'
+    // Playwright dependency moved to dmtools-automation module
 
     // GraalVM
     api "org.graalvm.sdk:graal-sdk:${versions.graalvm}"
@@ -95,9 +85,7 @@ dependencies {
     api "org.graalvm.js:js-scriptengine:${versions.graalvm}"
 
     // Other tools
-    api('io.github.bonigarcia:webdrivermanager:5.9.2') {
-        exclude group: 'com.google.guava'
-    }
+    // WebDriverManager dependency moved to dmtools-automation module
     api('com.github.mpkorstanje:simmetrics-core:4.1.1') {
         exclude group: 'com.google.guava'
     }
@@ -142,8 +130,6 @@ dependencies {
     configurations.all {
     resolutionStrategy {
         // Force specific versions for key dependencies
-        force "org.seleniumhq.selenium:selenium-java:${versions.selenium}"
-        force "io.appium:java-client:${versions.appium}"
         force "com.google.guava:guava:${versions.guava}"
         force "com.google.guava:failureaccess:1.0.1"
         force "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava"
@@ -165,9 +151,7 @@ dependencies {
                     details.useVersion '1.0.1'
                 }
             }
-            if (details.requested.group == 'org.seleniumhq.selenium') {
-                details.useVersion versions.selenium
-            }
+            // Selenium version resolution moved to dmtools-automation module
             if (details.requested.group == 'org.slf4j') {
                 details.useVersion versions.slf4j
             }

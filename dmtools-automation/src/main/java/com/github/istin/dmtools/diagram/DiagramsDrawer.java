@@ -27,7 +27,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.time.Duration;
 
-public class DiagramsDrawer {
+public class DiagramsDrawer implements IDiagramDrawer {
 
     private static final Logger logger = LogManager.getLogger(DiagramsDrawer.class);
 
@@ -97,5 +97,35 @@ public class DiagramsDrawer {
         Writer out = new StringWriter();
         temp.process(input, out);
         return out.toString();
+    }
+
+    // IDiagramDrawer interface implementation
+    @Override
+    public void drawDiagram(Diagram diagram, String outputPath) throws Exception {
+        String fileName = new File(outputPath).getName();
+        String baseName = fileName.contains(".") ? 
+            fileName.substring(0, fileName.lastIndexOf(".")) : fileName;
+        File result = draw(baseName, diagram);
+        
+        // Copy result to the specified output path
+        File outputFile = new File(outputPath);
+        FileUtils.copyFile(result, outputFile);
+    }
+
+    @Override
+    public boolean isAvailable() {
+        try {
+            // Check if Chrome/WebDriver is available
+            WebDriverManager.chromedriver().setup();
+            return true;
+        } catch (Exception e) {
+            logger.warn("DiagramsDrawer not available: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public String getDrawerType() {
+        return "Selenium-based Diagram Drawer";
     }
 }

@@ -161,7 +161,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         int systemTokenLimits = chunkPreparation.getTokenLimit();
         System.out.println("SYSTEM TOKEN LIMITS: " + systemTokenLimits);
         int tokenLimit = (systemTokenLimits - storyTokens)/2;
-        System.out.println("TESTCASES TOKEN LIMITS: " + systemTokenLimits);
+        System.out.println("TESTCASES TOKEN LIMITS: " + tokenLimit);
         List<ChunkPreparation.Chunk> chunks = chunkPreparation.prepareChunks(listOfAllTestCases, tokenLimit);
         for (ChunkPreparation.Chunk chunk : chunks) {
             JSONArray testCaseKeys = relatedTestCasesAgent.run(new RelatedTestCasesAgent.Params(ticketContext.toText(), chunk.getText(), extraRelatedTestCaseRulesFromConfluence));
