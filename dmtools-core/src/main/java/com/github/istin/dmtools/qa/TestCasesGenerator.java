@@ -10,14 +10,14 @@ import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.di.DaggerTestCasesGeneratorComponent;
 import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
 import com.github.istin.dmtools.job.AbstractJob;
-import com.github.istin.dmtools.job.ResultItem;
-import com.github.istin.dmtools.job.ExecutionMode;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
+import dagger.Component;
 import lombok.*;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
@@ -25,7 +25,6 @@ import org.json.JSONObject;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import dagger.Component;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -119,7 +118,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
         List<ITicket> finaResults = findAndLinkSimilarTestCasesBySummary(ticketContext, listOfAllTestCases, true, params.getRelatedTestCasesRules(), params.getTestCaseLinkRelationship());
 
-        List<TestCaseGeneratorAgent.TestCase> newTestCases = testCaseGeneratorAgent.run(new TestCaseGeneratorAgent.Params(params.getTestCasesPriorities(), finaResults.toString(), ticketContext.toText(), extraRules));
+        List<TestCaseGeneratorAgent.TestCase> newTestCases = testCaseGeneratorAgent.run(new TestCaseGeneratorAgent.Params(params.getTestCasesPriorities(), ToText.Utils.toText(finaResults), ticketContext.toText(), extraRules));
 
         if (params.getOutputType().equals(TestCasesGeneratorParams.OutputType.comment)) {
             StringBuilder result = new StringBuilder();
@@ -159,8 +158,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         int batchSize = 50;
         for (int i = 0; i < listOfAllTestCases.size(); i += batchSize) {
             List<? extends ITicket> batch = listOfAllTestCases.subList(i, Math.min(i + batchSize, listOfAllTestCases.size()));
-
-            JSONArray testCaseKeys = relatedTestCasesAgent.run(new RelatedTestCasesAgent.Params(ticketContext.toText(), batch.toString(), extraRelatedTestCaseRulesFromConfluence));
+            JSONArray testCaseKeys = relatedTestCasesAgent.run(new RelatedTestCasesAgent.Params(ticketContext.toText(), ToText.Utils.toText(batch), extraRelatedTestCaseRulesFromConfluence));
             //find relevant test case from batch
             for (int j = 0; j < testCaseKeys.length(); j++) {
                 String testCaseKey = testCaseKeys.getString(j);

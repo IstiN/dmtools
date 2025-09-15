@@ -11,7 +11,9 @@ public interface ToText {
         static String toText(List<? extends ToText> list) throws IOException {
             StringBuilder buffer = new StringBuilder();
             for (ToText toText : list) {
-                buffer.append(toText.toText()).append("\n");
+                buffer.append("-").append("\n");
+                buffer.append(toText.toText());
+                buffer.append("-").append("\n");
             }
             return buffer.toString();
         }
