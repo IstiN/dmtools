@@ -37,6 +37,9 @@ jobs:
         INPUT_MCP_URL: ${{ inputs.mcp_dmtools_url }}
       run: ./cicd/scripts/setup-mcp.sh
         
+    - name: Setup Cursor CLI Configuration
+      run: ./cicd/scripts/setup-cursor-cli-config.sh
+        
     - name: Install Cursor CLI
       run: |
         curl https://cursor.com/install -fsS | bash
