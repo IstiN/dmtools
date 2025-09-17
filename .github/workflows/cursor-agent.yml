@@ -78,7 +78,7 @@ jobs:
         ls -la ~/.cursor/bin/ || echo "Cursor bin directory not found"
         which cursor-agent || echo "cursor-agent not found in PATH"
         
-    - name: Run Cursor Agent
+    - name: List MCP Servers
       env:
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
       run: |
@@ -99,6 +99,25 @@ jobs:
         fi
         
         echo "Using Cursor Agent at: $CURSOR_AGENT_PATH"
+        echo "Listing available MCP servers..."
+        
+        # List MCP servers before executing main prompt
+        $CURSOR_AGENT_PATH mcp list
+        
+    - name: Run Cursor Agent
+      env:
+        CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+      run: |
+        # Use the same cursor-agent path detection as previous step
+        if [ -f ~/.cursor/bin/cursor-agent ]; then
+          CURSOR_AGENT_PATH="~/.cursor/bin/cursor-agent"
+        elif command -v cursor-agent &> /dev/null; then
+          CURSOR_AGENT_PATH="cursor-agent"
+        else
+          echo "Error: cursor-agent not found"
+          exit 1
+        fi
+        
         echo "User request: ${{ inputs.user_request }}"
         echo "Selected model: ${{ inputs.model }}"
         echo "MCP DMTools URL: [CONFIGURED]"
