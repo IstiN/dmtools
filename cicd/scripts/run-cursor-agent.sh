@@ -75,15 +75,10 @@ echo "=== Starting Cursor Agent ==="
 echo "Executing: $CURSOR_AGENT_PATH --print \"$USER_REQUEST\" --model $MODEL --force --output-format=text"
 echo ""
 
-# Run with timeout to prevent hanging (if timeout command is available)
+# Run cursor-agent in non-interactive mode
 # Use --print for non-interactive mode, --force for write permissions, and --output-format for structured output
-if command -v timeout &> /dev/null; then
-    timeout 300 "$CURSOR_AGENT_PATH" --print "$USER_REQUEST" --model "$MODEL" --force --output-format=text
-    exit_code=$?
-else
-    "$CURSOR_AGENT_PATH" --print "$USER_REQUEST" --model "$MODEL" --force --output-format=text
-    exit_code=$?
-fi
+"$CURSOR_AGENT_PATH" --print "$USER_REQUEST" --model "$MODEL" --force --output-format=text
+exit_code=$?
 
 echo ""
 echo "=== Execution Completed ==="

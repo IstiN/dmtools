@@ -39,6 +39,9 @@ jobs:
         
     - name: Setup Cursor CLI Configuration
       run: ./cicd/scripts/setup-cursor-cli-config.sh
+      
+    - name: Create output directory
+      run: mkdir -p output
         
     - name: Install Cursor CLI
       run: |
