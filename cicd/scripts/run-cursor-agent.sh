@@ -22,12 +22,12 @@ find_cursor_agent() {
     echo "Detecting cursor-agent executable..." >&2
     
     # Try different possible locations
-    if [ -f ~/.cursor/bin/cursor-agent ]; then
-        echo "✓ Found cursor-agent at ~/.cursor/bin/cursor-agent" >&2
-        echo "~/.cursor/bin/cursor-agent"
-    elif [ -f ~/.local/bin/cursor-agent ]; then
-        echo "✓ Found cursor-agent at ~/.local/bin/cursor-agent" >&2
-        echo "~/.local/bin/cursor-agent"
+    if [ -f "$HOME/.cursor/bin/cursor-agent" ]; then
+        echo "✓ Found cursor-agent at $HOME/.cursor/bin/cursor-agent" >&2
+        echo "$HOME/.cursor/bin/cursor-agent"
+    elif [ -f "$HOME/.local/bin/cursor-agent" ]; then
+        echo "✓ Found cursor-agent at $HOME/.local/bin/cursor-agent" >&2
+        echo "$HOME/.local/bin/cursor-agent"
     elif command -v cursor-agent &> /dev/null; then
         local path=$(command -v cursor-agent)
         echo "✓ Found cursor-agent at $path" >&2
@@ -35,11 +35,11 @@ find_cursor_agent() {
     else
         echo "✗ cursor-agent not found in standard locations" >&2
         echo "Searching for cursor-agent..." >&2
-        find ~ -name "cursor-agent" -type f 2>/dev/null | head -5 >&2
-        echo "Available executables in ~/.cursor:" >&2
-        find ~/.cursor -type f -executable 2>/dev/null >&2 || echo "No executables found" >&2
-        echo "Available executables in ~/.local:" >&2
-        find ~/.local -type f -executable -name "*cursor*" 2>/dev/null >&2 || echo "No cursor executables found" >&2
+        find "$HOME" -name "cursor-agent" -type f 2>/dev/null | head -5 >&2
+        echo "Available executables in $HOME/.cursor:" >&2
+        find "$HOME/.cursor" -type f -executable 2>/dev/null >&2 || echo "No executables found" >&2
+        echo "Available executables in $HOME/.local:" >&2
+        find "$HOME/.local" -type f -executable -name "*cursor*" 2>/dev/null >&2 || echo "No cursor executables found" >&2
         return 1
     fi
 }
@@ -75,9 +75,14 @@ echo "=== Starting Cursor Agent ==="
 echo "Executing: $CURSOR_AGENT_PATH -p \"$USER_REQUEST\" --model $MODEL"
 echo ""
 
-# Run with timeout to prevent hanging
-timeout 300 $CURSOR_AGENT_PATH -p "$USER_REQUEST" --model "$MODEL" --force --output-format=text
-exit_code=$?
+# Run with timeout to prevent hanging (if timeout command is available)
+if command -v timeout &> /dev/null; then
+    timeout 300 "$CURSOR_AGENT_PATH" -p "$USER_REQUEST" --model "$MODEL" --force --output-format=text
+    exit_code=$?
+else
+    "$CURSOR_AGENT_PATH" -p "$USER_REQUEST" --model "$MODEL" --force --output-format=text
+    exit_code=$?
+fi
 
 echo ""
 echo "=== Execution Completed ==="
