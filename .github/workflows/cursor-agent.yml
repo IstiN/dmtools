@@ -55,6 +55,10 @@ jobs:
           exit 1
         fi
         
+        # Create MCP configuration in both possible locations
+        mkdir -p ~/.cursor
+        mkdir -p .cursor
+        
         cat > ~/.cursor/mcp.json << EOF
         {
           "mcpServers": {
@@ -64,8 +68,23 @@ jobs:
           }
         }
         EOF
-        echo "Created MCP configuration:"
+        
+        cat > .cursor/mcp.json << EOF
+        {
+          "mcpServers": {
+            "dmtools": {
+              "url": "$MCP_URL"
+            }
+          }
+        }
+        EOF
+        
+        echo "Created MCP configuration in both locations:"
+        echo "~/.cursor/mcp.json:"
         cat ~/.cursor/mcp.json
+        echo ""
+        echo ".cursor/mcp.json:"
+        cat .cursor/mcp.json
         
     - name: Install Cursor CLI
       run: |
@@ -77,6 +96,27 @@ jobs:
         echo "PATH: $PATH"
         ls -la ~/.cursor/bin/ || echo "Cursor bin directory not found"
         which cursor-agent || echo "cursor-agent not found in PATH"
+        
+    - name: Verify MCP Configuration
+      run: |
+        echo "Current working directory: $(pwd)"
+        echo "Files in current directory:"
+        ls -la
+        echo ""
+        echo "Checking MCP configuration files:"
+        echo "~/.cursor/mcp.json exists: $(test -f ~/.cursor/mcp.json && echo 'YES' || echo 'NO')"
+        echo ".cursor/mcp.json exists: $(test -f .cursor/mcp.json && echo 'YES' || echo 'NO')"
+        echo ""
+        if [ -f ~/.cursor/mcp.json ]; then
+          echo "Contents of ~/.cursor/mcp.json:"
+          cat ~/.cursor/mcp.json
+          echo ""
+        fi
+        if [ -f .cursor/mcp.json ]; then
+          echo "Contents of .cursor/mcp.json:"
+          cat .cursor/mcp.json
+          echo ""
+        fi
         
     - name: List MCP Servers
       env:
@@ -99,6 +139,7 @@ jobs:
         fi
         
         echo "Using Cursor Agent at: $CURSOR_AGENT_PATH"
+        echo "Cursor Agent version: $($CURSOR_AGENT_PATH --version)"
         echo "Listing available MCP servers..."
         
         # List MCP servers before executing main prompt
