@@ -1,0 +1,120 @@
+name: Cursor Agent with DMTools MCP
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_request:
+        description: 'Describe what you want the Cursor Agent to do'
+        required: true
+        type: string
+      model:
+        description: 'Select AI model to use'
+        required: true
+        default: 'sonnet-4'
+        type: choice
+        options:
+          - sonnet-4
+          - gpt-5
+          - opus-4.1
+          - grok
+          - auto
+      mcp_dmtools_url:
+        description: 'DMTools MCP URL (if different from secret)'
+        required: false
+        type: string
+
+jobs:
+  cursor-agent:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup workspace directories
+      run: |
+        mkdir -p ~/.cursor
+        mkdir -p ~/.cursor/bin
+        
+    - name: Create MCP configuration
+      env:
+        MCP_DMTOOLS_URL: ${{ secrets.MCP_DMTOOLS_URL }}
+        INPUT_MCP_URL: ${{ inputs.mcp_dmtools_url }}
+      run: |
+        # Use input URL if provided, otherwise use secret
+        if [ -n "$INPUT_MCP_URL" ]; then
+          MCP_URL="$INPUT_MCP_URL"
+          echo "Using MCP URL from input"
+        else
+          MCP_URL="$MCP_DMTOOLS_URL"
+          echo "Using MCP URL from secret"
+        fi
+        
+        if [ -z "$MCP_URL" ]; then
+          echo "Error: No MCP URL provided. Please set MCP_DMTOOLS_URL secret or provide mcp_dmtools_url input"
+          exit 1
+        fi
+        
+        cat > ~/.cursor/mcp.json << EOF
+        {
+          "mcpServers": {
+            "dmtools": {
+              "url": "$MCP_URL"
+            }
+          }
+        }
+        EOF
+        echo "Created MCP configuration:"
+        cat ~/.cursor/mcp.json
+        
+    - name: Install Cursor CLI
+      run: |
+        curl https://cursor.com/install -fsS | bash
+        echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+        
+    - name: Verify Cursor CLI installation
+      run: |
+        echo "PATH: $PATH"
+        ls -la ~/.cursor/bin/ || echo "Cursor bin directory not found"
+        which cursor-agent || echo "cursor-agent not found in PATH"
+        
+    - name: Run Cursor Agent
+      env:
+        CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+      run: |
+        # Wait a moment for PATH to be updated
+        sleep 2
+        
+        # Try different possible locations for cursor-agent
+        if [ -f ~/.cursor/bin/cursor-agent ]; then
+          CURSOR_AGENT_PATH="~/.cursor/bin/cursor-agent"
+        elif command -v cursor-agent &> /dev/null; then
+          CURSOR_AGENT_PATH="cursor-agent"
+        else
+          echo "Searching for cursor-agent..."
+          find ~ -name "cursor-agent" -type f 2>/dev/null | head -5
+          echo "Available executables in ~/.cursor:"
+          find ~/.cursor -type f -executable 2>/dev/null || echo "No executables found"
+          exit 1
+        fi
+        
+        echo "Using Cursor Agent at: $CURSOR_AGENT_PATH"
+        echo "User request: ${{ inputs.user_request }}"
+        echo "Selected model: ${{ inputs.model }}"
+        echo "MCP DMTools URL: [CONFIGURED]"
+        
+        # Execute the cursor agent with the user request
+        $CURSOR_AGENT_PATH -p "${{ inputs.user_request }}" --model ${{ inputs.model }}
+        
+    - name: Upload results (if any)
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: cursor-agent-results
+        path: |
+          **/*.log
+          **/*.txt
+          **/*.md
+          **/*.json
+        retention-days: 7
+        if-no-files-found: ignore

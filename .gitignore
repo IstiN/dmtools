@@ -72,6 +72,9 @@ data/*.mv.db
 cookies.txt
 jwt_token.txt
 
+# Cursor configuration files with sensitive data
+.cursor/mcp.json
+
 # Ensure all data directories are ignored
 /dmtools-server/data/
 **/data/*.db
