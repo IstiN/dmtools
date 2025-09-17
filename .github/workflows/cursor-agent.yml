@@ -31,60 +31,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Setup workspace directories
-      run: |
-        mkdir -p ~/.cursor
-        mkdir -p ~/.cursor/bin
-        
-    - name: Create MCP configuration
+    - name: Setup MCP Configuration
       env:
         MCP_DMTOOLS_URL: ${{ secrets.MCP_DMTOOLS_URL }}
         INPUT_MCP_URL: ${{ inputs.mcp_dmtools_url }}
-      run: |
-        # Use input URL if provided, otherwise use secret
-        if [ -n "$INPUT_MCP_URL" ]; then
-          MCP_URL="$INPUT_MCP_URL"
-          echo "Using MCP URL from input"
-        else
-          MCP_URL="$MCP_DMTOOLS_URL"
-          echo "Using MCP URL from secret"
-        fi
-        
-        if [ -z "$MCP_URL" ]; then
-          echo "Error: No MCP URL provided. Please set MCP_DMTOOLS_URL secret or provide mcp_dmtools_url input"
-          exit 1
-        fi
-        
-        # Create MCP configuration in both possible locations
-        mkdir -p ~/.cursor
-        mkdir -p .cursor
-        
-        cat > ~/.cursor/mcp.json << EOF
-        {
-          "mcpServers": {
-            "dmtools": {
-              "url": "$MCP_URL"
-            }
-          }
-        }
-        EOF
-        
-        cat > .cursor/mcp.json << EOF
-        {
-          "mcpServers": {
-            "dmtools": {
-              "url": "$MCP_URL"
-            }
-          }
-        }
-        EOF
-        
-        echo "Created MCP configuration in both locations:"
-        echo "~/.cursor/mcp.json:"
-        cat ~/.cursor/mcp.json
-        echo ""
-        echo ".cursor/mcp.json:"
-        cat .cursor/mcp.json
+      run: ./cicd/scripts/setup-mcp.sh
         
     - name: Install Cursor CLI
       run: |
@@ -95,76 +46,15 @@ jobs:
       run: |
         echo "PATH: $PATH"
         ls -la ~/.cursor/bin/ || echo "Cursor bin directory not found"
+        ls -la ~/.local/bin/ || echo "Local bin directory not found"
         which cursor-agent || echo "cursor-agent not found in PATH"
-        
-    - name: Verify MCP Configuration
-      run: |
-        echo "Current working directory: $(pwd)"
-        echo "Files in current directory:"
-        ls -la
-        echo ""
-        echo "Checking MCP configuration files:"
-        echo "~/.cursor/mcp.json exists: $(test -f ~/.cursor/mcp.json && echo 'YES' || echo 'NO')"
-        echo ".cursor/mcp.json exists: $(test -f .cursor/mcp.json && echo 'YES' || echo 'NO')"
-        echo ""
-        if [ -f ~/.cursor/mcp.json ]; then
-          echo "Contents of ~/.cursor/mcp.json:"
-          cat ~/.cursor/mcp.json
-          echo ""
-        fi
-        if [ -f .cursor/mcp.json ]; then
-          echo "Contents of .cursor/mcp.json:"
-          cat .cursor/mcp.json
-          echo ""
-        fi
-        
-    - name: List MCP Servers
-      env:
-        CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-      run: |
-        # Wait a moment for PATH to be updated
-        sleep 2
-        
-        # Try different possible locations for cursor-agent
-        if [ -f ~/.cursor/bin/cursor-agent ]; then
-          CURSOR_AGENT_PATH="~/.cursor/bin/cursor-agent"
-        elif command -v cursor-agent &> /dev/null; then
-          CURSOR_AGENT_PATH="cursor-agent"
-        else
-          echo "Searching for cursor-agent..."
-          find ~ -name "cursor-agent" -type f 2>/dev/null | head -5
-          echo "Available executables in ~/.cursor:"
-          find ~/.cursor -type f -executable 2>/dev/null || echo "No executables found"
-          exit 1
-        fi
-        
-        echo "Using Cursor Agent at: $CURSOR_AGENT_PATH"
-        echo "Cursor Agent version: $($CURSOR_AGENT_PATH --version)"
-        echo "Listing available MCP servers..."
-        
-        # List MCP servers before executing main prompt
-        $CURSOR_AGENT_PATH mcp list
         
     - name: Run Cursor Agent
       env:
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-      run: |
-        # Use the same cursor-agent path detection as previous step
-        if [ -f ~/.cursor/bin/cursor-agent ]; then
-          CURSOR_AGENT_PATH="~/.cursor/bin/cursor-agent"
-        elif command -v cursor-agent &> /dev/null; then
-          CURSOR_AGENT_PATH="cursor-agent"
-        else
-          echo "Error: cursor-agent not found"
-          exit 1
-        fi
-        
-        echo "User request: ${{ inputs.user_request }}"
-        echo "Selected model: ${{ inputs.model }}"
-        echo "MCP DMTools URL: [CONFIGURED]"
-        
-        # Execute the cursor agent with the user request
-        $CURSOR_AGENT_PATH -p "${{ inputs.user_request }}" --model ${{ inputs.model }}
+        USER_REQUEST: ${{ inputs.user_request }}
+        MODEL: ${{ inputs.model }}
+      run: ./cicd/scripts/run-cursor-agent.sh
         
     - name: Upload results (if any)
       uses: actions/upload-artifact@v4
