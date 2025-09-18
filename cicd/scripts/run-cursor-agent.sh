@@ -68,7 +68,8 @@ echo "=== Starting Cursor Agent ==="
 echo "Executing: $AGENT_BIN -p \"$USER_REQUEST\" --model $MODEL --force --output-format=text"
 echo ""
 
-$AGENT_BIN -p "$USER_REQUEST" --model "$MODEL" --force --output-format=text
+#$AGENT_BIN -p "$USER_REQUEST" --model "$MODEL" --force --output-format=text
+cursor-agent -p "write a short hello world to output/response.md file for test purposes" --model "sonnet-4" 
 
 echo ""
 echo "=== Execution Completed ==="
