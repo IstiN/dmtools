@@ -60,6 +60,7 @@ jobs:
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         USER_REQUEST: ${{ inputs.user_request }}
         MODEL: ${{ inputs.model }}
+        AGENT_DISABLE_WATCHDOG: "1"
       run: ./cicd/scripts/run-cursor-agent.sh
         
     - name: Upload results (if any)

@@ -31,6 +31,15 @@ echo "Using Cursor Agent at: $AGENT_PATH"
 # Show version
 echo "Cursor Agent version: $($AGENT_BIN --version)"
 
+# Print working directory and MCP config locations
+echo ""
+echo "CWD: $(pwd)"
+echo "HOME: $HOME"
+echo "Project .cursor exists: $(test -d .cursor && echo YES || echo NO)"
+echo "- .cursor/mcp.json exists: $(test -f .cursor/mcp.json && echo YES || echo NO)"
+echo "- ~/.cursor/mcp.json exists: $(test -f "$HOME/.cursor/mcp.json" && echo YES || echo NO)"
+echo "- ~/.config/cursor/mcp.json exists: $(test -f "$HOME/.config/cursor/mcp.json" && echo YES || echo NO)"
+
 # List MCP servers (non-blocking)
 echo ""
 echo "=== MCP Server Status ==="
@@ -56,6 +65,21 @@ echo ""
 echo "=== Starting Cursor Agent ==="
 echo "Executing: $AGENT_BIN --print \"$USER_REQUEST\" --model $MODEL --force --output-format=text"
 echo ""
+
+# Optionally disable watchdog and run directly
+if [ "${AGENT_DISABLE_WATCHDOG:-0}" = "1" ]; then
+  echo "Watchdog disabled (AGENT_DISABLE_WATCHDOG=1). Running agent directly..."
+  $AGENT_BIN --print "$USER_REQUEST" --model "$MODEL" --force --output-format=text
+  exit_code=$?
+  echo ""
+  echo "=== Execution Completed ==="
+  if [ $exit_code -eq 0 ]; then
+      echo "✅ Cursor Agent execution completed successfully"
+  else
+      echo "❌ Cursor Agent execution failed with exit code: $exit_code"
+  fi
+  exit $exit_code
+fi
 
 # Run cursor-agent non-interactively with watchdog to avoid hangs
 LOG_FILE="$(mktemp)"
