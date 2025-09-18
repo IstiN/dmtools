@@ -53,6 +53,27 @@ create_mcp_config .cursor/mcp.json
 mkdir -p ~/.config/cursor
 create_mcp_config ~/.config/cursor/mcp.json
 
+# Pre-create MCP approvals file to match local setup
+echo "Creating MCP approvals file..."
+cat > ~/.cursor/mcp-approvals.json << EOF
+[
+  "dmtools-dcb4b2d01e99dade"
+]
+EOF
+
+# Also create project-specific MCP approvals
+# Convert workspace path to cursor projects format (replace / with -)
+WORKSPACE_PATH=$(pwd)
+PROJECT_DIR_NAME=$(echo "$WORKSPACE_PATH" | sed 's|^/||' | tr '/' '-')
+echo "Creating project-specific MCP approvals for workspace: $PROJECT_DIR_NAME"
+echo "Workspace path: $WORKSPACE_PATH"
+mkdir -p ~/.cursor/projects/"$PROJECT_DIR_NAME"
+cat > ~/.cursor/projects/"$PROJECT_DIR_NAME"/mcp-approvals.json << EOF
+[
+  "dmtools-dcb4b2d01e99dade"
+]
+EOF
+
 echo "✓ MCP configuration files created"
 
 # Verify files exist and are readable
@@ -68,6 +89,7 @@ ls -la ~/.cursor/ || echo "~/.cursor/ directory not found"
 echo ""
 echo "Checking MCP configuration files:"
 echo "~/.cursor/mcp.json exists: $(test -f ~/.cursor/mcp.json && echo 'YES' || echo 'NO')"
+echo "~/.cursor/mcp-approvals.json exists: $(test -f ~/.cursor/mcp-approvals.json && echo 'YES' || echo 'NO')"
 echo ".cursor/mcp.json exists: $(test -f .cursor/mcp.json && echo 'YES' || echo 'NO')"
 
 # Show file contents and permissions
@@ -78,6 +100,15 @@ if [ -f ~/.cursor/mcp.json ]; then
     echo ""
     echo "File permissions:"
     ls -la ~/.cursor/mcp.json
+fi
+
+if [ -f ~/.cursor/mcp-approvals.json ]; then
+    echo ""
+    echo "Contents of ~/.cursor/mcp-approvals.json:"
+    cat ~/.cursor/mcp-approvals.json
+    echo ""
+    echo "File permissions:"
+    ls -la ~/.cursor/mcp-approvals.json
 fi
 
 if [ -f .cursor/mcp.json ]; then

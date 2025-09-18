@@ -40,18 +40,10 @@ echo "- .cursor/mcp.json exists: $(test -f .cursor/mcp.json && echo YES || echo 
 echo "- ~/.cursor/mcp.json exists: $(test -f "$HOME/.cursor/mcp.json" && echo YES || echo NO)"
 echo "- ~/.config/cursor/mcp.json exists: $(test -f "$HOME/.config/cursor/mcp.json" && echo YES || echo NO)"
 
-# For testing: disable MCP approvals first
+# Set up environment for MCP
 MCP_IDENTIFIER="${MCP_IDENTIFIER:-dmtools}"
-echo ""
-echo "Disabling MCP server approvals (if any): $MCP_IDENTIFIER"
 export CURSOR_CONFIG_DIR="$HOME/.config/cursor"
 mkdir -p "$CURSOR_CONFIG_DIR"
-$AGENT_BIN mcp disable "$MCP_IDENTIFIER" || true
-
-# Authenticate MCP server (best effort)
-echo "" 
-echo "Authenticating MCP server: $MCP_IDENTIFIER"
-$AGENT_BIN mcp login "$MCP_IDENTIFIER" || true
 
 # Verify MCP tools for the configured server
 echo ""
@@ -67,46 +59,26 @@ echo "User request: $USER_REQUEST"
 echo "Selected model: $MODEL"
 echo "API Key configured: $([ -n "$CURSOR_API_KEY" ] && echo 'YES' || echo 'NO')"
 
-# Execute the cursor agent with stream-json and stop on result event
+# For debug: run cursor-agent in interactive mode for 5 seconds
 echo ""
-echo "=== Starting Cursor Agent ==="
-OUTPUT_FORMAT="${OUTPUT_FORMAT:-stream-json}"
-echo "Executing: $AGENT_BIN -p \"$USER_REQUEST\" --model $MODEL --force --output-format=$OUTPUT_FORMAT"
+echo "=== Starting Cursor Agent (Interactive Debug Mode) ==="
+echo "Running 'cursor-agent' for 5 seconds, then stopping..."
 echo ""
 
-LOG_FILE="$(mktemp)"
-# Start agent writing to a log file and stream it to console in real time
-$AGENT_BIN -p "$USER_REQUEST" --model "$MODEL" --force --output-format="$OUTPUT_FORMAT" > "$LOG_FILE" 2>&1 &
+# Start cursor-agent in interactive mode
+$AGENT_BIN &
 AGENT_PID=$!
-tail -n +1 -f "$LOG_FILE" &
-TAIL_PID=$!
+
+# Wait 5 seconds then kill it
+sleep 5
+echo ""
+echo "Stopping cursor-agent after 5 seconds..."
+kill -TERM "$AGENT_PID" 2>/dev/null || true
+sleep 1
+kill -KILL "$AGENT_PID" 2>/dev/null || true
+wait "$AGENT_PID" 2>/dev/null || true
 
 exit_code=0
-
-while kill -0 "$AGENT_PID" 2>/dev/null; do
-  if grep -q '"type"\s*:\s*"result"' "$LOG_FILE"; then
-    RESULT_LINE=$(grep '"type"\s*:\s*"result"' "$LOG_FILE" | tail -1)
-    echo "Detected result event:"
-    echo "$RESULT_LINE"
-    kill -TERM "$AGENT_PID" 2>/dev/null || true
-    wait "$AGENT_PID" 2>/dev/null || true
-    kill -TERM "$TAIL_PID" 2>/dev/null || true
-    wait "$TAIL_PID" 2>/dev/null || true
-    exit_code=0
-    break
-  fi
-  sleep 1
-done
-
-if kill -0 "$AGENT_PID" 2>/dev/null; then :; else wait "$AGENT_PID" 2>/dev/null || true; fi
-
-# Ensure tail is stopped
-kill -TERM "$TAIL_PID" 2>/dev/null || true
-wait "$TAIL_PID" 2>/dev/null || true
-
-echo ""
-echo "--- Agent Output captured in: $LOG_FILE ---"
-rm -f "$LOG_FILE" || true
 
 echo ""
 echo "=== Execution Completed ==="
@@ -117,24 +89,60 @@ else
 fi
 
 echo ""
-echo "=== ~/.cursor contents ==="
+echo "=== ~/.cursor contents (DEBUG) ==="
 if [ -d "$HOME/.cursor" ]; then
+  echo "Directory listing:"
   ls -la "$HOME/.cursor" || true
   echo ""
-  echo "--- Printing files from ~/.cursor ---"
-  for f in "$HOME/.cursor"/*; do
-    if [ -f "$f" ]; then
+  echo "--- Files and directories from ~/.cursor ---"
+  for item in "$HOME/.cursor"/*; do
+    if [ -f "$item" ]; then
       echo ""
-      echo "##### $(basename "$f") #####"
+      echo "##### FILE: $(basename "$item") #####"
       # Limit very large files to last 200 lines
-      if [ $(wc -c < "$f" 2>/dev/null || echo 0) -gt 200000 ]; then
+      if [ $(wc -c < "$item" 2>/dev/null || echo 0) -gt 200000 ]; then
         echo "(file too large, showing last 200 lines)"
-        tail -200 "$f" || true
+        tail -200 "$item" || true
       else
-        cat "$f" || true
+        cat "$item" || true
       fi
+    elif [ -d "$item" ]; then
+      echo ""
+      echo "##### DIRECTORY: $(basename "$item") #####"
+      ls -la "$item" || true
+      # Show contents of files in subdirectories (up to 2 levels)
+      for subitem in "$item"/*; do
+        if [ -f "$subitem" ]; then
+          echo ""
+          echo "--- FILE: $(basename "$item")/$(basename "$subitem") ---"
+          if [ $(wc -c < "$subitem" 2>/dev/null || echo 0) -gt 10000 ]; then
+            echo "(file too large, showing first 50 lines)"
+            head -50 "$subitem" || true
+          else
+            cat "$subitem" || true
+          fi
+        fi
+      done
     fi
   done
 else
   echo "~/.cursor directory not found"
+fi
+
+echo ""
+echo "=== ~/.config/cursor contents (DEBUG) ==="
+if [ -d "$HOME/.config/cursor" ]; then
+  echo "Directory listing:"
+  ls -la "$HOME/.config/cursor" || true
+  echo ""
+  echo "--- Files from ~/.config/cursor ---"
+  for item in "$HOME/.config/cursor"/*; do
+    if [ -f "$item" ]; then
+      echo ""
+      echo "##### FILE: $(basename "$item") #####"
+      cat "$item" || true
+    fi
+  done
+else
+  echo "~/.config/cursor directory not found"
 fi
