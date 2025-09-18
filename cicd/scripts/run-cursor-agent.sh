@@ -48,12 +48,12 @@ export CURSOR_CONFIG_DIR="$HOME/.config/cursor"
 mkdir -p "$CURSOR_CONFIG_DIR"
 $AGENT_BIN mcp login "$MCP_IDENTIFIER" || true
 
-# List MCP servers
+# Verify MCP tools for the configured server
 echo ""
 echo "=== MCP Server Status ==="
-echo "Listing available MCP servers..."
+echo "Listing available tools for: $MCP_IDENTIFIER"
 # Ensure Cursor reads config from both project and XDG locations
-$AGENT_BIN mcp list || true
+$AGENT_BIN mcp list-tools "$MCP_IDENTIFIER" || true
 
 # Check if MCP servers are available
 echo ""
@@ -65,10 +65,10 @@ echo "API Key configured: $([ -n "$CURSOR_API_KEY" ] && echo 'YES' || echo 'NO')
 # Execute the cursor agent with the user request (no watchdog/timeout)
 echo ""
 echo "=== Starting Cursor Agent ==="
-echo "Executing: $AGENT_BIN --print \"$USER_REQUEST\" --model $MODEL --force --output-format=text"
+echo "Executing: $AGENT_BIN -p \"$USER_REQUEST\" --model $MODEL --force --output-format=text"
 echo ""
 
-$AGENT_BIN --print "$USER_REQUEST" --model "$MODEL" --force --output-format=text
+$AGENT_BIN -p "$USER_REQUEST" --model "$MODEL" --force --output-format=text
 
 echo ""
 echo "=== Execution Completed ==="
