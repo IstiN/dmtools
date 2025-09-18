@@ -40,12 +40,17 @@ echo "- .cursor/mcp.json exists: $(test -f .cursor/mcp.json && echo YES || echo 
 echo "- ~/.cursor/mcp.json exists: $(test -f "$HOME/.cursor/mcp.json" && echo YES || echo NO)"
 echo "- ~/.config/cursor/mcp.json exists: $(test -f "$HOME/.config/cursor/mcp.json" && echo YES || echo NO)"
 
-# Authenticate MCP server (best effort)
+# For testing: disable MCP approvals first
 MCP_IDENTIFIER="${MCP_IDENTIFIER:-dmtools}"
-echo "" 
-echo "Authenticating MCP server: $MCP_IDENTIFIER"
+echo ""
+echo "Disabling MCP server approvals (if any): $MCP_IDENTIFIER"
 export CURSOR_CONFIG_DIR="$HOME/.config/cursor"
 mkdir -p "$CURSOR_CONFIG_DIR"
+$AGENT_BIN mcp disable "$MCP_IDENTIFIER" || true
+
+# Authenticate MCP server (best effort)
+echo "" 
+echo "Authenticating MCP server: $MCP_IDENTIFIER"
 $AGENT_BIN mcp login "$MCP_IDENTIFIER" || true
 
 # Verify MCP tools for the configured server
