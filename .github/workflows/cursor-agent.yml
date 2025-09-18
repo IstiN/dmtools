@@ -34,6 +34,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
+    - name: Install Cursor CLI
+      run: |
+        curl https://cursor.com/install -fsS | bash
+        echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+          
     - name: Setup MCP Configuration
       env:
         MCP_DMTOOLS_URL: ${{ secrets.MCP_DMTOOLS_URL }}
@@ -54,10 +59,7 @@ jobs:
     - name: Create output directory
       run: mkdir -p output
         
-    - name: Install Cursor CLI
-      run: |
-        curl https://cursor.com/install -fsS | bash
-        echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+    
         
     - name: Verify Cursor CLI installation
       run: |
