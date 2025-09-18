@@ -70,8 +70,11 @@ echo "Executing: $AGENT_BIN -p \"$USER_REQUEST\" --model $MODEL --force --output
 echo ""
 
 LOG_FILE="$(mktemp)"
+# Start agent writing to a log file and stream it to console in real time
 $AGENT_BIN -p "$USER_REQUEST" --model "$MODEL" --force --output-format="$OUTPUT_FORMAT" > "$LOG_FILE" 2>&1 &
 AGENT_PID=$!
+tail -n +1 -f "$LOG_FILE" &
+TAIL_PID=$!
 
 exit_code=0
 
@@ -82,22 +85,22 @@ while kill -0 "$AGENT_PID" 2>/dev/null; do
     echo "$RESULT_LINE"
     kill -TERM "$AGENT_PID" 2>/dev/null || true
     wait "$AGENT_PID" 2>/dev/null || true
+    kill -TERM "$TAIL_PID" 2>/dev/null || true
+    wait "$TAIL_PID" 2>/dev/null || true
     exit_code=0
     break
   fi
   sleep 1
 done
 
-if kill -0 "$AGENT_PID" 2>/dev/null; then
-  :
-else
-  wait "$AGENT_PID" 2>/dev/null || true
-fi
+if kill -0 "$AGENT_PID" 2>/dev/null; then :; else wait "$AGENT_PID" 2>/dev/null || true; fi
+
+# Ensure tail is stopped
+kill -TERM "$TAIL_PID" 2>/dev/null || true
+wait "$TAIL_PID" 2>/dev/null || true
 
 echo ""
-echo "--- Agent Output (tail) ---"
-tail -100 "$LOG_FILE" || true
-echo "---------------------------"
+echo "--- Agent Output captured in: $LOG_FILE ---"
 rm -f "$LOG_FILE" || true
 
 echo ""
@@ -106,4 +109,27 @@ if [ $exit_code -eq 0 ]; then
   echo "✅ Cursor Agent execution finished"
 else
   echo "❌ Cursor Agent reported a non-zero exit"
+fi
+
+echo ""
+echo "=== ~/.cursor contents ==="
+if [ -d "$HOME/.cursor" ]; then
+  ls -la "$HOME/.cursor" || true
+  echo ""
+  echo "--- Printing files from ~/.cursor ---"
+  for f in "$HOME/.cursor"/*; do
+    if [ -f "$f" ]; then
+      echo ""
+      echo "##### $(basename "$f") #####"
+      # Limit very large files to last 200 lines
+      if [ $(wc -c < "$f" 2>/dev/null || echo 0) -gt 200000 ]; then
+        echo "(file too large, showing last 200 lines)"
+        tail -200 "$f" || true
+      else
+        cat "$f" || true
+      fi
+    fi
+  done
+else
+  echo "~/.cursor directory not found"
 fi
