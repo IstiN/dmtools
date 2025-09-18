@@ -17,50 +17,28 @@ if [ -z "$MODEL" ]; then
     MODEL="sonnet-4"
 fi
 
-# Function to find cursor-agent executable
-find_cursor_agent() {
-    echo "Detecting cursor-agent executable..." >&2
-    
-    # Try different possible locations
-    if [ -f "$HOME/.cursor/bin/cursor-agent" ]; then
-        echo "✓ Found cursor-agent at $HOME/.cursor/bin/cursor-agent" >&2
-        echo "$HOME/.cursor/bin/cursor-agent"
-    elif [ -f "$HOME/.local/bin/cursor-agent" ]; then
-        echo "✓ Found cursor-agent at $HOME/.local/bin/cursor-agent" >&2
-        echo "$HOME/.local/bin/cursor-agent"
-    elif command -v cursor-agent &> /dev/null; then
-        local path=$(command -v cursor-agent)
-        echo "✓ Found cursor-agent at $path" >&2
-        echo "$path"
-    else
-        echo "✗ cursor-agent not found in standard locations" >&2
-        echo "Searching for cursor-agent..." >&2
-        find "$HOME" -name "cursor-agent" -type f 2>/dev/null | head -5 >&2
-        echo "Available executables in $HOME/.cursor:" >&2
-        find "$HOME/.cursor" -type f -executable 2>/dev/null >&2 || echo "No executables found" >&2
-        echo "Available executables in $HOME/.local:" >&2
-        find "$HOME/.local" -type f -executable -name "*cursor*" 2>/dev/null >&2 || echo "No cursor executables found" >&2
-        return 1
-    fi
-}
-
-# Find cursor-agent
-CURSOR_AGENT_PATH=$(find_cursor_agent)
-if [ $? -ne 0 ]; then
-    echo "Error: cursor-agent executable not found"
+# Ensure cursor-agent is available on PATH
+if ! command -v cursor-agent >/dev/null 2>&1; then
+    echo "Error: cursor-agent not found in PATH"
+    echo "PATH: $PATH"
     exit 1
 fi
 
-echo "Using Cursor Agent at: $CURSOR_AGENT_PATH"
+AGENT_BIN="cursor-agent"
+AGENT_PATH=$(command -v "$AGENT_BIN")
+echo "Using Cursor Agent at: $AGENT_PATH"
 
 # Show version
-echo "Cursor Agent version: $($CURSOR_AGENT_PATH --version)"
+echo "Cursor Agent version: $($AGENT_BIN --version)"
 
 # List MCP servers
 echo ""
 echo "=== MCP Server Status ==="
 echo "Listing available MCP servers..."
-$CURSOR_AGENT_PATH mcp list
+# Ensure Cursor reads config from both project and XDG locations
+export CURSOR_CONFIG_DIR="$HOME/.config/cursor"
+mkdir -p "$CURSOR_CONFIG_DIR"
+$AGENT_BIN mcp list || true
 
 # Check if MCP servers are available
 echo ""
@@ -72,7 +50,7 @@ echo "API Key configured: $([ -n "$CURSOR_API_KEY" ] && echo 'YES' || echo 'NO')
 # Execute the cursor agent with the user request
 echo ""
 echo "=== Starting Cursor Agent ==="
-echo "Executing: $CURSOR_AGENT_PATH --print \"$USER_REQUEST\" --model $MODEL --force --output-format=text"
+echo "Executing: $AGENT_BIN --print \"$USER_REQUEST\" --model $MODEL --force --output-format=text"
 echo ""
 
 # Run cursor-agent non-interactively with watchdog to avoid hangs
@@ -81,7 +59,7 @@ DONE_PATTERN="${AGENT_DONE_PATTERN:-Wrote }"
 DONE_FILE="${AGENT_DONE_FILE:-}"
 MAX_SECONDS="${AGENT_MAX_SECONDS:-300}"
 
-"$CURSOR_AGENT_PATH" --print "$USER_REQUEST" --model "$MODEL" --force --output-format=text > "$LOG_FILE" 2>&1 &
+"$AGENT_BIN" --print "$USER_REQUEST" --model "$MODEL" --force --output-format=text > "$LOG_FILE" 2>&1 &
 AGENT_PID=$!
 
 start_time=$(date +%s)

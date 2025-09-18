@@ -49,6 +49,10 @@ echo "Creating MCP configuration files..."
 create_mcp_config ~/.cursor/mcp.json
 create_mcp_config .cursor/mcp.json
 
+# Also create XDG config location for compatibility
+mkdir -p ~/.config/cursor
+create_mcp_config ~/.config/cursor/mcp.json
+
 echo "✓ MCP configuration files created"
 
 # Verify files exist and are readable
