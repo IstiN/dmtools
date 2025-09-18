@@ -25,7 +25,9 @@ on:
 
 permissions:
   contents: write
-
+  pull-requests: write
+  actions: read
+  
 jobs:
   cursor-agent:
     runs-on: ubuntu-latest
@@ -39,6 +41,14 @@ jobs:
         curl https://cursor.com/install -fsS | bash
         echo "$HOME/.cursor/bin" >> $GITHUB_PATH
 
+    - name: Simple Test
+      env:
+        MODEL: sonnet-4
+        CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        
+      run: |
+        cursor-agent -p "write a short hello world to output/response.md file for test purposes" --force --model "$MODEL" --output-format=text
+            
     - name: Setup MCP Configuration
       env:
         MCP_DMTOOLS_URL: ${{ secrets.MCP_DMTOOLS_URL }}
@@ -48,13 +58,7 @@ jobs:
     - name: Setup Cursor CLI Configuration
       run: ./cicd/scripts/setup-cursor-cli-config.sh
       
-    - name: Simple Test
-      env:
-        MODEL: sonnet-4
-        CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-        
-      run: |
-        cursor-agent -p "write a short hello world to output/response.md file for test purposes" --force --model "$MODEL" --output-format=text
+    
 
     - name: Create output directory
       run: mkdir -p output
