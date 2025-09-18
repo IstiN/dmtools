@@ -31,14 +31,18 @@ echo "Using Cursor Agent at: $AGENT_PATH"
 # Show version
 echo "Cursor Agent version: $($AGENT_BIN --version)"
 
-# List MCP servers
+# List MCP servers (non-blocking)
 echo ""
 echo "=== MCP Server Status ==="
 echo "Listing available MCP servers..."
 # Ensure Cursor reads config from both project and XDG locations
 export CURSOR_CONFIG_DIR="$HOME/.config/cursor"
 mkdir -p "$CURSOR_CONFIG_DIR"
-$AGENT_BIN mcp list || true
+if command -v timeout >/dev/null 2>&1; then
+    timeout 3 $AGENT_BIN mcp list || true
+else
+    $AGENT_BIN mcp list || true
+fi
 
 # Check if MCP servers are available
 echo ""
@@ -55,9 +59,12 @@ echo ""
 
 # Run cursor-agent non-interactively with watchdog to avoid hangs
 LOG_FILE="$(mktemp)"
-DONE_PATTERN="${AGENT_DONE_PATTERN:-Wrote }"
+# Support multiple success markers separated by '|'
+DONE_PATTERNS="${AGENT_DONE_PATTERNS:-Wrote |Created |Updated |Finished|Completed}"
 DONE_FILE="${AGENT_DONE_FILE:-}"
 MAX_SECONDS="${AGENT_MAX_SECONDS:-300}"
+# Idle timeout if no new output for N seconds
+IDLE_SECONDS="${AGENT_IDLE_SECONDS:-25}"
 
 "$AGENT_BIN" --print "$USER_REQUEST" --model "$MODEL" --force --output-format=text > "$LOG_FILE" 2>&1 &
 AGENT_PID=$!
@@ -77,8 +84,8 @@ while kill -0 "$AGENT_PID" 2>/dev/null; do
     break
   fi
 
-  if grep -q "$DONE_PATTERN" "$LOG_FILE" 2>/dev/null; then
-    echo "Detected completion pattern '$DONE_PATTERN'; stopping agent..."
+  if egrep -q "$DONE_PATTERNS" "$LOG_FILE" 2>/dev/null; then
+    echo "Detected completion patterns '$DONE_PATTERNS'; stopping agent..."
     kill -TERM "$AGENT_PID" 2>/dev/null || true
     wait "$AGENT_PID" 2>/dev/null || true
     exit_code=0
@@ -91,6 +98,23 @@ while kill -0 "$AGENT_PID" 2>/dev/null; do
     wait "$AGENT_PID" 2>/dev/null || true
     exit_code=0
     break
+  fi
+
+  # Idle detection: stop if no output for IDLE_SECONDS
+  current_bytes=$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
+  if [ -z "$last_bytes" ]; then last_bytes=$current_bytes; fi
+  if [ "$current_bytes" -gt "$last_bytes" ]; then
+    last_bytes=$current_bytes
+    last_output_time=$now
+  else
+    idle_elapsed=$(( now - ${last_output_time:-$now} ))
+    if [ "$idle_elapsed" -ge "$IDLE_SECONDS" ]; then
+      echo "No output for ${IDLE_SECONDS}s (idle). Stopping agent..."
+      kill -TERM "$AGENT_PID" 2>/dev/null || true
+      wait "$AGENT_PID" 2>/dev/null || true
+      exit_code=0
+      break
+    fi
   fi
 
   sleep 1
