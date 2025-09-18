@@ -25,8 +25,8 @@ cat > ~/.cursor/cli-config.json << 'EOF'
   "permissions": {
     "allow": [
       "Shell(*)",
-      "Read(**/*)",
-      "Write(**/*)",
+      "Read(**)",
+      "Write(**)",
       "Read(*)",
       "Write(*)"
     ],
@@ -42,8 +42,8 @@ cat > .cursor/cli.json << 'EOF'
   "permissions": {
     "allow": [
       "Shell(*)",
-      "Read(**/*)",
-      "Write(**/*)",
+      "Read(**)",
+      "Write(**)",
       "Read(*)",
       "Write(*)"
     ],

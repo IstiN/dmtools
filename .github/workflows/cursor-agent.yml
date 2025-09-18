@@ -38,7 +38,7 @@ jobs:
       run: |
         curl https://cursor.com/install -fsS | bash
         echo "$HOME/.cursor/bin" >> $GITHUB_PATH
-          
+
     - name: Setup MCP Configuration
       env:
         MCP_DMTOOLS_URL: ${{ secrets.MCP_DMTOOLS_URL }}
@@ -50,7 +50,7 @@ jobs:
       
     - name: Simple Test
       env:
-        MODEL: gpt-5
+        MODEL: sonnet-4
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         
       run: |
