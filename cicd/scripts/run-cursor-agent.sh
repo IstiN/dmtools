@@ -59,26 +59,46 @@ echo "User request: $USER_REQUEST"
 echo "Selected model: $MODEL"
 echo "API Key configured: $([ -n "$CURSOR_API_KEY" ] && echo 'YES' || echo 'NO')"
 
-# For debug: run cursor-agent in interactive mode for 5 seconds
+# Execute the cursor agent with stream-json and stop on result event
 echo ""
-echo "=== Starting Cursor Agent (Interactive Debug Mode) ==="
-echo "Running 'cursor-agent' for 5 seconds, then stopping..."
+echo "=== Starting Cursor Agent ==="
+OUTPUT_FORMAT="${OUTPUT_FORMAT:-stream-json}"
+echo "Executing: $AGENT_BIN -p \"$USER_REQUEST\" --model $MODEL --force --output-format=$OUTPUT_FORMAT"
 echo ""
 
-# Start cursor-agent in interactive mode
-$AGENT_BIN &
+LOG_FILE="$(mktemp)"
+# Start agent writing to a log file and stream it to console in real time
+$AGENT_BIN -p "$USER_REQUEST" --model "$MODEL" --force --output-format="$OUTPUT_FORMAT" > "$LOG_FILE" 2>&1 &
 AGENT_PID=$!
-
-# Wait 5 seconds then kill it
-sleep 5
-echo ""
-echo "Stopping cursor-agent after 5 seconds..."
-kill -TERM "$AGENT_PID" 2>/dev/null || true
-sleep 1
-kill -KILL "$AGENT_PID" 2>/dev/null || true
-wait "$AGENT_PID" 2>/dev/null || true
+tail -n +1 -f "$LOG_FILE" &
+TAIL_PID=$!
 
 exit_code=0
+
+while kill -0 "$AGENT_PID" 2>/dev/null; do
+  if grep -q '"type"\s*:\s*"result"' "$LOG_FILE"; then
+    RESULT_LINE=$(grep '"type"\s*:\s*"result"' "$LOG_FILE" | tail -1)
+    echo "Detected result event:"
+    echo "$RESULT_LINE"
+    kill -TERM "$AGENT_PID" 2>/dev/null || true
+    wait "$AGENT_PID" 2>/dev/null || true
+    kill -TERM "$TAIL_PID" 2>/dev/null || true
+    wait "$TAIL_PID" 2>/dev/null || true
+    exit_code=0
+    break
+  fi
+  sleep 1
+done
+
+if kill -0 "$AGENT_PID" 2>/dev/null; then :; else wait "$AGENT_PID" 2>/dev/null || true; fi
+
+# Ensure tail is stopped
+kill -TERM "$TAIL_PID" 2>/dev/null || true
+wait "$TAIL_PID" 2>/dev/null || true
+
+echo ""
+echo "--- Agent Output captured in: $LOG_FILE ---"
+rm -f "$LOG_FILE" || true
 
 echo ""
 echo "=== Execution Completed ==="
@@ -110,7 +130,7 @@ if [ -d "$HOME/.cursor" ]; then
       echo ""
       echo "##### DIRECTORY: $(basename "$item") #####"
       ls -la "$item" || true
-      # Show contents of files in subdirectories (up to 2 levels)
+      # Show contents of files in subdirectories (up to 3 levels deep)
       for subitem in "$item"/*; do
         if [ -f "$subitem" ]; then
           echo ""
@@ -121,6 +141,23 @@ if [ -d "$HOME/.cursor" ]; then
           else
             cat "$subitem" || true
           fi
+        elif [ -d "$subitem" ]; then
+          echo ""
+          echo "--- SUBDIRECTORY: $(basename "$item")/$(basename "$subitem") ---"
+          ls -la "$subitem" || true
+          # Go one more level deep
+          for subsubitem in "$subitem"/*; do
+            if [ -f "$subsubitem" ]; then
+              echo ""
+              echo "--- FILE: $(basename "$item")/$(basename "$subitem")/$(basename "$subsubitem") ---"
+              if [ $(wc -c < "$subsubitem" 2>/dev/null || echo 0) -gt 10000 ]; then
+                echo "(file too large, showing first 50 lines)"
+                head -50 "$subsubitem" || true
+              else
+                cat "$subsubitem" || true
+              fi
+            fi
+          done
         fi
       done
     fi
