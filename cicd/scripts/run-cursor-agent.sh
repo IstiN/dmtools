@@ -62,15 +62,48 @@ echo "User request: $USER_REQUEST"
 echo "Selected model: $MODEL"
 echo "API Key configured: $([ -n "$CURSOR_API_KEY" ] && echo 'YES' || echo 'NO')"
 
-# Execute the cursor agent with the user request (no watchdog/timeout)
+# Execute the cursor agent with stream-json and stop on result event
 echo ""
 echo "=== Starting Cursor Agent ==="
-echo "Executing: $AGENT_BIN -p \"$USER_REQUEST\" --model $MODEL --force --output-format=text"
+OUTPUT_FORMAT="${OUTPUT_FORMAT:-stream-json}"
+echo "Executing: $AGENT_BIN -p \"$USER_REQUEST\" --model $MODEL --force --output-format=$OUTPUT_FORMAT"
 echo ""
 
-#$AGENT_BIN -p "$USER_REQUEST" --model "$MODEL" --force --output-format=text
-cursor-agent -p "write a short hello world to output/response.md file for test purposes" --model "sonnet-4" 
+LOG_FILE="$(mktemp)"
+$AGENT_BIN -p "$USER_REQUEST" --model "$MODEL" --force --output-format="$OUTPUT_FORMAT" > "$LOG_FILE" 2>&1 &
+AGENT_PID=$!
+
+exit_code=0
+
+while kill -0 "$AGENT_PID" 2>/dev/null; do
+  if grep -q '"type"\s*:\s*"result"' "$LOG_FILE"; then
+    RESULT_LINE=$(grep '"type"\s*:\s*"result"' "$LOG_FILE" | tail -1)
+    echo "Detected result event:"
+    echo "$RESULT_LINE"
+    kill -TERM "$AGENT_PID" 2>/dev/null || true
+    wait "$AGENT_PID" 2>/dev/null || true
+    exit_code=0
+    break
+  fi
+  sleep 1
+done
+
+if kill -0 "$AGENT_PID" 2>/dev/null; then
+  :
+else
+  wait "$AGENT_PID" 2>/dev/null || true
+fi
+
+echo ""
+echo "--- Agent Output (tail) ---"
+tail -100 "$LOG_FILE" || true
+echo "---------------------------"
+rm -f "$LOG_FILE" || true
 
 echo ""
 echo "=== Execution Completed ==="
-echo "✅ Cursor Agent execution finished"
+if [ $exit_code -eq 0 ]; then
+  echo "✅ Cursor Agent execution finished"
+else
+  echo "❌ Cursor Agent reported a non-zero exit"
+fi

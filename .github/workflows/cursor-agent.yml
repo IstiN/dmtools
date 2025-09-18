@@ -50,15 +50,6 @@ jobs:
     - name: Setup Cursor CLI Configuration
       run: ./cicd/scripts/setup-cursor-cli-config.sh
 
-    - name: Simple Test
-      env:
-        MODEL: sonnet-4
-        CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-        CI: true
-        
-      run: |
-        cursor-agent -p "write a short hello world to output/response.md file for test purposes" --force --model "$MODEL" --output-format=stream-json
-            
     - name: Verify Cursor CLI installation
       run: |
         echo "PATH: $PATH"
