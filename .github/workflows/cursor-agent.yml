@@ -45,9 +45,10 @@ jobs:
       env:
         MODEL: sonnet-4
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        CI: true
         
       run: |
-        cursor-agent -p "write a short hello world to output/response.md file for test purposes" --force --model "$MODEL" --output-format=text
+        cursor-agent -p "write a short hello world to output/response.md file for test purposes" --force --model "$MODEL" --output-format=text --non-interactive
             
     - name: Setup MCP Configuration
       env:
