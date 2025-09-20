@@ -12,13 +12,13 @@ The MCP CLI provides a command-line interface to execute DMTools MCP tools witho
 
 1. **McpCliHandler** - Handles MCP command parsing and execution
 2. **JobRunner** - Extended to support MCP CLI commands
-3. **dmtools_mcp.sh** - User-friendly wrapper script
+3. **dmtools.sh** - User-friendly wrapper script (via installation)
 4. **Fat JAR** - Self-contained executable with all dependencies
 
 ### Flow Diagram
 
 ```
-CLI Input → dmtools_mcp.sh → JobRunner → McpCliHandler → MCPToolExecutor → JSON Output
+CLI Input → dmtools → JobRunner → McpCliHandler → MCPToolExecutor → JSON Output
 ```
 
 ## Installation
