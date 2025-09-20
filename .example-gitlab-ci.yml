@@ -1,0 +1,34 @@
+stages:
+  - test
+
+dmtools-example:
+  stage: test
+  image: openjdk:23
+  
+  cache:
+    key: "dmtools-cli-$CI_RUNNER_OS"
+    paths:
+      - ~/.dmtools/
+    policy: pull-push
+  
+  before_script:
+    - apt-get update -qq && apt-get install -y curl
+    - |
+      if [ ! -f "$HOME/.dmtools/dmtools.jar" ]; then
+        curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+      fi
+    - export PATH="$HOME/.dmtools/bin:$PATH"
+
+  script:
+    - dmtools list
+    - echo "DMTools CLI working!"
+
+  variables:
+    JIRA_EMAIL: "$JIRA_EMAIL"
+    JIRA_API_TOKEN: "$JIRA_API_TOKEN"
+    JIRA_BASE_PATH: "$JIRA_BASE_PATH"
+    CONFLUENCE_EMAIL: "$CONFLUENCE_EMAIL"
+    CONFLUENCE_API_TOKEN: "$CONFLUENCE_API_TOKEN"
+    CONFLUENCE_BASE_PATH: "$CONFLUENCE_BASE_PATH"
+    FIGMA_TOKEN: "$FIGMA_TOKEN"
+    DMTOOLS_INTEGRATIONS: "jira,confluence,figma"

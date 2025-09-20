@@ -22,6 +22,7 @@ import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
 import com.github.istin.dmtools.sm.ScrumMasterDaily;
 import com.github.istin.dmtools.sync.SourceCodeCommitTrackerSyncJob;
 import com.github.istin.dmtools.sync.SourceCodeTrackerSyncJob;
+import com.github.istin.dmtools.mcp.cli.McpCliHandler;
 
 import java.io.InputStream;
 import java.util.Arrays;
@@ -113,6 +114,13 @@ public class JobRunner {
                 listJobs();
                 return;
             }
+            if ("mcp".equals(firstArg)) {
+                // Handle MCP CLI commands
+                McpCliHandler mcpHandler = new McpCliHandler();
+                String result = mcpHandler.processMcpCommand(args);
+                System.out.println(result);
+                return;
+            }
         }
         
         if (args.length == 0) {
@@ -173,11 +181,17 @@ public class JobRunner {
         System.out.println("DMTools - Development Management Toolkit");
         System.out.println();
         System.out.println("Usage: java -jar dmtools.jar [OPTIONS] [BASE64_ENCODED_JOB_PARAMS]");
+        System.out.println("       java -jar dmtools.jar mcp <command> [args...]");
         System.out.println();
         System.out.println("Options:");
         System.out.println("  --version, -v     Show version information");
         System.out.println("  --help, -h        Show this help message");
         System.out.println("  --list-jobs       List all available jobs");
+        System.out.println();
+        System.out.println("MCP Commands:");
+        System.out.println("  mcp list                    List available MCP tools");
+        System.out.println("  mcp <tool_name> [args...]   Execute MCP tool");
+        System.out.println("  mcp <tool_name> --data '{\"json\": \"data\"}'  Execute with JSON data");
         System.out.println();
         System.out.println("For job execution, provide Base64-encoded JSON parameters.");
         String baseUrl = System.getProperty("app.base-url", "http://localhost:8080");

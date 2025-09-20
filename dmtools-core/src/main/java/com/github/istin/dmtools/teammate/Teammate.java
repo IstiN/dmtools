@@ -24,11 +24,7 @@ import com.github.istin.dmtools.di.DaggerTeammateComponent;
 import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
 import com.github.istin.dmtools.di.TeammateComponent;
 import com.github.istin.dmtools.expert.ExpertParams;
-import com.github.istin.dmtools.job.AbstractJob;
-import com.github.istin.dmtools.job.JobJavaScriptBridge;
-import com.github.istin.dmtools.job.JobTrackerParams;
-import com.github.istin.dmtools.job.Params;
-import com.github.istin.dmtools.job.ResultItem;
+import com.github.istin.dmtools.job.*;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.search.CodebaseSearchOrchestrator;
 import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
@@ -313,7 +309,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
             js(expertParams.getPostJSAction())
                 .mcp(trackerClient, ai, confluence, null) // sourceCode not available in Teammate context
                 .withJobContext(expertParams, ticket, response)
-                .with("initiator", initiator)
+                .with(TrackerParams.INITIATOR, initiator)
                 .execute();
             if (expertParams.isAttachResponseAsFile()) {
                 attachResponse(genericRequestAgent, "_final_answer.txt", response, ticket.getKey(), "text/plain");

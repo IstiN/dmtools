@@ -1,0 +1,86 @@
+name: DMTools CLI Example
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  dmtools-example:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # REQUIRED: Set up Java 23 first
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '23'
+      
+      # Cache DMTools CLI to avoid re-downloading
+      - name: Cache DMTools CLI
+        id: cache-dmtools
+        uses: actions/cache@v4
+        with:
+          path: ~/.dmtools
+          key: dmtools-cli-${{ runner.os }}-${{ hashFiles('.github/workflows/dmtools-example.yml') }}
+          restore-keys: |
+            dmtools-cli-${{ runner.os }}-
+      
+      # Install DMTools CLI (only if not cached)
+      - name: Install DMTools CLI
+        if: steps.cache-dmtools.outputs.cache-hit != 'true'
+        run: |
+          curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+      
+      # Add DMTools to PATH
+      - name: Add DMTools to PATH
+        run: echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+      
+      # Test DMTools CLI
+      - name: Test DMTools CLI
+        run: |
+          dmtools list
+          echo "DMTools CLI installed successfully!"
+      
+      # Example: Use DMTools CLI with environment variables
+      - name: Example DMTools Usage
+        env:
+          # Jira Configuration (Modern approach: separate email + API token)
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+          JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+          JIRA_WAIT_BEFORE_PERFORM: ${{ vars.JIRA_WAIT_BEFORE_PERFORM }}
+          JIRA_LOGGING_ENABLED: ${{ vars.JIRA_LOGGING_ENABLED }}
+          JIRA_CLEAR_CACHE: ${{ vars.JIRA_CLEAR_CACHE }}
+          JIRA_EXTRA_FIELDS_PROJECT: ${{ vars.JIRA_EXTRA_FIELDS_PROJECT }}
+          JIRA_EXTRA_FIELDS: ${{ vars.JIRA_EXTRA_FIELDS }}
+          JIRA_MAX_SEARCH_RESULTS: ${{ vars.JIRA_MAX_SEARCH_RESULTS }}
+          SLEEP_TIME_REQUEST: ${{ vars.SLEEP_TIME_REQUEST }}
+          
+          # Confluence Configuration (Modern approach: separate email + API token)
+          CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+          CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+          CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+          CONFLUENCE_AUTH_TYPE: ${{ vars.CONFLUENCE_AUTH_TYPE }}
+          CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
+          
+          # Figma Configuration
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+          FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
+          
+          # DMTools Integration Settings
+          DMTOOLS_INTEGRATIONS: "jira,confluence,figma"
+        run: |
+          # Example: Get Jira ticket (requires secrets to be configured)
+          # dmtools jira_get_ticket PROJ-123
+          
+          # Example: List available tools
+          dmtools list | grep -c "jira_" || echo "Jira tools available"
+          dmtools list | grep -c "confluence_" || echo "Confluence tools available"
+          dmtools list | grep -c "figma_" || echo "Figma tools available"
