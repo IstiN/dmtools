@@ -32,7 +32,26 @@ jobs:
       - name: Install DMTools CLI
         if: steps.cache-dmtools.outputs.cache-hit != 'true'
         run: |
-          curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+          # Create installation directory
+          mkdir -p $HOME/.dmtools/bin
+          
+          # Download JAR and scripts directly
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/IstiN/dmtools/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "Installing DMTools $LATEST_VERSION"
+          
+          # Download JAR
+          curl -L "https://github.com/IstiN/dmtools/releases/download/$LATEST_VERSION/dmtools-$LATEST_VERSION-all.jar" -o "$HOME/.dmtools/dmtools.jar"
+          
+          # Download wrapper script
+          curl -L "https://github.com/IstiN/dmtools/releases/download/$LATEST_VERSION/dmtools.sh" -o "$HOME/.dmtools/bin/dmtools"
+          
+          # Make script executable
+          chmod +x "$HOME/.dmtools/bin/dmtools"
+          
+          # Verify installation
+          echo "DMTools installed successfully!"
+          ls -la $HOME/.dmtools/
+          ls -la $HOME/.dmtools/bin/
           
       # Debug installation
       - name: Debug DMTools Installation
