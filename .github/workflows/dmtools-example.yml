@@ -33,6 +33,17 @@ jobs:
         if: steps.cache-dmtools.outputs.cache-hit != 'true'
         run: |
           curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+          
+      # Debug installation
+      - name: Debug DMTools Installation
+        run: |
+          echo "Checking installation directory:"
+          ls -la $HOME/.dmtools/ || echo "Installation directory not found"
+          ls -la $HOME/.dmtools/bin/ || echo "Bin directory not found"
+          echo "Checking if dmtools script exists:"
+          ls -la $HOME/.dmtools/bin/dmtools || echo "dmtools script not found"
+          echo "Checking if script is executable:"
+          test -x $HOME/.dmtools/bin/dmtools && echo "Script is executable" || echo "Script is not executable"
       
       # Add DMTools to PATH
       - name: Add DMTools to PATH
@@ -41,7 +52,8 @@ jobs:
       # Test DMTools CLI
       - name: Test DMTools CLI
         run: |
-          dmtools list
+          # Use full path until PATH is updated
+          $HOME/.dmtools/bin/dmtools list
           echo "DMTools CLI installed successfully!"
       
       # Example: Use DMTools CLI with environment variables
@@ -76,9 +88,9 @@ jobs:
           DMTOOLS_INTEGRATIONS: "jira,confluence,figma"
         run: |
           # Example: Get Jira ticket (requires secrets to be configured)
-          # dmtools jira_get_ticket PROJ-123
+          # $HOME/.dmtools/bin/dmtools jira_get_ticket PROJ-123
           
-          # Example: List available tools
-          dmtools list | grep -c "jira_" || echo "Jira tools available"
-          dmtools list | grep -c "confluence_" || echo "Confluence tools available"
-          dmtools list | grep -c "figma_" || echo "Figma tools available"
+          # Example: List available tools (using full path for reliability)
+          $HOME/.dmtools/bin/dmtools list | grep -c "jira_" || echo "Jira tools available"
+          $HOME/.dmtools/bin/dmtools list | grep -c "confluence_" || echo "Confluence tools available"
+          $HOME/.dmtools/bin/dmtools list | grep -c "figma_" || echo "Figma tools available"
