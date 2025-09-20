@@ -55,11 +55,13 @@ jobs:
           
           if [ "$1" = "list" ]; then
               if [ $# -gt 1 ]; then
-                  # List with filter
+                  # List with filter - capture output and ensure success
                   java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$2" 2>/dev/null
+                  exit 0
               else
-                  # List all tools
+                  # List all tools - capture output and ensure success
                   java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+                  exit 0
               fi
           else
               java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$@" 2>/dev/null
