@@ -47,7 +47,13 @@ jobs:
           #!/bin/bash
           JAR_FILE="$HOME/.dmtools/dmtools.jar"
           if [ "$1" = "list" ]; then
-              java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+              if [ $# -gt 1 ]; then
+                  # List with filter
+                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$2" 2>/dev/null
+              else
+                  # List all tools
+                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+              fi
           else
               java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$@" 2>/dev/null
           fi
@@ -61,17 +67,6 @@ jobs:
           ls -la $HOME/.dmtools/
           ls -la $HOME/.dmtools/bin/
           
-      # Debug installation
-      - name: Debug DMTools Installation
-        run: |
-          echo "Checking installation directory:"
-          ls -la $HOME/.dmtools/ || echo "Installation directory not found"
-          ls -la $HOME/.dmtools/bin/ || echo "Bin directory not found"
-          echo "Checking if dmtools script exists:"
-          ls -la $HOME/.dmtools/bin/dmtools || echo "dmtools script not found"
-          echo "Checking if script is executable:"
-          test -x $HOME/.dmtools/bin/dmtools && echo "Script is executable" || echo "Script is not executable"
-      
       # Add DMTools to PATH
       - name: Add DMTools to PATH
         run: echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
@@ -79,14 +74,8 @@ jobs:
       # Test DMTools CLI
       - name: Test DMTools CLI
         run: |
-          # Test both full path and short command
-          echo "Testing with full path:"
-          $HOME/.dmtools/bin/dmtools list >/dev/null && echo "✅ Full path works"
-          
-          echo "Testing with short command:"
-          dmtools list >/dev/null && echo "✅ Short command works" || echo "❌ Short command failed, PATH not updated yet"
-          
           echo "DMTools CLI installed successfully!"
+          dmtools list >/dev/null && echo "✅ CLI is working"
       
       # Example: Use DMTools CLI with environment variables
       - name: Example DMTools Usage
@@ -119,24 +108,20 @@ jobs:
           # DMTools Integration Settings
           DMTOOLS_INTEGRATIONS: "jira,confluence,figma"
         run: |
-          # Example: Get Jira ticket (requires secrets to be configured)
-          # dmtools jira_get_ticket PROJ-123
-          
-          # Example: Count available tools by type
-          echo "Counting available tools:"
-          JIRA_COUNT=$(dmtools list | grep -o "jira_" | wc -l)
-          CONFLUENCE_COUNT=$(dmtools list | grep -o "confluence_" | wc -l)
-          FIGMA_COUNT=$(dmtools list | grep -o "figma_" | wc -l)
-          
-          echo "✅ Jira tools: $JIRA_COUNT"
-          echo "✅ Confluence tools: $CONFLUENCE_COUNT" 
-          echo "✅ Figma tools: $FIGMA_COUNT"
-          
-          # Example: Show some specific tools
-          echo ""
-          echo "Sample Jira tools:"
-          dmtools list | grep -o '"jira_[^"]*"' | head -3
+          # Example: List all available tools
+          echo "All available tools:"
+          dmtools list
           
           echo ""
-          echo "Sample Confluence tools:"
-          dmtools list | grep -o '"confluence_[^"]*"' | head -3
+          echo "Filter tools by integration:"
+          echo "Jira tools only:"
+          dmtools list jira
+          
+          echo ""
+          echo "Confluence tools only:"
+          dmtools list confluence
+          
+          echo ""
+          echo "Example usage (requires secrets to be configured):"
+          echo "dmtools list"
+          echo "dmtools jira_get_ticket DMC-100"

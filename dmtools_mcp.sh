@@ -36,7 +36,7 @@ usage() {
 DMTools MCP CLI Wrapper
 
 Usage:
-  $0 list                           # List available MCP tools
+  $0 list [filter]                 # List available MCP tools (optionally filtered)
   $0 <tool> [args...]              # Execute MCP tool with args
   $0 <tool> --data '{"json"}'      # Execute with inline JSON
   $0 <tool> --file params.json     # Execute with JSON file
@@ -46,9 +46,11 @@ Usage:
   EOF
 
 Examples:
-  $0 list
-  $0 jira_get_ticket DMC-479 summary,description
-  $0 jira_get_ticket --data '{"key": "DMC-479", "fields": ["summary"]}'
+  $0 list                          # List all tools
+  $0 list jira                     # List only Jira tools
+  $0 list confluence               # List only Confluence tools
+  $0 jira_get_ticket DMC-100 summary,description
+  $0 jira_get_ticket --data '{"key": "DMC-100", "fields": ["summary"]}'
   $0 jira_get_ticket --file ticket_params.json
   $0 confluence_search_content_by_text --data '{"text": "API documentation"}'
 
@@ -78,8 +80,14 @@ case "$COMMAND" in
         usage
         ;;
     "list")
-        echo "Listing available MCP tools..."
-        java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+        if [ $# -gt 1 ]; then
+            # List with filter
+            FILTER="$2"
+            java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$FILTER" 2>/dev/null
+        else
+            # List all tools
+            java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+        fi
         exit 0
         ;;
 esac
