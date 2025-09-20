@@ -2,8 +2,6 @@ name: DMTools CLI Example
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   dmtools-example:
