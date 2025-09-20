@@ -46,6 +46,13 @@ jobs:
           cat > "$HOME/.dmtools/bin/dmtools" << 'EOF'
           #!/bin/bash
           JAR_FILE="$HOME/.dmtools/dmtools.jar"
+          
+          # Check if JAR exists
+          if [ ! -f "$JAR_FILE" ]; then
+              echo "Error: DMTools JAR not found at $JAR_FILE" >&2
+              exit 1
+          fi
+          
           if [ "$1" = "list" ]; then
               if [ $# -gt 1 ]; then
                   # List with filter
@@ -75,7 +82,11 @@ jobs:
       - name: Test DMTools CLI
         run: |
           echo "DMTools CLI installed successfully!"
-          dmtools list >/dev/null && echo "✅ CLI is working"
+          echo "Testing CLI with redirect (should work):"
+          dmtools list >/dev/null && echo "✅ CLI is working" || echo "❌ CLI failed with redirect"
+          
+          echo "Testing CLI without redirect (debug):"
+          dmtools list || echo "❌ CLI failed without redirect (exit code: $?)"
       
       # Example: Use DMTools CLI with environment variables
       - name: Example DMTools Usage
