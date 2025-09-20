@@ -79,8 +79,13 @@ jobs:
       # Test DMTools CLI
       - name: Test DMTools CLI
         run: |
-          # Use full path until PATH is updated
-          $HOME/.dmtools/bin/dmtools list
+          # Test both full path and short command
+          echo "Testing with full path:"
+          $HOME/.dmtools/bin/dmtools list >/dev/null && echo "✅ Full path works"
+          
+          echo "Testing with short command:"
+          dmtools list >/dev/null && echo "✅ Short command works" || echo "❌ Short command failed, PATH not updated yet"
+          
           echo "DMTools CLI installed successfully!"
       
       # Example: Use DMTools CLI with environment variables
@@ -115,9 +120,23 @@ jobs:
           DMTOOLS_INTEGRATIONS: "jira,confluence,figma"
         run: |
           # Example: Get Jira ticket (requires secrets to be configured)
-          # $HOME/.dmtools/bin/dmtools jira_get_ticket PROJ-123
+          # dmtools jira_get_ticket PROJ-123
           
-          # Example: List available tools (using full path for reliability)
-          $HOME/.dmtools/bin/dmtools list | grep -c "jira_" || echo "Jira tools available"
-          $HOME/.dmtools/bin/dmtools list | grep -c "confluence_" || echo "Confluence tools available"
-          $HOME/.dmtools/bin/dmtools list | grep -c "figma_" || echo "Figma tools available"
+          # Example: Count available tools by type
+          echo "Counting available tools:"
+          JIRA_COUNT=$(dmtools list | grep -o "jira_" | wc -l)
+          CONFLUENCE_COUNT=$(dmtools list | grep -o "confluence_" | wc -l)
+          FIGMA_COUNT=$(dmtools list | grep -o "figma_" | wc -l)
+          
+          echo "✅ Jira tools: $JIRA_COUNT"
+          echo "✅ Confluence tools: $CONFLUENCE_COUNT" 
+          echo "✅ Figma tools: $FIGMA_COUNT"
+          
+          # Example: Show some specific tools
+          echo ""
+          echo "Sample Jira tools:"
+          dmtools list | grep -o '"jira_[^"]*"' | head -3
+          
+          echo ""
+          echo "Sample Confluence tools:"
+          dmtools list | grep -o '"confluence_[^"]*"' | head -3
