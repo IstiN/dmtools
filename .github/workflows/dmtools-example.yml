@@ -35,15 +35,23 @@ jobs:
           # Create installation directory
           mkdir -p $HOME/.dmtools/bin
           
-          # Download JAR and scripts directly
+          # Download JAR directly (most reliable approach)
           LATEST_VERSION=$(curl -s https://api.github.com/repos/IstiN/dmtools/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
           echo "Installing DMTools $LATEST_VERSION"
           
           # Download JAR
           curl -L "https://github.com/IstiN/dmtools/releases/download/$LATEST_VERSION/dmtools-$LATEST_VERSION-all.jar" -o "$HOME/.dmtools/dmtools.jar"
           
-          # Download wrapper script
-          curl -L "https://github.com/IstiN/dmtools/releases/download/$LATEST_VERSION/dmtools.sh" -o "$HOME/.dmtools/bin/dmtools"
+          # Create a simple wrapper script
+          cat > "$HOME/.dmtools/bin/dmtools" << 'EOF'
+          #!/bin/bash
+          JAR_FILE="$HOME/.dmtools/dmtools.jar"
+          if [ "$1" = "list" ]; then
+              java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+          else
+              java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$@" 2>/dev/null
+          fi
+          EOF
           
           # Make script executable
           chmod +x "$HOME/.dmtools/bin/dmtools"
