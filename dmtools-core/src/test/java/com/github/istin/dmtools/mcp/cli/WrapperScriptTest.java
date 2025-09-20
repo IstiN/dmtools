@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @EnabledOnOs({OS.LINUX, OS.MAC})
 class WrapperScriptTest {
 
-    private static final String SCRIPT_PATH = "dmtools_mcp.sh";
+    private static final String SCRIPT_PATH = "../dmtools_mcp.sh";
 
     @Test
     @DisplayName("Should verify wrapper script exists and is executable")
