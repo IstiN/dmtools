@@ -30,7 +30,7 @@ permissions:
   
 jobs:
   cursor-agent:
-    runs-on: macos-26
+    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout repository
