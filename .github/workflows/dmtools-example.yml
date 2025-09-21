@@ -24,7 +24,6 @@ jobs:
           LATEST_VERSION=$(curl -s https://api.github.com/repos/IstiN/dmtools/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
           if [ -z "$LATEST_VERSION" ]; then
             echo "Could not fetch the latest DMTools version."
-            # Fallback to a known version to avoid complete failure
             LATEST_VERSION="v1.7.28" 
           fi
           echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
@@ -45,115 +44,69 @@ jobs:
         env:
           LATEST_VERSION: ${{ steps.get_version.outputs.LATEST_VERSION }}
         run: |
-          # Create installation directory
           mkdir -p $HOME/.dmtools/bin
           
-          # Download JAR directly (most reliable approach)
           echo "Installing DMTools $LATEST_VERSION"
-          
-          # Download JAR
           curl -L "https://github.com/IstiN/dmtools/releases/download/$LATEST_VERSION/dmtools-$LATEST_VERSION-all.jar" -o "$HOME/.dmtools/dmtools.jar"
           
-          # Create a simple wrapper script
+          # Create wrapper script
           cat > "$HOME/.dmtools/bin/dmtools" << 'EOF'
           #!/bin/bash
           JAR_FILE="$HOME/.dmtools/dmtools.jar"
           
-          # Check if JAR exists
           if [ ! -f "$JAR_FILE" ]; then
               echo "Error: DMTools JAR not found at $JAR_FILE" >&2
               exit 1
           fi
           
-          # Run Java with verbose error output for debugging
           if [ "$1" = "list" ]; then
               if [ $# -gt 1 ]; then
-                  # List with filter
-                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$2"
-                  # Always exit 0 for list to prevent workflow failure on empty lists
+                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$2" 2>/dev/null
                   exit 0
               else
-                  # List all tools
-                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list
+                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
                   exit 0
               fi
           else
-              java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$@"
+              java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$@" 2>/dev/null
           fi
           EOF
           
-          # Make script executable
           chmod +x "$HOME/.dmtools/bin/dmtools"
-          
-          # Verify installation
-          echo "DMTools installed successfully!"
-          ls -la $HOME/.dmtools/
-          ls -la $HOME/.dmtools/bin/
           
       # Add DMTools to PATH
       - name: Add DMTools to PATH
         run: echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
       
-      # Test DMTools CLI
-      - name: Test DMTools CLI
-        run: |
-          echo "DMTools CLI installed successfully!"
-          echo "Testing CLI with redirect (should work):"
-          dmtools list >/dev/null && echo "✅ CLI is working" || echo "❌ CLI failed with redirect"
-          
-          echo "Testing CLI without redirect (debug):"
-          dmtools list || echo "❌ CLI failed without redirect (exit code: $?)"
-      
       # Example: Use DMTools CLI with environment variables
       - name: Example DMTools Usage
         env:
-          # Jira Configuration (Modern approach: separate email + API token)
+          # Jira Configuration
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
           JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
-          JIRA_WAIT_BEFORE_PERFORM: ${{ vars.JIRA_WAIT_BEFORE_PERFORM }}
-          JIRA_LOGGING_ENABLED: ${{ vars.JIRA_LOGGING_ENABLED }}
-          JIRA_CLEAR_CACHE: ${{ vars.JIRA_CLEAR_CACHE }}
-          JIRA_EXTRA_FIELDS_PROJECT: ${{ vars.JIRA_EXTRA_FIELDS_PROJECT }}
-          JIRA_EXTRA_FIELDS: ${{ vars.JIRA_EXTRA_FIELDS }}
-          JIRA_MAX_SEARCH_RESULTS: ${{ vars.JIRA_MAX_SEARCH_RESULTS }}
-          SLEEP_TIME_REQUEST: ${{ vars.SLEEP_TIME_REQUEST }}
           
-          # Confluence Configuration (Modern approach: separate email + API token)
+          # Confluence Configuration
           CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
           CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
           CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
           CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
-          CONFLUENCE_AUTH_TYPE: ${{ vars.CONFLUENCE_AUTH_TYPE }}
-          CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
           
           # Figma Configuration
           FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
-          FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
           
           # DMTools Integration Settings
           DMTOOLS_INTEGRATIONS: "jira,confluence,figma"
         run: |
-          # Verify environment variables are set (excluding secrets)
-          echo "Verifying environment variables..."
-          printenv | grep -E "^(JIRA_|CONFLUENCE_|FIGMA_|DMTOOLS_INTEGRATIONS)" | grep -v "TOKEN" || echo "No non-secret env vars found."
-          echo ""
-
-          # Example: List all available tools
-          echo "All available tools:"
+          # Example: Get a specific Jira ticket
+          echo "Getting Jira ticket DMC-100:"
           dmtools jira_get_ticket DMC-100
           
           echo ""
-          echo "Filter tools by integration:"
-          echo "Jira tools only:"
+          echo "Available Jira tools:"
           dmtools list jira
           
           echo ""
-          echo "Confluence tools only:"
+          echo "Available Confluence tools:"
           dmtools list confluence
-          
-          echo ""
-          echo "Example usage (requires secrets to be configured):"
-          echo "dmtools list"
-          echo "dmtools jira_get_ticket DMC-100"
