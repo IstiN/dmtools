@@ -1,0 +1,58 @@
+name: DMTools CLI Simple Example
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dmtools-simple-example:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # REQUIRED: Set up Java 23 first
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '23'
+      
+      # Install DMTools CLI using the official installer
+      - name: Install DMTools CLI
+        run: |
+          curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+          echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+      
+      # Example: Use DMTools CLI with environment variables
+      - name: Example DMTools Usage
+        env:
+          # Jira Configuration
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+          JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+          
+          # Confluence Configuration
+          CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+          CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+          CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+          
+          # Figma Configuration
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+          
+          # DMTools Integration Settings
+          DMTOOLS_INTEGRATIONS: "jira,confluence,figma"
+        run: |
+          # Example: Get a specific Jira ticket
+          echo "Getting Jira ticket DMC-100:"
+          dmtools jira_get_ticket DMC-100
+          
+          echo ""
+          echo "Available Jira tools:"
+          dmtools list jira
+          
+          echo ""
+          echo "Available Confluence tools:"
+          dmtools list confluence

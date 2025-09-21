@@ -96,8 +96,13 @@ case "$COMMAND" in
         usage
         ;;
     "list")
-        echo "Listing available MCP tools..."
-        java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+        if [ $# -gt 0 ]; then
+            # List with filter
+            java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$1" 2>/dev/null
+        else
+            # List all tools
+            java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+        fi
         exit 0
         ;;
 esac

@@ -1,10 +1,10 @@
-name: DMTools CLI Example
+name: DMTools CLI Advanced Example (with caching)
 
 on:
   workflow_dispatch:
 
 jobs:
-  dmtools-example:
+  dmtools-advanced-example:
     runs-on: ubuntu-latest
     
     steps:
