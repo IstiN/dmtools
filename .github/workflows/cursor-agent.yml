@@ -41,6 +41,12 @@ jobs:
         curl https://cursor.com/install -fsS | bash
         echo "$HOME/.cursor/bin" >> $GITHUB_PATH
 
+      # Install DMTools CLI using the official installer
+    - name: Install DMTools CLI
+      run: |
+        curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+        echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+
     - name: Setup MCP Configuration
       env:
         MCP_DMTOOLS_URL: ${{ secrets.MCP_DMTOOLS_URL }}
@@ -63,6 +69,24 @@ jobs:
         USER_REQUEST: ${{ inputs.user_request }}
         MODEL: ${{ inputs.model }}
         AGENT_DISABLE_WATCHDOG: "1"
+        # Jira Configuration
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+        JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+
+        # Confluence Configuration
+        CONFLUENCE_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        CONFLUENCE_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+        CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+
+        # Figma Configuration
+        FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+
+        # DMTools Integration Settings
+        DMTOOLS_INTEGRATIONS: "jira,confluence"
+
       run: ./cicd/scripts/run-cursor-agent.sh
         
     - name: Upload results (if any)
