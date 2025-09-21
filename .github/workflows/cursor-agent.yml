@@ -18,10 +18,6 @@ on:
           - opus-4.1
           - grok
           - auto
-      mcp_dmtools_url:
-        description: 'DMTools MCP URL (if different from secret)'
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -46,27 +42,16 @@ jobs:
         curl https://cursor.com/install -fsS | bash
         echo "$HOME/.cursor/bin" >> $GITHUB_PATH
 
-      # Install DMTools CLI using the official installer
     - name: Install DMTools CLI
       run: |
         curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
         echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
 
-    - name: Setup MCP Configuration
-      env:
-        MCP_DMTOOLS_URL: ${{ secrets.MCP_DMTOOLS_URL }}
-        INPUT_MCP_URL: ${{ inputs.mcp_dmtools_url }}
-      run: ./cicd/scripts/setup-mcp.sh
-
-    - name: Setup Cursor CLI Configuration
-      run: ./cicd/scripts/setup-cursor-cli-config.sh
-
-    - name: Verify Cursor CLI installation
+    - name: Verify CLI installations
       run: |
         echo "PATH: $PATH"
-        ls -la ~/.cursor/bin/ || echo "Cursor bin directory not found"
-        ls -la ~/.local/bin/ || echo "Local bin directory not found"
         which cursor-agent || echo "cursor-agent not found in PATH"
+        which dmtools || echo "dmtools not found in PATH"
         
     - name: Run Cursor Agent
       env:
@@ -93,16 +78,37 @@ jobs:
         DMTOOLS_INTEGRATIONS: "jira,confluence"
 
       run: ./cicd/scripts/run-cursor-agent.sh
+    
+    - name: Print Response to Summary
+      if: always()
+      run: |
+        if [ -f outputs/response.md ]; then
+          echo "## 🤖 Cursor Agent Response" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat outputs/response.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ❌ No Response Generated" >> $GITHUB_STEP_SUMMARY
+          echo "The cursor agent did not generate a response file at outputs/response.md" >> $GITHUB_STEP_SUMMARY
+        fi
         
-    - name: Upload results (if any)
+    - name: Upload Agent Response
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: cursor-agent-results
+        name: cursor-agent-response
+        path: outputs/response.md
+        retention-days: 30
+        if-no-files-found: warn
+        
+    - name: Upload Additional Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: cursor-agent-logs
         path: |
           **/*.log
           **/*.txt
-          **/*.md
           **/*.json
+          outputs/
         retention-days: 7
         if-no-files-found: ignore
