@@ -18,25 +18,37 @@ jobs:
           distribution: 'temurin'
           java-version: '23'
       
+      - name: Get Latest DMTools Version
+        id: get_version
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/IstiN/dmtools/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Could not fetch the latest DMTools version."
+            # Fallback to a known version to avoid complete failure
+            LATEST_VERSION="v1.7.28" 
+          fi
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
       # Cache DMTools CLI to avoid re-downloading
       - name: Cache DMTools CLI
         id: cache-dmtools
         uses: actions/cache@v4
         with:
           path: ~/.dmtools
-          key: dmtools-cli-${{ runner.os }}-${{ hashFiles('.github/workflows/dmtools-example.yml') }}
+          key: dmtools-cli-${{ runner.os }}-${{ steps.get_version.outputs.LATEST_VERSION }}
           restore-keys: |
             dmtools-cli-${{ runner.os }}-
       
       # Install DMTools CLI (only if not cached)
       - name: Install DMTools CLI
         if: steps.cache-dmtools.outputs.cache-hit != 'true'
+        env:
+          LATEST_VERSION: ${{ steps.get_version.outputs.LATEST_VERSION }}
         run: |
           # Create installation directory
           mkdir -p $HOME/.dmtools/bin
           
           # Download JAR directly (most reliable approach)
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/IstiN/dmtools/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
           echo "Installing DMTools $LATEST_VERSION"
           
           # Download JAR
