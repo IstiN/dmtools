@@ -142,7 +142,7 @@ jobs:
 
           # Example: List all available tools
           echo "All available tools:"
-          dmtools list
+          dmtools jira_get_ticket DMC-100
           
           echo ""
           echo "Filter tools by integration:"
