@@ -271,11 +271,18 @@ public class McpCliHandler {
      */
     private void configureCLILogging() {
         try {
-            // Set all loggers to ERROR level to suppress debug/info output
-            Configurator.setAllLevels("com.github.istin.dmtools", org.apache.logging.log4j.Level.ERROR);
-            Configurator.setAllLevels("org.apache", org.apache.logging.log4j.Level.ERROR);
-            Configurator.setAllLevels("okhttp3", org.apache.logging.log4j.Level.ERROR);
-            Configurator.setRootLevel(org.apache.logging.log4j.Level.ERROR);
+            // Set all loggers to OFF level to completely suppress output
+            Configurator.setAllLevels("com.github.istin.dmtools", org.apache.logging.log4j.Level.OFF);
+            Configurator.setAllLevels("org.apache", org.apache.logging.log4j.Level.OFF);
+            Configurator.setAllLevels("okhttp3", org.apache.logging.log4j.Level.OFF);
+            Configurator.setAllLevels("com.github.istin", org.apache.logging.log4j.Level.OFF);
+            Configurator.setAllLevels("", org.apache.logging.log4j.Level.OFF); // Root logger
+            Configurator.setRootLevel(org.apache.logging.log4j.Level.OFF);
+            
+            // Also try to set specific problematic loggers
+            Configurator.setLevel("com.github.istin.dmtools.atlassian.jira.JiraClient", org.apache.logging.log4j.Level.OFF);
+            Configurator.setLevel("com.github.istin.dmtools.networking.AbstractRestClient", org.apache.logging.log4j.Level.OFF);
+            Configurator.setLevel("com.github.istin.dmtools.mcp.cli.McpCliHandler", org.apache.logging.log4j.Level.OFF);
         } catch (Exception e) {
             // Ignore logging configuration errors
         }
