@@ -1,31 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="WARN">
+<Configuration status="OFF">
     <Appenders>
-        <!-- Console appender for errors only -->
-        <Console name="Console" target="SYSTEM_ERR">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
-            <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
-        </Console>
+        <!-- Null appender - discards all logs -->
+        <Null name="NullAppender"/>
     </Appenders>
     
     <Loggers>
-        <!-- Suppress all logging for CLI usage -->
-        <Logger name="com.github.istin.dmtools" level="ERROR" additivity="false">
-            <AppenderRef ref="Console"/>
+        <!-- Completely suppress all logging for CLI usage -->
+        <Logger name="com.github.istin.dmtools" level="OFF" additivity="false">
+            <AppenderRef ref="NullAppender"/>
         </Logger>
         
         <!-- Suppress third-party logging -->
-        <Logger name="org.apache" level="ERROR" additivity="false">
-            <AppenderRef ref="Console"/>
+        <Logger name="org.apache" level="OFF" additivity="false">
+            <AppenderRef ref="NullAppender"/>
         </Logger>
         
-        <Logger name="okhttp3" level="ERROR" additivity="false">
-            <AppenderRef ref="Console"/>
+        <Logger name="okhttp3" level="OFF" additivity="false">
+            <AppenderRef ref="NullAppender"/>
         </Logger>
         
-        <!-- Root logger set to ERROR -->
-        <Root level="ERROR">
-            <AppenderRef ref="Console"/>
+        <Logger name="okio" level="OFF" additivity="false">
+            <AppenderRef ref="NullAppender"/>
+        </Logger>
+        
+        <!-- Root logger set to OFF -->
+        <Root level="OFF">
+            <AppenderRef ref="NullAppender"/>
         </Root>
     </Loggers>
 </Configuration>
