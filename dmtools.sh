@@ -160,14 +160,14 @@ if [ -n "$STDIN_DATA" ]; then
     [ "$QUIET" = false ] && info "Reading JSON from STDIN (${#STDIN_DATA} characters)"
     [ "$QUIET" = false ] && info "Using STDIN data"
     if [ "$QUIET" = true ]; then
-        java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --stdin-data "$STDIN_DATA" "${ARGS[@]}" 2>/dev/null | tail -1
+        java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --stdin-data "$STDIN_DATA" "${ARGS[@]}" 2>/dev/null
     else
         java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --stdin-data "$STDIN_DATA" "${ARGS[@]}" 2>/dev/null
     fi
 elif [ -n "$DATA" ]; then
     [ "$QUIET" = false ] && info "Using inline data"
     if [ "$QUIET" = true ]; then
-        java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --data "$DATA" "${ARGS[@]}" 2>/dev/null | tail -1
+        java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --data "$DATA" "${ARGS[@]}" 2>/dev/null
     else
         java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --data "$DATA" "${ARGS[@]}" 2>/dev/null
     fi
@@ -178,14 +178,14 @@ elif [ -n "$FILE" ]; then
     [ "$QUIET" = false ] && info "Using file data: $FILE"
     FILE_DATA=$(cat "$FILE")
     if [ "$QUIET" = true ]; then
-        java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --data "$FILE_DATA" "${ARGS[@]}" 2>/dev/null | tail -1
+        java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --data "$FILE_DATA" "${ARGS[@]}" 2>/dev/null
     else
         java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" --data "$FILE_DATA" "${ARGS[@]}" 2>/dev/null
     fi
 else
     [ "$QUIET" = false ] && info "Using positional arguments"
     if [ "$QUIET" = true ]; then
-        java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" "${ARGS[@]}" 2>/dev/null | tail -1
+        java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" "${ARGS[@]}" 2>/dev/null
     else
         java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/sun.reflect=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$COMMAND" "${ARGS[@]}" 2>/dev/null
     fi
