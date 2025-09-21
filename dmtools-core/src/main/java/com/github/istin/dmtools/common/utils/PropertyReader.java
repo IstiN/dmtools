@@ -46,7 +46,7 @@ public class PropertyReader {
 			}
 		}
 		String property = prop.getProperty(propertyKey);
-		if (property == null || property.length() == 0) {
+		if (property == null || property.isEmpty()) {
 			return System.getenv(propertyKey);
 		}
 		return property;
@@ -143,8 +143,8 @@ public class PropertyReader {
 
 	public Long getSleepTimeRequest() {
 		String value = getValue("SLEEP_TIME_REQUEST");
-		if (value == null) {
-			return 300l;
+		if (value == null || value.isEmpty()) {
+			return 300L;
 		}
 		return Long.parseLong(value);
 	}
@@ -309,7 +309,7 @@ public class PropertyReader {
 
 	public Integer getDefaultTicketWeightIfNoSPs() {
 		String value = getValue("DEFAULT_TICKET_WEIGHT_IF_NO_SP");
-		if (value == null) {
+		if (value == null || value.isEmpty()) {
 			return -1;
 		}
 		return Integer.parseInt(value);
@@ -317,7 +317,7 @@ public class PropertyReader {
 
 	public Double getLinesOfCodeDivider() {
 		String value = getValue("LINES_OF_CODE_DIVIDER");
-		if (value == null) {
+		if (value == null || value.isEmpty()) {
 			return 1d;
 		}
 		return Double.parseDouble(value);
@@ -325,7 +325,7 @@ public class PropertyReader {
 
 	public Double getTimeSpentOnDivider() {
 		String value = getValue("TIME_SPENT_ON_DIVIDER");
-		if (value == null) {
+		if (value == null || value.isEmpty()) {
 			return 1d;
 		}
 		return Double.parseDouble(value);
@@ -335,7 +335,7 @@ public class PropertyReader {
 		String value = getValue("TICKET_FIELDS_CHANGED_DIVIDER_"+ fieldName.toUpperCase());
 		if (value == null) {
 			String defaultValue = getValue("TICKET_FIELDS_CHANGED_DIVIDER_DEFAULT");
-			if (defaultValue != null) {
+			if (defaultValue != null && !defaultValue.isEmpty()) {
 				return Double.parseDouble(defaultValue);
 			}
 			return 1d;
