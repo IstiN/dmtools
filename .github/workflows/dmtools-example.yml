@@ -53,18 +53,20 @@ jobs:
               exit 1
           fi
           
+          # Run Java with verbose error output for debugging
           if [ "$1" = "list" ]; then
               if [ $# -gt 1 ]; then
-                  # List with filter - capture output and ensure success
-                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$2" 2>/dev/null
+                  # List with filter
+                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$2"
+                  # Always exit 0 for list to prevent workflow failure on empty lists
                   exit 0
               else
-                  # List all tools - capture output and ensure success
-                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+                  # List all tools
+                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list
                   exit 0
               fi
           else
-              java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$@" 2>/dev/null
+              java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$@"
           fi
           EOF
           
@@ -121,6 +123,11 @@ jobs:
           # DMTools Integration Settings
           DMTOOLS_INTEGRATIONS: "jira,confluence,figma"
         run: |
+          # Verify environment variables are set (excluding secrets)
+          echo "Verifying environment variables..."
+          printenv | grep -E "^(JIRA_|CONFLUENCE_|FIGMA_|DMTOOLS_INTEGRATIONS)" | grep -v "TOKEN" || echo "No non-secret env vars found."
+          echo ""
+
           # Example: List all available tools
           echo "All available tools:"
           dmtools list
