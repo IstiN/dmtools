@@ -1,0 +1,112 @@
+name: DMTools CLI Example
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dmtools-example:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # REQUIRED: Set up Java 23 first
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '23'
+      
+      - name: Get Latest DMTools Version
+        id: get_version
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/IstiN/dmtools/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Could not fetch the latest DMTools version."
+            LATEST_VERSION="v1.7.28" 
+          fi
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+      # Cache DMTools CLI to avoid re-downloading
+      - name: Cache DMTools CLI
+        id: cache-dmtools
+        uses: actions/cache@v4
+        with:
+          path: ~/.dmtools
+          key: dmtools-cli-${{ runner.os }}-${{ steps.get_version.outputs.LATEST_VERSION }}
+          restore-keys: |
+            dmtools-cli-${{ runner.os }}-
+      
+      # Install DMTools CLI (only if not cached)
+      - name: Install DMTools CLI
+        if: steps.cache-dmtools.outputs.cache-hit != 'true'
+        env:
+          LATEST_VERSION: ${{ steps.get_version.outputs.LATEST_VERSION }}
+        run: |
+          mkdir -p $HOME/.dmtools/bin
+          
+          echo "Installing DMTools $LATEST_VERSION"
+          curl -L "https://github.com/IstiN/dmtools/releases/download/$LATEST_VERSION/dmtools-$LATEST_VERSION-all.jar" -o "$HOME/.dmtools/dmtools.jar"
+          
+          # Create wrapper script
+          cat > "$HOME/.dmtools/bin/dmtools" << 'EOF'
+          #!/bin/bash
+          JAR_FILE="$HOME/.dmtools/dmtools.jar"
+          
+          if [ ! -f "$JAR_FILE" ]; then
+              echo "Error: DMTools JAR not found at $JAR_FILE" >&2
+              exit 1
+          fi
+          
+          if [ "$1" = "list" ]; then
+              if [ $# -gt 1 ]; then
+                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list "$2" 2>/dev/null
+                  exit 0
+              else
+                  java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp list 2>/dev/null
+                  exit 0
+              fi
+          else
+              java -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "$@" 2>/dev/null
+          fi
+          EOF
+          
+          chmod +x "$HOME/.dmtools/bin/dmtools"
+          
+      # Add DMTools to PATH
+      - name: Add DMTools to PATH
+        run: echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+      
+      # Example: Use DMTools CLI with environment variables
+      - name: Example DMTools Usage
+        env:
+          # Jira Configuration
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+          JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+          
+          # Confluence Configuration
+          CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+          CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+          CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+          
+          # Figma Configuration
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+          
+          # DMTools Integration Settings
+          DMTOOLS_INTEGRATIONS: "jira,confluence,figma"
+        run: |
+          # Example: Get a specific Jira ticket
+          echo "Getting Jira ticket DMC-100:"
+          dmtools jira_get_ticket DMC-100
+          
+          echo ""
+          echo "Available Jira tools:"
+          dmtools list jira
+          
+          echo ""
+          echo "Available Confluence tools:"
+          dmtools list confluence
