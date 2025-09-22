@@ -56,3 +56,8 @@ jobs:
           echo ""
           echo "Available Confluence tools:"
           dmtools list confluence
+          
+          # Simple example with URL-encoded override
+          ENCODED_OVERRIDE=$(python3 -c "import urllib.parse; print(urllib.parse.quote('{\"params\":{\"question\":\"GitHub Actions demo\"}}'))")
+          echo "dmtools run agents/test-job-config.json \"$ENCODED_OVERRIDE\""
+          dmtools run agents/test-job-config.json "$ENCODED_OVERRIDE"
