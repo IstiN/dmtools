@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -116,7 +115,7 @@ public class TeammateCliIntegrationTest {
         when(trackerClient.getComments(anyString(), any())).thenReturn(Collections.emptyList());
         doAnswer(invocation -> {
             // Simulate ticket processing - call the performer
-            JiraClient.Performer performer = invocation.getArgument(0, JiraClient.Performer.class);
+            JiraClient.Performer<ITicket> performer = invocation.getArgument(0, JiraClient.Performer.class);
             try {
                 performer.perform(ticket);
             } catch (Exception e) {
@@ -158,7 +157,7 @@ public class TeammateCliIntegrationTest {
         params.setSkipAIProcessing(false);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand("echo 'Hello from CLI'"))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'Hello from CLI'"), any(File.class)))
                       .thenReturn("Hello from CLI\nExit Code: 0");
             
             // Act
@@ -173,7 +172,7 @@ public class TeammateCliIntegrationTest {
             verify(genericRequestAgent).run(any());
             
             // Verify CLI command was executed
-            mockedUtils.verify(() -> CommandLineUtils.runCommand("echo 'Hello from CLI'"));
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo 'Hello from CLI'"), any(File.class)));
         }
     }
     
@@ -191,7 +190,7 @@ public class TeammateCliIntegrationTest {
         Files.write(responseFile, "CLI output response".getBytes(StandardCharsets.UTF_8));
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand("echo 'CLI response only'"))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'CLI response only'"), any(File.class)))
                       .thenReturn("CLI response only\nExit Code: 0");
             
             // Act
@@ -210,7 +209,7 @@ public class TeammateCliIntegrationTest {
             verify(genericRequestAgent, never()).run(any());
             
             // Verify CLI command was executed
-            mockedUtils.verify(() -> CommandLineUtils.runCommand("echo 'CLI response only'"));
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo 'CLI response only'"), any(File.class)));
         }
     }
     
@@ -232,7 +231,7 @@ public class TeammateCliIntegrationTest {
         params.setSkipAIProcessing(false);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("cat")))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("cat"), any(File.class)))
                       .thenReturn("Attachment content\nExit Code: 0");
             
             // Act
@@ -244,7 +243,7 @@ public class TeammateCliIntegrationTest {
             assertEquals("TEST-123", results.get(0).getKey());
             
             // Verify CLI command was executed and processed attachment content
-            mockedUtils.verify(() -> CommandLineUtils.runCommand(contains("cat")));
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(contains("cat"), any(File.class)));
         }
     }
     
@@ -256,7 +255,7 @@ public class TeammateCliIntegrationTest {
         params.setSkipAIProcessing(false);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand("invalid-command"))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("invalid-command"), any(File.class)))
                       .thenThrow(new IOException("Command not found"));
             
             // Act
@@ -270,7 +269,7 @@ public class TeammateCliIntegrationTest {
             verify(genericRequestAgent).run(any());
             
             // Verify CLI command was attempted
-            mockedUtils.verify(() -> CommandLineUtils.runCommand("invalid-command"));
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("invalid-command"), any(File.class)));
         }
     }
     
@@ -282,7 +281,7 @@ public class TeammateCliIntegrationTest {
         params.setCliCommands(cliCommands);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand("echo 'test'"))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'test'"), any(File.class)))
                       .thenReturn("test\nExit Code: 0");
             
             // Act
@@ -305,7 +304,7 @@ public class TeammateCliIntegrationTest {
         params.setCliCommands(cliCommands);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("ls")))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("ls"), any(File.class)))
                       .thenReturn("request.md\nExit Code: 0");
             
             // Act

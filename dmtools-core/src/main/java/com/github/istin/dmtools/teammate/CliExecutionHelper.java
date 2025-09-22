@@ -129,48 +129,56 @@ public class CliExecutionHelper {
             return cliResponses;
         }
         
-        // Set working directory if provided
-        String originalUserDir = null;
-        if (workingDirectory != null && Files.exists(workingDirectory)) {
-            originalUserDir = System.getProperty("user.dir");
-            System.setProperty("user.dir", workingDirectory.toAbsolutePath().toString());
+        // Convert Path to File for ProcessBuilder - safer than changing system properties
+        File workingDir = null;
+        if (workingDirectory != null && Files.exists(workingDirectory) && Files.isDirectory(workingDirectory)) {
+            workingDir = workingDirectory.toFile();
             logger.info("Set working directory to: {}", workingDirectory.toAbsolutePath());
         }
         
-        try {
-            for (String command : cliCommands) {
-                if (command == null || command.trim().isEmpty()) {
-                    logger.warn("Skipping empty CLI command");
-                    continue;
-                }
-                
-                try {
-                    logger.info("Executing CLI command: {}", command);
-                    String response = CommandLineUtils.runCommand(command.trim());
-                    
-                    if (response != null && !response.trim().isEmpty()) {
-                        cliResponses.append("CLI Command: ").append(command).append("\n");
-                        cliResponses.append("Response:\n").append(response).append("\n\n");
-                        logger.info("CLI command completed successfully");
-                    } else {
-                        logger.warn("CLI command returned empty response");
-                    }
-                } catch (Exception e) {
-                    String errorMsg = "Failed to execute CLI command '" + command + "': " + e.getMessage();
-                    logger.error(errorMsg, e);
-                    cliResponses.append("CLI Command: ").append(command).append("\n");
-                    cliResponses.append("Error: ").append(errorMsg).append("\n\n");
-                }
+        for (String command : cliCommands) {
+            if (command == null || command.trim().isEmpty()) {
+                logger.warn("Skipping empty CLI command");
+                continue;
             }
-        } finally {
-            // Restore original working directory
-            if (originalUserDir != null) {
-                System.setProperty("user.dir", originalUserDir);
-                logger.info("Restored working directory to: {}", originalUserDir);
+            
+            try {
+                logger.info("Executing CLI command: {}", command);
+                // Use the new method that accepts working directory via ProcessBuilder
+                String response = CommandLineUtils.runCommand(command.trim(), workingDir);
+                
+                if (response != null && !response.trim().isEmpty()) {
+                    cliResponses.append("CLI Command: ").append(command).append("\n");
+                    cliResponses.append("Response:\n").append(response).append("\n\n");
+                    logger.info("CLI command completed successfully");
+                } else {
+                    logger.warn("CLI command returned empty response");
+                }
+            } catch (Exception e) {
+                String errorMsg = "Failed to execute CLI command '" + command + "': " + e.getMessage();
+                logger.error(errorMsg, e);
+                cliResponses.append("CLI Command: ").append(command).append("\n");
+                cliResponses.append("Error: ").append(errorMsg).append("\n\n");
             }
         }
         
         return cliResponses;
+    }
+    
+    /**
+     * Executes CLI commands in the specified working directory and processes output response.
+     * 
+     * @param cliCommands Array of CLI commands to execute
+     * @param workingDirectory Working directory for command execution (optional)
+     * @return CliExecutionResult containing command responses and output response
+     */
+    public CliExecutionResult executeCliCommandsWithResult(String[] cliCommands, Path workingDirectory) {
+        StringBuilder cliResponses = executeCliCommands(cliCommands, workingDirectory);
+        
+        // Check for output response file in the working directory where commands were executed
+        String outputResponse = processOutputResponse(workingDirectory);
+        
+        return new CliExecutionResult(cliResponses, outputResponse);
     }
     
     /**
@@ -179,7 +187,23 @@ public class CliExecutionHelper {
      * @return Content of outputs/response.md file if it exists, null otherwise
      */
     public String processOutputResponse() {
-        Path outputFilePath = Paths.get(OUTPUT_FOLDER, RESPONSE_FILE_NAME);
+        return processOutputResponse(null);
+    }
+    
+    /**
+     * Processes output response from CLI commands by checking for outputs/response.md file
+     * relative to the specified working directory.
+     * 
+     * @param workingDirectory Working directory to look for outputs/response.md file (null for current directory)
+     * @return Content of outputs/response.md file if it exists, null otherwise
+     */
+    public String processOutputResponse(Path workingDirectory) {
+        Path outputFilePath;
+        if (workingDirectory != null) {
+            outputFilePath = workingDirectory.resolve(OUTPUT_FOLDER).resolve(RESPONSE_FILE_NAME);
+        } else {
+            outputFilePath = Paths.get(OUTPUT_FOLDER, RESPONSE_FILE_NAME);
+        }
         
         if (!Files.exists(outputFilePath)) {
             logger.info("No output response file found at: {}", outputFilePath.toAbsolutePath());
@@ -219,6 +243,31 @@ public class CliExecutionHelper {
         } catch (IOException e) {
             logger.warn("Failed to cleanup input folder {}: {}", 
                        inputFolderPath.toAbsolutePath(), e.getMessage());
+        }
+    }
+    
+    /**
+     * Result container for CLI execution that includes both command responses and output response.
+     */
+    public static class CliExecutionResult {
+        private final StringBuilder commandResponses;
+        private final String outputResponse;
+        
+        public CliExecutionResult(StringBuilder commandResponses, String outputResponse) {
+            this.commandResponses = commandResponses;
+            this.outputResponse = outputResponse;
+        }
+        
+        public StringBuilder getCommandResponses() {
+            return commandResponses;
+        }
+        
+        public String getOutputResponse() {
+            return outputResponse;
+        }
+        
+        public boolean hasOutputResponse() {
+            return outputResponse != null && !outputResponse.trim().isEmpty();
         }
     }
 }

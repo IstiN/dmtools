@@ -17,13 +17,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 public class CliExecutionHelperTest {
@@ -31,7 +28,7 @@ public class CliExecutionHelperTest {
     private CliExecutionHelper cliHelper;
     private ITicket mockTicket;
     private IAttachment mockAttachment;
-    private TrackerClient mockTrackerClient;
+    private TrackerClient<?> mockTrackerClient;
     
     @TempDir
     Path tempDir;
@@ -155,9 +152,9 @@ public class CliExecutionHelperTest {
         String[] commands = {"echo hello", "echo world"};
         
         try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand("echo hello"))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo hello"), isNull()))
                       .thenReturn("hello\nExit Code: 0");
-            mockedUtils.when(() -> CommandLineUtils.runCommand("echo world"))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo world"), isNull()))
                       .thenReturn("world\nExit Code: 0");
             
             // Act
@@ -178,7 +175,7 @@ public class CliExecutionHelperTest {
         String[] commands = {"invalid-command"};
         
         try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand("invalid-command"))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("invalid-command"), isNull()))
                       .thenThrow(new IOException("Command not found"));
             
             // Act
@@ -215,10 +212,9 @@ public class CliExecutionHelperTest {
         // Arrange
         Path workingDir = Files.createTempDirectory(tempDir, "working");
         String[] commands = {"echo test"};
-        String originalDir = System.getProperty("user.dir");
         
         try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand("echo test"))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo test"), any(File.class)))
                       .thenReturn("test\nExit Code: 0");
             
             // Act
@@ -226,8 +222,8 @@ public class CliExecutionHelperTest {
             
             // Assert
             assertTrue(result.toString().contains("test"));
-            // Working directory should be restored
-            assertEquals(originalDir, System.getProperty("user.dir"));
+            // Verify that CommandLineUtils was called with the correct working directory
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo test"), eq(workingDir.toFile())));
         }
     }
     
@@ -319,5 +315,56 @@ public class CliExecutionHelperTest {
         Path sanitizedFile = result.resolve("path_to_file.txt");
         assertTrue(Files.exists(sanitizedFile));
         assertEquals("content", Files.readString(sanitizedFile));
+    }
+    
+    @Test
+    void testExecuteCliCommandsWithResult() throws IOException {
+        // Arrange
+        Path workingDir = Files.createTempDirectory(tempDir, "working");
+        String[] commands = {"echo hello", "echo world"};
+        
+        try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo hello"), any(File.class)))
+                      .thenReturn("hello\nExit Code: 0");
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo world"), any(File.class)))
+                      .thenReturn("world\nExit Code: 0");
+            
+            // Act
+            CliExecutionHelper.CliExecutionResult result = cliHelper.executeCliCommandsWithResult(commands, workingDir);
+            
+            // Assert
+            assertNotNull(result);
+            assertTrue(result.getCommandResponses().toString().contains("hello"));
+            assertTrue(result.getCommandResponses().toString().contains("world"));
+            assertFalse(result.hasOutputResponse()); // No outputs/response.md file created
+            assertNull(result.getOutputResponse());
+        }
+    }
+    
+    @Test
+    void testExecuteCliCommandsWithResult_WithOutputFile() throws IOException {
+        // Arrange
+        Path workingDir = Files.createTempDirectory(tempDir, "working");
+        Path outputDir = workingDir.resolve("outputs");
+        Files.createDirectories(outputDir);
+        Path responseFile = outputDir.resolve("response.md");
+        String outputContent = "CLI generated response content";
+        Files.write(responseFile, outputContent.getBytes(StandardCharsets.UTF_8));
+        
+        String[] commands = {"echo test"};
+        
+        try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo test"), any(File.class)))
+                      .thenReturn("test\nExit Code: 0");
+            
+            // Act
+            CliExecutionHelper.CliExecutionResult result = cliHelper.executeCliCommandsWithResult(commands, workingDir);
+            
+            // Assert
+            assertNotNull(result);
+            assertTrue(result.getCommandResponses().toString().contains("test"));
+            assertTrue(result.hasOutputResponse());
+            assertEquals(outputContent, result.getOutputResponse());
+        }
     }
 }

@@ -15,6 +15,19 @@ public class CommandLineUtils {
      * @throws InterruptedException If the current thread is interrupted while waiting for the command to complete
      */
     public static String runCommand(String command) throws IOException, InterruptedException {
+        return runCommand(command, null);
+    }
+    
+    /**
+     * Runs a command-line command in the specified working directory and returns the output as a string.
+     *
+     * @param command The command to run
+     * @param workingDirectory The working directory for the command (null to use current directory)
+     * @return The output of the command as a string
+     * @throws IOException If an I/O error occurs
+     * @throws InterruptedException If the current thread is interrupted while waiting for the command to complete
+     */
+    public static String runCommand(String command, java.io.File workingDirectory) throws IOException, InterruptedException {
         ProcessBuilder processBuilder = new ProcessBuilder();
 
         // Set up the command
@@ -22,6 +35,11 @@ public class CommandLineUtils {
             processBuilder.command("cmd.exe", "/c", command);
         } else {
             processBuilder.command("sh", "-c", command);
+        }
+
+        // Set working directory if provided
+        if (workingDirectory != null && workingDirectory.exists() && workingDirectory.isDirectory()) {
+            processBuilder.directory(workingDirectory);
         }
 
         // Redirect error stream to output stream

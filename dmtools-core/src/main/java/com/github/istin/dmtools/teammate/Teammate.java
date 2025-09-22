@@ -270,8 +270,8 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
 
             // Process CLI commands if configured
             String[] cliCommands = expertParams.getCliCommands();
-            StringBuilder cliResponses = new StringBuilder();
             CliExecutionHelper cliHelper = new CliExecutionHelper();
+            CliExecutionHelper.CliExecutionResult cliResult = null;
             Path inputContextPath = null;
             
             if (cliCommands != null && cliCommands.length > 0) {
@@ -279,23 +279,25 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                     // Create input context for CLI commands
                     inputContextPath = cliHelper.createInputContext(ticket, inputParams.toString(), trackerClient);
                     
-                    // Execute CLI commands
-                    cliResponses = cliHelper.executeCliCommands(cliCommands, inputContextPath.getParent());
-                    
-                    // Check for output response file
-                    String outputResponse = cliHelper.processOutputResponse();
-                    if (outputResponse != null) {
-                        cliResponses.append(outputResponse).append("\n\n");
-                    }
+                    // Execute CLI commands and process output response in correct directory
+                    cliResult = cliHelper.executeCliCommandsWithResult(cliCommands, inputContextPath.getParent());
                     
                     // Append CLI responses to knownInfo if not empty
+                    StringBuilder cliResponses = cliResult.getCommandResponses();
                     if (!cliResponses.isEmpty()) {
-                        inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n\nCLI Execution Results:\n" + cliResponses);
+                        String cliContent = cliResponses.toString();
+                        // Include output response if available
+                        if (cliResult.hasOutputResponse()) {
+                            cliContent += cliResult.getOutputResponse() + "\n\n";
+                        }
+                        inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n\nCLI Execution Results:\n" + cliContent);
                     }
                     
                 } catch (Exception e) {
                     logger.error("Failed to execute CLI commands for ticket {}: {}", ticket.getKey(), e.getMessage(), e);
-                    cliResponses.append("CLI Execution Error: ").append(e.getMessage()).append("\n");
+                    // Create error result for consistent handling below
+                    StringBuilder errorResponse = new StringBuilder("CLI Execution Error: ").append(e.getMessage()).append("\n");
+                    cliResult = new CliExecutionHelper.CliExecutionResult(errorResponse, null);
                 } finally {
                     // Clean up input context
                     if (inputContextPath != null) {
@@ -307,13 +309,15 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
             String response;
             if (expertParams.isSkipAIProcessing()) {
                 // Skip AI processing and use CLI output response if available
-                String outputResponse = cliHelper.processOutputResponse();
-                if (outputResponse != null && !outputResponse.trim().isEmpty()) {
-                    response = outputResponse;
+                if (cliResult != null && cliResult.hasOutputResponse()) {
+                    response = cliResult.getOutputResponse();
                     logger.info("Using CLI output response as final response for ticket {}", ticket.getKey());
-                } else {
-                    response = cliResponses.toString();
+                } else if (cliResult != null) {
+                    response = cliResult.getCommandResponses().toString();
                     logger.info("Using CLI execution results as final response for ticket {}", ticket.getKey());
+                } else {
+                    response = "No CLI commands executed or results available.";
+                    logger.info("No CLI results available for ticket {}", ticket.getKey());
                 }
             } else {
                 // Standard AI processing workflow
