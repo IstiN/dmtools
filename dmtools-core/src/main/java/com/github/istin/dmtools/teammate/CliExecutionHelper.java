@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Helper class for CLI command execution within Teammate jobs.
@@ -129,6 +130,16 @@ public class CliExecutionHelper {
             return cliResponses;
         }
         
+        // Load environment variables from dmtools.env for CLI tools like cursor-agent
+        Map<String, String> envVars = CommandLineUtils.loadEnvironmentFromFile();
+        if (!envVars.isEmpty()) {
+            logger.info("Loaded {} environment variables from dmtools.env", envVars.size());
+            // Log if CURSOR_API_KEY is available (without revealing the key)
+            if (envVars.containsKey("CURSOR_API_KEY")) {
+                logger.info("CURSOR_API_KEY found in environment (length: {})", envVars.get("CURSOR_API_KEY").length());
+            }
+        }
+        
         // Convert Path to File for ProcessBuilder - safer than changing system properties
         File workingDir = null;
         if (workingDirectory != null && Files.exists(workingDirectory) && Files.isDirectory(workingDirectory)) {
@@ -144,8 +155,8 @@ public class CliExecutionHelper {
             
             try {
                 logger.info("Executing CLI command: {}", command);
-                // Use the new method that accepts working directory via ProcessBuilder
-                String response = CommandLineUtils.runCommand(command.trim(), workingDir);
+                // Use the new method that accepts working directory and environment variables
+                String response = CommandLineUtils.runCommand(command.trim(), workingDir, envVars);
                 
                 if (response != null && !response.trim().isEmpty()) {
                     cliResponses.append("CLI Command: ").append(command).append("\n");

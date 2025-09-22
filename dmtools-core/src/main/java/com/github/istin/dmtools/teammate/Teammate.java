@@ -42,6 +42,7 @@ import javax.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -279,8 +280,9 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                     // Create input context for CLI commands
                     inputContextPath = cliHelper.createInputContext(ticket, inputParams.toString(), trackerClient);
                     
-                    // Execute CLI commands and process output response in correct directory
-                    cliResult = cliHelper.executeCliCommandsWithResult(cliCommands, inputContextPath.getParent());
+                    // Execute CLI commands from project root directory (where cursor-agent can find workspace config)
+                    Path projectRoot = Paths.get(System.getProperty("user.dir"));
+                    cliResult = cliHelper.executeCliCommandsWithResult(cliCommands, projectRoot);
                     
                     // Append CLI responses to knownInfo if not empty
                     StringBuilder cliResponses = cliResult.getCommandResponses();

@@ -37,6 +37,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.util.Set;
+import org.mockito.ArgumentCaptor;
+import java.util.Map;
 
 public class TeammateCliIntegrationTest {
     
@@ -154,8 +156,12 @@ public class TeammateCliIntegrationTest {
         params.setSkipAIProcessing(false);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'Hello from CLI'"), any(File.class)))
+            // Verify CLI command runs from project root, not input directory
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'Hello from CLI'"), any(File.class), any(Map.class)))
                       .thenReturn("Hello from CLI\nExit Code: 0");
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             List<ResultItem> results = teammate.runJobImpl(params);
@@ -168,8 +174,16 @@ public class TeammateCliIntegrationTest {
             // Verify AI agent was called (since skipAIProcessing = false)
             verify(genericRequestAgent).run(any());
             
-            // Verify CLI command was executed
-            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo 'Hello from CLI'"), any(File.class)));
+            // Verify CLI command was executed from project root directory
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo 'Hello from CLI'"), any(File.class), any(Map.class)));
+            
+            // Verify the working directory is NOT the input directory
+            ArgumentCaptor<File> workingDirCaptor = ArgumentCaptor.forClass(File.class);
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(anyString(), workingDirCaptor.capture(), any(Map.class)));
+            File actualWorkingDir = workingDirCaptor.getValue();
+            assertNotNull(actualWorkingDir);
+            // Working directory should be project root, not input folder
+            assertFalse(actualWorkingDir.getAbsolutePath().contains("/input"));
         }
     }
     
@@ -187,8 +201,11 @@ public class TeammateCliIntegrationTest {
         Files.write(responseFile, "CLI output response".getBytes(StandardCharsets.UTF_8));
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'CLI response only'"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'CLI response only'"), any(File.class), any(Map.class)))
                       .thenReturn("CLI response only\nExit Code: 0");
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             List<ResultItem> results = teammate.runJobImpl(params);
@@ -206,7 +223,7 @@ public class TeammateCliIntegrationTest {
             verify(genericRequestAgent, never()).run(any());
             
             // Verify CLI command was executed
-            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo 'CLI response only'"), any(File.class)));
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo 'CLI response only'"), any(File.class), any(Map.class)));
         }
     }
     
@@ -228,8 +245,11 @@ public class TeammateCliIntegrationTest {
         params.setSkipAIProcessing(false);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("cat"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("cat"), any(File.class), any(Map.class)))
                       .thenReturn("Attachment content\nExit Code: 0");
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             List<ResultItem> results = teammate.runJobImpl(params);
@@ -240,7 +260,7 @@ public class TeammateCliIntegrationTest {
             assertEquals("TEST-123", results.get(0).getKey());
             
             // Verify CLI command was executed and processed attachment content
-            mockedUtils.verify(() -> CommandLineUtils.runCommand(contains("cat"), any(File.class)));
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(contains("cat"), any(File.class), any(Map.class)));
         }
     }
     
@@ -252,8 +272,11 @@ public class TeammateCliIntegrationTest {
         params.setSkipAIProcessing(false);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("invalid-command"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("invalid-command"), any(File.class), any(Map.class)))
                       .thenThrow(new IOException("Command not found"));
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             List<ResultItem> results = teammate.runJobImpl(params);
@@ -266,7 +289,7 @@ public class TeammateCliIntegrationTest {
             verify(genericRequestAgent).run(any());
             
             // Verify CLI command was attempted
-            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("invalid-command"), any(File.class)));
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("invalid-command"), any(File.class), any(Map.class)));
         }
     }
     
@@ -278,8 +301,11 @@ public class TeammateCliIntegrationTest {
         params.setCliCommands(cliCommands);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'test'"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo 'test'"), any(File.class), any(Map.class)))
                       .thenReturn("test\nExit Code: 0");
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             List<ResultItem> results = teammate.runJobImpl(params);
@@ -301,8 +327,11 @@ public class TeammateCliIntegrationTest {
         params.setCliCommands(cliCommands);
         
         try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("ls"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("ls"), any(File.class), any(Map.class)))
                       .thenReturn("request.md\nExit Code: 0");
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             teammate.runJobImpl(params);

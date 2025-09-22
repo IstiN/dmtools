@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -149,10 +150,13 @@ public class CliExecutionHelperTest {
         String[] commands = {"echo hello", "echo world"};
         
         try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo hello"), isNull()))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo hello"), isNull(), any(Map.class)))
                       .thenReturn("hello\nExit Code: 0");
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo world"), isNull()))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo world"), isNull(), any(Map.class)))
                       .thenReturn("world\nExit Code: 0");
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             StringBuilder result = cliHelper.executeCliCommands(commands, null);
@@ -172,8 +176,11 @@ public class CliExecutionHelperTest {
         String[] commands = {"invalid-command"};
         
         try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("invalid-command"), isNull()))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("invalid-command"), isNull(), any(Map.class)))
                       .thenThrow(new IOException("Command not found"));
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             StringBuilder result = cliHelper.executeCliCommands(commands, null);
@@ -211,16 +218,19 @@ public class CliExecutionHelperTest {
         String[] commands = {"echo test"};
         
         try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo test"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo test"), any(File.class), any(Map.class)))
                       .thenReturn("test\nExit Code: 0");
-            
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
+
             // Act
             StringBuilder result = cliHelper.executeCliCommands(commands, workingDir);
-            
+
             // Assert
             assertTrue(result.toString().contains("test"));
             // Verify that CommandLineUtils was called with the correct working directory
-            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo test"), eq(workingDir.toFile())));
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(eq("echo test"), eq(workingDir.toFile()), any(Map.class)));
         }
     }
     
@@ -324,10 +334,13 @@ public class CliExecutionHelperTest {
         String[] commands = {"echo hello", "echo world"};
         
         try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo hello"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo hello"), any(File.class), any(Map.class)))
                       .thenReturn("hello\nExit Code: 0");
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo world"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo world"), any(File.class), any(Map.class)))
                       .thenReturn("world\nExit Code: 0");
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             CliExecutionHelper.CliExecutionResult result = cliHelper.executeCliCommandsWithResult(commands, workingDir);
@@ -354,8 +367,11 @@ public class CliExecutionHelperTest {
         String[] commands = {"echo test"};
         
         try (MockedStatic<CommandLineUtils> mockedUtils = Mockito.mockStatic(CommandLineUtils.class)) {
-            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo test"), any(File.class)))
+            mockedUtils.when(() -> CommandLineUtils.runCommand(eq("echo test"), any(File.class), any(Map.class)))
                       .thenReturn("test\nExit Code: 0");
+            // Mock the environment loading
+            mockedUtils.when(() -> CommandLineUtils.loadEnvironmentFromFile())
+                      .thenReturn(Map.of());
             
             // Act
             CliExecutionHelper.CliExecutionResult result = cliHelper.executeCliCommandsWithResult(commands, workingDir);

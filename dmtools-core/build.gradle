@@ -291,6 +291,9 @@ shadowJar {
         attributes 'Multi-Release': 'true'  // Enable multi-release JAR for Log4j Java 9+ classes
     }
     
+    // Merge service files properly (fixes GraalJS ScriptEngineFactory issue)
+    mergeServiceFiles()
+    
     // Exclude duplicate files and problematic files
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude 'META-INF/*.SF'
