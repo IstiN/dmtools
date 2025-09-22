@@ -110,3 +110,35 @@ jobs:
           echo ""
           echo "Available Confluence tools:"
           dmtools list confluence
+          
+          echo ""
+          echo "=== New CLI 'run' Command Examples ==="
+          
+          # Example 1: Run job with JSON file only
+          echo "Example 1: Running job with JSON config file only:"
+          echo "Command: dmtools run agents/test-job-config.json"
+          java -cp "$HOME/.dmtools/dmtools.jar" com.github.istin.dmtools.job.JobRunner run agents/test-job-config.json
+          
+          echo ""
+          echo "Example 2: Running job with JSON file + URL-encoded parameter override:"
+          
+          # Create URL-encoded JSON override parameter
+          # This will override the question and add a new parameter
+          OVERRIDE_JSON='{"params":{"question":"How does the new CLI run command improve DMTools usability?","context":"GitHub Actions demo"},"metadata":{"demo":true}}'
+          ENCODED_OVERRIDE=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$OVERRIDE_JSON'''))")
+          
+          echo "Original config file: agents/test-job-config.json"
+          echo "URL-encoded override: $ENCODED_OVERRIDE"
+          echo "Command: dmtools run agents/test-job-config.json \$ENCODED_OVERRIDE"
+          
+          java -cp "$HOME/.dmtools/dmtools.jar" com.github.istin.dmtools.job.JobRunner run agents/test-job-config.json "$ENCODED_OVERRIDE"
+          
+          echo ""
+          echo "Example 3: Using Base64-encoded parameter (auto-detection):"
+          
+          # Create Base64-encoded override
+          BASE64_OVERRIDE=$(echo '$OVERRIDE_JSON' | base64 -w 0)
+          echo "Base64-encoded override: $BASE64_OVERRIDE"
+          echo "Command: dmtools run agents/test-job-config.json \$BASE64_OVERRIDE"
+          
+          java -cp "$HOME/.dmtools/dmtools.jar" com.github.istin.dmtools.job.JobRunner run agents/test-job-config.json "$BASE64_OVERRIDE"
