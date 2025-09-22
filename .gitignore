@@ -105,3 +105,4 @@ dmtools-core/temp
 dmtools-core/cacheTestableJiraClient
 .gradle-tmp
 .gradle-isolated
+dmtools-core/input

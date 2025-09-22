@@ -41,7 +41,7 @@ public class TrackerParams {
     private String postJSAction;
 
     public enum OutputType {
-        comment, field, creation
+        comment, field, creation, none
     }
 
     public enum OperationType {

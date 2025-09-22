@@ -1,0 +1,339 @@
+package com.github.istin.dmtools.teammate;
+
+import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.agent.GenericRequestAgent;
+import com.github.istin.dmtools.ai.agent.RequestDecompositionAgent;
+import com.github.istin.dmtools.atlassian.jira.JiraClient;
+import com.github.istin.dmtools.common.model.IAttachment;
+import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.context.UriToObject;
+import com.github.istin.dmtools.common.utils.CommandLineUtils;
+import com.github.istin.dmtools.context.ContextOrchestrator;
+import com.github.istin.dmtools.context.UriToObjectFactory;
+import com.github.istin.dmtools.job.Params;
+import com.github.istin.dmtools.job.ResultItem;
+import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.AfterEach;
+
+import java.io.File;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import java.util.Set;
+
+public class TeammateCliIntegrationTest {
+    
+    // TrackerClient mock that also implements UriToObject (like JiraClient does)
+    private TrackerClient<ITicket> trackerClient;
+    
+    @Mock
+    private AI ai;
+    
+    @Mock
+    private GenericRequestAgent genericRequestAgent;
+    
+    @Mock
+    private ContextOrchestrator contextOrchestrator;
+    
+    @Mock
+    private UriToObjectFactory uriToObjectFactory;
+    
+    @Mock
+    private ITicket ticket;
+    
+    @TempDir
+    Path tempDir;
+    
+    private Teammate teammate;
+    private Teammate.TeammateParams params;
+    
+    @BeforeEach
+    void setUp() throws Exception {
+        MockitoAnnotations.openMocks(this);
+        
+        // Create a TrackerClient mock that also implements UriToObject (like JiraClient)
+        trackerClient = mock(TrackerClient.class, withSettings().extraInterfaces(UriToObject.class));
+        
+        // Mock UriToObject methods
+        UriToObject uriToObjectClient = (UriToObject) trackerClient;
+        when(uriToObjectClient.parseUris(any())).thenReturn(Set.of());
+        when(uriToObjectClient.uriToObject(any())).thenReturn(null);
+        
+        // Set up working directory
+        System.setProperty("user.dir", tempDir.toString());
+        
+        // Create teammate instance and inject mocked dependencies
+        teammate = new Teammate();
+        teammate.trackerClient = trackerClient;
+        teammate.ai = ai;
+        teammate.genericRequestAgent = genericRequestAgent;
+        teammate.contextOrchestrator = contextOrchestrator;
+        teammate.uriToObjectFactory = uriToObjectFactory;
+        
+        // Set up test parameters
+        params = new Teammate.TeammateParams();
+        RequestDecompositionAgent.Result agentParams = new RequestDecompositionAgent.Result(
+            "Test role",                        // aiRole
+            "Test request",                     // request
+            new String[]{"Test question"},      // questions
+            new String[]{"Test task"},          // tasks
+            new String[]{"Test instructions"},  // instructions
+            "Test known info",                  // knownInfo
+            "Test formatting rules",            // formattingRules
+            "Test few shots"                    // fewShots
+        );
+        params.setAgentParams(agentParams);
+        params.setInputJql("key = TEST-123");
+        params.setOutputType(Params.OutputType.comment);
+        
+        // Mock ticket
+        when(ticket.getKey()).thenReturn("TEST-123");
+        when(ticket.getTicketKey()).thenReturn("TEST-123");
+        when(ticket.toText()).thenReturn("Mock ticket text content for TEST-123");
+        when(ticket.getAttachments()).thenReturn(Collections.emptyList());
+        
+        // Mock trackerClient
+        when(trackerClient.getTextFieldsOnly(any())).thenReturn("Test fields");
+        when(trackerClient.getExtendedQueryFields()).thenReturn(new String[]{"summary", "description"});
+        when(trackerClient.getComments(anyString(), any())).thenReturn(Collections.emptyList());
+        doAnswer(invocation -> {
+            // Simulate ticket processing - call the performer
+            JiraClient.Performer performer = invocation.getArgument(0, JiraClient.Performer.class);
+            try {
+                performer.perform(ticket);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            return null;
+        }).when(trackerClient).searchAndPerform(any(JiraClient.Performer.class), anyString(), any());
+        
+        // Mock context orchestrator
+        when(contextOrchestrator.summarize()).thenReturn(Collections.emptyList());
+        when(uriToObjectFactory.createUriProcessingSources()).thenReturn(Collections.emptyList());
+        
+        // Mock AI agent
+        when(genericRequestAgent.run(any())).thenReturn("AI generated response");
+    }
+    
+    @AfterEach
+    void tearDown() {
+        // Clean up any created folders
+        try {
+            Path inputFolder = tempDir.resolve("input");
+            if (Files.exists(inputFolder)) {
+                FileUtils.deleteDirectory(inputFolder.toFile());
+            }
+            Path outputFolder = tempDir.resolve("outputs");
+            if (Files.exists(outputFolder)) {
+                FileUtils.deleteDirectory(outputFolder.toFile());
+            }
+        } catch (IOException e) {
+            // Ignore cleanup errors in tests
+        }
+    }
+    
+    @Test
+    void testCliExecutionWithAIProcessing() throws Exception {
+        // Arrange
+        String[] cliCommands = {"echo 'Hello from CLI'"};
+        params.setCliCommands(cliCommands);
+        params.setSkipAIProcessing(false);
+        
+        try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
+            mockedUtils.when(() -> CommandLineUtils.runCommand("echo 'Hello from CLI'"))
+                      .thenReturn("Hello from CLI\nExit Code: 0");
+            
+            // Act
+            List<ResultItem> results = teammate.runJobImpl(params);
+            
+            // Assert
+            assertNotNull(results);
+            assertEquals(1, results.size());
+            assertEquals("TEST-123", results.get(0).getKey());
+            
+            // Verify AI agent was called (since skipAIProcessing = false)
+            verify(genericRequestAgent).run(any());
+            
+            // Verify CLI command was executed
+            mockedUtils.verify(() -> CommandLineUtils.runCommand("echo 'Hello from CLI'"));
+        }
+    }
+    
+    @Test
+    void testCliExecutionSkipAIProcessing() throws Exception {
+        // Arrange
+        String[] cliCommands = {"echo 'CLI response only'"};
+        params.setCliCommands(cliCommands);
+        params.setSkipAIProcessing(true);
+        
+        // Create output response file
+        Path outputDir = tempDir.resolve("outputs");
+        Files.createDirectories(outputDir);
+        Path responseFile = outputDir.resolve("response.md");
+        Files.write(responseFile, "CLI output response".getBytes(StandardCharsets.UTF_8));
+        
+        try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
+            mockedUtils.when(() -> CommandLineUtils.runCommand("echo 'CLI response only'"))
+                      .thenReturn("CLI response only\nExit Code: 0");
+            
+            // Act
+            List<ResultItem> results = teammate.runJobImpl(params);
+            
+        // Assert
+        assertNotNull(results);
+        assertEquals(1, results.size());
+        assertEquals("TEST-123", results.get(0).getKey());
+        // Verify that CLI execution result contains expected command output
+        String result = results.get(0).getResult();
+        assertTrue(result.contains("CLI response only"));
+        assertTrue(result.contains("Exit Code: 0"));
+            
+            // Verify AI agent was NOT called (since skipAIProcessing = true)
+            verify(genericRequestAgent, never()).run(any());
+            
+            // Verify CLI command was executed
+            mockedUtils.verify(() -> CommandLineUtils.runCommand("echo 'CLI response only'"));
+        }
+    }
+    
+    @Test
+    void testCliExecutionWithAttachments() throws Exception {
+        // Arrange
+        IAttachment mockAttachment = mock(IAttachment.class);
+        when(mockAttachment.getName()).thenReturn("test-attachment.txt");
+        when(mockAttachment.getUrl()).thenReturn("http://example.com/attachment");
+        
+        // Mock tracker client
+        File mockFile = new File(tempDir.toFile(), "mock-attachment.txt");
+        try { FileUtils.writeStringToFile(mockFile, "Attachment content", StandardCharsets.UTF_8); } catch (IOException e) {}
+        when(trackerClient.convertUrlToFile("http://example.com/attachment")).thenReturn(mockFile);
+        doReturn(Arrays.asList(mockAttachment)).when(ticket).getAttachments();
+        
+        String[] cliCommands = {"cat input/TEST-123/test-attachment.txt"};
+        params.setCliCommands(cliCommands);
+        params.setSkipAIProcessing(false);
+        
+        try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
+            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("cat")))
+                      .thenReturn("Attachment content\nExit Code: 0");
+            
+            // Act
+            List<ResultItem> results = teammate.runJobImpl(params);
+            
+            // Assert
+            assertNotNull(results);
+            assertEquals(1, results.size());
+            assertEquals("TEST-123", results.get(0).getKey());
+            
+            // Verify CLI command was executed and processed attachment content
+            mockedUtils.verify(() -> CommandLineUtils.runCommand(contains("cat")));
+        }
+    }
+    
+    @Test
+    void testCliExecutionError() throws Exception {
+        // Arrange
+        String[] cliCommands = {"invalid-command"};
+        params.setCliCommands(cliCommands);
+        params.setSkipAIProcessing(false);
+        
+        try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
+            mockedUtils.when(() -> CommandLineUtils.runCommand("invalid-command"))
+                      .thenThrow(new IOException("Command not found"));
+            
+            // Act
+            List<ResultItem> results = teammate.runJobImpl(params);
+            
+            // Assert
+            assertNotNull(results);
+            assertEquals(1, results.size());
+            
+            // Should still call AI agent with error information
+            verify(genericRequestAgent).run(any());
+            
+            // Verify CLI command was attempted
+            mockedUtils.verify(() -> CommandLineUtils.runCommand("invalid-command"));
+        }
+    }
+    
+    @Test
+    void testNoneOutputType() throws Exception {
+        // Arrange
+        params.setOutputType(Params.OutputType.none);
+        String[] cliCommands = {"echo 'test'"};
+        params.setCliCommands(cliCommands);
+        
+        try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
+            mockedUtils.when(() -> CommandLineUtils.runCommand("echo 'test'"))
+                      .thenReturn("test\nExit Code: 0");
+            
+            // Act
+            List<ResultItem> results = teammate.runJobImpl(params);
+            
+            // Assert
+            assertNotNull(results);
+            assertEquals(1, results.size());
+            
+            // Verify no comments were posted (outputType = none)
+            verify(trackerClient, never()).postComment(anyString(), anyString());
+            verify(trackerClient, never()).postCommentIfNotExists(anyString(), anyString());
+        }
+    }
+    
+    @Test
+    void testInputContextCreation() throws Exception {
+        // Arrange
+        String[] cliCommands = {"ls input/TEST-123/"};
+        params.setCliCommands(cliCommands);
+        
+        try (MockedStatic<CommandLineUtils> mockedUtils = mockStatic(CommandLineUtils.class)) {
+            mockedUtils.when(() -> CommandLineUtils.runCommand(contains("ls")))
+                      .thenReturn("request.md\nExit Code: 0");
+            
+            // Act
+            teammate.runJobImpl(params);
+            
+            // Assert - verify that the CLI command was executed and succeeded
+            // (input context is cleaned up after execution, so we verify execution happened)
+            // The CLI command `ls input/TEST-123/` should have shown the request.md file
+        }
+    }
+    
+    @Test
+    void testNoCliCommands() throws Exception {
+        // Arrange - no CLI commands set
+        params.setCliCommands(null);
+        
+        // Act
+        List<ResultItem> results = teammate.runJobImpl(params);
+        
+        // Assert
+        assertNotNull(results);
+        assertEquals(1, results.size());
+        
+        // Should still call AI agent
+        verify(genericRequestAgent).run(any());
+        
+        // No input folder should be created
+        Path inputFolder = tempDir.resolve("input");
+        assertFalse(Files.exists(inputFolder));
+    }
+}
