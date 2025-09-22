@@ -1,0 +1,3 @@
+check the story  and following the @https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665485/Template+Story template prepare nice looking description based on my input. Following the template @https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665581/Template+Q  create question tickets with parent DMC-494 as issueType 'subtask' (important).
+
+you can get jira markdown format from the url @https://dmtools.atlassian.net/wiki/spaces/AINA/pages/18186241/Template+Jira+Markdown 
