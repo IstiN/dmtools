@@ -1,0 +1,12 @@
+{
+  "name": "expert",
+  "params": {
+    "question": "What is the purpose of the new CLI run command?",
+    "outputFormat": "markdown",
+    "maxTokens": 100
+  },
+  "metadata": {
+    "version": "1.0",
+    "timeout": 30
+  }
+}
