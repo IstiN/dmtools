@@ -39,9 +39,6 @@ public class CliExecutionHelperTest {
         mockTicket = mock(ITicket.class);
         mockAttachment = mock(IAttachment.class);
         mockTrackerClient = mock(TrackerClient.class);
-        
-        // Set system property to use temp directory for tests
-        System.setProperty("user.dir", tempDir.toString());
     }
     
     @AfterEach
@@ -229,21 +226,24 @@ public class CliExecutionHelperTest {
     
     @Test
     void testProcessOutputResponse_FileExists() throws IOException {
-        // This test verifies that processOutputResponse() returns null when no file exists
-        // Testing the actual file reading is complex due to working directory dependencies
-        // and is better covered by integration tests
+        // Arrange
+        Path outputDir = tempDir.resolve("outputs");
+        Files.createDirectories(outputDir);
+        Path responseFile = outputDir.resolve("response.md");
+        String expectedContent = "CLI response content";
+        Files.write(responseFile, expectedContent.getBytes(StandardCharsets.UTF_8));
         
         // Act
-        String result = cliHelper.processOutputResponse();
+        String result = cliHelper.processOutputResponse(tempDir);
         
-        // Assert - should return null since no outputs/response.md exists
-        assertNull(result);
+        // Assert
+        assertEquals(expectedContent, result);
     }
     
     @Test
     void testProcessOutputResponse_FileNotExists() {
-        // Act
-        String result = cliHelper.processOutputResponse();
+        // Act - test with a directory that doesn't have outputs/response.md
+        String result = cliHelper.processOutputResponse(tempDir);
         
         // Assert
         assertNull(result);
@@ -258,7 +258,7 @@ public class CliExecutionHelperTest {
         Files.write(responseFile, "".getBytes(StandardCharsets.UTF_8));
         
         // Act
-        String result = cliHelper.processOutputResponse();
+        String result = cliHelper.processOutputResponse(tempDir);
         
         // Assert
         assertNull(result);
@@ -366,5 +366,30 @@ public class CliExecutionHelperTest {
             assertTrue(result.hasOutputResponse());
             assertEquals(outputContent, result.getOutputResponse());
         }
+    }
+    
+    @Test
+    void testProcessOutputResponse_NoConcurrencyIssues() throws IOException {
+        // This test verifies that processOutputResponse doesn't rely on global working directory
+        // and can work correctly even when the JVM working directory is different
+        
+        // Arrange
+        Path workingDir = Files.createTempDirectory(tempDir, "working");
+        Path outputDir = workingDir.resolve("outputs");
+        Files.createDirectories(outputDir);
+        Path responseFile = outputDir.resolve("response.md");
+        String expectedContent = "Thread-safe CLI response";
+        Files.write(responseFile, expectedContent.getBytes(StandardCharsets.UTF_8));
+        
+        // Act - call with specific working directory (thread-safe approach)
+        String result = cliHelper.processOutputResponse(workingDir);
+        
+        // Assert
+        assertEquals(expectedContent, result);
+        
+        // Verify that the parameterless version doesn't find the file
+        // (since it looks in the current JVM working directory, not our test directory)
+        String resultWithoutParam = cliHelper.processOutputResponse();
+        assertNull(resultWithoutParam);
     }
 }

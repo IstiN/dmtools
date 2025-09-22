@@ -76,9 +76,6 @@ public class TeammateCliIntegrationTest {
         when(uriToObjectClient.parseUris(any())).thenReturn(Set.of());
         when(uriToObjectClient.uriToObject(any())).thenReturn(null);
         
-        // Set up working directory
-        System.setProperty("user.dir", tempDir.toString());
-        
         // Create teammate instance and inject mocked dependencies
         teammate = new Teammate();
         teammate.trackerClient = trackerClient;
