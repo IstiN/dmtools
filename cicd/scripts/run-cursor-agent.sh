@@ -34,19 +34,23 @@ fi
 PASS_ARGS=("${@:1:$#-1}")
 
 LOG_FILE=$(mktemp)
+PIPE_PATH=$(mktemp -u)
+mkfifo "$PIPE_PATH"
+
 cleanup() {
-  rm -f "$LOG_FILE" || true
+  rm -f "$LOG_FILE" "$PIPE_PATH" || true
 }
 trap cleanup EXIT
 
 CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=json "$PROMPT")
 
 echo "Running: ${CMD[*]}"
-"${CMD[@]}" >"$LOG_FILE" 2>&1 &
-AGENT_PID=$!
 
-tail -n +1 -f "$LOG_FILE" &
-TAIL_PID=$!
+tee "$LOG_FILE" <"$PIPE_PATH" &
+TEE_PID=$!
+
+"${CMD[@]}" >"$PIPE_PATH" 2>&1 &
+AGENT_PID=$!
 
 exit_code=1
 
@@ -57,8 +61,6 @@ while kill -0 "$AGENT_PID" 2>/dev/null; do
     echo "$RESULT_LINE"
     kill -TERM "$AGENT_PID" 2>/dev/null || true
     wait "$AGENT_PID" 2>/dev/null || true
-    kill -TERM "$TAIL_PID" 2>/dev/null || true
-    wait "$TAIL_PID" 2>/dev/null || true
     exit_code=0
     break
   fi
@@ -66,11 +68,15 @@ while kill -0 "$AGENT_PID" 2>/dev/null; do
 done
 
 if kill -0 "$AGENT_PID" 2>/dev/null; then
-  wait "$AGENT_PID" || true
+  wait "$AGENT_PID"
+  exit_code=$?
 fi
 
-kill -TERM "$TAIL_PID" 2>/dev/null || true
-wait "$TAIL_PID" 2>/dev/null || true
+wait "$TEE_PID" 2>/dev/null || true
+
+echo ""
+echo "=== Cursor Agent log ==="
+cat "$LOG_FILE"
 
 exit $exit_code
 
