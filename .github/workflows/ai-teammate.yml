@@ -32,12 +32,17 @@ jobs:
       run: |
         # Install basic Unix utilities that might be missing
         sudo apt-get update -q
-        sudo apt-get install -y coreutils util-linux findutils
+        sudo apt-get install -y coreutils util-linux findutils sed bash
         
         # Verify installation
         which head || echo "head still missing"
         which dirname || echo "dirname still missing"
         which cut || echo "cut still missing"
+        which sed || echo "sed still missing"
+        which bash || echo "bash still missing"
+        
+        # Ensure bash is available in standard locations
+        sudo ln -sf /bin/bash /usr/bin/bash 2>/dev/null || echo "bash symlink already exists"
 
     - name: Install Cursor CLI
       run: |
@@ -63,21 +68,41 @@ jobs:
           ls -la "$HOME/.local/bin/" 2>/dev/null || echo "Directory does not exist"
         fi
 
-    - name: Install DMTools CLI
+    - name: Build and Install DMTools CLI from source
       run: |
-        curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+        echo "Building DMTools from current source..."
+        
+        # Build the project
+        ./gradlew :dmtools-core:shadowJar
+        
+        # Create dmtools directory
+        mkdir -p "$HOME/.dmtools/bin"
+        
+        # Copy the built JAR
+        cp dmtools-core/build/libs/dmtools-*.jar "$HOME/.dmtools/dmtools.jar"
+        
+        # Create dmtools wrapper script
+        echo '#!/bin/bash' > "$HOME/.dmtools/bin/dmtools"
+        echo 'SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"' >> "$HOME/.dmtools/bin/dmtools"
+        echo 'DMTOOLS_JAR="$SCRIPT_DIR/../dmtools.jar"' >> "$HOME/.dmtools/bin/dmtools"
+        echo 'exec java -jar "$DMTOOLS_JAR" "$@"' >> "$HOME/.dmtools/bin/dmtools"
+        chmod +x "$HOME/.dmtools/bin/dmtools"
+        
+        # Add to PATH
         echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
-        # Also export for immediate use
         export PATH="$HOME/.dmtools/bin:$PATH"
-        echo "DMTools CLI installed, checking..."
-        command -v dmtools || echo "dmtools not found after install"
+        
+        echo "DMTools built and installed from source, checking..."
+        command -v dmtools || echo "dmtools not found after build"
+        dmtools || echo "dmtools version failed"
+        cursor-agent --version || echo "dmtools version failed"
 
     - name: Run AI Teammate
       env:
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         MODEL: sonnet-4
         AGENT_DISABLE_WATCHDOG: "1"
-        PATH: "/home/runner/.local/bin:/home/runner/.dmtools/bin:$PATH"
+        PATH: "/home/runner/.local/bin:/home/runner/.dmtools/bin:/bin:/usr/bin:$PATH"
         # Jira Configuration
         JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
@@ -113,6 +138,9 @@ jobs:
         command -v dmtools && echo "✅ dmtools found" || echo "❌ dmtools not found"
         command -v head && echo "✅ head found" || echo "❌ head not found"
         command -v dirname && echo "✅ dirname found" || echo "❌ dirname not found"
+        
+        cursor-agent --version
+        dmtools
         
         # Test basic commands without using head (in case it's missing)
         if command -v cursor-agent; then
