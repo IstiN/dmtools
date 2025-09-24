@@ -28,14 +28,35 @@ jobs:
       with:
         cache-key-suffix: '-cursor'
 
+    - name: Install basic utilities
+      run: |
+        # Install basic Unix utilities that might be missing
+        sudo apt-get update -q
+        sudo apt-get install -y coreutils findutils
+
     - name: Install Cursor CLI
       run: |
+        echo "Installing Cursor CLI..."
         curl https://cursor.com/install -fsS | bash
-        echo "$HOME/.cursor/bin" >> $GITHUB_PATH
-        # Also export for immediate use
-        export PATH="$HOME/.cursor/bin:$PATH"
-        echo "Cursor CLI installed, checking..."
-        command -v cursor-agent || echo "cursor-agent not found after install"
+        
+        echo "Checking installation locations..."
+        ls -la "$HOME/.cursor/" || echo "No .cursor directory"
+        ls -la "$HOME/.cursor/bin/" || echo "No .cursor/bin directory"
+        ls -la "$HOME/.local/bin/" || echo "No .local/bin directory"
+        
+        # Cursor CLI installs to ~/.local/bin, not ~/.cursor/bin
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        
+        # Test installation
+        export PATH="$HOME/.local/bin:$PATH"
+        if command -v cursor-agent; then
+          echo "✅ cursor-agent found at: $(command -v cursor-agent)"
+          cursor-agent --version 2>&1 | head -3 || echo "Version check failed"
+        else
+          echo "❌ cursor-agent not found after installation"
+          echo "Available files in .local/bin:"
+          ls -la "$HOME/.local/bin/" 2>/dev/null || echo "Directory does not exist"
+        fi
 
     - name: Install DMTools CLI
       run: |
@@ -51,7 +72,7 @@ jobs:
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         MODEL: sonnet-4
         AGENT_DISABLE_WATCHDOG: "1"
-        PATH: "/home/runner/.cursor/bin:/home/runner/.dmtools/bin:$PATH"
+        PATH: "/home/runner/.local/bin:/home/runner/.dmtools/bin:$PATH"
         # Jira Configuration
         JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
@@ -76,13 +97,56 @@ jobs:
         FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
 
       run: |
-        # Debug: verify cursor-agent installation
+        # Debug: verify environment and tools
+        echo "=== Environment Debug ==="
         echo "PATH: $PATH"
-        command -v cursor-agent || echo "cursor-agent not found"
-        command -v dmtools || echo "dmtools not found"
+        echo "HOME: $HOME"
+        echo "USER: $USER"
         
-        # Test cursor-agent help
-        cursor-agent --help | head -10 || echo "cursor-agent help failed"
+        echo "=== Tool Verification ==="
+        command -v cursor-agent && echo "✅ cursor-agent found" || echo "❌ cursor-agent not found"
+        command -v dmtools && echo "✅ dmtools found" || echo "❌ dmtools not found"
+        command -v head && echo "✅ head found" || echo "❌ head not found"
+        command -v dirname && echo "✅ dirname found" || echo "❌ dirname not found"
         
-        # Run dmtools command
-        dmtools run ${{ inputs.config_file }} ${{ inputs.encoded_config }}
+        # Test basic commands
+        if command -v cursor-agent; then
+          echo "=== Testing cursor-agent ==="
+          cursor-agent --help 2>&1 | head -10 || echo "cursor-agent help failed"
+        fi
+        
+        if command -v dmtools; then
+          echo "=== Testing dmtools ==="
+          dmtools --help 2>&1 | head -5 || echo "dmtools help failed"
+        fi
+        
+        echo "=== Running dmtools command ==="
+        
+        # Check if cursor-agent is available before running
+        if ! command -v cursor-agent >/dev/null 2>&1; then
+          echo "⚠️  cursor-agent not available. Creating fallback..."
+          
+          # Create a simple fallback cursor-agent that outputs an error message
+          mkdir -p "$HOME/.local/bin"
+          cat > "$HOME/.local/bin/cursor-agent" << 'FALLBACK_SCRIPT'
+          #!/bin/bash
+          echo "ERROR: Cursor CLI is not available on this Linux platform"
+          echo "The dmtools agent configuration requires cursor-agent, but it's not installed"
+          echo "Please use an alternative configuration or run on a supported platform"
+          exit 1
+          FALLBACK_SCRIPT
+          chmod +x "$HOME/.local/bin/cursor-agent"
+          echo "Fallback cursor-agent created"
+        fi
+        
+        # Determine which config to use
+        CONFIG_FILE="${{ inputs.config_file }}"
+        
+        # If cursor-agent is not available and using the default cursor config, switch to Gemini
+        if ! command -v cursor-agent >/dev/null 2>&1 && [[ "$CONFIG_FILE" == "agents/story_description.json" ]]; then
+          echo "🔄 Switching to Gemini-based configuration since cursor-agent is not available"
+          CONFIG_FILE="agents/story_description_gemini.json"
+        fi
+        
+        echo "Using configuration: $CONFIG_FILE"
+        dmtools run "$CONFIG_FILE" ${{ inputs.encoded_config }}
