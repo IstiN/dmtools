@@ -93,5 +93,4 @@ jobs:
 
       run: |
         echo "Using configuration: $CONFIG_FILE"
-        cursor-agent --force --print --output-format=text --model sonnet-4 "Simple say Hello for test"
         dmtools run "$CONFIG_FILE" ${{ inputs.encoded_config }}
