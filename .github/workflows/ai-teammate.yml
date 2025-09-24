@@ -109,5 +109,5 @@ jobs:
 
       run: |
         echo "Using configuration: $CONFIG_FILE"
-        cursor-agent status
+        cursor-agent status --api-key ${{ secrets.CURSOR_API_KEY }}
         dmtools run "$CONFIG_FILE" ${{ inputs.encoded_config }}
