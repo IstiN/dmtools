@@ -32,18 +32,26 @@ jobs:
       run: |
         curl https://cursor.com/install -fsS | bash
         echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+        # Also export for immediate use
+        export PATH="$HOME/.cursor/bin:$PATH"
+        echo "Cursor CLI installed, checking..."
+        command -v cursor-agent || echo "cursor-agent not found after install"
 
     - name: Install DMTools CLI
       run: |
         curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
         echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+        # Also export for immediate use
+        export PATH="$HOME/.dmtools/bin:$PATH"
+        echo "DMTools CLI installed, checking..."
+        command -v dmtools || echo "dmtools not found after install"
 
     - name: Run AI Teammate
       env:
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         MODEL: sonnet-4
         AGENT_DISABLE_WATCHDOG: "1"
-        PATH: "$HOME/.cursor/bin:$HOME/.dmtools/bin:$PATH"
+        PATH: "/home/runner/.cursor/bin:/home/runner/.dmtools/bin:$PATH"
         # Jira Configuration
         JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
@@ -69,8 +77,12 @@ jobs:
 
       run: |
         # Debug: verify cursor-agent installation
-        which cursor-agent
-        cursor-agent --help | head -10
+        echo "PATH: $PATH"
+        command -v cursor-agent || echo "cursor-agent not found"
+        command -v dmtools || echo "dmtools not found"
+        
+        # Test cursor-agent help
+        cursor-agent --help | head -10 || echo "cursor-agent help failed"
         
         # Run dmtools command
         dmtools run ${{ inputs.config_file }} ${{ inputs.encoded_config }}
