@@ -28,22 +28,6 @@ jobs:
       with:
         cache-key-suffix: '-cursor'
 
-    - name: Install basic utilities
-      run: |
-        # Install basic Unix utilities that might be missing
-        sudo apt-get update -q
-        sudo apt-get install -y coreutils util-linux findutils sed bash
-        
-        # Verify installation
-        which head || echo "head still missing"
-        which dirname || echo "dirname still missing"
-        which cut || echo "cut still missing"
-        which sed || echo "sed still missing"
-        which bash || echo "bash still missing"
-        
-        # Ensure bash is available in standard locations
-        sudo ln -sf /bin/bash /usr/bin/bash 2>/dev/null || echo "bash symlink already exists"
-
     - name: Install Cursor CLI
       run: |
         echo "Installing Cursor CLI..."
@@ -109,5 +93,5 @@ jobs:
 
       run: |
         echo "Using configuration: $CONFIG_FILE"
-        cursor-agent status --api-key ${{ secrets.CURSOR_API_KEY }}
+        cursor-agent -p "Simple say Hello for test" --model gpt-5
         dmtools run "$CONFIG_FILE" ${{ inputs.encoded_config }}
