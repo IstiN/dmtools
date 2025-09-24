@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-show_usage() {
+usage() {
   cat <<EOF
 Usage: $(basename "$0") [cursor-agent options] "prompt"
 
@@ -10,29 +10,27 @@ Example:
 
 Notes:
   - The script always appends --output-format=json to the cursor-agent command.
-  - Provide the prompt as the final argument. All preceding arguments are passed through.
+  - Provide the prompt as the final argument; everything before it is passed through.
 EOF
 }
 
 if [ $# -lt 1 ]; then
-  show_usage
+  usage
   exit 1
 fi
 
-# Ensure cursor-agent exists
 if ! command -v cursor-agent >/dev/null 2>&1; then
   echo "Error: cursor-agent not found in PATH" >&2
-  exit 1
+  exit 127
 fi
 
 PROMPT=${!#}
 if [ -z "$PROMPT" ]; then
-  echo "Error: Prompt argument is required" >&2
-  show_usage
+  echo "Error: prompt argument is required" >&2
+  usage
   exit 1
 fi
 
-# Collect pass-through arguments except prompt
 PASS_ARGS=("${@:1:$#-1}")
 
 LOG_FILE=$(mktemp)
@@ -46,6 +44,7 @@ CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=json "$PROMPT")
 echo "Running: ${CMD[*]}"
 "${CMD[@]}" >"$LOG_FILE" 2>&1 &
 AGENT_PID=$!
+
 tail -n +1 -f "$LOG_FILE" &
 TAIL_PID=$!
 
