@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(*)",
+      "Shell(**)",
+      "Read(**)",
+      "Write(**)",
+      "Read(*)",
+      "Write(*)"
+    ],
+    "deny": []
+  }
+}
