@@ -74,7 +74,8 @@ public class CommandLineUtils {
             processBuilder = new ProcessBuilder("cmd.exe", "/c", command);
         } else if (os.contains("mac")) {
             // macOS - use script command for TTY support
-            String scriptCommand = String.format("script -q %s %s", tempOutput.getAbsolutePath(), command);
+            String sanitizedCommand = escapeDoubleQuotes(command);
+            String scriptCommand = String.format("script -q %s /bin/sh -c \"%s\"", tempOutput.getAbsolutePath(), sanitizedCommand);
             processBuilder = new ProcessBuilder("/bin/sh", "-c", scriptCommand);
         } else {
             // Linux - check if script command supports -c flag, otherwise use direct execution
@@ -84,7 +85,8 @@ public class CommandLineUtils {
                 testProcess.waitFor();
                 
                 // Use script command if available
-                String scriptCommand = String.format("script -q -c \"%s\" %s", command, tempOutput.getAbsolutePath());
+                String sanitizedCommand = escapeDoubleQuotes(command);
+                String scriptCommand = String.format("script -q -c \"%s\" %s", sanitizedCommand, tempOutput.getAbsolutePath());
                 processBuilder = new ProcessBuilder("/bin/sh", "-c", scriptCommand);
             } catch (Exception e) {
                 // Fallback to direct execution without script command
@@ -143,6 +145,13 @@ public class CommandLineUtils {
 
         // For Windows or if temp file reading fails, return direct output
         return directOutput.toString().trim();
+    }
+
+    private static String escapeDoubleQuotes(String command) {
+        if (command == null || command.indexOf('"') == -1) {
+            return command;
+        }
+        return command.replace("\"", "\\\"");
     }
 
     /**
