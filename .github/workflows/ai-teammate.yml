@@ -32,7 +32,12 @@ jobs:
       run: |
         # Install basic Unix utilities that might be missing
         sudo apt-get update -q
-        sudo apt-get install -y coreutils findutils
+        sudo apt-get install -y coreutils util-linux findutils
+        
+        # Verify installation
+        which head || echo "head still missing"
+        which dirname || echo "dirname still missing"
+        which cut || echo "cut still missing"
 
     - name: Install Cursor CLI
       run: |
@@ -51,7 +56,7 @@ jobs:
         export PATH="$HOME/.local/bin:$PATH"
         if command -v cursor-agent; then
           echo "✅ cursor-agent found at: $(command -v cursor-agent)"
-          cursor-agent --version 2>&1 | head -3 || echo "Version check failed"
+          cursor-agent --version 2>&1 || echo "Version check failed"
         else
           echo "❌ cursor-agent not found after installation"
           echo "Available files in .local/bin:"
@@ -109,15 +114,15 @@ jobs:
         command -v head && echo "✅ head found" || echo "❌ head not found"
         command -v dirname && echo "✅ dirname found" || echo "❌ dirname not found"
         
-        # Test basic commands
+        # Test basic commands without using head (in case it's missing)
         if command -v cursor-agent; then
           echo "=== Testing cursor-agent ==="
-          cursor-agent --help 2>&1 | head -10 || echo "cursor-agent help failed"
+          cursor-agent --help 2>&1 | sed 10q || echo "cursor-agent help failed"
         fi
         
         if command -v dmtools; then
           echo "=== Testing dmtools ==="
-          dmtools --help 2>&1 | head -5 || echo "dmtools help failed"
+          dmtools --help 2>&1 | sed 5q || echo "dmtools help failed"
         fi
         
         echo "=== Running dmtools command ==="
@@ -128,13 +133,11 @@ jobs:
           
           # Create a simple fallback cursor-agent that outputs an error message
           mkdir -p "$HOME/.local/bin"
-          cat > "$HOME/.local/bin/cursor-agent" << 'FALLBACK_SCRIPT'
-          #!/bin/bash
-          echo "ERROR: Cursor CLI is not available on this Linux platform"
-          echo "The dmtools agent configuration requires cursor-agent, but it's not installed"
-          echo "Please use an alternative configuration or run on a supported platform"
-          exit 1
-          FALLBACK_SCRIPT
+          echo '#!/bin/bash' > "$HOME/.local/bin/cursor-agent"
+          echo 'echo "ERROR: Cursor CLI is not available on this Linux platform"' >> "$HOME/.local/bin/cursor-agent"
+          echo 'echo "The dmtools agent configuration requires cursor-agent, but it is not installed"' >> "$HOME/.local/bin/cursor-agent"
+          echo 'echo "Please use an alternative configuration or run on a supported platform"' >> "$HOME/.local/bin/cursor-agent"
+          echo 'exit 1' >> "$HOME/.local/bin/cursor-agent"
           chmod +x "$HOME/.local/bin/cursor-agent"
           echo "Fallback cursor-agent created"
         fi
