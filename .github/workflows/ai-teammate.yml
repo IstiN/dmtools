@@ -68,32 +68,13 @@ jobs:
           ls -la "$HOME/.local/bin/" 2>/dev/null || echo "Directory does not exist"
         fi
 
+    - name: Install DMTools CLI
+      run: |
+        curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+        echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+
     - name: Build and Install DMTools CLI from source
       run: |
-        echo "Building DMTools from current source..."
-        
-        # Build the project
-        ./gradlew :dmtools-core:shadowJar
-        
-        # Create dmtools directory
-        mkdir -p "$HOME/.dmtools/bin"
-        
-        # Copy the built JAR
-        cp dmtools-core/build/libs/dmtools-*.jar "$HOME/.dmtools/dmtools.jar"
-        
-        # Create dmtools wrapper script
-        echo '#!/bin/bash' > "$HOME/.dmtools/bin/dmtools"
-        echo 'SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"' >> "$HOME/.dmtools/bin/dmtools"
-        echo 'DMTOOLS_JAR="$SCRIPT_DIR/../dmtools.jar"' >> "$HOME/.dmtools/bin/dmtools"
-        echo 'exec java -jar "$DMTOOLS_JAR" "$@"' >> "$HOME/.dmtools/bin/dmtools"
-        chmod +x "$HOME/.dmtools/bin/dmtools"
-        
-        # Add to PATH
-        echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
-        export PATH="$HOME/.dmtools/bin:$PATH"
-        
-        echo "DMTools built and installed from source, checking..."
-        command -v dmtools || echo "dmtools not found after build"
         dmtools || echo "dmtools version failed"
         cursor-agent --version || echo "dmtools version failed"
 
@@ -127,57 +108,6 @@ jobs:
         FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
 
       run: |
-        # Debug: verify environment and tools
-        echo "=== Environment Debug ==="
-        echo "PATH: $PATH"
-        echo "HOME: $HOME"
-        echo "USER: $USER"
-        
-        echo "=== Tool Verification ==="
-        command -v cursor-agent && echo "✅ cursor-agent found" || echo "❌ cursor-agent not found"
-        command -v dmtools && echo "✅ dmtools found" || echo "❌ dmtools not found"
-        command -v head && echo "✅ head found" || echo "❌ head not found"
-        command -v dirname && echo "✅ dirname found" || echo "❌ dirname not found"
-        
-        cursor-agent --version
-        dmtools
-        
-        # Test basic commands without using head (in case it's missing)
-        if command -v cursor-agent; then
-          echo "=== Testing cursor-agent ==="
-          cursor-agent --help 2>&1 | sed 10q || echo "cursor-agent help failed"
-        fi
-        
-        if command -v dmtools; then
-          echo "=== Testing dmtools ==="
-          dmtools --help 2>&1 | sed 5q || echo "dmtools help failed"
-        fi
-        
-        echo "=== Running dmtools command ==="
-        
-        # Check if cursor-agent is available before running
-        if ! command -v cursor-agent >/dev/null 2>&1; then
-          echo "⚠️  cursor-agent not available. Creating fallback..."
-          
-          # Create a simple fallback cursor-agent that outputs an error message
-          mkdir -p "$HOME/.local/bin"
-          echo '#!/bin/bash' > "$HOME/.local/bin/cursor-agent"
-          echo 'echo "ERROR: Cursor CLI is not available on this Linux platform"' >> "$HOME/.local/bin/cursor-agent"
-          echo 'echo "The dmtools agent configuration requires cursor-agent, but it is not installed"' >> "$HOME/.local/bin/cursor-agent"
-          echo 'echo "Please use an alternative configuration or run on a supported platform"' >> "$HOME/.local/bin/cursor-agent"
-          echo 'exit 1' >> "$HOME/.local/bin/cursor-agent"
-          chmod +x "$HOME/.local/bin/cursor-agent"
-          echo "Fallback cursor-agent created"
-        fi
-        
-        # Determine which config to use
-        CONFIG_FILE="${{ inputs.config_file }}"
-        
-        # If cursor-agent is not available and using the default cursor config, switch to Gemini
-        if ! command -v cursor-agent >/dev/null 2>&1 && [[ "$CONFIG_FILE" == "agents/story_description.json" ]]; then
-          echo "🔄 Switching to Gemini-based configuration since cursor-agent is not available"
-          CONFIG_FILE="agents/story_description_gemini.json"
-        fi
-        
         echo "Using configuration: $CONFIG_FILE"
+        cursor-agent status
         dmtools run "$CONFIG_FILE" ${{ inputs.encoded_config }}
