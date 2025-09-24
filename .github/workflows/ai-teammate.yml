@@ -41,9 +41,9 @@ jobs:
     - name: Run AI Teammate
       env:
         CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-        USER_REQUEST: ${{ inputs.user_request }}
         MODEL: sonnet-4
         AGENT_DISABLE_WATCHDOG: "1"
+        PATH: "$HOME/.cursor/bin:$HOME/.dmtools/bin:$PATH"
         # Jira Configuration
         JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
@@ -60,47 +60,17 @@ jobs:
         # DMTools Integration Settings
         DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai"
 
-        # Gemini Key
+        # AI Service Configuration
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        GEMINI_DEFAULT_MODEL: gemini-2.5-pro-latest
-        GEMINI_BASE_PATH: https://generativelanguage.googleapis.com/v1beta/models
-
-        #figma
+        
+        # Figma Configuration
         FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
         FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
 
-      run: dmtools run ${{ inputs.config_file }} ${{ inputs.encoded_config }}
-    
-    - name: Print Response to Summary
-      if: always()
       run: |
-        if [ -f outputs/response.md ]; then
-          echo "## 🤖 Cursor Agent Response" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat outputs/response.md >> $GITHUB_STEP_SUMMARY
-        else
-          echo "## ❌ No Response Generated" >> $GITHUB_STEP_SUMMARY
-          echo "The cursor agent did not generate a response file at outputs/response.md" >> $GITHUB_STEP_SUMMARY
-        fi
+        # Debug: verify cursor-agent installation
+        which cursor-agent
+        cursor-agent --help | head -10
         
-    - name: Upload Agent Response
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: cursor-agent-response
-        path: outputs/response.md
-        retention-days: 30
-        if-no-files-found: warn
-        
-    - name: Upload Additional Results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: cursor-agent-logs
-        path: |
-          **/*.log
-          **/*.txt
-          **/*.json
-          outputs/
-        retention-days: 7
-        if-no-files-found: ignore
+        # Run dmtools command
+        dmtools run ${{ inputs.config_file }} ${{ inputs.encoded_config }}
