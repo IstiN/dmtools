@@ -326,7 +326,8 @@ class JobJavaScriptBridgeTest {
         });
         
         assertTrue(exception.getMessage().contains("Resource not found") || 
-                  exception.getMessage().contains("Failed to load JS resource"));
+                  exception.getMessage().contains("Failed to load JS resource") ||
+                  exception.getMessage().contains("JavaScript file not found"));
     }
 
     @Test

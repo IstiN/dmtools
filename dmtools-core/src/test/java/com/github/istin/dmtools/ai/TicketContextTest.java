@@ -4,6 +4,7 @@ import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,11 +45,13 @@ public class TicketContextTest {
     @Mock
     private ITicket mockExtraTicket3;
     
-    @Mock
-    private IComment mockComment1;
+    interface ICommentWithToText extends IComment, ToText {}
     
     @Mock
-    private IComment mockComment2;
+    private ICommentWithToText mockComment1;
+    
+    @Mock
+    private ICommentWithToText mockComment2;
     
     private TicketContext ticketContext;
 
@@ -65,13 +68,17 @@ public class TicketContextTest {
         when(mockExtraTicket2.getKey()).thenReturn("DMC-404");
         when(mockExtraTicket3.getKey()).thenReturn("DMC-426");
         
-        // Setup mock comments
+        // Setup mock comments - they need to implement ToText interface too
         @SuppressWarnings({"unchecked", "rawtypes"})
         List mockComments = Arrays.asList(mockComment1, mockComment2);
         try {
             when(mockTrackerClient.getComments(eq("DMC-415"), eq(mockTicket))).thenReturn(mockComments);
             when(mockComment1.getBody()).thenReturn("First comment");
             when(mockComment2.getBody()).thenReturn("Second comment");
+            
+            // Mock ToText interface calls for comments
+            when(mockComment1.toText()).thenReturn("First comment");
+            when(mockComment2.toText()).thenReturn("Second comment");
         } catch (IOException e) {
             fail("Mock comments setup should not throw IOException: " + e.getMessage());
         }
@@ -404,8 +411,8 @@ public class TicketContextTest {
             assertTrue(textWithComments.length() > textWithoutComments.length(), 
                 "Text with comments (" + textWithComments.length() + ") should be longer than without (" + textWithoutComments.length() + ")");
             assertTrue(textWithComments.contains("previous_discussion"));
-            assertTrue(textWithComments.contains("mockComment1"));
-            assertTrue(textWithComments.contains("mockComment2"));
+            assertTrue(textWithComments.contains("First comment"));
+            assertTrue(textWithComments.contains("Second comment"));
         }
     }
 
