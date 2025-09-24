@@ -92,5 +92,5 @@ jobs:
         FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
 
       run: |
-        echo "Using configuration: $CONFIG_FILE"
-        dmtools run "$CONFIG_FILE" ${{ inputs.encoded_config }}
+        echo "Using configuration: ${{ inputs.config_file }}"
+        dmtools run "${{ inputs.config_file }}" ${{ inputs.encoded_config }}
