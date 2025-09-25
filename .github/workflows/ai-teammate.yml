@@ -90,7 +90,15 @@ jobs:
         # Figma Configuration
         FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
         FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
+        ENCODED_CONFIG: ${{ inputs.encoded_config }}
 
       run: |
         echo "Using configuration: ${{ inputs.config_file }}"
-        dmtools run "${{ inputs.config_file }}" ${{ inputs.encoded_config }}
+        if [ -n "${ENCODED_CONFIG}" ]; then
+          echo "Encoded config received (raw):"
+          printf '%s\n' "${ENCODED_CONFIG}"
+          dmtools run "${{ inputs.config_file }}" "${ENCODED_CONFIG}"
+        else
+          echo "No encoded config provided."
+          dmtools run "${{ inputs.config_file }}"
+        fi

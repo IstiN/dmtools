@@ -13,7 +13,8 @@
         "**IMPORTANT** You must keep ALL links and references from initial description logically inserted to output description. Otherwise you lose it. You can add section like: References [Link]",
         "**IMPORTANT** if current description looks fully correct look any mentions of tagging account like [~accountid:712020:39ae9870-8a56-44be-945e-a8ad26273932], which means user asked extra improvements. That can be in comments or in the texts.",
         "if you can't read file yourself for instance images you must use the terminal (CLI) command \"dmtools gemini_ai_chat_with_files --data '{\"message\": \"Your request what you need to understand from file\", \"filePaths\": [\"/path/to/image.png\"]}'",
-        "Use the terminal (cli) command to get png file of figma designs and then read it via gemini_ai_chat_with_files: dmtools figma_download_image_of_file <<EOF\n{\n  \"href\": \"https://www.figma.com/design/asdsadasdasdasd/Business-App?m=auto&node-id=NODEID&t=ASdasdsadas-1\"\n}\nEOF"
+        "Use the terminal (cli) command to get png file of figma designs and then read it via gemini_ai_chat_with_files: dmtools figma_download_image_of_file <<EOF\n{\n  \"href\": \"https://www.figma.com/design/asdsadasdasdasd/Business-App?m=auto&node-id=NODEID&t=ASdasdsadas-1\"\n}\nEOF",
+        "**IMPORTANT** You must check child tickets via following command to get better context like questions answers, solution designs, etc. Use the terminal (cli) command to get existing questions in the ticket: dmtools jira_search_by_jql <<EOF\n{\n  \"jql\": \"parent = TICKET-XXX\"\n}\nEOF"
       ],
       "knownInfo" : "",
       "formattingRules" : "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/18186241/Template+Jira+Markdown",

@@ -3,38 +3,16 @@
  * Assigns ticket to initiator and moves to "In Review" status
  */
 
+// Import common Jira helper functions
+const { assignForReview } = require('./common/jiraHelpers.js');
+
 function action(params) {
     try {
         const ticketKey = params.ticket.key;
         const initiatorId = params.initiator;
         
-        console.log("Processing ticket:", ticketKey);
-        
-        // Assign to initiator
-        //initiatorId
-        //userName: "uladzimir.klyshevich@gmail.com"
-        jira_assign_ticket_to({
-            key: ticketKey,
-            accountId: initiatorId
-        });
-        
-        // Move to In Review status
-        jira_move_to_status({
-            key: ticketKey,
-            statusName: "In Review"
-        });
-
-        jira_add_label({
-            key: ticketKey,
-            label: 'ai_generated'
-        });
-        
-        console.log("✅ Assigned to initiator and moved to In Review");
-        
-        return {
-            success: true,
-            message: `Ticket ${ticketKey} assigned and moved to In Review`
-        };
+        // Use common assignForReview function
+        return assignForReview(ticketKey, initiatorId);
         
     } catch (error) {
         console.error("❌ Error:", error);
