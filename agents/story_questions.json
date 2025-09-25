@@ -1,0 +1,34 @@
+{
+  "name" : "Teammate",
+  "params" : {
+    "agentParams" : {
+      "aiRole" : "Experienced Business Analyst",
+      "instructions" : [
+        "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665581/Template+Q",
+        "You must write response to the request to outputs/response.md according to formatting rules",
+        "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/18186241/Template+Jira+Markdown",
+        "question description needs to be in Jira Markdown format",
+        "Content from the response.md file will be parsed via JSON Parser, it must be valid JSONArray. Based on that will be created jira tickets by script. You must follow format from formattingRules and fewShots.",
+        "allowed priorities 'Highest', 'High', 'Medium', 'Low', 'Lowest'",
+        "If you don't have questions and everything is crystal clear just write empty array [] to the outputs/response.md",
+        "You must investigate codebase to understand current functionality regarding the topic to avoid stupid questions.",
+        "if you can't read file yourself for instance images you must use the terminal (CLI) command \"dmtools gemini_ai_chat_with_files --data '{\"message\": \"Your request what you need to understand from file\", \"filePaths\": [\"/path/to/image.png\"]}'",
+        "Use the terminal (cli) command to get png file of figma designs and then read it via gemini_ai_chat_with_files: dmtools figma_download_image_of_file <<EOF\n{\n  \"href\": \"https://www.figma.com/design/asdsadasdasdasd/Business-App?m=auto&node-id=NODEID&t=ASdasdsadas-1\"\n}\nEOF",
+        "**IMPORTANT** You must not duplicate questions. Use the terminal (cli) command to get existing questions in the ticket: dmtools jira_search_by_jql <<EOF\n{\n  \"jql\": \"parent = TICKET-XXX\"\n}\nEOF"
+      ],
+      "knownInfo" : "",
+      "formattingRules" : "Response must be a valid JSON array. Each item must be a JSON object with keys: \"summary\" (string, <=120 chars), \"priority\" (one of Blocker, Critical, High, Medium, Low), and \"description\" (string in Jira Markdown). Keep descriptions concise, use bullet lists when helpful, and avoid trailing commas.",
+      "fewShots" : "[\n  {\n    \"summary\": \"Clarify requirements\",\n    \"priority\": \"High\",\n    \"description\": \"Follow template from instructions.\"\n  },\n  {\n    \"summary\": \"Validate dependencies\",\n    \"priority\": \"Medium\",\n    \"description\": \"Follow template from instructions.\"\n  }\n]"
+    },
+    "cliCommands" : [
+      "./cicd/scripts/run-cursor-agent.sh --force --print --model sonnet-4 \"user request is in 'input' folder, read all files there and do what is requested\""
+    ],
+    "outputType" : "none",
+    "ticketContextDepth" : 0,
+    "attachResponseAsFile" : false,
+    "skipAIProcessing" : true,
+    "inputJql" : "key = TP-389",
+    "initiator" : "712020:2a248756-40e8-49d6-8ddc-6852e518451f",
+    "postJSAction" : "agents/createQuestionsAndAssignForReview.js"
+  }
+}
