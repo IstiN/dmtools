@@ -67,6 +67,12 @@ function action(params) {
         console.log("Processing ticket:", ticketKey);
         const createdQuestionTickets = processQuestionTickets(params.response, ticketKey);
 
+        // Add AI-generated label
+        jira_add_label({
+            key: ticketKey,
+            label: 'ai_questions_asked'
+        });
+
         // Use common assignForReview function for post-processing
         const assignResult = assignForReview(ticketKey, initiatorId);
         
