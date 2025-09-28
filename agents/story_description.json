@@ -23,7 +23,7 @@
       "fewShots" : ""
     },
     "cliCommands" : [
-      "./cicd/scripts/run-cursor-agent.sh --force --print --model sonnet-4 \"user request is in 'input' folder, read all files there and do what is requested\""
+      "./cicd/scripts/run-cursor-agent.sh --force --print --model sonnet-4 \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** implementation details and development is not part of the task. Follow instructions from input.\""
     ],
     "outputType" : "field",
     "fieldName" : "Description",

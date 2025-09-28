@@ -25,7 +25,7 @@
       "fewShots" : "{\n  \"core\": true,\n  \"api\": false,\n  \"ui\": false,\n  \"description\": \"Story requires workflow automation and AI integration which are core business logic components in dmtools-core module.\"\n}"
     },
     "cliCommands" : [
-      "./cicd/scripts/run-cursor-agent.sh --force --print --model sonnet-4 \"user request is in 'input' folder, read all files there and do what is requested\""
+      "./cicd/scripts/run-cursor-agent.sh --force --print --model sonnet-4 \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** Your task is not development and implementation, only assessment of the impact. Follow strictly the instructions from input.\""
     ],
     "outputType" : "none",
     "ticketContextDepth" : 0,
