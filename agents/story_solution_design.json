@@ -17,7 +17,8 @@
         "If story involves REST endpoints, web services, HTTP APIs, or server-side web processing -> api: true", 
         "If story involves user interface, frontend components, web pages, or client-side functionality -> ui: true",
         "**IMPORTANT** Multiple modules can be true if the story spans multiple areas",
-        "Provide clear short reasoning in description field explaining why each module was selected or excluded"
+        "Provide clear short reasoning in description field explaining why each module was selected or excluded",
+        "**IMPORTANT** Your task is not development, only assessment of the impact."
       ],
       "knownInfo" : "",
       "formattingRules" : "Response must be valid JSON object with keys: core (boolean), api (boolean), ui (boolean), description (string explaining module selection reasoning based on story analysis)",
