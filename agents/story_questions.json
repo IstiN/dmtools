@@ -14,7 +14,8 @@
         "You must investigate codebase to understand current functionality regarding the topic to avoid stupid questions.",
         "if you can't read file yourself for instance images you must use the terminal (CLI) command \"dmtools gemini_ai_chat_with_files --data '{\"message\": \"Your request what you need to understand from file\", \"filePaths\": [\"/path/to/image.png\"]}'",
         "Use the terminal (cli) command to get png file of figma designs and then read it via gemini_ai_chat_with_files: dmtools figma_download_image_of_file <<EOF\n{\n  \"href\": \"https://www.figma.com/design/asdsadasdasdasd/Business-App?m=auto&node-id=NODEID&t=ASdasdsadas-1\"\n}\nEOF",
-        "**IMPORTANT** You must not duplicate questions. Use the terminal (cli) command to get existing questions in the ticket: dmtools jira_search_by_jql <<EOF\n{\n  \"jql\": \"parent = TICKET-XXX\"\n}\nEOF"
+        "**IMPORTANT** You must not duplicate questions. Use the terminal (cli) command to get existing questions in the ticket: dmtools jira_search_by_jql <<EOF\n{\n  \"jql\": \"parent = TICKET-XXX\"\n}\nEOF",
+        "**IMPORTANT** Your task is not development, only questions detection is required."
       ],
       "knownInfo" : "",
       "formattingRules" : "Response must be a valid JSON array. Each item must be a JSON object with keys: \"summary\" (string, <=120 chars), \"priority\" (one of Blocker, Critical, High, Medium, Low), and \"description\" (string in Jira Markdown). Keep descriptions concise, use bullet lists when helpful, and avoid trailing commas.",
