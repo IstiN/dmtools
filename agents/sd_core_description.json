@@ -20,7 +20,7 @@
         "The diagram should visualize key components, data flow, integration points, and architectural patterns mentioned in the enhanced description",
         "Use proper Mermaid syntax: graph TD, flowchart TD, sequenceDiagram, classDiagram, etc. based on what best represents the technical solution",
         "Assess if additional core implementation subtasks are needed beyond solution design based on parent story acceptance criteria coverage",
-        "Set coreSubtaskCreation: true if implementation tasks needed, false if design-only sufficient",
+        "Set coreSubtaskCreation: true if some of acceptance criterias are not covered automatically and implementation is needed, false if according to description all acceptance criterias are covered automatically by existing implementation",
         "if you did not understand the task, or you can't finish it with right quality or you can't read something and understand **IMPORTANT** you must mention that in updated description keeping initial content. You must not delete important content then from description."
       ],
       "knownInfo" : "",
@@ -39,3 +39,4 @@
     "postJSAction" : "agents/enhanceSDCoreDescriptionAndAssess.js"
   }
 }
+
