@@ -201,12 +201,12 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         }
 
         RequestDecompositionAgent.Result inputParams = expertParams.getAgentParams();
-        inputParams.setAiRole(extractIfNeeded(inputParams.getAiRole()));
-        inputParams.setInstructions(new String[] {extractIfNeeded(inputParams.getInstructions())});
-        inputParams.setFormattingRules(extractIfNeeded(inputParams.getFormattingRules()));
-        inputParams.setFewShots(extractIfNeeded(inputParams.getFewShots()));
-        inputParams.setQuestions(new String[] {extractIfNeeded(inputParams.getQuestions())});
-        inputParams.setTasks(new String[] {extractIfNeeded(inputParams.getTasks())});
+        inputParams.setAiRole(extractIfNeeded(inputParams.getAiRole())[0]);
+        inputParams.setInstructions(extractIfNeeded(inputParams.getInstructions()));
+        inputParams.setFormattingRules(extractIfNeeded(inputParams.getFormattingRules())[0]);
+        inputParams.setFewShots(extractIfNeeded(inputParams.getFewShots())[0]);
+        inputParams.setQuestions(extractIfNeeded(inputParams.getQuestions()));
+        inputParams.setTasks(extractIfNeeded(inputParams.getTasks()));
 
         contextOrchestrator.processUrisInContent(inputParams.getKnownInfo(), uriProcessingSources, 2);
         String processedKnownInfo = contextOrchestrator.summarize().toString();
@@ -220,29 +220,24 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
             
             // Create and prepare ticket context
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-            ticketContext.prepareContext(true);
+            ticketContext.prepareContext(true, false);
             
             // Get attachments and convert to text
             List<? extends IAttachment> attachments = ticket.getAttachments();
             String ticketText = ticketContext.toText();
-            
             // Process content with ContextOrchestrator
-            long contextStart = System.currentTimeMillis();
-            contextOrchestrator.processFullContent(ticket.getKey(), ticketText, (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
+            //contextOrchestrator.processFullContent(ticket.getKey(), ticketText, (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
             
             String textFieldsOnly = trackerClient.getTextFieldsOnly(ticket);
             contextOrchestrator.processUrisInContent(textFieldsOnly, uriProcessingSources, 1);
             contextOrchestrator.processUrisInContent(attachments, uriProcessingSources, 1);
             
             List<ChunkPreparation.Chunk> chunksContext = contextOrchestrator.summarize();
-            long contextDuration = System.currentTimeMillis() - contextStart;
-            logger.debug("Context processing took {}ms for {}", contextDuration, ticket.getKey());
-            
+
             inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n" + chunksContext.toString());
             contextOrchestrator.clear();
             
-            long processingDuration = System.currentTimeMillis() - overallStart;
-            logger.debug("Ticket context preparation took {}ms for {}", processingDuration, ticket.getKey());
+            inputParams.setRequest(ticketText);
 
             // Process hooks as context first
             String[] hooksAsContext = expertParams.getHooksAsContext();
@@ -364,26 +359,24 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         return results;
     }
 
-    private String extractIfNeeded(String... inputArray) throws IOException {
+    private String[] extractIfNeeded(String... inputArray) throws IOException {
         if (inputArray == null) {
-            return "";
+            return new String[] {""};
         }
-        StringBuilder result = new StringBuilder();
-        for (String input : inputArray) {
-            if (!result.isEmpty()) {
-                result.append("\n");
-            }
+        String[] extractedArray = new String[inputArray.length];
+        for (int i = 0; i < inputArray.length; i ++) {
+            String input = inputArray[i];
             if (input != null && input.startsWith("https://")) {
                 String value = confluence.contentByUrl(input).getStorage().getValue();
                 if (StringUtils.isConfluenceYamlFormat(value)) {
-                    input = StringUtils.extractYamlContentFromConfluence(value);
+                    input = input + "\n" + StringUtils.extractYamlContentFromConfluence(value);
                 } else {
-                    input = value;
+                    input = input + "\n" +value;
                 }
             }
-            result.append(input);
+            extractedArray[i] = input;
         }
-        return result.toString();
+        return extractedArray;
     }
 
 

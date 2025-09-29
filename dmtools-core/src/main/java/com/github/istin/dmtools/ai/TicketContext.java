@@ -52,7 +52,12 @@ public class TicketContext implements ToText {
     public void prepareContext() throws IOException {
         prepareContext(false);
     }
+
     public void prepareContext(boolean withComments) throws IOException {
+        prepareContext(withComments, true);
+    }
+
+    public void prepareContext(boolean withComments, boolean withExtraTickets) throws IOException {
 
         // Step 1: Extract JIRA IDs from ticket text
         String ticketText = ticket.toText();
@@ -61,50 +66,52 @@ public class TicketContext implements ToText {
 
         // Step 2: Fetch extra tickets (parallel processing for performance)
         extraTickets = new ArrayList<>();
-        if (!keys.isEmpty()) {
+        if (withExtraTickets) {
+            if (!keys.isEmpty()) {
 
-            // Filter out self-references and prepare list of keys to fetch
-            List<String> keysToFetch = keys.stream()
-                .filter(key -> !key.equalsIgnoreCase(ticket.getKey()))
-                .collect(Collectors.toList());
-            
-            if (!keysToFetch.isEmpty()) {
-                // Create executor service for parallel processing
-                // Use a reasonable number of threads to avoid overwhelming the API
-                int threadPoolSize = Math.min(keysToFetch.size(), 5); // Max 5 concurrent requests
-                ExecutorService executorService = Executors.newFixedThreadPool(threadPoolSize);
-
-                // Create CompletableFutures for parallel ticket fetching
-                List<CompletableFuture<ITicket>> futures = keysToFetch.stream()
-                    .map(key -> CompletableFuture.supplyAsync(() -> fetchSingleTicket(key), executorService))
-                    .collect(Collectors.toList());
-                
-                // Wait for all tickets to be fetched and collect results
-                try {
-                    List<ITicket> fetchedTickets = futures.stream()
-                        .map(CompletableFuture::join)
-                        .filter(t -> t != null) // Filter out failed fetches
+                // Filter out self-references and prepare list of keys to fetch
+                List<String> keysToFetch = keys.stream()
+                        .filter(key -> !key.equalsIgnoreCase(ticket.getKey()))
                         .collect(Collectors.toList());
-                    
-                    extraTickets.addAll(fetchedTickets);
 
-                } catch (Exception e) {
-                    logger.error("TIMING: Error during parallel ticket fetching: {}", e.getMessage());
-                } finally {
-                    // Shutdown executor service
-                    executorService.shutdown();
+                if (!keysToFetch.isEmpty()) {
+                    // Create executor service for parallel processing
+                    // Use a reasonable number of threads to avoid overwhelming the API
+                    int threadPoolSize = Math.min(keysToFetch.size(), 5); // Max 5 concurrent requests
+                    ExecutorService executorService = Executors.newFixedThreadPool(threadPoolSize);
+
+                    // Create CompletableFutures for parallel ticket fetching
+                    List<CompletableFuture<ITicket>> futures = keysToFetch.stream()
+                            .map(key -> CompletableFuture.supplyAsync(() -> fetchSingleTicket(key), executorService))
+                            .collect(Collectors.toList());
+
+                    // Wait for all tickets to be fetched and collect results
                     try {
-                        if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                        List<ITicket> fetchedTickets = futures.stream()
+                                .map(CompletableFuture::join)
+                                .filter(t -> t != null) // Filter out failed fetches
+                                .collect(Collectors.toList());
+
+                        extraTickets.addAll(fetchedTickets);
+
+                    } catch (Exception e) {
+                        logger.error("TIMING: Error during parallel ticket fetching: {}", e.getMessage());
+                    } finally {
+                        // Shutdown executor service
+                        executorService.shutdown();
+                        try {
+                            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                                executorService.shutdownNow();
+                                logger.warn("TIMING: Executor service forced shutdown after timeout");
+                            }
+                        } catch (InterruptedException e) {
                             executorService.shutdownNow();
-                            logger.warn("TIMING: Executor service forced shutdown after timeout");
+                            Thread.currentThread().interrupt();
                         }
-                    } catch (InterruptedException e) {
-                        executorService.shutdownNow();
-                        Thread.currentThread().interrupt();
                     }
                 }
+
             }
-            
         }
         
         // Step 3: Fetch comments if requested
@@ -160,6 +167,8 @@ public class TicketContext implements ToText {
                 text.append("\n");
                 if (comment instanceof ToText) {
                     text.append(((ToText) comment).toText());
+                } else {
+                    text.append(comment.toString());
                 }
             }
             text.append("</previous_discussion>").append("\n");

@@ -131,6 +131,9 @@ public class CliExecutionHelper {
         }
         
         // Load environment variables from dmtools.env for CLI tools like cursor-agent
+        if (envVariablesFile == null) {
+            envVariablesFile = workingDirectory.resolve("dmtools.env").toString();
+        }
         Map<String, String> envVars = CommandLineUtils.loadEnvironmentFromFile(envVariablesFile);
         if (!envVars.isEmpty()) {
             logger.info("Loaded {} environment variables from dmtools.env", envVars.size());
