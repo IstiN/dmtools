@@ -42,7 +42,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=json "$PROMPT")
+CMD=(cursor-agent --force --print --model sonnet-4.5 "${PASS_ARGS[@]+"${PASS_ARGS[@]}"}" --output-format=json "$PROMPT")
 
 echo "Running: ${CMD[*]}"
 

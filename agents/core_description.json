@@ -30,7 +30,7 @@
     "ticketContextDepth" : 0,
     "attachResponseAsFile" : false,
     "skipAIProcessing" : true,
-    "inputJql" : "key in (DMC-531)",
+    "inputJql" : "key in (DMC-534)",
     "initiator" : "712020:2a248756-40e8-49d6-8ddc-6852e518451f",
     "postJSAction" : "agents/assignForReview.js"
   }
