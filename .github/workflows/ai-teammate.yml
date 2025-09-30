@@ -16,27 +16,12 @@ permissions:
   actions: read
   
 jobs:
-  generate-hash:
-    runs-on: ubuntu-latest
-    outputs:
-      config-hash: ${{ steps.hash.outputs.hash }}
-    steps:
-      - name: Generate Config Hash
-        id: hash
-        run: |
-          # Generate a safe, unique hash from inputs to avoid special char issues
-          HASH=$(echo -n "${{ inputs.config_file }}|${{ inputs.encoded_config }}" | sha256sum | cut -d' ' -f1 | cut -c1-32)
-          echo "hash=${HASH}" >> $GITHUB_OUTPUT
-          echo "Generated config hash: ${HASH}"
-  
   cursor-agent:
     runs-on: ubuntu-latest
-    needs: generate-hash
-    # Generate unique job ID based on run
-    name: cursor-agent-${{ github.run_id }}-${{ github.run_attempt }}
-    # Prevent parallel execution of jobs with same config inputs using safe hash
+    # Prevent parallel execution of jobs with same config inputs
+    # Using format() to safely handle special characters and create consistent group names
     concurrency:
-      group: cursor-agent-${{ needs.generate-hash.outputs.config-hash }}
+      group: ${{ format('cursor-agent-{0}-{1}', inputs.config_file || 'no-config', inputs.encoded_config || 'no-encoded') }}
       cancel-in-progress: false
     
     steps:
