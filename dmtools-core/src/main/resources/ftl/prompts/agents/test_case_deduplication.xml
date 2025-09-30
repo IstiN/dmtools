@@ -29,7 +29,7 @@
     <formatting>
         <rules>
             <rule>Return results as a JSON array with JSON objects inside.</rule>
-            <rule>Each JSON object must include 'priority', 'summary', and 'description' fields.</rule>
+            <rule>Each JSON object must include 'priority', 'summary', and 'description' fields same as in input</rule>
             <rule>The output must be in plain JSON format without any additional text, formatting, or markdown.</rule>
             <rule>Return only unique test cases that don't duplicate existing test cases.</rule>
             <rule>If all test cases are duplicates, return an empty JSON array.</rule>
