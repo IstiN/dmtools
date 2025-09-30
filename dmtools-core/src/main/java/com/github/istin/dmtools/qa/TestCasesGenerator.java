@@ -4,6 +4,8 @@ import com.github.istin.dmtools.ai.*;
 import com.github.istin.dmtools.ai.agent.RelatedTestCaseAgent;
 import com.github.istin.dmtools.ai.agent.RelatedTestCasesAgent;
 import com.github.istin.dmtools.ai.agent.TestCaseGeneratorAgent;
+import com.github.istin.dmtools.ai.agent.TestCaseDeduplicationAgent;
+import com.github.istin.dmtools.ai.utils.AIResponseParser;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
@@ -63,6 +65,9 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     @Inject
     RelatedTestCaseAgent relatedTestCaseAgent;
 
+    @Inject
+    TestCaseDeduplicationAgent testCaseDeduplicationAgent;
+
     /**
      * Server-managed Dagger component that uses pre-resolved integrations
      * Only includes ServerManagedIntegrationsModule to avoid duplicate bindings
@@ -118,7 +123,40 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
         List<ITicket> finaResults = findAndLinkSimilarTestCasesBySummary(ticketContext, listOfAllTestCases, true, params.getRelatedTestCasesRules(), params.getTestCaseLinkRelationship());
 
-        List<TestCaseGeneratorAgent.TestCase> newTestCases = testCaseGeneratorAgent.run(new TestCaseGeneratorAgent.Params(params.getTestCasesPriorities(), ToText.Utils.toText(finaResults), ticketContext.toText(), extraRules));
+        // Initialize accumulator for all generated test cases
+        List<TestCaseGeneratorAgent.TestCase> allGeneratedTestCases = new ArrayList<>();
+
+        // Calculate token limits (same pattern as findAndLinkSimilarTestCasesBySummary)
+        ChunkPreparation chunkPreparation = new ChunkPreparation();
+        int storyTokens = new Claude35TokenCounter().countTokens(ticketContext.toText());
+        int systemTokenLimits = chunkPreparation.getTokenLimit();
+        int tokenLimit = (systemTokenLimits - storyTokens)/2;
+        System.out.println("GENERATION TOKEN LIMIT: " + tokenLimit);
+
+        // Chunk existing test cases for generation
+        List<ChunkPreparation.Chunk> testCaseChunks = chunkPreparation.prepareChunks(finaResults, tokenLimit);
+        System.out.println("TEST CASE CHUNKS FOR GENERATION: " + testCaseChunks.size());
+
+        // Generate test cases per chunk
+        for (ChunkPreparation.Chunk chunk : testCaseChunks) {
+            List<TestCaseGeneratorAgent.TestCase> chunkTestCases = testCaseGeneratorAgent.run(
+                new TestCaseGeneratorAgent.Params(
+                    params.getTestCasesPriorities(),
+                    chunk.getText(), // Chunked test cases instead of all finaResults
+                    ticketContext.toText(),
+                    extraRules
+                )
+            );
+            allGeneratedTestCases.addAll(chunkTestCases);
+            System.out.println("Generated " + chunkTestCases.size() + " test cases from chunk");
+        }
+
+        // Deduplicate results
+        List<TestCaseGeneratorAgent.TestCase> newTestCases = deduplicateInChunks(
+            allGeneratedTestCases,
+            ToText.Utils.toText(finaResults)
+        );
+        System.out.println("Final deduplicated test cases: " + newTestCases.size());
 
         if (params.getOutputType().equals(TestCasesGeneratorParams.OutputType.comment)) {
             StringBuilder result = new StringBuilder();
@@ -149,6 +187,68 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             }
         }
         return new TestCasesResult(ticketContext.getTicket().getKey(), finaResults, newTestCases);
+    }
+
+    private List<TestCaseGeneratorAgent.TestCase> deduplicateInChunks(
+        List<TestCaseGeneratorAgent.TestCase> allGeneratedTestCases,
+        String existingTestCases
+    ) throws Exception {
+        // Calculate token limits
+        ChunkPreparation chunkPreparation = new ChunkPreparation();
+        int existingTestCasesTokens = new Claude35TokenCounter().countTokens(existingTestCases);
+        int systemTokenLimits = chunkPreparation.getTokenLimit();
+        int tokenLimit = (systemTokenLimits - existingTestCasesTokens)/2;
+        
+        String allGeneratedText = ToText.Utils.toText(allGeneratedTestCases);
+        int generatedTokens = new Claude35TokenCounter().countTokens(allGeneratedText);
+        
+        // Single deduplication call if small enough
+        if (generatedTokens <= tokenLimit) {
+            return testCaseDeduplicationAgent.run(
+                new TestCaseDeduplicationAgent.Params(
+                    allGeneratedTestCases,
+                    existingTestCases,
+                    "" // No previous deduplicated results
+                )
+            );
+        }
+        
+        // Split into chunks and deduplicate iteratively
+        List<ChunkPreparation.Chunk> chunks = chunkPreparation.prepareChunks(allGeneratedTestCases, tokenLimit);
+        List<TestCaseGeneratorAgent.TestCase> uniqueResults = new ArrayList<>();
+        
+        for (ChunkPreparation.Chunk chunk : chunks) {
+            List<TestCaseGeneratorAgent.TestCase> chunkTestCases = parseTestCasesFromChunk(chunk);
+            
+            // Deduplicate against existing test cases AND accumulated unique results
+            List<TestCaseGeneratorAgent.TestCase> deduplicatedChunk = testCaseDeduplicationAgent.run(
+                new TestCaseDeduplicationAgent.Params(
+                    chunkTestCases,
+                    existingTestCases,
+                    ToText.Utils.toText(uniqueResults) // Previous unique results
+                )
+            );
+            
+            uniqueResults.addAll(deduplicatedChunk);
+        }
+        
+        return uniqueResults;
+    }
+
+    private List<TestCaseGeneratorAgent.TestCase> parseTestCasesFromChunk(ChunkPreparation.Chunk chunk) throws Exception {
+        JSONArray jsonArray = AIResponseParser.parseResponseAsJSONArray(chunk.getText());
+        List<TestCaseGeneratorAgent.TestCase> testCases = new ArrayList<>();
+        
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject jsonObject = jsonArray.getJSONObject(i);
+            testCases.add(new TestCaseGeneratorAgent.TestCase(
+                jsonObject.getString("priority"),
+                jsonObject.getString("summary"),
+                jsonObject.getString("description")
+            ));
+        }
+        
+        return testCases;
     }
 
     @NotNull
