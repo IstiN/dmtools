@@ -13,7 +13,7 @@ on:
         default: 'sonnet-4'
         type: choice
         options:
-          - sonnet-4
+          - sonnet-4.5
           - gpt-5
           - opus-4.1
           - grok
@@ -77,7 +77,7 @@ jobs:
         # DMTools Integration Settings
         DMTOOLS_INTEGRATIONS: "jira,confluence"
 
-      run: ./cicd/scripts/run-cursor-agent.sh
+      run: cursor-agent --output-format=text --force --print --model gpt-5 "${USER_REQUEST}"
     
     - name: Print Response to Summary
       if: always()
