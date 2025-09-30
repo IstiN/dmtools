@@ -151,10 +151,10 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             System.out.println("Generated " + chunkTestCases.size() + " test cases from chunk");
         }
 
-        // Deduplicate results
+        // Deduplicate results - reuse testCaseChunks instead of converting to text again
         List<TestCaseGeneratorAgent.TestCase> newTestCases = deduplicateInChunks(
             allGeneratedTestCases,
-            ToText.Utils.toText(finaResults)
+            testCaseChunks
         );
         System.out.println("Final deduplicated test cases: " + newTestCases.size());
 
@@ -191,16 +191,16 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
     private List<TestCaseGeneratorAgent.TestCase> deduplicateInChunks(
         List<TestCaseGeneratorAgent.TestCase> allGeneratedTestCases,
-        String existingTestCases
+        List<ChunkPreparation.Chunk> existingTestCaseChunks
     ) throws Exception {
         // Step 1: Deduplicate allGeneratedTestCases against itself to remove internal duplicates
         System.out.println("Step 1: Deduplicating generated test cases against themselves");
         List<TestCaseGeneratorAgent.TestCase> selfDeduplicated = deduplicateSelfInChunks(allGeneratedTestCases);
         System.out.println("After self-deduplication: " + selfDeduplicated.size() + " unique test cases");
         
-        // Step 2: Deduplicate against existing test cases
+        // Step 2: Deduplicate against existing test cases - use already prepared chunks
         System.out.println("Step 2: Deduplicating against existing test cases");
-        List<TestCaseGeneratorAgent.TestCase> finalDeduplicated = deduplicateAgainstExistingInChunks(selfDeduplicated, existingTestCases);
+        List<TestCaseGeneratorAgent.TestCase> finalDeduplicated = deduplicateAgainstExistingInChunks(selfDeduplicated, existingTestCaseChunks);
         System.out.println("After deduplication against existing: " + finalDeduplicated.size() + " test cases");
         
         return finalDeduplicated;
@@ -251,48 +251,29 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     
     private List<TestCaseGeneratorAgent.TestCase> deduplicateAgainstExistingInChunks(
         List<TestCaseGeneratorAgent.TestCase> newTestCases,
-        String existingTestCases
+        List<ChunkPreparation.Chunk> existingTestCaseChunks
     ) throws Exception {
-        ChunkPreparation chunkPreparation = new ChunkPreparation();
-        int existingTestCasesTokens = new Claude35TokenCounter().countTokens(existingTestCases);
-        int systemTokenLimits = chunkPreparation.getTokenLimit();
-        int tokenLimit = (systemTokenLimits - existingTestCasesTokens) / 2;
+        List<TestCaseGeneratorAgent.TestCase> uniqueResults = new ArrayList<>();
         
-        String newTestCasesText = ToText.Utils.toText(newTestCases);
-        int newTestCasesTokens = new Claude35TokenCounter().countTokens(newTestCasesText);
-        
-        // Single deduplication call if small enough
-        if (newTestCasesTokens <= tokenLimit) {
-            return testCaseDeduplicationAgent.run(
+        // Deduplicate new test cases against each chunk of existing test cases
+        for (ChunkPreparation.Chunk existingChunk : existingTestCaseChunks) {
+            String existingTestCasesText = existingChunk.getText();
+            
+            List<TestCaseGeneratorAgent.TestCase> deduplicatedAgainstChunk = testCaseDeduplicationAgent.run(
                 new TestCaseDeduplicationAgent.Params(
                     newTestCases,
-                    existingTestCases,
+                    existingTestCasesText,
                     "" // No previous deduplicated results
                 )
             );
+            
+            // Update newTestCases to only include the ones that are not duplicates
+            // This way, the next chunk will check a smaller list
+            newTestCases = deduplicatedAgainstChunk;
+            System.out.println("After checking against existing chunk: " + newTestCases.size() + " test cases remain");
         }
         
-        // Split new test cases into chunks and deduplicate each against existing test cases
-        List<ChunkPreparation.Chunk> chunks = chunkPreparation.prepareChunks(newTestCases, tokenLimit);
-        List<TestCaseGeneratorAgent.TestCase> uniqueResults = new ArrayList<>();
-        
-        for (ChunkPreparation.Chunk chunk : chunks) {
-            List<TestCaseGeneratorAgent.TestCase> chunkTestCases = parseTestCasesFromChunk(chunk);
-            
-            // Deduplicate against existing test cases only (not against accumulated results)
-            // because all chunks need to be checked against the same existing test cases
-            List<TestCaseGeneratorAgent.TestCase> deduplicatedChunk = testCaseDeduplicationAgent.run(
-                new TestCaseDeduplicationAgent.Params(
-                    chunkTestCases,
-                    existingTestCases,
-                    "" // Don't use accumulated results here
-                )
-            );
-            
-            uniqueResults.addAll(deduplicatedChunk);
-        }
-        
-        return uniqueResults;
+        return newTestCases;
     }
 
     private List<TestCaseGeneratorAgent.TestCase> parseTestCasesFromChunk(ChunkPreparation.Chunk chunk) throws Exception {
