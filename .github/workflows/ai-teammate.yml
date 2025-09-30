@@ -18,10 +18,10 @@ permissions:
 jobs:
   cursor-agent:
     runs-on: ubuntu-latest
-    # Prevent parallel execution of jobs with same config inputs
-    # Using format() to safely handle special characters and create consistent group names
+    # Prevent parallel execution of jobs with same config_file
+    # Using format() to safely handle special characters in the config file path
     concurrency:
-      group: ${{ format('cursor-agent-{0}-{1}', inputs.config_file || 'no-config', inputs.encoded_config || 'no-encoded') }}
+      group: ${{ format('cursor-agent-{0}', inputs.config_file) }}
       cancel-in-progress: false
     
     steps:
