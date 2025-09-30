@@ -6,7 +6,7 @@ usage() {
 Usage: $(basename "$0") [cursor-agent options] "prompt"
 
 Example:
-  $(basename "$0") --force --print --model sonnet-4 "process the input folder"
+  $(basename "$0") --force --print --model sonnet-4.5 "process the input folder"
 
 Notes:
   - The script always appends --output-format=json to the cursor-agent command.
