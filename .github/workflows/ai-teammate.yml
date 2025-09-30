@@ -18,6 +18,12 @@ permissions:
 jobs:
   cursor-agent:
     runs-on: ubuntu-latest
+    # Generate unique job ID based on config_file and encoded_config
+    name: cursor-agent-${{ hashFiles(inputs.config_file, inputs.encoded_config) }}
+    # Prevent parallel execution of jobs with same config
+    concurrency:
+      group: cursor-agent-${{ hashFiles(inputs.config_file, inputs.encoded_config) }}
+      cancel-in-progress: false
     
     steps:
     - name: Checkout repository
