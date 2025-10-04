@@ -34,8 +34,12 @@ function exampleGitStatus() {
 // Usage: Commit changes made by automation workflow
 function exampleGitCommit(message) {
     try {
+        // Sanitize message to prevent command injection issues
+        // Escape special shell characters: ", `, \, $
+        const sanitizedMessage = message.replace(/(["`\\$])/g, '\\$1');
+        
         const output = cli_execute_command({
-            command: `git commit -m "${message}"`
+            command: `git commit -m "${sanitizedMessage}"`
         });
         console.log("Git commit output:", output);
         return output;
