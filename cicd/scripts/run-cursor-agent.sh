@@ -14,7 +14,9 @@ Example:
 Notes:
   - Provide the prompt as the final argument
   - All other arguments are passed through to cursor-agent
-  - Default options: --force --print --model sonnet-4.5 --output-format=text
+  - Default options: --force --print --model sonnet-4.5 --output-format=stream-json --stream-partial-output
+  - Real-time progress is streamed to console (stdout)
+  - Final response is written to outputs/response.md by cursor-agent
 EOF
 }
 
@@ -45,16 +47,21 @@ fi
 
 # Build command with defaults if no options provided
 if [ ${#PASS_ARGS[@]} -eq 0 ]; then
-  CMD=(cursor-agent --force --print --model sonnet-4.5 --output-format=text "$PROMPT")
+  CMD=(cursor-agent --force --print --model sonnet-4.5 --output-format=stream-json --stream-partial-output "$PROMPT")
 else
-  CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=text "$PROMPT")
+  CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=stream-json --stream-partial-output "$PROMPT")
 fi
 
 echo "Running: ${CMD[*]}"
 echo ""
 
-# Execute cursor-agent directly
-"${CMD[@]}"
+# Execute cursor-agent directly with unbuffered output
+# stdbuf ensures immediate output without buffering
+if command -v stdbuf >/dev/null 2>&1; then
+  stdbuf -oL -eL "${CMD[@]}"
+else
+  "${CMD[@]}"
+fi
 
 exit_code=$?
 
