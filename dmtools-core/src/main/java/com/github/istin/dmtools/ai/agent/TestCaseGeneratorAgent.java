@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.ai.agent;
 
+import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.di.DaggerTestCaseGeneratorAgentComponent;
 import com.github.istin.dmtools.ai.utils.AIResponseParser;
 import lombok.AllArgsConstructor;
@@ -27,10 +28,15 @@ public class TestCaseGeneratorAgent extends AbstractSimpleAgent<TestCaseGenerato
     @Getter
     @ToString
     @Data
-    public static class TestCase {
+    public static class TestCase implements ToText {
         private String priority;
         private String summary;
         private String description;
+
+        @Override
+        public String toText() {
+            return "Priority: " + priority + "\nSummary: " + summary + "\nDescription: " + description + "\n";
+        }
     }
 
     public TestCaseGeneratorAgent() {
