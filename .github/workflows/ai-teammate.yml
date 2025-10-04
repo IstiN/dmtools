@@ -94,6 +94,10 @@ jobs:
         FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
         FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
         ENCODED_CONFIG: ${{ inputs.encoded_config }}
+        
+        # GitHub Authentication for PR creation
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       run: |
         echo "Using configuration: ${{ inputs.config_file }}"
