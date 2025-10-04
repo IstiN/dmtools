@@ -41,11 +41,9 @@ function generateUniqueBranchName(baseType, ticketKey) {
     
     // Check if base branch exists
     try {
-        const listResult = cli_execute_command({
+        const existingBranches = cli_execute_command({
             command: 'git branch --all --list "*' + baseBranchName + '*"'
-        });
-        
-        const existingBranches = listResult.output || '';
+        }) || '';
         
         // If no branches exist with this base name, use it
         if (!existingBranches.trim()) {
@@ -116,11 +114,11 @@ function performGitOperations(branchName, commitMessage) {
         });
         
         // Check if there are changes to commit
-        const statusResult = cli_execute_command({
+        const statusOutput = cli_execute_command({
             command: 'git status --porcelain'
         });
         
-        if (!statusResult.output || !statusResult.output.trim()) {
+        if (!statusOutput || !statusOutput.trim()) {
             console.warn('No changes to commit');
             return {
                 success: false,
@@ -171,12 +169,11 @@ function createPullRequest(title, body) {
         const escapedBody = body.replace(/"/g, '\\"');
         
         // Create PR using gh CLI
-        const result = cli_execute_command({
+        const output = cli_execute_command({
             command: 'gh pr create --title "' + escapedTitle + '" --body "' + escapedBody + '" --base main'
-        });
+        }) || '';
         
         // Extract PR URL from output
-        const output = result.output || '';
         const urlMatch = output.match(/https:\/\/github\.com\/[^\s]+/);
         const prUrl = urlMatch ? urlMatch[0] : null;
         

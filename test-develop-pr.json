@@ -1,0 +1,19 @@
+{
+  "name": "JSRunner",
+  "params": {
+    "jsPath": "agents/developTicketAndCreatePR.js",
+    "ticket": {
+      "key": "DMC-544",
+      "fields": {
+        "summary": "[Feature] File Path Injection for AI Teammate JSON Configuration",
+        "description": "This is a test ticket for simulating the development workflow.\n\nTest implementation of file path injection functionality.",
+        "status": {
+          "name": "In Progress"
+        }
+      }
+    },
+    "response": "## Approach\nImplemented file path injection by extending the existing extractIfNeeded() method to handle local file paths alongside Confluence URLs.\n\n## Files Modified\n- `dmtools-core/src/main/java/com/github/istin/dmtools/teammate/Teammate.java` - Added file path detection and reading logic\n- `dmtools-core/src/test/java/com/github/istin/dmtools/teammate/TeammateFilePathTest.java` - Created comprehensive test suite\n\n## Test Coverage\nCreated 47 new tests covering:\n- Absolute and relative path handling\n- Mixed content (files + URLs + plain text)\n- Error handling for missing files\n- Backward compatibility\n- Special characters in paths\n\n## Issues/Notes\nAll acceptance criteria implemented successfully. No blocking issues encountered. Backward compatibility maintained.",
+    "initiator": "712020:2a248756-40e8-49d6-8ddc-6852e518451f"
+  }
+}
+
