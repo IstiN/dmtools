@@ -14,9 +14,10 @@ Example:
 Notes:
   - Provide the prompt as the final argument
   - All other arguments are passed through to cursor-agent
-  - Default options: --force --print --model sonnet-4.5 --output-format=stream-json --stream-partial-output
-  - Real-time progress is streamed to console (stdout)
+  - Default options: --force --print --model sonnet-4.5 --output-format=text
+  - Output is visible in real-time when run directly in terminal
   - Final response is written to outputs/response.md by cursor-agent
+  - Note: When called from Java/dmtools, output may be buffered until completion
 EOF
 }
 
@@ -47,21 +48,16 @@ fi
 
 # Build command with defaults if no options provided
 if [ ${#PASS_ARGS[@]} -eq 0 ]; then
-  CMD=(cursor-agent --force --print --model sonnet-4.5 --output-format=stream-json --stream-partial-output "$PROMPT")
+  CMD=(cursor-agent --force --print --model sonnet-4.5 --output-format=text "$PROMPT")
 else
-  CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=stream-json --stream-partial-output "$PROMPT")
+  CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=text "$PROMPT")
 fi
 
 echo "Running: ${CMD[*]}"
 echo ""
 
-# Execute cursor-agent directly with unbuffered output
-# stdbuf ensures immediate output without buffering
-if command -v stdbuf >/dev/null 2>&1; then
-  stdbuf -oL -eL "${CMD[@]}"
-else
-  "${CMD[@]}"
-fi
+# Execute cursor-agent directly
+"${CMD[@]}"
 
 exit_code=$?
 
