@@ -55,16 +55,15 @@ jobs:
           ls -la "$HOME/.local/bin/" 2>/dev/null || echo "Directory does not exist"
         fi
 
-    - name: Build DMTools from source
-      run: |
-        ./gradlew clean build -x test
-        echo "✅ DMTools built from source"
-
     - name: Install DMTools CLI
       run: |
-        ./install.sh
+        curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
         echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
-        dmtools --version || echo "dmtools version check failed"
+
+    - name: Build and Install DMTools CLI from source
+      run: |
+        dmtools || echo "dmtools version failed"
+        cursor-agent --version || echo "cursor-agent version failed"
 
     - name: Run AI Teammate
       env:
