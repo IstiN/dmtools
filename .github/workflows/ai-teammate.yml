@@ -85,7 +85,7 @@ jobs:
         CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
 
         # DMTools Integration Settings
-        DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai"
+        DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai,cli,file"
 
         # AI Service Configuration
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
