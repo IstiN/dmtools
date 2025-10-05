@@ -446,14 +446,13 @@ dmtools jira_get_ticket PROJ-123  # Uses local dmtools.env
 ✅ You now know the basics of DMTools CLI!
 
 ### Deep Dive:
-- **[CLI Usage Overview](../cli-usage/overview.md)** - Command structure and advanced usage
+- **[MCP Tools Reference](../cli-usage/mcp-tools.md)** - Command structure and advanced usage
 - **[MCP Tools Reference](../cli-usage/mcp-tools.md)** - All 67 tools documented
 - **[Jobs Documentation](../jobs/README.md)** - Explore 20 automation jobs
 
 ### Automation:
 - **[AI Teammate Workflows](../ai-teammate/README.md)** - GitHub Actions automation
-- **[CI/CD Integration](../configuration/ci-cd.md)** - Use DMTools in pipelines
+- **[Installation Guide](installation.md)** - CI/CD integration setup
 
 ### Examples:
-- **[CLI Examples](../cli-usage/examples.md)** - Real-world use cases
-- **[Workflow Examples](../ai-teammate/examples.md)** - Automation patterns
+- **[AI Teammate Workflows](../ai-teammate/README.md)** - Automation patterns

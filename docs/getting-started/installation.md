@@ -260,4 +260,4 @@ Ensure Java is set up **before** installing DMTools:
 
 👉 **[First Steps](first-steps.md)** - Run your first commands
 
-👉 **[CLI Usage](../cli-usage/overview.md)** - Learn the command structure
+👉 **[MCP Tools Reference](../cli-usage/mcp-tools.md)** - Learn the command structure

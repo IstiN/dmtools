@@ -1,8 +1,10 @@
 # DMTools Documentation
 
-> **Comprehensive development management toolkit with CLI, automation agents, and integrations**
+Welcome to the DMTools documentation! This guide will help you get started with DMTools, understand its features, and integrate it into your workflow.
 
-## 📚 Quick Navigation
+---
+
+## 🎯 Quick Navigation
 
 ### 🚀 Getting Started
 Start here if you're new to DMTools:
@@ -12,120 +14,183 @@ Start here if you're new to DMTools:
 
 ### 💻 CLI Usage
 Using DMTools from the command line:
-- **[CLI Overview](cli-usage/overview.md)** - Command structure and basic usage
 - **[MCP Tools Reference](cli-usage/mcp-tools.md)** - 67 built-in tools for Jira, Confluence, Figma
-- **[CLI Examples](cli-usage/examples.md)** - Common use cases and patterns
 
 ### ⚙️ Jobs (JobRunner)
 Automated workflows and jobs:
-- **[Jobs Overview](jobs/README.md)** - Understanding JobRunner and available jobs
-- **[Business Analysis Jobs](jobs/business-analysis/)** - Requirements, stories, DOR generation
-- **[Development Jobs](jobs/development/)** - Code generation, unit tests, commits triage
-- **[QA Jobs](jobs/qa/)** - Test cases generation, QA productivity reports
-- **[Reporting Jobs](jobs/reports/)** - Productivity reports, daily standups
-- **[Architecture Jobs](jobs/architecture/)** - Solution architecture, diagrams
-- **[Automation Jobs](jobs/automation/)** - Source code sync, expert assistance
+- **[Jobs Overview](jobs/README.md)** - Understanding JobRunner and all 20 available jobs
 
 ### 🤖 AI Teammate Workflows
 Advanced automation with GitHub Actions:
 - **[AI Teammate Overview](ai-teammate/README.md)** - Understanding the AI Teammate concept
-- **[GitHub Actions Integration](ai-teammate/github-actions.md)** - Setting up workflows
 - **[Agent Configuration](ai-teammate/agent-configuration.md)** - Creating custom agents
 - **[JavaScript Actions](ai-teammate/javascript-actions.md)** - Post-processing with JS
-- **[Workflow Examples](ai-teammate/examples.md)** - Real-world automation patterns
 
 ### 🔌 Integrations
 Connect DMTools to your tools:
-- **[Jira Integration](integrations/jira.md)** - Connect to Jira for issue tracking
-- **[Confluence Integration](integrations/confluence.md)** - Work with Confluence pages
-- **[GitHub Integration](integrations/github.md)** - Source code and PR management
-- **[GitLab Integration](integrations/gitlab.md)** - GitLab integration setup
-- **[Bitbucket Integration](integrations/bitbucket.md)** - Bitbucket repository access
-- **[Figma Integration](integrations/figma.md)** - Design files and assets
-- **[AI Providers](integrations/ai-providers.md)** - OpenAI, Gemini, and other AI services
+- **[Gemini Integration](integrations/gemini.md)** - Google Gemini AI integration
+- See **[Configuration Guide](getting-started/configuration.md)** for Jira, Confluence, Figma, GitHub, and other integrations
 
 ### 🛠️ Configuration
 Detailed configuration reference:
-- **[Environment Variables](configuration/environment-variables.md)** - Complete reference
-- **[Properties Files](configuration/properties-file.md)** - config.properties format
-- **[CI/CD Integration](configuration/ci-cd.md)** - GitHub Actions, GitLab CI
-- **[Security Best Practices](configuration/security.md)** - Secure credential management
+- **[Configuration Guide](getting-started/configuration.md)** - Complete environment setup with all integrations
 
 ### 📡 API Reference
 Programmatic access to DMTools:
 - **[REST API](api/rest-api.md)** - Server REST API documentation
 - **[Agents API](api/agents-api.md)** - Automation agents API
-- **[Chat API](api/chat-api.md)** - Conversational AI interface
-- **[Agents Examples](api/agents-examples.md)** - Real-world agent examples
+- **[Chat API](api/chat-api.md)** - Interactive chat interface
+- **[Agents Examples](api/agents-examples.md)** - Detailed agent examples
 - **[API Reference](api/api-reference.md)** - Complete API reference
 
-### 🏗️ Development
-Contributing to DMTools:
-- **[Building from Source](development/building.md)** - Build and development setup
-- **[Architecture](development/architecture.md)** - System design and components
-- **[Project Overview](development/project-overview.md)** - High-level project overview
+### 👨‍💻 Development
+Contributing and building from source:
+- **[Architecture](development/architecture.md)** - System architecture and design
+- **[Building from Source](development/building.md)** - Development environment setup
 - **[Project Structure](development/project-structure.md)** - Codebase organization
-- **[Dependencies](development/dependencies.md)** - Project dependencies
 - **[Commit Rules](development/commit-rules.md)** - Commit message conventions
-- **[Testing Rules](development/testing-rules.md)** - Testing guidelines and best practices
-- **[Cursor Setup](development/cursor-setup.md)** - Cursor IDE integration with MCP
-- **[Aider + Gemini Setup](development/aider-gemini-setup.md)** - AI coding assistant setup
-- **[URI Factory](development/uri-factory-improvements.md)** - URI to object factory improvements
+- **[Testing Rules](development/testing-rules.md)** - Testing guidelines
 
-### 🚢 Deployment
+### 🚀 Deployment
 Production deployment guides:
-- **[OAuth Setup](deployment/oauth-setup.md)** - OAuth2 authentication configuration
-- **[OAuth Proxy](deployment/oauth-proxy.md)** - OAuth proxy documentation
-- **[Production Deployment](deployment/production.md)** - Deploy to App Engine
+- **[Production Deployment](deployment/production.md)** - Deploy to Google App Engine
+- **[OAuth Setup](deployment/oauth-setup.md)** - Configure authentication
+- **[OAuth Proxy](deployment/oauth-proxy.md)** - Proxy server setup
 
 ---
 
-## 🎯 Common Use Cases
+## 📚 Popular Pages
 
-### For Business Analysts
-1. [Generate user stories from requirements](jobs/business-analysis/user-story-generator.md)
-2. [Collect and organize requirements](jobs/business-analysis/requirements-collector.md)
-3. [Create Definition of Ready documents](jobs/business-analysis/dor-generation.md)
+### For New Users
+1. **[Installation Guide](getting-started/installation.md)** - Get DMTools running quickly
+2. **[Configuration Guide](getting-started/configuration.md)** - Set up your integrations
+3. **[First Steps](getting-started/first-steps.md)** - Learn basic commands
+4. **[MCP Tools Reference](cli-usage/mcp-tools.md)** - Explore available tools
+
+### For Automation
+1. **[AI Teammate Overview](ai-teammate/README.md)** - Understand the automation workflow
+2. **[Agent Configuration](ai-teammate/agent-configuration.md)** - Configure your agents
+3. **[JavaScript Actions](ai-teammate/javascript-actions.md)** - Write custom actions
+4. **[Jobs Overview](jobs/README.md)** - Run automated jobs
 
 ### For Developers
-1. [Generate code from tickets](jobs/development/code-generator.md)
-2. [Create unit tests automatically](jobs/development/unit-tests-generator.md)
-3. [Triage commits and analyze changes](jobs/development/commits-triage.md)
-4. [Automate PR creation with AI](ai-teammate/examples.md#automated-development)
-
-### For QA Engineers
-1. [Generate test cases from stories](jobs/qa/test-cases-generator.md)
-2. [Track QA productivity](jobs/qa/qa-productivity-report.md)
-
-### For Managers
-1. [Dev productivity reports](jobs/reports/dev-productivity.md)
-2. [Daily standup reports](jobs/reports/scrum-master-daily.md)
-3. [BA productivity tracking](jobs/reports/ba-productivity.md)
-
-### For Solution Architects
-1. [Generate solution architecture](jobs/architecture/solution-architecture-creator.md)
-2. [Create technical diagrams](jobs/architecture/diagrams-creator.md)
+1. **[Architecture](development/architecture.md)** - Understand the system design
+2. **[Building from Source](development/building.md)** - Set up dev environment
+3. **[Project Structure](development/project-structure.md)** - Navigate the codebase
+4. **[API Reference](api/rest-api.md)** - Integrate with DMTools
 
 ---
 
-## 🆘 Getting Help
+## 🎓 Learning Path
 
-- **Troubleshooting**: Check [CLI Usage > Examples](cli-usage/examples.md) for common issues
-- **Configuration Issues**: See [Configuration > Environment Variables](configuration/environment-variables.md)
-- **API Questions**: Review [API Reference](api/)
-- **GitHub Issues**: [Report bugs or request features](https://github.com/IstiN/dmtools/issues)
+### Beginner Path
+1. Install DMTools → [Installation](getting-started/installation.md)
+2. Configure integrations → [Configuration](getting-started/configuration.md)
+3. Try first commands → [First Steps](getting-started/first-steps.md)
+4. Explore CLI tools → [MCP Tools](cli-usage/mcp-tools.md)
+
+### Automation Path
+1. Understand AI Teammate → [Overview](ai-teammate/README.md)
+2. Learn job system → [Jobs](jobs/README.md)
+3. Configure agents → [Agent Config](ai-teammate/agent-configuration.md)
+4. Write JavaScript actions → [JS Actions](ai-teammate/javascript-actions.md)
+
+### Developer Path
+1. Review architecture → [Architecture](development/architecture.md)
+2. Build from source → [Building](development/building.md)
+3. Understand structure → [Structure](development/project-structure.md)
+4. Use the API → [API Docs](api/rest-api.md)
 
 ---
 
-## 📖 About This Documentation
+## 📖 Documentation Structure
 
-This documentation follows a **user journey structure** to help you find what you need quickly:
-- **New users** → Start with [Getting Started](getting-started/)
-- **CLI users** → Jump to [CLI Usage](cli-usage/) or [MCP Tools](cli-usage/mcp-tools.md)
-- **Automation** → Explore [AI Teammate Workflows](ai-teammate/)
-- **Developers** → Check [Development](development/) and [API Reference](api/)
-- **DevOps** → See [Deployment](deployment/) guides
+```
+docs/
+├── README.md                           # You are here
+├── INDEX.md                            # Quick file reference
+│
+├── getting-started/                    # New user guides
+│   ├── installation.md
+│   ├── configuration.md
+│   └── first-steps.md
+│
+├── cli-usage/                          # CLI reference
+│   └── mcp-tools.md
+│
+├── jobs/                               # JobRunner system
+│   └── README.md
+│
+├── ai-teammate/                        # Automation workflows
+│   ├── README.md
+│   ├── agent-configuration.md
+│   └── javascript-actions.md
+│
+├── api/                                # API documentation
+│   ├── rest-api.md
+│   ├── agents-api.md
+│   ├── chat-api.md
+│   ├── agents-examples.md
+│   └── api-reference.md
+│
+├── integrations/                       # Integration guides
+│   └── gemini.md
+│
+├── development/                        # Developer docs
+│   ├── architecture.md
+│   ├── building.md
+│   ├── project-structure.md
+│   ├── project-overview.md
+│   ├── dependencies.md
+│   ├── commit-rules.md
+│   ├── testing-rules.md
+│   ├── cursor-setup.md
+│   ├── aider-gemini-setup.md
+│   └── uri-factory-improvements.md
+│
+└── deployment/                         # Deployment guides
+    ├── production.md
+    ├── oauth-setup.md
+    └── oauth-proxy.md
+```
 
 ---
 
-**Version:** 1.7.16+ | **License:** See [LICENSE](../LICENSE) | **Repository:** [GitHub](https://github.com/IstiN/dmtools)
+## 💡 Quick Tips
+
+### 🔑 Essential Commands
+```bash
+# List all available tools
+dmtools mcp list
+
+# Get a Jira ticket
+dmtools mcp jira_get_ticket '{"key": "PROJ-123"}'
+
+# Search Jira tickets
+dmtools mcp jira_search_by_jql '{"searchQueryJQL": "project = PROJ", "fields": ["summary", "status"]}'
+
+# Run a job
+dmtools run my-config.json
+```
+
+### 🎯 Common Use Cases
+- **Automate ticket updates** → [AI Teammate](ai-teammate/README.md)
+- **Generate documentation** → [Jobs: Documentation](jobs/README.md)
+- **Track productivity** → [Jobs: Reports](jobs/README.md)
+- **Integrate with CI/CD** → [Installation](getting-started/installation.md)
+
+### 🔗 External Links
+- [GitHub Repository](https://github.com/istin/dmtools)
+- [Issue Tracker](https://github.com/istin/dmtools/issues)
+
+---
+
+## 📋 All Documentation Files
+
+See [INDEX.md](INDEX.md) for a complete alphabetical list of all documentation files.
+
+---
+
+**Version:** 1.0  
+**Last Updated:** 2025-01-05  
+**Status:** ✅ Complete and up-to-date

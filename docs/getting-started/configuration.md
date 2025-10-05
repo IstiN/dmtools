@@ -436,10 +436,10 @@ DMTOOLS_INTEGRATIONS=jira,confluence,figma,ai,github
 
 👉 **[First Steps](first-steps.md)** - Run your first commands
 
-👉 **[CLI Usage](../cli-usage/overview.md)** - Learn the command structure
+👉 **[MCP Tools Reference](../cli-usage/mcp-tools.md)** - Learn the command structure
 
 👉 **[MCP Tools](../cli-usage/mcp-tools.md)** - Explore all 67 available tools
 
 For more detailed information, see:
-- **[Environment Variables Reference](../configuration/environment-variables.md)** - Complete list of all variables
-- **[Security Best Practices](../configuration/security.md)** - Advanced security configuration
+- **[First Steps](first-steps.md)** - Start using DMTools CLI
+- **[MCP Tools](../cli-usage/mcp-tools.md)** - Available CLI tools

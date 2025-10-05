@@ -406,7 +406,6 @@ JavaScript file to run after completion:
 
 ## See Also
 
-- **[GitHub Actions Integration](github-actions.md)** - Detailed workflow setup
 - **[Agent Configuration](agent-configuration.md)** - Complete configuration reference
 - **[JavaScript Actions](javascript-actions.md)** - Post-processing with JS
-- **[Workflow Examples](examples.md)** - Real-world automation patterns
+- **[Jobs Documentation](../jobs/README.md)** - Available jobs reference

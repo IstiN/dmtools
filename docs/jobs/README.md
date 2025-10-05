@@ -72,44 +72,44 @@ dmtools run my-job.json
 
 Jobs are organized by primary function:
 
-### [Business Analysis Jobs](business-analysis/)
+### Business Analysis Jobs
 Process requirements, generate stories, and create documentation:
-- **[RequirementsCollector](business-analysis/requirements-collector.md)** - Collect and organize requirements from tickets
-- **[UserStoryGenerator](business-analysis/user-story-generator.md)** - Generate well-formatted user stories
-- **[BusinessAnalyticDORGeneration](business-analysis/dor-generation.md)** - Create Definition of Ready documents
-- **[PreSaleSupport](business-analysis/presale-support.md)** - Process RFPs and generate proposals
+- **RequirementsCollector** - Collect and organize requirements from tickets
+- **UserStoryGenerator** - Generate well-formatted user stories
+- **BusinessAnalyticDORGeneration** - Create Definition of Ready documents
+- **PreSaleSupport** - Process RFPs and generate proposals
 
-### [Development Jobs](development/)
+### Development Jobs
 Code generation, testing, and analysis:
-- **[CodeGenerator](development/code-generator.md)** - Generate code from specifications
-- **[UnitTestsGenerator](development/unit-tests-generator.md)** - Create unit tests automatically
-- **[CommitsTriage](development/commits-triage.md)** - Analyze and categorize commits
-- **[SourceCodeTrackerSyncJob](development/source-code-sync.md)** - Sync source code with tracker
+- **CodeGenerator** - Generate code from specifications
+- **UnitTestsGenerator** - Create unit tests automatically
+- **CommitsTriage** - Analyze and categorize commits
+- **SourceCodeTrackerSyncJob** - Sync source code with tracker
 
-### [QA Jobs](qa/)
+### QA Jobs
 Test case generation and quality assurance:
-- **[TestCasesGenerator](qa/test-cases-generator.md)** - Generate test cases from stories
-- **[QAProductivityReport](qa/qa-productivity-report.md)** - Track QA team productivity
+- **TestCasesGenerator** - Generate test cases from stories
+- **QAProductivityReport** - Track QA team productivity
 
-### [Reporting Jobs](reports/)
+### Reporting Jobs
 Productivity and status reports:
-- **[DevProductivityReport](reports/dev-productivity.md)** - Developer productivity metrics
-- **[BAProductivityReport](reports/ba-productivity.md)** - BA team productivity tracking
-- **[ScrumMasterDaily](reports/scrum-master-daily.md)** - Daily standup reports
+- **DevProductivityReport** - Developer productivity metrics
+- **BAProductivityReport** - BA team productivity tracking
+- **ScrumMasterDaily** - Daily standup reports
 
-### [Architecture Jobs](architecture/)
+### Architecture Jobs
 Solution design and documentation:
-- **[SolutionArchitectureCreator](architecture/solution-architecture-creator.md)** - Generate solution architecture
-- **[DiagramsCreator](architecture/diagrams-creator.md)** - Create technical diagrams
-- **[DocumentationGenerator](architecture/documentation-generator.md)** - Generate technical documentation
+- **SolutionArchitectureCreator** - Generate solution architecture
+- **DiagramsCreator** - Create technical diagrams
+- **DocumentationGenerator** - Generate technical documentation
 
-### [Automation Jobs](automation/)
+### Automation Jobs
 Advanced automation and AI assistance:
-- **[Expert](automation/expert.md)** - AI expert for answering questions
-- **[Teammate](automation/teammate.md)** - AI teammate for complex workflows
-- **[JEstimator](automation/jestimator.md)** - Estimate ticket complexity
-- **[JSRunner](automation/js-runner.md)** - Execute JavaScript automation scripts
-- **[SourceCodeCommitTrackerSyncJob](automation/commit-sync.md)** - Sync commits to tracker
+- **Expert** - AI expert for answering questions
+- **Teammate** - AI teammate for complex workflows
+- **JEstimator** - Estimate ticket complexity
+- **JSRunner** - Execute JavaScript automation scripts
+- **SourceCodeCommitTrackerSyncJob** - Sync commits to tracker
 
 ---
 
@@ -527,6 +527,6 @@ dmtools run my-job.json 2>&1 | tee job-execution.log
 ## See Also
 
 - **[AI Teammate Workflows](../ai-teammate/README.md)** - Automate jobs with GitHub Actions
-- **[CLI Usage](../cli-usage/overview.md)** - Command-line interface basics
-- **[Configuration](../configuration/environment-variables.md)** - Environment setup
+- **[MCP Tools Reference](../cli-usage/mcp-tools.md)** - Command-line interface basics
+- **[Configuration Guide](../getting-started/configuration.md)** - Environment setup
 - **[API Reference](../api/rest-api.md)** - Programmatic access to jobs

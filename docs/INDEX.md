@@ -47,19 +47,17 @@ Quick reference for all documentation files.
 - [OAuth Setup](deployment/oauth-setup.md)
 - [OAuth Proxy](deployment/oauth-proxy.md)
 
-### Meta Documentation (5 files)
+### Overview (3 files)
 - [Main README](README.md)
 - [Documentation Index](INDEX.md) - This file
-- [Migration Summary](FINAL_MIGRATION_SUMMARY.md)
-- [Cleanup Summary](CLEANUP_SUMMARY.md)
-- [Legacy Cleanup Plan](LEGACY_DOCS_CLEANUP_PLAN.md)
+- [Gemini CLI Workflow](GEMINI_CLI_WORKFLOW.md)
 
 ---
 
 ## 📊 Statistics
 
-- **Total Files:** 32
-- **Categories:** 7 main + 1 meta
+- **Total Files:** 30
+- **Categories:** 7 main + 1 overview
 - **Coverage:** Complete (Getting Started → Advanced)
 - **Status:** ✅ Up-to-date
 

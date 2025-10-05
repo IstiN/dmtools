@@ -735,5 +735,4 @@ console.log('Result:', result);
 
 - **[AI Teammate Overview](README.md)** - Understanding the workflow
 - **[Agent Configuration](agent-configuration.md)** - Configuring agents
-- **[Workflow Examples](examples.md)** - Complete workflow examples
 - **[MCP Tools Reference](../cli-usage/mcp-tools.md)** - Available MCP tools

@@ -584,5 +584,4 @@ agents/
 
 - **[AI Teammate Overview](README.md)** - Understanding the workflow
 - **[JavaScript Actions](javascript-actions.md)** - Post-processing scripts
-- **[GitHub Actions Integration](github-actions.md)** - CI/CD setup
 - **[Jobs Documentation](../jobs/README.md)** - Available jobs reference

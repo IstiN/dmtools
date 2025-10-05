@@ -65,7 +65,7 @@ Server configuration is managed through `application.properties`. See the main R
 
 For issues or questions:
 - Check the [GitHub Issues](https://github.com/IstiN/dmtools/issues)
-- Review the [main documentation](README.md)
+- Review the [main documentation](../README.md)
 - Use the Swagger UI for interactive API exploration
 
 ## Diagram

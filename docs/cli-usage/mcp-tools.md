@@ -843,7 +843,7 @@ print(f"Status: {ticket['fields']['status']['name']}")
 
 ## See Also
 
-- **[CLI Overview](overview.md)** - Command structure and basics
-- **[CLI Examples](examples.md)** - Real-world use cases
-- **[Configuration](../getting-started/configuration.md)** - Environment setup
 - **[First Steps](../getting-started/first-steps.md)** - Getting started guide
+- **[Jobs Overview](../jobs/README.md)** - Run automation jobs
+- **[Configuration](../getting-started/configuration.md)** - Environment setup
+- **[AI Teammate](../ai-teammate/README.md)** - Automation workflows

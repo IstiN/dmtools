@@ -97,4 +97,4 @@ For detailed parameter schemas, validation rules, and interactive API testing:
 
 - **Swagger UI**: `http://localhost:8080/swagger-ui.html` - Complete API documentation
 - **GitHub Issues**: [DMTools Issues](https://github.com/IstiN/dmtools/issues)
-- **Main Documentation**: [README.md](README.md) - Setup and configuration 
+- **Main Documentation**: [README.md](../README.md) - Setup and configuration 
