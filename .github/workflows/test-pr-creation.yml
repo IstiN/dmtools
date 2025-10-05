@@ -1,0 +1,115 @@
+name: Test PR Creation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-pr-creation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Install GitHub CLI
+        run: |
+          type -p gh >/dev/null || (sudo apt update && sudo apt install gh -y)
+      
+      - name: Download and install dmtools
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Downloading latest dmtools release..."
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/IstiN/dmtools/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+          echo "Latest release: $LATEST_RELEASE"
+          curl -L "https://github.com/IstiN/dmtools/releases/download/${LATEST_RELEASE}/dmtools-${LATEST_RELEASE}.tar.gz" -o dmtools.tar.gz
+          tar -xzf dmtools.tar.gz
+          chmod +x dmtools.sh
+          sudo ln -sf "$(pwd)/dmtools.sh" /usr/local/bin/dmtools
+          dmtools --version
+      
+      - name: Configure Git
+        run: |
+          git config user.name "AI Teammate Test"
+          git config user.email "test@dmtools.ai"
+      
+      - name: Create test file change
+        run: |
+          echo "# Test PR Creation" > TESTPR.md
+          echo "" >> TESTPR.md
+          echo "This is a test file created at $(date)" >> TESTPR.md
+          echo "" >> TESTPR.md
+          echo "Testing PR creation with complex markdown content." >> TESTPR.md
+      
+      - name: Create outputs/response.md
+        run: |
+          mkdir -p outputs
+          cat > outputs/response.md << 'EOF'
+          ## Development Summary
+
+          ### Approach
+          This is a **test PR** to verify that PR creation works with complex markdown content including:
+          - Code blocks
+          - Special characters
+          - Multiple formatting options
+
+          ### Implementation
+
+          #### Code Changes
+          ```java
+          public class TestClass {
+              private static final String TEST = "Hello World!";
+              
+              public void testMethod() {
+                  System.out.println("Test: " + TEST);
+                  // Dollar signs: $PATH, ${HOME}
+                  String path = System.getenv("PATH");
+              }
+          }
+          ```
+
+          #### Shell Commands
+          ```bash
+          # Special characters test
+          echo "Testing: $HOME, ${USER}, `date`"
+          gh pr create --title "Test" --body "Body with \"quotes\""
+          ```
+
+          ### Test Coverage
+          - ✅ **Shell escaping** - Dollar signs, quotes, backticks
+          - ✅ **Code blocks** - Java, bash, markdown
+          - ✅ **Special characters** - \n, \t, $, ", ', `
+          - ✅ **Formatting** - Bold, italic, lists
+
+          ### Results
+          All tests should pass with proper escaping via `--body-file` approach! 🎉
+          EOF
+      
+      - name: Run dmtools JSRunner to create PR
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_USER: ${{ secrets.JIRA_USER }}
+          JIRA_PASSWORD: ${{ secrets.JIRA_PASSWORD }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "Running dmtools JSRunner test..."
+          dmtools run test-pr-creation.json || echo "Note: Jira integration may fail if ticket doesn't exist"
+      
+      - name: Show results
+        if: always()
+        run: |
+          echo "=== Git Status ==="
+          git status
+          echo ""
+          echo "=== Recent Branches ==="
+          git branch -a | grep "test-pr" || echo "No test branches found"
+          echo ""
+          echo "=== Check GitHub for PR ==="
+          gh pr list --limit 5 || echo "Could not list PRs"

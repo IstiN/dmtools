@@ -155,26 +155,20 @@ function performGitOperations(branchName, commitMessage) {
 
 /**
  * Create Pull Request using GitHub CLI
+ * Expects outputs/response.md to already exist with PR body content
  * 
  * @param {string} title - PR title
- * @param {string} body - PR body/description
  * @returns {Object} Result with success status and PR URL
  */
-function createPullRequest(title, body) {
+function createPullRequest(title) {
     try {
         console.log('Creating Pull Request...');
         
         // Escape special characters in title
         const escapedTitle = title.replace(/"/g, '\\"').replace(/\n/g, ' ');
         
-        // Write body to outputs/pr_body.md to avoid shell escaping issues
-        const bodyFilePath = 'outputs/pr_body.md';
-        
-        // Write body content to file
-        file_write({
-            filePath: bodyFilePath,
-            content: body
-        });
+        // Use outputs/response.md as body-file (must exist before calling this)
+        const bodyFilePath = 'outputs/response.md';
         
         console.log('Using PR body file:', bodyFilePath);
         
@@ -316,15 +310,49 @@ function action(params) {
             };
         }
         
-        // Prepare PR body
-        let prBody = ticketDescription;
-        if (developmentSummary) {
-            prBody += '\n\n## Development Summary\n\n' + developmentSummary;
+        // Prepare PR body - ensure outputs/response.md exists
+        // Priority: 1) outputs/response.md (if exists), 2) developmentSummary, 3) ticketDescription
+        let prBody = '';
+        let bodySource = '';
+        
+        try {
+            const responseContent = file_read({
+                filePath: 'outputs/response.md'
+            });
+            if (responseContent) {
+                prBody = responseContent;
+                bodySource = 'outputs/response.md';
+            }
+        } catch (error) {
+            // outputs/response.md doesn't exist, use developmentSummary or description
+            if (developmentSummary) {
+                prBody = ticketDescription + '\n\n## Development Summary\n\n' + developmentSummary;
+                bodySource = 'developmentSummary';
+            } else {
+                prBody = ticketDescription;
+                bodySource = 'ticketDescription';
+            }
+        }
+        
+        // Write final body to outputs/response.md (for gh pr create --body-file)
+        try {
+            file_write({
+                filePath: 'outputs/response.md',
+                content: prBody
+            });
+            console.log('Using', bodySource, 'as PR body -> outputs/response.md');
+        } catch (error) {
+            console.error('Failed to write outputs/response.md:', error);
+            postErrorCommentToJira(ticketKey, 'PR Body Preparation', error.toString());
+            return {
+                success: false,
+                error: 'Failed to prepare PR body: ' + error.toString()
+            };
         }
         
         // Create Pull Request
         const prTitle = ticketKey + ' ' + ticketSummary;
-        const prResult = createPullRequest(prTitle, prBody);
+        const prResult = createPullRequest(prTitle);
         
         if (!prResult.success) {
             postErrorCommentToJira(ticketKey, 'Pull Request Creation', prResult.error);
