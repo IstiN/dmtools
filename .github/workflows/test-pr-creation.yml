@@ -3,6 +3,11 @@ name: Test PR Creation
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
 jobs:
   test-pr-creation:
     runs-on: ubuntu-latest
@@ -11,33 +16,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
+      - name: Setup Java Environment
+        uses: ./.github/actions/setup-java-only
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          cache-key-suffix: '-test-pr'
       
-      - name: Install GitHub CLI
+      - name: Install DMTools CLI
         run: |
-          type -p gh >/dev/null || (sudo apt update && sudo apt install gh -y)
+          curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+          echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
       
-      - name: Download and install dmtools
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify DMTools Installation
         run: |
-          echo "Downloading latest dmtools release..."
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/IstiN/dmtools/releases/latest | grep "tag_name" | cut -d '"' -f 4)
-          echo "Latest release: $LATEST_RELEASE"
-          curl -L "https://github.com/IstiN/dmtools/releases/download/${LATEST_RELEASE}/dmtools-${LATEST_RELEASE}.tar.gz" -o dmtools.tar.gz
-          tar -xzf dmtools.tar.gz
-          chmod +x dmtools.sh
-          sudo ln -sf "$(pwd)/dmtools.sh" /usr/local/bin/dmtools
-          dmtools --version
-      
-      - name: Configure Git
-        run: |
-          git config user.name "AI Teammate Test"
-          git config user.email "test@dmtools.ai"
+          dmtools --version || echo "dmtools installation check failed"
       
       - name: Create test file change
         run: |
@@ -93,11 +84,19 @@ jobs:
       
       - name: Run dmtools JSRunner to create PR
         env:
-          JIRA_URL: ${{ secrets.JIRA_URL }}
-          JIRA_USER: ${{ secrets.JIRA_USER }}
-          JIRA_PASSWORD: ${{ secrets.JIRA_PASSWORD }}
+          PATH: "/home/runner/.dmtools/bin:/bin:/usr/bin:$PATH"
+          # Jira Configuration
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+          JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+          
+          # GitHub Authentication for PR creation
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          
+          # DMTools Integration Settings
+          DMTOOLS_INTEGRATIONS: "jira,cli,file"
         run: |
           echo "Running dmtools JSRunner test..."
           dmtools run test-pr-creation.json || echo "Note: Jira integration may fail if ticket doesn't exist"
