@@ -65,8 +65,7 @@ dependencies {
     // Google Cloud SQL dependencies
     implementation 'org.postgresql:postgresql:42.7.3'
     implementation 'com.google.cloud.sql:postgres-socket-factory:1.15.0'
-    implementation 'com.google.cloud:google-cloud-secretmanager:2.30.0'
-    
+    implementation 'com.google.cloud:google-cloud-secretmanager:2.75.0'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -111,7 +110,7 @@ dependencies {
 //     }
 // }
 
-configurations.all {
+configurations.configureEach {
     exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
     resolutionStrategy {
         force 'org.jboss.logging:jboss-logging:3.5.3.Final'
@@ -119,7 +118,7 @@ configurations.all {
     }
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
     useJUnitPlatform()
     enabled = true  // Enable tests
     jvmArgs += "-Dnet.bytebuddy.experimental=true"  // Add support for Java 23

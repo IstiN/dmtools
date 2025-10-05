@@ -3,13 +3,12 @@ package com.github.istin.dmtools.qa.automation.appium;
 import com.github.istin.dmtools.qa.automation.BaseAutomationBridge;
 import com.google.common.collect.ImmutableMap;
 import io.appium.java_client.AppiumBy;
-import io.appium.java_client.android.Activity;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.options.UiAutomator2Options;
 import org.openqa.selenium.By;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
@@ -34,22 +33,19 @@ public class AppiumBridge extends BaseAutomationBridge {
         try {
             AppiumInstallationUtils.ensureAppiumInstalled();
 
-            Map<String, Object> caps = new HashMap<>();
-            caps.put("platformName", "Android");
-            caps.put("automationName", "UiAutomator2");
-            caps.put("deviceName", "emulator-5554");
-            caps.put("appPackage", appPackage);
-            caps.put("appActivity", appActivity);
-            caps.put("noReset", true);
-
             // Update the URL to include the correct base path for Appium
-            URL appiumServerUrl = new URL("http://127.0.0.1:4723/wd/hub");
+            URL appiumServerUrl = new URL("http://127.0.0.1:4723");
 
-            // Create capabilities object
-            DesiredCapabilities capabilities = new DesiredCapabilities(caps);
+            // Create capabilities using UiAutomator2Options (Appium 9.x way)
+            UiAutomator2Options options = new UiAutomator2Options()
+                    .setPlatformName("Android")
+                    .setDeviceName("emulator-5554")
+                    .setAppPackage(appPackage)
+                    .setAppActivity(appActivity)
+                    .setNoReset(true);
 
-            // Initialize driver with basic options
-            driver = new AndroidDriver(appiumServerUrl, capabilities);
+            // Initialize driver
+            driver = new AndroidDriver(appiumServerUrl, options);
 
             // Set timeouts
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
@@ -138,8 +134,11 @@ public class AppiumBridge extends BaseAutomationBridge {
         try {
             if (destination.startsWith("activity://")) {
                 String activity = destination.substring("activity://".length());
-                Activity activityObject = new Activity(driver.getCurrentPackage(), activity);
-                driver.startActivity(activityObject);
+                // In Appium 9.x, use executeScript with mobile: startActivity
+                Map<String, Object> params = new HashMap<>();
+                params.put("appPackage", driver.getCurrentPackage());
+                params.put("appActivity", activity);
+                driver.executeScript("mobile: startActivity", params);
             } else {
                 logger.warn("Direct URL navigation is not supported in Android apps");
             }
