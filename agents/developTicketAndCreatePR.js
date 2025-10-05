@@ -310,43 +310,27 @@ function action(params) {
             };
         }
         
-        // Prepare PR body - ensure outputs/response.md exists
-        // Priority: 1) outputs/response.md (if exists), 2) developmentSummary, 3) ticketDescription
-        let prBody = '';
-        let bodySource = '';
-        
+        // Verify outputs/response.md exists (must be created by cursor-agent or workflow)
         try {
             const responseContent = file_read({
-                filePath: 'outputs/response.md'
+                path: 'outputs/response.md'
             });
-            if (responseContent) {
-                prBody = responseContent;
-                bodySource = 'outputs/response.md';
+            if (!responseContent) {
+                const error = 'outputs/response.md not found or empty - must be created before running this script';
+                console.error(error);
+                postErrorCommentToJira(ticketKey, 'PR Body Preparation', error);
+                return {
+                    success: false,
+                    error: error
+                };
             }
+            console.log('Using outputs/response.md as PR body (' + responseContent.length + ' characters)');
         } catch (error) {
-            // outputs/response.md doesn't exist, use developmentSummary or description
-            if (developmentSummary) {
-                prBody = ticketDescription + '\n\n## Development Summary\n\n' + developmentSummary;
-                bodySource = 'developmentSummary';
-            } else {
-                prBody = ticketDescription;
-                bodySource = 'ticketDescription';
-            }
-        }
-        
-        // Write final body to outputs/response.md (for gh pr create --body-file)
-        try {
-            file_write({
-                filePath: 'outputs/response.md',
-                content: prBody
-            });
-            console.log('Using', bodySource, 'as PR body -> outputs/response.md');
-        } catch (error) {
-            console.error('Failed to write outputs/response.md:', error);
+            console.error('Failed to read outputs/response.md:', error);
             postErrorCommentToJira(ticketKey, 'PR Body Preparation', error.toString());
             return {
                 success: false,
-                error: 'Failed to prepare PR body: ' + error.toString()
+                error: 'Failed to read PR body: ' + error.toString()
             };
         }
         
