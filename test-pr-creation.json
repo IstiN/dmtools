@@ -1,0 +1,12 @@
+{
+  "name": "JSRunner",
+  "jsPath": "agents/developTicketAndCreatePR.js",
+  "ticket": {
+    "key": "DMC-TEST-PR",
+    "fields": {
+      "summary": "[CORE] Test PR Creation with Complex Markdown",
+      "description": "This is a test ticket to verify PR creation with complex markdown content.\n\n## Test Goals\n- Test shell escaping\n- Test code blocks\n- Test special characters\n\n```java\nSystem.out.println(\"Hello World!\");\n```"
+    }
+  },
+  "response": "See outputs/response.md for development summary"
+}

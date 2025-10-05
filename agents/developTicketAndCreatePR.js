@@ -167,9 +167,8 @@ function createPullRequest(title, body) {
         // Escape special characters in title
         const escapedTitle = title.replace(/"/g, '\\"').replace(/\n/g, ' ');
         
-        // Write body to temporary file to avoid shell escaping issues
-        const timestamp = Date.now();
-        const bodyFilePath = '/tmp/pr_body_' + timestamp + '.md';
+        // Write body to outputs/pr_body.md to avoid shell escaping issues
+        const bodyFilePath = 'outputs/pr_body.md';
         
         // Write body content to file
         file_write({
@@ -177,21 +176,12 @@ function createPullRequest(title, body) {
             content: body
         });
         
-        console.log('Using temporary file for PR body:', bodyFilePath);
+        console.log('Using PR body file:', bodyFilePath);
         
         // Create PR using gh CLI with body-file
         const output = cli_execute_command({
             command: 'gh pr create --title "' + escapedTitle + '" --body-file "' + bodyFilePath + '" --base main'
         }) || '';
-        
-        // Clean up temporary file
-        try {
-            cli_execute_command({
-                command: 'rm -f "' + bodyFilePath + '"'
-            });
-        } catch (cleanupError) {
-            console.warn('Failed to clean up temporary file:', cleanupError);
-        }
         
         // Extract PR URL from output
         const urlMatch = output.match(/https:\/\/github\.com\/[^\s]+/);
