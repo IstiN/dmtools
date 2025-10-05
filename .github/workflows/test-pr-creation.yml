@@ -21,9 +21,11 @@ jobs:
         with:
           cache-key-suffix: '-test-pr'
       
-      - name: Install DMTools CLI
+      - name: Build and Install DMTools CLI from source
         run: |
-          curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+          echo "Building DMTools from source (includes latest cli integration fix)..."
+          ./gradlew clean build -x test
+          ./install.sh
           echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
       
       - name: Verify DMTools Installation
