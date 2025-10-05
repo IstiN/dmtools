@@ -99,7 +99,22 @@ jobs:
           DMTOOLS_INTEGRATIONS: "jira,cli,file"
         run: |
           echo "Running dmtools JSRunner test..."
-          dmtools run test-pr-creation.json || echo "Note: Jira integration may fail if ticket doesn't exist"
+          set +e  # Don't exit on error
+          dmtools run test-pr-creation.json 2>&1 | tee dmtools-output.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+          
+          echo ""
+          echo "=== DMTools Exit Code: $EXIT_CODE ==="
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "⚠️ DMTools execution failed with exit code $EXIT_CODE"
+            echo "Check the logs above for errors"
+            cat dmtools-output.log || true
+            exit $EXIT_CODE
+          else
+            echo "✅ DMTools execution completed successfully"
+          fi
       
       - name: Show results
         if: always()
