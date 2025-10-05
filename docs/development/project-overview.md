@@ -27,7 +27,6 @@ DMTools aims to bridge the gap between various development tools and processes b
 - **Project Management**: Jira, Rally
 - **Documentation**: Confluence
 - **Design Tools**: Figma
-- **Mobile Development**: AppCenter
 - **Cloud Services**: Firebase, AWS
 
 ### 📊 Analytics and Reporting

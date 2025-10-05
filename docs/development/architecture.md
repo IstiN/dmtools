@@ -242,7 +242,6 @@ graph LR
     
     subgraph "Design & Mobile"
         K[FigmaClient]
-        L[AppCenterClient]
     end
     
     subgraph "Cloud Services"
@@ -258,7 +257,6 @@ graph LR
     C --> I
     C --> J
     C --> K
-    C --> L
     C --> M
     C --> N
 ```
