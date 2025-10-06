@@ -219,6 +219,15 @@ jobs:
           echo "HAS_CHANGES=true" >> $GITHUB_ENV
         fi
 
+    - name: Trigger Unit Tests
+      if: env.HAS_CHANGES == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+      run: |
+        echo "Triggering unit tests for PR #${{ inputs.pr_number }}..."
+        gh workflow run pr-unit-tests.yml -f pr_number=${{ inputs.pr_number }}
+        echo "Unit tests workflow triggered. Check the Actions tab for results."
+
     - name: Post Comment on PR
       if: always()
       env:
@@ -237,6 +246,8 @@ jobs:
           if [ "${HAS_CHANGES:-false}" = "true" ]; then
             echo "" >> pr-comment.md
             echo "✅ **Changes have been committed and pushed to the PR branch.**" >> pr-comment.md
+            echo "" >> pr-comment.md
+            echo "🧪 **Unit tests have been triggered automatically.** Check the Actions tab for test results." >> pr-comment.md
           else
             echo "" >> pr-comment.md
             echo "ℹ️ **No code changes were needed.**" >> pr-comment.md
