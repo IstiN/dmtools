@@ -299,6 +299,27 @@
       ]
     },
     {
+      "key": "preJSAction",
+      "displayName": "Pre-Action JavaScript",
+      "description": "JavaScript code to execute before AI processing. Can be inline JavaScript, resource path (e.g., 'agentFunctions/preValidation.js'), or GitHub URL. The script receives jobParams, ticket, and initiator as parameters and has access to all 61 MCP tools (Jira, Confluence, AI, etc.). Return true to continue processing or false to skip.",
+      "displayNameKey": "teammate.preJSAction.displayName",
+      "descriptionKey": "teammate.preJSAction.description",
+      "instructionsKey": "teammate.preJSAction.instructions",
+      "required": false,
+      "sensitive": false,
+      "advanced": true,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 500000
+      },
+      "examples": [
+        "function action(params) {\n  var ticket = JSON.parse(params.ticket);\n  // Check if ticket has required label\n  if (!ticket.labels || !ticket.labels.includes('ready-for-ai')) {\n    console.log('Skipping: ticket missing ready-for-ai label');\n    return false;\n  }\n  // Move ticket to 'In Analysis' status\n  jira_transition_issue({\n    issueKey: ticket.key,\n    transitionName: 'In Analysis'\n  });\n  return true;\n}",
+        "agentFunctions/preValidation.js",
+        "https://github.com/company/dmtools-scripts/blob/main/teammate/preProcess.js"
+      ]
+    },
+    {
       "key": "postJSAction",
       "displayName": "Post-Action JavaScript",
       "description": "JavaScript code to execute after AI processing. Can be inline JavaScript, resource path (e.g., 'agentFunctions/postProcess.js'), or GitHub URL. The script receives jobParams, ticket, response, and initiator as parameters and has access to all 61 MCP tools (Jira, Confluence, AI, etc.).",
