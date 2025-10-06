@@ -27,7 +27,7 @@
       "fewShots" : "## Approach\nImplemented the feature by creating a new service class following the existing repository pattern. Added validation logic in the service layer.\n\n## Files Modified\n- `src/main/java/com/dmtools/service/NewFeatureService.java` - Created new service with business logic\n- `src/test/java/com/dmtools/service/NewFeatureServiceTest.java` - Added unit tests with 95% coverage\n\n## Test Coverage\nCreated comprehensive unit tests covering:\n- Happy path scenarios\n- Edge cases with null/empty inputs\n- Error handling and exception cases\n\n## Issues/Notes\nAll acceptance criteria implemented successfully. No blocking issues encountered."
     },
     "cliCommands" : [
-      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. Implement the ticket requirements including code implementation, unit tests, and documentation if explicitly mentioned in requirements. Write comprehensive development summary to outputs/response.md explaining your approach, changes, tests, and any issues. DO NOT create branches or push - focus only on code implementation.\""
+      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. Implement the ticket requirements including code implementation, unit tests, and documentation if explicitly mentioned in requirements. Write comprehensive development summary to outputs/response.md explaining your approach, changes, tests, and any issues. DO NOT create branches or push - focus only on code implementation. You must compile and run tests before finish.\""
     ],
     "outputType" : "none",
     "ticketContextDepth" : 1,
