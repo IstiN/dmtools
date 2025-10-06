@@ -1,6 +1,9 @@
 {
   "name" : "Teammate",
   "params" : {
+    "metadata" : {
+      "contextId" : "story_solution_design"
+    },
     "agentParams" : {
       "aiRole" : "Senior Software Architect",
       "instructions" : [
@@ -33,6 +36,7 @@
     "skipAIProcessing" : true,
     "inputJql" : "key = DMC-504",
     "initiator" : "712020:2a248756-40e8-49d6-8ddc-6852e518451f",
-    "postJSAction" : "agents/createSolutionDesignTicketsAndAssignForReview.js"
+    "preJSAction" : "agents/js/checkWipLabel.js",
+    "postJSAction" : "agents/js/createSolutionDesignTicketsAndAssignForReview.js"
   }
 }

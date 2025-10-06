@@ -1,20 +1,21 @@
 /**
- * Enhance SD CORE Description and Assess Action
- * Enhances SD CORE ticket descriptions with technical details, assesses implementation needs, 
+ * Enhance SD API Description and Assess Action
+ * Enhances SD API ticket descriptions with technical details, assesses implementation needs, 
  * and updates diagram field based on AI-generated content
  */
 
 // Import common helper functions
 const { assignForReview, extractTicketKey } = require('./common/jiraHelpers.js');
+const { LABELS, DIAGRAM_DEFAULTS, DIAGRAM_FORMAT, JIRA_FIELDS } = require('./config.js');
 
 /**
- * Parse AI response for SD CORE enhancement
- * Expects JSON object with description, coreSubtaskCreation boolean, and diagram string
+ * Parse AI response for SD API enhancement
+ * Expects JSON object with description, apiSubtaskCreation boolean, and diagram string
  * 
  * @param {Object|string} response - AI response (should be JSON object)
  * @returns {Object} Parsed enhancement data or null if invalid
  */
-function parseSDCoreEnhancementResponse(response) {
+function parseSDAPIEnhancementResponse(response) {
     // Handle string responses (parse JSON)
     if (typeof response === 'string') {
         try {
@@ -33,29 +34,29 @@ function parseSDCoreEnhancementResponse(response) {
     
     // Validate required fields
     if (typeof response.description !== 'string' || 
-        typeof response.coreSubtaskCreation !== 'boolean' ||
+        typeof response.apiSubtaskCreation !== 'boolean' ||
         typeof response.diagram !== 'string') {
         console.error('AI response missing required fields or wrong types:', response);
         return null;
     }
     
-    // Basic validation for mermaid diagram
+    // Basic validation for mermaid sequence diagram
     if (!response.diagram.trim()) {
         console.warn('Empty diagram provided');
-        response.diagram = 'graph TD\n    A[SD CORE Enhancement] --> B[Technical Implementation]';
+        response.diagram = DIAGRAM_DEFAULTS.API_SEQUENCE;
     }
     
     return response;
 }
 
 /**
- * Update SD CORE ticket with enhanced content
+ * Update SD API ticket with enhanced content
  * 
  * @param {string} ticketKey - The ticket key to update
  * @param {Object} enhancementData - Parsed enhancement data from AI
  * @returns {Object} Update result
  */
-function updateSDCoreTicket(ticketKey, enhancementData) {
+function updateSDAPITicket(ticketKey, enhancementData) {
     const results = {
         descriptionUpdated: false,
         diagramUpdated: false,
@@ -77,11 +78,11 @@ function updateSDCoreTicket(ticketKey, enhancementData) {
     }
     
     try {
-        // Update Diagrams field with mermaid diagram wrapped in code tags for better visualization
-        const wrappedDiagram = '{code:mermaid}\n' + enhancementData.diagram + '\n{code}';
+        // Update Diagrams field with mermaid sequence diagram wrapped in code tags for better visualization
+        const wrappedDiagram = DIAGRAM_FORMAT.MERMAID_WRAPPER_START + enhancementData.diagram + DIAGRAM_FORMAT.MERMAID_WRAPPER_END;
         jira_update_field({
             key: ticketKey,
-            field: 'Diagrams',
+            field: JIRA_FIELDS.DIAGRAMS,
             value: wrappedDiagram
         });
         results.diagramUpdated = true;
@@ -93,15 +94,15 @@ function updateSDCoreTicket(ticketKey, enhancementData) {
     
     try {
         // Add implementation assessment label if needed
-        if (enhancementData.coreSubtaskCreation) {
+        if (enhancementData.apiSubtaskCreation) {
             jira_add_label({
                 key: ticketKey,
-                label: 'needs_core_implementation'
+                label: LABELS.NEEDS_API_IMPLEMENTATION
             });
             results.labelAdded = true;
-            console.log('✅ Added needs_core_implementation label to ' + ticketKey);
+            console.log('✅ Added needs_api_implementation label to ' + ticketKey);
         } else {
-            console.log('ℹ️ No additional core implementation needed for ' + ticketKey);
+            console.log('ℹ️ No additional API implementation needed for ' + ticketKey);
         }
     } catch (error) {
         console.error('Failed to add implementation label to ' + ticketKey + ':', error);
@@ -111,18 +112,21 @@ function updateSDCoreTicket(ticketKey, enhancementData) {
     return results;
 }
 
-
 function action(params) {
     try {
         const ticketKey = params.ticket.key;
         const initiatorId = params.initiator;
+        // Dynamically generate WIP label from contextId
+        const wipLabel = params.metadata && params.metadata.contextId 
+            ? params.metadata.contextId + '_wip' 
+            : null;
 
-        console.log("Processing SD CORE enhancement for ticket:", ticketKey);
+        console.log("Processing SD API enhancement for ticket:", ticketKey);
         
         // Parse AI enhancement response
-        const enhancementData = parseSDCoreEnhancementResponse(params.response);
+        const enhancementData = parseSDAPIEnhancementResponse(params.response);
         if (!enhancementData) {
-            const errorMsg = 'Invalid AI response format for SD CORE enhancement';
+            const errorMsg = 'Invalid AI response format for SD API enhancement';
             console.error(errorMsg);
             
             return {
@@ -131,11 +135,11 @@ function action(params) {
             };
         }
 
-        // Update SD CORE ticket with enhanced content
-        const updateResults = updateSDCoreTicket(ticketKey, enhancementData);
+        // Update SD API ticket with enhanced content
+        const updateResults = updateSDAPITicket(ticketKey, enhancementData);
 
         // Use common assignForReview function for post-processing
-        const assignResult = assignForReview(ticketKey, initiatorId);
+        const assignResult = assignForReview(ticketKey, initiatorId, wipLabel);
         
         if (!assignResult.success) {
             return assignResult;
@@ -161,3 +165,4 @@ function action(params) {
         };
     }
 }
+

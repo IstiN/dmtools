@@ -1,6 +1,9 @@
 {
   "name" : "Teammate",
   "params" : {
+    "metadata" : {
+      "contextId" : "story_description"
+    },
     "agentParams" : {
       "aiRole" : "Experienced Business Analyst",
       "instructions" : [
@@ -33,6 +36,7 @@
     "skipAIProcessing" : true,
     "inputJql" : "key = DMC-532",
     "initiator" : "712020:2a248756-40e8-49d6-8ddc-6852e518451f",
-    "postJSAction" : "agents/assignForReview.js"
+    "preJSAction" : "agents/js/checkWipLabel.js",
+    "postJSAction" : "agents/js/assignForReview.js"
   }
 }

@@ -1,6 +1,9 @@
 {
   "name" : "Teammate",
   "params" : {
+    "metadata" : {
+      "contextId" : "api_development"
+    },
     "agentParams" : {
       "aiRole" : "Senior Java Software Engineer",
       "instructions" : [
@@ -33,7 +36,8 @@
     "ticketContextDepth" : 1,
     "attachResponseAsFile" : false,
     "skipAIProcessing" : true,
-    "postJSAction" : "agents/developTicketAndCreatePR.js"
+    "preJSAction" : "agents/js/checkWipLabel.js",
+    "postJSAction" : "agents/js/developTicketAndCreatePR.js"
   }
 }
 
