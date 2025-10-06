@@ -158,9 +158,10 @@ function performGitOperations(branchName, commitMessage) {
  * Expects outputs/response.md to already exist with PR body content
  * 
  * @param {string} title - PR title
+ * @param {string} branchName - Branch name to use as head
  * @returns {Object} Result with success status and PR URL
  */
-function createPullRequest(title) {
+function createPullRequest(title, branchName) {
     try {
         console.log('Creating Pull Request...');
         
@@ -172,9 +173,10 @@ function createPullRequest(title) {
         
         console.log('Using PR body file:', bodyFilePath);
         
-        // Create PR using gh CLI with body-file
+        // Create PR using gh CLI with body-file and explicit head branch
+        // The --head flag ensures gh knows which branch to use for the PR
         const output = cli_execute_command({
-            command: 'gh pr create --title "' + escapedTitle + '" --body-file "' + bodyFilePath + '" --base main'
+            command: 'gh pr create --title "' + escapedTitle + '" --body-file "' + bodyFilePath + '" --base main --head "' + branchName + '"'
         }) || '';
         
         // Extract PR URL from output
@@ -336,7 +338,7 @@ function action(params) {
         
         // Create Pull Request
         const prTitle = ticketKey + ' ' + ticketSummary;
-        const prResult = createPullRequest(prTitle);
+        const prResult = createPullRequest(prTitle, branchName);
         
         if (!prResult.success) {
             postErrorCommentToJira(ticketKey, 'Pull Request Creation', prResult.error);
