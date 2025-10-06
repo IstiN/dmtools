@@ -134,9 +134,37 @@ function performGitOperations(branchName, commitMessage) {
         
         // Push to remote
         console.log('Pushing to remote...');
-        cli_execute_command({
+        const pushOutput = cli_execute_command({
             command: 'git push -u origin ' + branchName
-        });
+        }) || '';
+        
+        // Check if push failed (git push can return exit code 0 even when rejected)
+        if (pushOutput.indexOf('rejected') !== -1 || pushOutput.indexOf('failed to push') !== -1) {
+            console.warn('Push was rejected, attempting force push to update remote branch...');
+            
+            // Try force push to overwrite remote branch (safer than force-with-lease in automated context)
+            try {
+                const forcePushOutput = cli_execute_command({
+                    command: 'git push -u origin ' + branchName + ' --force'
+                }) || '';
+                
+                if (forcePushOutput.indexOf('rejected') !== -1 || forcePushOutput.indexOf('failed to push') !== -1) {
+                    console.error('Force push also failed:', forcePushOutput);
+                    return {
+                        success: false,
+                        error: 'Push rejected even with force. Output: ' + forcePushOutput
+                    };
+                }
+                
+                console.log('✅ Force push succeeded');
+            } catch (forcePushError) {
+                console.error('Force push failed:', forcePushError);
+                return {
+                    success: false,
+                    error: 'Force push failed: ' + forcePushError.toString()
+                };
+            }
+        }
         
         console.log('✅ Git operations completed successfully');
         return {
@@ -178,6 +206,28 @@ function createPullRequest(title, branchName) {
         const output = cli_execute_command({
             command: 'gh pr create --title "' + escapedTitle + '" --body-file "' + bodyFilePath + '" --base main --head "' + branchName + '"'
         }) || '';
+        
+        // Check if PR already exists
+        if (output.indexOf('already exists') !== -1 || output.indexOf('already has a pull request') !== -1) {
+            console.warn('PR already exists for this branch, fetching existing PR URL...');
+            try {
+                const prListOutput = cli_execute_command({
+                    command: 'gh pr list --head "' + branchName + '" --json url --jq ".[0].url"'
+                }) || '';
+                const existingPrUrl = prListOutput.trim();
+                
+                if (existingPrUrl && existingPrUrl.indexOf('http') === 0) {
+                    console.log('✅ Found existing Pull Request:', existingPrUrl);
+                    return {
+                        success: true,
+                        prUrl: existingPrUrl,
+                        output: 'PR already existed: ' + existingPrUrl
+                    };
+                }
+            } catch (prListError) {
+                console.warn('Could not fetch existing PR URL:', prListError);
+            }
+        }
         
         // Extract PR URL from output
         const urlMatch = output.match(/https:\/\/github\.com\/[^\s]+/);
