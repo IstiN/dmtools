@@ -1,0 +1,258 @@
+name: PR Fix Issues
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to fix issues for'
+        required: true
+        type: string
+      model:
+        description: 'AI model to use'
+        required: false
+        default: 'sonnet-4.5'
+        type: choice
+        options:
+          - sonnet-4
+          - sonnet-4.5
+          - gpt-4
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  
+jobs:
+  fix-pr-issues:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pr-fix-issues-${{ inputs.pr_number }}
+      cancel-in-progress: false
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Java Environment
+      uses: ./.github/actions/setup-java-only
+      with:
+        cache-key-suffix: '-pr-fix'
+
+    - name: Install Cursor CLI
+      run: |
+        echo "Installing Cursor CLI..."
+        curl https://cursor.com/install -fsS | bash
+        
+        echo "Checking installation locations..."
+        ls -la "$HOME/.cursor/" || echo "No .cursor directory"
+        ls -la "$HOME/.cursor/bin/" || echo "No .cursor/bin directory"
+        ls -la "$HOME/.local/bin/" || echo "No .local/bin directory"
+        
+        # Cursor CLI installs to ~/.local/bin, not ~/.cursor/bin
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        
+        # Test installation
+        export PATH="$HOME/.local/bin:$PATH"
+        if command -v cursor-agent; then
+          echo "✅ cursor-agent found at: $(command -v cursor-agent)"
+          cursor-agent --version 2>&1 || echo "Version check failed"
+        else
+          echo "❌ cursor-agent not found after installation"
+          echo "Available files in .local/bin:"
+          ls -la "$HOME/.local/bin/" 2>/dev/null || echo "Directory does not exist"
+        fi
+
+    - name: Install DMTools CLI
+      run: |
+        curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+        echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+
+    - name: Verify Installations
+      run: |
+        dmtools || echo "dmtools version failed"
+        cursor-agent --version || echo "cursor-agent version failed"
+        gh --version || echo "gh CLI version failed"
+
+    - name: Fetch PR Information
+      env:
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+      run: |
+        echo "Fetching PR #${{ inputs.pr_number }} information..."
+        
+        mkdir -p input
+        
+        echo "# Pull Request Information" > input/pr-details.md
+        echo "" >> input/pr-details.md
+        
+        gh pr view ${{ inputs.pr_number }} --json number,title,body,state,author,url,headRefName,baseRefName,isDraft,mergeable,reviewDecision >> input/pr-info.json
+        
+        echo "## PR #${{ inputs.pr_number }}" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        echo "**Title:** $(gh pr view ${{ inputs.pr_number }} --json title -q .title)" >> input/pr-details.md
+        echo "**Author:** $(gh pr view ${{ inputs.pr_number }} --json author -q .author.login)" >> input/pr-details.md
+        echo "**Branch:** $(gh pr view ${{ inputs.pr_number }} --json headRefName -q .headRefName)" >> input/pr-details.md
+        echo "**Base:** $(gh pr view ${{ inputs.pr_number }} --json baseRefName -q .baseRefName)" >> input/pr-details.md
+        echo "**State:** $(gh pr view ${{ inputs.pr_number }} --json state -q .state)" >> input/pr-details.md
+        echo "**URL:** $(gh pr view ${{ inputs.pr_number }} --json url -q .url)" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        
+        echo "## Description" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        gh pr view ${{ inputs.pr_number }} --json body -q .body >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        
+        echo "## Changed Files" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        gh pr diff ${{ inputs.pr_number }} > input/pr-diff.patch
+        gh pr view ${{ inputs.pr_number }} --json files -q '.files[].path' >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        
+        echo "## Review Comments" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        gh pr view ${{ inputs.pr_number }} --json comments --jq '.comments[] | "**\(.author.login)** (\(.createdAt)):\n\(.body)\n"' >> input/pr-details.md || echo "No comments found" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        
+        echo "## Reviews" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        gh pr view ${{ inputs.pr_number }} --json reviews --jq '.reviews[] | "**\(.author.login)** - \(.state) (\(.submittedAt)):\n\(.body)\n"' >> input/pr-details.md || echo "No reviews found" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        
+        echo "## Checks Status" >> input/pr-details.md
+        echo "" >> input/pr-details.md
+        gh pr checks ${{ inputs.pr_number }} >> input/pr-details.md || echo "No checks information available" >> input/pr-details.md
+        
+        {
+          echo "# Task: Fix Issues in Pull Request"
+          echo ""
+          echo "## Objective"
+          echo "Analyze the Pull Request and fix any issues identified in review comments, failed CI/CD checks, linter errors, test failures, or code quality issues."
+          echo ""
+          echo "## Available Information"
+          echo "Files in the input/ folder:"
+          echo "- pr-details.md - Complete PR information"
+          echo "- pr-info.json - Structured PR data"
+          echo "- pr-diff.patch - The actual code changes"
+          echo ""
+          echo "## Getting More Information"
+          echo "Use GitHub CLI commands if needed:"
+          echo "- gh pr view NUMBER"
+          echo "- gh pr diff NUMBER"
+          echo "- gh pr checks NUMBER"
+          echo "- gh pr view NUMBER --json comments"
+          echo ""
+          echo "## Instructions"
+          echo "Step 1: Read all files in the input/ folder"
+          echo "Step 2: Identify issues from reviews, comments, and checks"
+          echo "Step 3: Fix the issues by modifying files"
+          echo "Step 4: Test your changes if applicable"
+          echo "Step 5: Document fixes in outputs/response.md"
+          echo ""
+          echo "## Important Notes"
+          echo "- IMPLEMENTATION DETAILS AND DEVELOPMENT ARE NOT PART OF THIS TASK"
+          echo "- Focus ONLY on fixing identified issues"
+          echo "- Do not implement new features unless explicitly requested"
+          echo "- Follow project coding standards"
+          echo "- Address root causes, not symptoms"
+          echo ""
+          echo "## Output Format"
+          echo "Write to outputs/response.md:"
+          echo "- Summary of issues found"
+          echo "- List of changes made"
+          echo "- Explanation of each fix"
+          echo "- Recommendations or follow-up actions"
+        } > input/instructions.md
+        
+        echo "PR information saved to input/ folder"
+
+    - name: Checkout PR Branch
+      env:
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+      run: |
+        PR_BRANCH=$(gh pr view ${{ inputs.pr_number }} --json headRefName -q .headRefName)
+        echo "Checking out PR branch: $PR_BRANCH"
+        git fetch origin "$PR_BRANCH"
+        git checkout "$PR_BRANCH"
+
+    - name: Run Cursor Agent to Fix Issues
+      env:
+        CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        MODEL: ${{ inputs.model }}
+        AGENT_DISABLE_WATCHDOG: "1"
+        PATH: "/home/runner/.local/bin:/home/runner/.dmtools/bin:/bin:/usr/bin:$PATH"
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+        JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+        CONFLUENCE_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        CONFLUENCE_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+        CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: |
+        echo "Running Cursor Agent to fix PR #${{ inputs.pr_number }} issues..."
+        mkdir -p outputs
+        
+        ./cicd/scripts/run-cursor-agent.sh --force --print --model ${{ inputs.model }} "Read all files in the 'input' folder and fix the issues identified in Pull Request #${{ inputs.pr_number }}. Follow the instructions in input/instructions.md. **IMPORTANT**: Implementation details and development of new features are not part of the task. Focus only on fixing the identified issues. Your response must be written to outputs/response.md"
+
+    - name: Commit and Push Fixes
+      env:
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+      run: |
+        git config --local user.email "agent.ai.native@gmail.com"
+        git config --local user.name "AI Teammate"
+        
+        if git diff --quiet && git diff --staged --quiet; then
+          echo "No changes to commit"
+          echo "HAS_CHANGES=false" >> $GITHUB_ENV
+        else
+          echo "Changes detected, committing..."
+          git add -A
+          git commit -m "🤖 Auto-fix: Address PR #${{ inputs.pr_number }} review comments and issues"
+          
+          PR_BRANCH=$(gh pr view ${{ inputs.pr_number }} --json headRefName -q .headRefName)
+          git push origin "$PR_BRANCH"
+          
+          echo "HAS_CHANGES=true" >> $GITHUB_ENV
+        fi
+
+    - name: Post Comment on PR
+      if: always()
+      env:
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+      run: |
+        if [ -f outputs/response.md ]; then
+          {
+            echo "## 🤖 Automated Fix Results"
+            echo ""
+            echo "The Cursor Agent has analyzed and attempted to fix the identified issues."
+            echo ""
+            echo "### Response:"
+            cat outputs/response.md
+          } > pr-comment.md
+          
+          if [ "${HAS_CHANGES:-false}" = "true" ]; then
+            echo "" >> pr-comment.md
+            echo "✅ **Changes have been committed and pushed to the PR branch.**" >> pr-comment.md
+          else
+            echo "" >> pr-comment.md
+            echo "ℹ️ **No code changes were needed.**" >> pr-comment.md
+          fi
+          
+          gh pr comment ${{ inputs.pr_number }} --body-file pr-comment.md
+        else
+          gh pr comment ${{ inputs.pr_number }} --body "⚠️ Automated fix workflow completed but no response was generated. Please check the workflow logs."
+        fi
+
+    - name: Upload Artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pr-fix-results-${{ inputs.pr_number }}
+        path: |
+          input/
+          outputs/
+        retention-days: 30
