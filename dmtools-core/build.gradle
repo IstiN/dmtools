@@ -23,11 +23,6 @@ def versions = [
         poi      : '5.4.1'
 ]
 
-configurations {
-    integrationTestImplementation.extendsFrom testImplementation
-    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
-}
-
 dependencies {
     // Testing
     testImplementation 'junit:junit:4.13.2'
@@ -108,6 +103,7 @@ dependencies {
     // Test dependencies
     testImplementation platform("org.junit:junit-bom:${versions.junit}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
     configurations.configureEach {
@@ -185,6 +181,11 @@ sourceSets {
         compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 // Configure the processIntegrationTestResources task specifically
