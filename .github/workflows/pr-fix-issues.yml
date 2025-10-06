@@ -196,7 +196,7 @@ jobs:
         echo "Running Cursor Agent to fix PR #${{ inputs.pr_number }} issues..."
         mkdir -p outputs
         
-        ./cicd/scripts/run-cursor-agent.sh --force --print --model ${{ inputs.model }} "Read all files in the 'input' folder and fix the issues identified in Pull Request #${{ inputs.pr_number }}. Follow the instructions in input/instructions.md. **IMPORTANT**: Implementation details and development of new features are not part of the task. Focus only on fixing the identified issues. Your response must be written to outputs/response.md"
+        ./cicd/scripts/run-cursor-agent.sh --force --print --model ${{ inputs.model }} "Read all files in the 'input' folder and fix the issues identified in Pull Request #${{ inputs.pr_number }}. Follow the instructions in input/instructions.md. **IMPORTANT**: Implementation details and development of new features are not part of the task. Focus only on fixing the identified issues. **IMPORTANT** compile and execute tests before finish to be sure that you addressed all issues. Your response must be written to outputs/response.md"
 
     - name: Commit and Push Fixes
       env:
