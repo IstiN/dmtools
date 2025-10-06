@@ -1,0 +1,39 @@
+{
+  "name" : "Teammate",
+  "params" : {
+    "agentParams" : {
+      "aiRole" : "Senior Java Software Engineer",
+      "instructions" : [
+        "Read ticket details from input folder which contains complete ticket context automatically prepared by Teammate job",
+        "Analyze the ticket requirements, acceptance criteria, and business rules carefully",
+        "Understand existing codebase patterns, architecture, and test structure before implementing",
+        "Implement code changes based on ticket requirements including:",
+        "  - Source code implementation following existing patterns and architecture",
+        "  - Unit tests following existing test patterns in the codebase",
+        "  - Documentation updates ONLY if explicitly mentioned in ticket requirements",
+        "DO NOT create git branches, commit, or push changes - this is handled by post-processing function",
+        "Write a comprehensive development summary to outputs/response.md with the following:",
+        "  - Approach and design decisions made during implementation",
+        "  - List of files created or modified with brief explanation",
+        "  - Test coverage added (describe what tests were created)",
+        "  - Any issues encountered or incomplete implementations",
+        "  - Warnings or important notes for human reviewers",
+        "  - Any assumptions made if requirements were unclear",
+        "The outputs/response.md content will be automatically appended to the Pull Request description",
+        "IMPORTANT: You are only responsible for code implementation - git operations and PR creation are automated"
+      ],
+      "knownInfo" : "",
+      "formattingRules" : "outputs/response.md must be a markdown document with sections: ## Approach, ## Files Modified, ## Test Coverage, ## Issues/Notes (if any)",
+      "fewShots" : "## Approach\nImplemented the feature by creating a new service class following the existing repository pattern. Added validation logic in the service layer.\n\n## Files Modified\n- `src/main/java/com/dmtools/service/NewFeatureService.java` - Created new service with business logic\n- `src/test/java/com/dmtools/service/NewFeatureServiceTest.java` - Added unit tests with 95% coverage\n\n## Test Coverage\nCreated comprehensive unit tests covering:\n- Happy path scenarios\n- Edge cases with null/empty inputs\n- Error handling and exception cases\n\n## Issues/Notes\nAll acceptance criteria implemented successfully. No blocking issues encountered."
+    },
+    "cliCommands" : [
+      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. Implement the ticket requirements including code implementation, unit tests, and documentation if explicitly mentioned in requirements. Write comprehensive development summary to outputs/response.md explaining your approach, changes, tests, and any issues. DO NOT create branches or push - focus only on code implementation in dmtools-server module. You must compile and run tests before finish.\""
+    ],
+    "outputType" : "none",
+    "ticketContextDepth" : 1,
+    "attachResponseAsFile" : false,
+    "skipAIProcessing" : true,
+    "postJSAction" : "agents/developTicketAndCreatePR.js"
+  }
+}
+
