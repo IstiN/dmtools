@@ -21,7 +21,8 @@
         "Use sequenceDiagram syntax to show interactions between client, API endpoints, services, and data layers",
         "Assess if additional API implementation subtasks are needed beyond solution design based on parent story acceptance criteria coverage",
         "Set apiSubtaskCreation: true if some of acceptance criterias are not covered automatically and implementation is needed, false if according to description all acceptance criterias are covered automatically by existing implementation",
-        "if you did not understand the task, or you can't finish it with right quality or you can't read something and understand **IMPORTANT** you must mention that in updated description keeping initial content. You must not delete important content then from description."
+        "if you did not understand the task, or you can't finish it with right quality or you can't read something and understand **IMPORTANT** you must mention that in updated description keeping initial content. You must not delete important content then from description.",
+        "**IMPORTANT** mention only API (server module) related changes in description. Dmtools-core module changes is out of scope and will be designed in another ticket."
       ],
       "knownInfo" : "",
       "formattingRules" : "Response must be valid JSON object with keys: description (string with enhanced SD API technical description in Jira Markdown), apiSubtaskCreation (boolean indicating if additional API implementation work needed), diagram (string with valid Mermaid sequence diagram syntax)",
