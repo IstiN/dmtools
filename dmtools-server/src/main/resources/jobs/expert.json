@@ -469,6 +469,27 @@
       ]
     },
     {
+      "key": "preJSAction",
+      "displayName": "Pre-Action JavaScript",
+      "description": "JavaScript code to execute before AI expert analysis. Can be inline JavaScript, resource path (e.g., 'agentFunctions/preValidation.js'), or GitHub URL. The script receives jobParams, ticket, and initiator as parameters and has access to all 61 MCP tools (Jira, Confluence, AI, etc.). Return true to continue analysis or false to skip.",
+      "displayNameKey": "expert.preJSAction.displayName",
+      "descriptionKey": "expert.preJSAction.description",
+      "instructionsKey": "expert.preJSAction.instructions",
+      "required": false,
+      "sensitive": false,
+      "advanced": true,
+      "inputType": "textarea",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 500000
+      },
+      "examples": [
+        "function action(params) {\n  var ticket = JSON.parse(params.ticket);\n  // Validate ticket has required fields\n  if (!ticket.description || ticket.description.trim() === '') {\n    console.log('Skipping: ticket has empty description');\n    return false;\n  }\n  // Add analysis label\n  jira_add_label({\n    issueKey: ticket.key,\n    label: 'ai-analysis-in-progress'\n  });\n  return true;\n}",
+        "agentFunctions/expertPreValidation.js",
+        "https://github.com/company/dmtools-scripts/blob/main/expert/preAnalysis.js"
+      ]
+    },
+    {
       "key": "postJSAction",
       "displayName": "Post-Action JavaScript",
       "description": "JavaScript code to execute after AI expert analysis. Can be inline JavaScript, resource path (e.g., 'agentFunctions/expertPipeline.js'), or GitHub URL. The script receives jobParams, ticket, response, initiator, systemRequest, and request as parameters and has access to all 61 MCP tools (Jira, Confluence, AI, etc.).",
