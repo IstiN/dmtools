@@ -7,28 +7,30 @@
     "agentParams" : {
       "aiRole" : "Senior Software Architect",
       "instructions" : [
+        "./instructions/common/response_output.md",
+        "./instructions/common/no_development.md",
+        "./instructions/common/json_validation.md",
         "Analyze story requirements to determine which dmtools modules need implementation changes",
-        "You must write response to outputs/response.md according to formatting rules",
         "**DMTOOLS-CORE MODULE**: Business logic, data processing, integrations, CLI commands, core functionality, workflow engines, AI clients, AI Job, configuration processing",
         "**DMTOOLS-SERVER MODULE**: REST API endpoints, web controllers, server-side processing, HTTP services, web interfaces, API routes",
         "**UI MODULE**: Frontend changes, user interface, client-side functionality, web pages, HTML/CSS/JavaScript modifications",
         "**IMPORTANT** UI is not part of the repository. Don't investigate that. Just set true or false if the solution design is needed.",
         "Content from response.md will be parsed via JSON Parser for automated solution design ticket creation",
         "You must investigate codebase to understand current functionality and architectural patterns related to the input story description",
-        "**IMPORTANT** Return JSON format: {\"core\": boolean, \"api\": boolean, \"ui\": boolean, \"description\": \"explanation of module selection reasoning\"}",
+        "**IMPORTANT** Return JSON format: {\"core\": boolean, \"api\": boolean, \"ui\": boolean, \"description\": \"short explanation of module selection reasoning\"}",
         "If story involves business logic, data processing, workflow automation, AI integration, or CLI functionality -> core: true",
         "If story involves REST endpoints, web services, HTTP APIs, or server-side web processing -> api: true", 
         "If story involves user interface, frontend components, web pages, or client-side functionality -> ui: true",
         "**IMPORTANT** Multiple modules can be true if the story spans multiple areas",
-        "Provide clear short reasoning in description field explaining why each module was selected or excluded",
-        "**IMPORTANT** Your task is not development and implementation, only assessment of the impact. Follow strictly the instructions."
+        "Provide clear short reasoning (no water words) in description field explaining why each module was selected or excluded"
+
       ],
       "knownInfo" : "",
       "formattingRules" : "Response must be valid JSON object with keys: core (boolean), api (boolean), ui (boolean), description (string explaining module selection reasoning based on story analysis)",
       "fewShots" : "{\n  \"core\": true,\n  \"api\": false,\n  \"ui\": false,\n  \"description\": \"Story requires workflow automation and AI integration which are core business logic components in dmtools-core module.\"\n}"
     },
     "cliCommands" : [
-      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** Your task is not development and implementation, only assessment of the impact. Follow strictly the instructions from input.request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request.**IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
+      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** Your task is not development and implementation, only assessment of the impact. Follow strictly the instructions from input. request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request. **IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
     ],
     "outputType" : "none",
     "ticketContextDepth" : 0,

@@ -9,30 +9,29 @@
       "instructions" : [
         "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403369/Template+SD+API",
         "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/18186241/Template+Jira+Markdown",
-        "**IMPORTANT** You must write response to the request to outputs/response.md according to formatting rules",
-        "**IMPORTANT** your role is to enhance SD API ticket description with comprehensive technical details! Actual development is not needed. You need to check codebase to get better context of existing functionality.",
-        "**IMPORTANT** You must keep exact syntax and references to attachments if there are any in description of the ticket. Especially if we need it in future. If you remove reference from description we lose attachments. For instance, if initial description has !image-20250923-195553.png|width=763,alt=\"image-20250923-195553.png\"!, it must be presented in new description as well.",
-        "**IMPORTANT** You must keep ALL links and references from initial description logically inserted to output description. Otherwise you lose it. You can add section like: References [Link]",
-        "**IMPORTANT** if current description looks fully correct look any mentions of tagging account like [~accountid:712020:39ae9870-8a56-44be-945e-a8ad26273932], which means user asked extra improvements. That can be in comments or in the texts.",
-        "if you can't read file yourself for instance images you must use the terminal (CLI) command \"dmtools gemini_ai_chat_with_files --data '{\"message\": \"Your request what you need to understand from file\", \"filePaths\": [\"/path/to/image.png\"]}'",
-        "Use the terminal (cli) command to get png file of figma designs and then read it via gemini_ai_chat_with_files: dmtools figma_download_image_of_file <<EOF\n{\n  \"href\": \"https://www.figma.com/design/asdsadasdasdasd/Business-App?m=auto&node-id=NODEID&t=ASdasdsadas-1\"\n}\nEOF",
-        "**IMPORTANT** You must check child tickets and parent story via following command to get better context: dmtools jira_search_by_jql <<EOF\n{\n  \"jql\": \"parent = TICKET-XXX OR key = PARENT-KEY\"\n}\nEOF",
+        "./instructions/common/response_output.md",
+        "./instructions/common/no_development.md",
+        "./instructions/common/preserve_references.md",
+        "./instructions/common/media_handling.md",
+        "./instructions/common/jira_context.md",
+        "./instructions/common/error_handling.md",
+        "./instructions/common/json_validation.md",
         "Content from the response.md file will be parsed via JSON Parser for automated description update and assessment",
+        "**IMPORTANT** your role is to enhance SD API ticket description with comprehensive technical details!",
         "**IMPORTANT** Return JSON format: {\"description\": \"enhanced technical description with SD API template\", \"apiSubtaskCreation\": boolean, \"diagram\": \"valid mermaid sequence diagram\"}",
         "**IMPORTANT** Create a valid Mermaid sequence diagram showing API flow interactions, request/response patterns, and component communication for the SD API implementation",
         "Focus on API endpoints, request/response flows, authentication, data validation, and integration patterns",
         "Use sequenceDiagram syntax to show interactions between client, API endpoints, services, and data layers",
         "Assess if additional API implementation subtasks are needed beyond solution design based on parent story acceptance criteria coverage",
-        "Set apiSubtaskCreation: true if some of acceptance criterias are not covered automatically and implementation is needed, false if according to description all acceptance criterias are covered automatically by existing implementation",
-        "if you did not understand the task, or you can't finish it with right quality or you can't read something and understand **IMPORTANT** you must mention that in updated description keeping initial content. You must not delete important content then from description.",
+        "Set apiSubtaskCreation: true if some of acceptance criterias are not covered automatically and implementation(development) is needed in dmtools-server module, false if according to description all acceptance criterias are covered automatically by existing implementation",
         "**IMPORTANT** mention only API (server module) related changes in description. Dmtools-core module changes is out of scope and will be designed in another ticket."
       ],
       "knownInfo" : "",
-      "formattingRules" : "Response must be valid JSON object with keys: description (string with enhanced SD API technical description in Jira Markdown), apiSubtaskCreation (boolean indicating if additional API implementation work needed), diagram (string with valid Mermaid sequence diagram syntax)",
-      "fewShots" : "{\n  \"description\": \"*Purpose:*\\nEnhanced API technical description following SD API template...\\n\\n*API Endpoints:*\\n- POST /api/endpoint\\n- GET /api/data\\n\\n*Story AC Coverage:*\\n- AC1: Covered by...\",\n  \"apiSubtaskCreation\": true,\n  \"diagram\": \"sequenceDiagram\\n    participant Client\\n    participant API\\n    participant Service\\n    participant DB\\n    Client->>API: POST /api/endpoint\\n    API->>Service: Process Request\\n    Service->>DB: Store Data\\n    DB-->>Service: Confirmation\\n    Service-->>API: Response\\n    API-->>Client: 200 OK\"\n}"
+      "formattingRules" : "./instructions/enhancement/sd_api_formatting_rules.md",
+      "fewShots" : "./instructions/enhancement/sd_api_few_shots.md"
     },
     "cliCommands" : [
-      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** implementation details and development is not part of the task. Follow instructions from input.request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request.**IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
+      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** implementation details and development is not part of the task. Follow instructions from input.request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request. **IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
     ],
     "outputType" : "none",
     "ticketContextDepth" : 0,

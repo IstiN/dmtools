@@ -9,31 +9,29 @@
       "instructions" : [
         "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/12877825/Template+SD+CORE",
         "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/18186241/Template+Jira+Markdown",
-        "**IMPORTANT** You must write response to the request to outputs/response.md according to formatting rules, that must be valid JSON",
-        "**IMPORTANT** your role is to enhance SD CORE ticket description with comprehensive technical details! Actual development is not needed. You need to check codebase to get better context of existing functionality.",
-        "**IMPORTANT** You must keep exact syntax and references to attachments if there are any in description of the ticket. Especially if we need it in future. If you remove reference from description we lose attachments. For instance, if initial description has !image-20250923-195553.png|width=763,alt=\"image-20250923-195553.png\"!, it must be presented in new description as well.",
-        "**IMPORTANT** You must keep ALL links and references from initial description logically inserted to output description. Otherwise you lose it. You can add section like: References [Link]",
-        "**IMPORTANT** if current description looks fully correct look any mentions of tagging account like [~accountid:712020:39ae9870-8a56-44be-945e-a8ad26273932], which means user asked extra improvements. That can be in comments or in the texts.",
-        "if you can't read file yourself for instance images you must use the terminal (CLI) command \"dmtools gemini_ai_chat_with_files --data '{\"message\": \"Your request what you need to understand from file\", \"filePaths\": [\"/path/to/image.png\"]}'",
-        "Use the terminal (cli) command to get png file of figma designs and then read it via gemini_ai_chat_with_files: dmtools figma_download_image_of_file <<EOF\n{\n  \"href\": \"https://www.figma.com/design/asdsadasdasdasd/Business-App?m=auto&node-id=NODEID&t=ASdasdsadas-1\"\n}\nEOF",
-        "**IMPORTANT** You must check child tickets and parent story via following command to get better context: dmtools jira_search_by_jql <<EOF\n{\n  \"jql\": \"parent = TICKET-XXX OR key = PARENT-KEY\"\n}\nEOF",
-        "Content from the response.md file will be parsed via JSON Parser for automated description update and assessment",
+        "./instructions/common/response_output.md",
+        "./instructions/common/no_development.md",
+        "./instructions/common/error_handling.md",
+        "./instructions/common/preserve_references.md",
+        "./instructions/common/media_handling.md",
+        "./instructions/common/jira_context.md",
+        "./instructions/common/json_validation.md",
+        "**IMPORTANT** your role is to enhance SD CORE ticket description with comprehensive technical details!",
+        "**IMPORTANT** Implementation details is out of scope here. Focus on highlevel solution design",
         "**IMPORTANT** Return JSON format: {\"description\": \"enhanced technical description with SD CORE template\", \"coreSubtaskCreation\": boolean, \"diagram\": \"valid mermaid diagram\"}",
         "**IMPORTANT** Create a valid Mermaid diagram showing the technical architecture, component relationships, or workflow for the SD CORE implementation",
         "The diagram should visualize key components, data flow, integration points, and architectural patterns mentioned in the enhanced description",
         "Use proper Mermaid syntax: graph TD, flowchart TD, sequenceDiagram, classDiagram, etc. based on what best represents the technical solution",
         "Assess if additional core implementation subtasks are needed beyond solution design based on parent story acceptance criteria coverage",
         "Set coreSubtaskCreation: true if some of acceptance criterias are not covered automatically and implementation is needed, false if according to description all acceptance criterias are covered automatically by existing implementation",
-        "if you did not understand the task, or you can't finish it with right quality or you can't read something and understand **IMPORTANT** you must mention that in updated description keeping initial content. You must not delete important content then from description.",
-        "**IMPORTANT** Implementation details is out of scope here. Focus on highlevel solution design",
-        "**IMPORTANT** your response must be in JSON format."
+        "Content from the response.md file will be parsed via JSON Parser for automated description update and assessment"
       ],
       "knownInfo" : "",
-      "formattingRules" : "**IMPORTANT** Response must be valid JSON object with keys: description (string with enhanced SD CORE technical description in Jira Markdown), coreSubtaskCreation (boolean indicating if additional core implementation work needed), diagram (string with valid Mermaid diagram syntax)",
-      "fewShots" : "{\n  \"description\": \"*Purpose:*\\nEnhanced technical description following SD CORE template...\\n\\n*Technical Requirements:*\\n- Component details...\\n\\n*Story AC Coverage:*\\n- AC1: Covered by...\",\n  \"coreSubtaskCreation\": true,\n  \"diagram\": \"graph TD\\n    A[User Request] --> B[Workflow Engine]\\n    B --> C[AI Analysis]\\n    C --> D[Enhanced Description]\\n    D --> E[Jira Update]\"\n}"
+      "formattingRules" : "./instructions/enhancement/sd_core_formatting_rules.md",
+      "fewShots" : "./instructions/enhancement/sd_core_few_shots.md"
     },
     "cliCommands" : [
-      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** implementation details and development is not part of the task. You must not write code here. Follow instructions from input.request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request. **IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
+      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** implementation details and development is not part of the task. You must not write code here. Follow instructions from input. request.md file contains json with all detail. 'request' string there contains details of ticket from which was triggered the request. **IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
     ],
     "outputType" : "none",
     "ticketContextDepth" : 0,

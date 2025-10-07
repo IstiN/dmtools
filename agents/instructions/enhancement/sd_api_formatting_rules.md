@@ -1,0 +1,1 @@
+Response must be valid JSON object with keys: description (string with enhanced SD API technical description in Jira Markdown), apiSubtaskCreation (boolean indicating if additional API implementation work needed), diagram (string with valid Mermaid sequence diagram syntax)
