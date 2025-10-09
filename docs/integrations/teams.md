@@ -58,7 +58,7 @@ export TEAMS_SCOPES="User.Read Chat.Create Chat.Read Chat.ReadBasic Chat.ReadWri
 Best for remote/headless environments or when port 8080 is in use:
 
 ```bash
-export TEAMS_CLIENT_ID="9a2b12a8-ffe1-4a81-b362-ea606e6369e9"
+export TEAMS_CLIENT_ID="your-azure-app-client-id"
 export TEAMS_AUTH_METHOD="device"
 
 # Start authentication via MCP

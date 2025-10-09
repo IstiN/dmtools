@@ -99,7 +99,8 @@ public class TeamsMessageSimplifierTest {
             .put(new JSONObject()
                 .put("id", "att-1")
                 .put("contentType", "application/pdf")
-                .put("name", "document.pdf"))
+                .put("name", "document.pdf")
+                .put("contentUrl", "https://example.com/document.pdf"))
             .put(new JSONObject()
                 .put("id", "att-2")
                 .put("contentType", "messageReference")
@@ -189,7 +190,13 @@ public class TeamsMessageSimplifierTest {
         
         JSONArray attachments = result.getJSONArray("attachments");
         assertEquals(2, attachments.length());
-        assertEquals("document.pdf (application/pdf)", attachments.getString(0));
+        
+        // First attachment is a PDF file - should be an object with name and type
+        JSONObject pdfAttachment = attachments.getJSONObject(0);
+        assertEquals("document.pdf", pdfAttachment.getString("name"));
+        assertEquals("application/pdf", pdfAttachment.getString("type"));
+        
+        // Second attachment is a messageReference - should be a string
         assertEquals("Reply: Previous message text here", attachments.getString(1));
     }
     
@@ -320,13 +327,18 @@ public class TeamsMessageSimplifierTest {
         JSONObject attJson = new JSONObject()
             .put("id", "att-1")
             .put("contentType", "image/png")
-            .put("name", "screenshot.png");
+            .put("name", "screenshot.png")
+            .put("contentUrl", "https://example.com/screenshot.png");
         attachments.add(new ChatMessage.Attachment(attJson));
         
         JSONArray result = TeamsMessageSimplifier.extractAttachments(attachments);
         
         assertEquals(1, result.length());
-        assertEquals("screenshot.png (image/png)", result.getString(0));
+        // Should return object with name, type, and url
+        JSONObject attachment = result.getJSONObject(0);
+        assertEquals("screenshot.png", attachment.getString("name"));
+        assertEquals("image/png", attachment.getString("type"));
+        assertEquals("https://example.com/screenshot.png", attachment.getString("url"));
     }
     
     @Test
@@ -416,13 +428,18 @@ public class TeamsMessageSimplifierTest {
         List<ChatMessage.Attachment> attachments = new ArrayList<>();
         JSONObject attJson = new JSONObject()
             .put("id", "att-1")
-            .put("contentType", "application/octet-stream");
+            .put("contentType", "application/octet-stream")
+            .put("contentUrl", "https://example.com/file");
         attachments.add(new ChatMessage.Attachment(attJson));
         
         JSONArray result = TeamsMessageSimplifier.extractAttachments(attachments);
         
         assertEquals(1, result.length());
-        assertEquals("application/octet-stream", result.getString(0));
+        // Should return object with type and url (no name)
+        JSONObject attachment = result.getJSONObject(0);
+        assertEquals("application/octet-stream", attachment.getString("type"));
+        assertEquals("https://example.com/file", attachment.getString("url"));
+        assertFalse(attachment.has("name"));
     }
 }
 
