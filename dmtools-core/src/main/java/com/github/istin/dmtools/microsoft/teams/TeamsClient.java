@@ -79,9 +79,15 @@ public class TeamsClient extends MicrosoftGraphRestClient {
         java.util.Set<String> seenChatIds = new java.util.HashSet<>(); // Track seen chat IDs to avoid duplicates
         String url = path("/me/chats");
         int duplicateCount = 0;
+        boolean isFirstRequest = true;
         
         while (url != null) {
             GenericRequest request = new GenericRequest(this, url);
+            if (isFirstRequest) {
+                // Expand members to get contact names, lastMessagePreview for last message
+                request.param("$expand", "members,lastMessagePreview");
+                isFirstRequest = false;
+            }
             String response = execute(request);
             JSONObject json = new JSONObject(response);
             
@@ -112,6 +118,108 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             logger.info("Retrieved {} chats", allChats.size());
         }
         return allChats;
+    }
+    
+    /**
+     * Retrieves all chats with simplified information: chat name, last message, and date.
+     * 
+     * @return JSON string with simplified chat list
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_get_chats",
+        description = "List all chats showing only chat/contact names, last message (truncated to 100 chars), and date",
+        integration = "teams",
+        category = "communication"
+    )
+    public String getChatsSimplified() throws IOException {
+        List<Chat> chats = getChats();
+        JSONArray simplified = TeamsChatsSimplifier.simplifyChats(chats);
+        return simplified.toString(2); // Pretty print with 2-space indent
+    }
+    
+    /**
+     * Retrieves recent chats sorted by last activity with filtering options.
+     * Returns simplified information: chat name, last message with author, and date.
+     * 
+     * @param limit Maximum number of recent chats to retrieve (default: 50, max: 200)
+     * @param chatType Filter by chat type: "oneOnOne", "group", "meeting", or "all" (default: "all")
+     * @return JSON string with simplified chat list sorted by most recent activity
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_get_recent_chats",
+        description = "Get recent chats sorted by last activity showing chat/contact names, last message with author, and date. Shows 'new: true' for unread messages. Filter by type: 'oneOnOne' for 1-on-1 chats, 'group' for group chats, 'meeting' for meeting chats, or 'all' (default). Only shows chats with activity in the last 90 days.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String getRecentChatsSimplified(
+            @MCPParam(name = "limit", description = "Maximum number of recent chats (default: 50, max: 200)", required = false, example = "50") Integer limit,
+            @MCPParam(name = "chatType", description = "Filter by chat type: 'oneOnOne', 'group', 'meeting', or 'all' (default: 'all')", required = false, example = "oneOnOne") String chatType) throws IOException {
+        
+        // Assign default value to limit if null
+        limit = (limit == null) ? 50 : Math.min(limit, 200);
+        
+        // Fetch more chats than needed for filtering (especially if filtering by chatType)
+        // For specific chat types, fetch much more to account for filtering
+        int fetchLimit;
+        if (chatType != null && !chatType.trim().isEmpty() && !chatType.equalsIgnoreCase("all")) {
+            fetchLimit = Math.min(limit * 10, 500);
+        } else {
+            fetchLimit = Math.min(limit * 3, 500);
+        }
+        
+        // Fetch raw chats (limited)
+        List<Chat> allChats = new ArrayList<>();
+        java.util.Set<String> seenChatIds = new java.util.HashSet<>();
+        String url = path("/me/chats");
+        boolean isFirstRequest = true;
+        int duplicateCount = 0;
+        
+        while (url != null && allChats.size() < fetchLimit) {
+            GenericRequest request = new GenericRequest(this, url);
+            if (isFirstRequest) {
+                request.param("$expand", "members,lastMessagePreview");
+                request.param("$top", String.valueOf(Math.min(DEFAULT_PAGE_SIZE, fetchLimit)));
+                isFirstRequest = false;
+            }
+            
+            String response = execute(request);
+            JSONObject json = new JSONObject(response);
+            
+            JSONArray chats = json.optJSONArray("value");
+            if (chats != null) {
+                for (int i = 0; i < chats.length(); i++) {
+                    Chat chat = new Chat(chats.getJSONObject(i));
+                    String chatId = chat.getId();
+                    
+                    if (chatId != null && !seenChatIds.contains(chatId)) {
+                        seenChatIds.add(chatId);
+                        allChats.add(chat);
+                        if (allChats.size() >= fetchLimit) {
+                            break;
+                        }
+                    } else if (chatId != null) {
+                        duplicateCount++;
+                    }
+                }
+            }
+            
+            if (allChats.size() < fetchLimit) {
+                url = json.optString("@odata.nextLink", null);
+            } else {
+                url = null;
+            }
+        }
+        
+        if (duplicateCount > 0) {
+            logger.debug("Skipped {} duplicate chats while fetching recent chats", duplicateCount);
+        }
+        
+        // Use simplifier to sort, filter, and format
+        JSONArray simplified = TeamsChatsSimplifier.getRecentChatsSimplified(allChats, limit, chatType, 90);
+        logger.info("Retrieved {} recent chats (requested limit: {})", simplified.length(), limit);
+        return simplified.toString(2);
     }
     
     /**
@@ -289,6 +397,44 @@ public class TeamsClient extends MicrosoftGraphRestClient {
     }
     
     /**
+     * Gets messages from a chat by name with simplified, readable output.
+     * Returns only essential information: author, body, date, reactions, mentions, attachments.
+     * 
+     * @param chatName The chat name to search for
+     * @param limit Maximum number of messages (0 for all, default: 100)
+     * @return JSON string with simplified message list
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_get_messages_simple",
+        description = "Get messages from a chat with simplified output showing only: author, body, date, reactions, mentions, and attachments",
+        integration = "teams",
+        category = "communication"
+    )
+    public String getChatMessagesSimple(
+            @MCPParam(name = "chatName", description = "The chat name to search for", required = true) String chatName,
+            @MCPParam(name = "limit", description = "Maximum number of messages (0 for all, default: 100)", required = false, example = "100") Integer limit) throws IOException {
+        
+        // Find chat
+        Chat chat = findChatByName(chatName);
+        if (chat == null) {
+            logger.error("Cannot get messages: chat '{}' not found", chatName);
+            JSONObject error = new JSONObject();
+            error.put("error", "Chat not found: " + chatName);
+            return error.toString(2);
+        }
+        
+        // Get messages
+        List<ChatMessage> messages = getChatMessages(chat.getId(), limit);
+        
+        // Convert to simplified format using TeamsMessageSimplifier
+        JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(messages);
+        
+        logger.info("Retrieved {} messages from chat '{}' (simplified)", simplified.length(), chatName);
+        return simplified.toString(2); // Pretty print with 2-space indent
+    }
+    
+    /**
      * Gets messages from a chat starting from a specific date.
      * Useful for incremental updates after downloading full history.
      * Uses smart pagination with early exit: stops fetching when encountering messages older than sinceDate.
@@ -384,152 +530,8 @@ public class TeamsClient extends MicrosoftGraphRestClient {
         logger.info("Retrieved {} new messages from chat {} since {} (scanned {} messages in {} pages)", 
             filteredMessages.size(), chatId, sinceDate, totalFetched, pageCount);
         
-        // Convert to simplified format
-        JSONArray simplified = new JSONArray();
-        for (ChatMessage message : filteredMessages) {
-            // Skip system messages
-            if (!"message".equals(message.getMessageType())) {
-                continue;
-            }
-            
-            JSONObject simpleMsg = new JSONObject();
-            
-            // Author
-            ChatMessage.Sender from = message.getFrom();
-            if (from != null) {
-                simpleMsg.put("author", from.getDisplayName());
-            } else {
-                simpleMsg.put("author", "Unknown");
-            }
-            
-            // Date
-            simpleMsg.put("date", message.getCreatedDateTime());
-            
-            // Body (clean HTML tags for readability)
-            String body = message.getContent();
-            if (body != null) {
-                // Simple HTML cleaning - remove tags but keep content
-                body = body.replaceAll("<[^>]+>", "")
-                          .replaceAll("&nbsp;", " ")
-                          .replaceAll("&lt;", "<")
-                          .replaceAll("&gt;", ">")
-                          .replaceAll("&amp;", "&")
-                          .trim();
-                simpleMsg.put("body", body);
-            } else {
-                simpleMsg.put("body", "");
-            }
-            
-            // Reactions (if any)
-            List<ChatMessage.Reaction> reactions = message.getReactions();
-            if (reactions != null && !reactions.isEmpty()) {
-                JSONArray reactionsArray = new JSONArray();
-                // Group reactions by type
-                java.util.Map<String, Integer> reactionCounts = new java.util.HashMap<>();
-                for (ChatMessage.Reaction reaction : reactions) {
-                    String type = reaction.getReactionType();
-                    reactionCounts.put(type, reactionCounts.getOrDefault(type, 0) + 1);
-                }
-                // Create simplified output showing reaction type and count
-                for (java.util.Map.Entry<String, Integer> entry : reactionCounts.entrySet()) {
-                    String display = entry.getValue() > 1 
-                        ? entry.getKey() + " ×" + entry.getValue() 
-                        : entry.getKey();
-                    reactionsArray.put(display);
-                }
-                simpleMsg.put("reactions", reactionsArray);
-            }
-            
-            // Mentions (if any)
-            List<ChatMessage.Mention> mentions = message.getMentions();
-            if (mentions != null && !mentions.isEmpty()) {
-                JSONArray mentionsArray = new JSONArray();
-                for (ChatMessage.Mention mention : mentions) {
-                    if (mention.getMentioned() != null) {
-                        ChatMessage.Sender user = mention.getMentioned().getUser();
-                        if (user != null) {
-                            mentionsArray.put(user.getDisplayName());
-                        }
-                    }
-                }
-                if (mentionsArray.length() > 0) {
-                    simpleMsg.put("mentions", mentionsArray);
-                }
-            }
-            
-            // Attachments (if any)
-            List<ChatMessage.Attachment> attachments = message.getAttachments();
-            if (attachments != null && !attachments.isEmpty()) {
-                JSONArray attachmentsArray = new JSONArray();
-                for (ChatMessage.Attachment attachment : attachments) {
-                    String contentType = attachment.getContentType();
-                    String name = attachment.getName();
-                    
-                    // For messageReference (replies), extract preview info
-                    if ("messageReference".equals(contentType)) {
-                        try {
-                            String content = attachment.getContent();
-                            if (content != null && !content.isEmpty()) {
-                                JSONObject contentJson = new JSONObject(content);
-                                String preview = contentJson.optString("messagePreview", "");
-                                if (!preview.isEmpty()) {
-                                    // Truncate long previews
-                                    if (preview.length() > 100) {
-                                        preview = preview.substring(0, 97) + "...";
-                                    }
-                                    attachmentsArray.put("Reply: " + preview);
-                                } else {
-                                    attachmentsArray.put("Reply to message");
-                                }
-                                continue;
-                            }
-                        } catch (Exception e) {
-                            // Fall through to default handling
-                        }
-                    }
-                    
-                    // For adaptive cards (YouTube, etc.), try to extract title
-                    if ("application/vnd.microsoft.card.adaptive".equals(contentType)) {
-                        try {
-                            String cardContent = attachment.getContent();
-                            if (cardContent != null && !cardContent.isEmpty()) {
-                                JSONObject cardJson = new JSONObject(cardContent);
-                                JSONArray cardBody = cardJson.optJSONArray("body");
-                                if (cardBody != null) {
-                                    // Look for the title TextBlock
-                                    for (int i = 0; i < cardBody.length(); i++) {
-                                        JSONObject block = cardBody.optJSONObject(i);
-                                        if (block != null && "TextBlock".equals(block.optString("type"))) {
-                                            String text = block.optString("text", "");
-                                            if (!text.isEmpty() && "bolder".equals(block.optString("weight"))) {
-                                                attachmentsArray.put("Card: " + text);
-                                                continue;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            // Fall through to default handling
-                        }
-                        attachmentsArray.put("Adaptive Card");
-                        continue;
-                    }
-                    
-                    // Default: show name and type
-                    if (name != null && !name.isEmpty()) {
-                        attachmentsArray.put(name + " (" + contentType + ")");
-                    } else {
-                        attachmentsArray.put(contentType);
-                    }
-                }
-                if (attachmentsArray.length() > 0) {
-                    simpleMsg.put("attachments", attachmentsArray);
-                }
-            }
-            
-            simplified.put(simpleMsg);
-        }
+        // Convert to simplified format using TeamsMessageSimplifier
+        JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(filteredMessages);
         
         return simplified.toString(2); // Pretty print with 2-space indent
     }
