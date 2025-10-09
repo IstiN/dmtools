@@ -179,10 +179,10 @@ public class TeamsMessageSimplifier {
      * Extracts and formats attachment information with smart handling for different types:
      * - messageReference (replies): Shows preview text
      * - adaptive cards: Extracts card title
-     * - other attachments: Shows name and content type
+     * - other attachments: Shows name, content type, and URL (if available)
      * 
      * @param attachments List of attachments
-     * @return JSONArray with formatted attachment descriptions
+     * @return JSONArray with formatted attachment objects
      */
     public static JSONArray extractAttachments(List<ChatMessage.Attachment> attachments) {
         JSONArray attachmentsArray = new JSONArray();
@@ -190,8 +190,9 @@ public class TeamsMessageSimplifier {
         for (ChatMessage.Attachment attachment : attachments) {
             String contentType = attachment.getContentType();
             String name = attachment.getName();
+            String contentUrl = attachment.getContentUrl();
             
-            // Handle messageReference (replies)
+            // Handle messageReference (replies) - simple text format
             if ("messageReference".equals(contentType)) {
                 String replyText = extractReplyPreview(attachment);
                 if (replyText != null) {
@@ -200,7 +201,7 @@ public class TeamsMessageSimplifier {
                 }
             }
             
-            // Handle adaptive cards (YouTube, links, etc.)
+            // Handle adaptive cards (YouTube, links, etc.) - simple text format
             if ("application/vnd.microsoft.card.adaptive".equals(contentType)) {
                 String cardText = extractAdaptiveCardTitle(attachment);
                 if (cardText != null) {
@@ -211,11 +212,23 @@ public class TeamsMessageSimplifier {
                 continue;
             }
             
-            // Default: show name and type
+            // For actual file attachments, return structured object with URL
+            JSONObject attachmentInfo = new JSONObject();
             if (name != null && !name.isEmpty()) {
-                attachmentsArray.put(name + " (" + contentType + ")");
+                attachmentInfo.put("name", name);
+            }
+            if (contentType != null && !contentType.isEmpty()) {
+                attachmentInfo.put("type", contentType);
+            }
+            if (contentUrl != null && !contentUrl.isEmpty()) {
+                attachmentInfo.put("url", contentUrl);
+            }
+            
+            // If we have structured data, add the object; otherwise fall back to simple string
+            if (attachmentInfo.length() > 0) {
+                attachmentsArray.put(attachmentInfo);
             } else {
-                attachmentsArray.put(contentType);
+                attachmentsArray.put(contentType != null ? contentType : "Unknown attachment");
             }
         }
         
