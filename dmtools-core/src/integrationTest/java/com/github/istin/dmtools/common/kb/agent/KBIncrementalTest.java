@@ -122,7 +122,7 @@ public class KBIncrementalTest {
         logger.info("=".repeat(80));
         
         KBOrchestratorParams params1 = new KBOrchestratorParams();
-        params1.setSourceName("incremental_test");
+        params1.setSourceName("source_incremental_test");
         params1.setInputFile(batch1File.toString());
         params1.setOutputPath(tempDir.toString());
         
@@ -137,7 +137,7 @@ public class KBIncrementalTest {
         logger.info("=".repeat(80));
         
         KBOrchestratorParams params2 = new KBOrchestratorParams();
-        params2.setSourceName("incremental_test");
+        params2.setSourceName("source_incremental_test");
         params2.setInputFile(batch2File.toString());
         params2.setOutputPath(tempDir.toString());
         
@@ -152,7 +152,7 @@ public class KBIncrementalTest {
         logger.info("=".repeat(80));
         
         KBOrchestratorParams params3 = new KBOrchestratorParams();
-        params3.setSourceName("incremental_test");
+        params3.setSourceName("source_incremental_test");
         params3.setInputFile(batch3File.toString());
         params3.setOutputPath(tempDir.toString());
         

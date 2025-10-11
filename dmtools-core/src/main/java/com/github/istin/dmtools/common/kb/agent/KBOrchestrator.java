@@ -67,7 +67,15 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
     
     @Override
     public KBResult run(KBOrchestratorParams params) throws Exception {
+        logger.info("Starting KB orchestration for source: {} (mode: {})", 
+                   params.getSourceName(), params.getProcessingMode());
+        
         Path outputPath = Paths.get(params.getOutputPath());
+        
+        // Handle AGGREGATE_ONLY mode separately
+        if (params.getProcessingMode() == KBProcessingMode.AGGREGATE_ONLY) {
+            return runAggregateOnly(outputPath);
+        }
         
         // Step 1: Initialize output directories
         initializeOutputDirectories(outputPath);
@@ -124,17 +132,121 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
         // Step 7: Build Structure (mechanical)
         buildStructure(analysisResult, outputPath, params.getSourceName(), context);
         
-        // Step 8: AI Aggregation (one-by-one)
-        performAggregation(analysisResult, outputPath, context);
+        // Step 8: AI Aggregation (conditional based on mode)
+        if (params.getProcessingMode() == KBProcessingMode.FULL) {
+            logger.info("Running AI aggregation (FULL mode)");
+            performAggregation(analysisResult, outputPath, context);
+        } else {
+            logger.info("Skipping AI aggregation (PROCESS_ONLY mode)");
+        }
         
         // Step 9: Generate Statistics (mechanical)
         statistics.generateStatistics(outputPath);
+        
+        // Step 9.5: Generate People Index
+        structureBuilder.generatePeopleIndex(outputPath);
         
         // Step 10: Update source config
         sourceConfigManager.updateLastSyncDate(params.getSourceName(), params.getDateTime(), outputPath);
         
         // Step 11: Build and return result
         return buildResult(analysisResult, outputPath);
+    }
+    
+    /**
+     * Run AGGREGATE_ONLY mode: generate AI descriptions for existing KB structure
+     */
+    private KBResult runAggregateOnly(Path outputPath) throws Exception {
+        logger.info("Running AGGREGATE_ONLY mode: generating AI descriptions for existing KB");
+        
+        // Load existing KB context
+        KBContext context = loadKBContext(outputPath);
+        
+        // Collect all people from existing KB
+        Set<String> people = new HashSet<>();
+        Path peopleDir = outputPath.resolve("people");
+        if (Files.exists(peopleDir)) {
+            try (Stream<Path> dirs = Files.list(peopleDir)) {
+                dirs.filter(Files::isDirectory)
+                    .forEach(dir -> people.add(dir.getFileName().toString()));
+            }
+        }
+        
+        // Collect all topics from existing KB (flat structure)
+        Set<String> topics = new HashSet<>();
+        Path topicsDir = outputPath.resolve("topics");
+        if (Files.exists(topicsDir)) {
+            try (Stream<Path> files = Files.list(topicsDir)) {
+                files.filter(Files::isRegularFile)
+                     .filter(p -> !p.getFileName().toString().endsWith("-desc.md"))
+                     .filter(p -> p.getFileName().toString().endsWith(".md"))
+                     .forEach(file -> {
+                         String topicId = file.getFileName().toString().replace(".md", "");
+                         topics.add(topicId);
+                     });
+            }
+        }
+        
+        logger.info("Found {} people and {} topics in existing KB", people.size(), topics.size());
+        
+        // Aggregate people profiles
+        for (String personId : people) {
+            aggregatePerson(personId, outputPath);
+        }
+        
+        // Aggregate topics
+        for (String topicId : topics) {
+            aggregateTopicById(topicId, outputPath);
+        }
+        
+        // Generate statistics
+        statistics.generateStatistics(outputPath);
+        
+        // Generate People Index
+        structureBuilder.generatePeopleIndex(outputPath);
+        
+        // Build and return result (no analysisResult in AGGREGATE_ONLY mode)
+        return buildResult(null, outputPath);
+    }
+    
+    /**
+     * Aggregate topic by ID (for AGGREGATE_ONLY mode)
+     */
+    private void aggregateTopicById(String topicId, Path outputPath) throws Exception {
+        Path topicFile = outputPath.resolve("topics").resolve(topicId + ".md");
+        
+        if (!Files.exists(topicFile)) {
+            logger.warn("Topic file not found: {}", topicFile);
+            return;
+        }
+        
+        // Read topic data
+        String topicContent = Files.readString(topicFile);
+        
+        // Extract title from frontmatter or use ID
+        String topicName = extractTopicTitle(topicContent, topicId);
+        
+        // Delegate to existing aggregateTopic method
+        aggregateTopic(topicName, outputPath);
+    }
+    
+    /**
+     * Extract topic title from frontmatter
+     */
+    private String extractTopicTitle(String content, String defaultTitle) {
+        try {
+            int titleIndex = content.indexOf("title:");
+            if (titleIndex != -1) {
+                int lineEnd = content.indexOf('\n', titleIndex);
+                if (lineEnd != -1) {
+                    String titleLine = content.substring(titleIndex + 6, lineEnd).trim();
+                    return titleLine.replace("\"", "").trim();
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to extract topic title, using ID: {}", defaultTitle);
+        }
+        return defaultTitle;
     }
     
     @Override
@@ -643,15 +755,16 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
                          try {
                              String content = Files.readString(file);
                              String author = extractAuthorFromContent(content);
-                             String area = extractAreaFromContent(content);
+                             List<String> topics = extractTopicsFromContent(content);
                              String date = extractDateFromContent(content);
                              String id = file.getFileName().toString().replace(".md", "");
                              
-                             if (author != null) {
+                             if (author != null && topics != null && !topics.isEmpty()) {
                                  PersonContributions pc = contributions.computeIfAbsent(author, k -> new PersonContributions());
-                                 if (area != null && !area.isEmpty()) {
-                                     String areaSlug = structureBuilder.slugify(area);
-                                     pc.getQuestions().add(new PersonContributions.ContributionItem(id, areaSlug, date));
+                                 // Add contribution for each topic
+                                 for (String topic : topics) {
+                                     String topicSlug = structureBuilder.slugify(topic);
+                                     pc.getQuestions().add(new PersonContributions.ContributionItem(id, topicSlug, date));
                                  }
                              }
                          } catch (IOException e) {
@@ -671,15 +784,16 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
                          try {
                              String content = Files.readString(file);
                              String author = extractAuthorFromContent(content);
-                             String area = extractAreaFromContent(content);
+                             List<String> topics = extractTopicsFromContent(content);
                              String date = extractDateFromContent(content);
                              String id = file.getFileName().toString().replace(".md", "");
                              
-                             if (author != null) {
+                             if (author != null && topics != null && !topics.isEmpty()) {
                                  PersonContributions pc = contributions.computeIfAbsent(author, k -> new PersonContributions());
-                                 if (area != null && !area.isEmpty()) {
-                                     String areaSlug = structureBuilder.slugify(area);
-                                     pc.getAnswers().add(new PersonContributions.ContributionItem(id, areaSlug, date));
+                                 // Add contribution for each topic
+                                 for (String topic : topics) {
+                                     String topicSlug = structureBuilder.slugify(topic);
+                                     pc.getAnswers().add(new PersonContributions.ContributionItem(id, topicSlug, date));
                                  }
                              }
                          } catch (IOException e) {
@@ -699,15 +813,16 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
                          try {
                              String content = Files.readString(file);
                              String author = extractAuthorFromContent(content);
-                             String area = extractAreaFromContent(content);
+                             List<String> topics = extractTopicsFromContent(content);
                              String date = extractDateFromContent(content);
                              String id = file.getFileName().toString().replace(".md", "");
                              
-                             if (author != null) {
+                             if (author != null && topics != null && !topics.isEmpty()) {
                                  PersonContributions pc = contributions.computeIfAbsent(author, k -> new PersonContributions());
-                                 if (area != null && !area.isEmpty()) {
-                                     String areaSlug = structureBuilder.slugify(area);
-                                     pc.getNotes().add(new PersonContributions.ContributionItem(id, areaSlug, date));
+                                 // Add contribution for each topic
+                                 for (String topic : topics) {
+                                     String topicSlug = structureBuilder.slugify(topic);
+                                     pc.getNotes().add(new PersonContributions.ContributionItem(id, topicSlug, date));
                                  }
                              }
                          } catch (IOException e) {
@@ -780,6 +895,29 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
             }
         }
         return "";
+    }
+    
+    private List<String> extractTopicsFromContent(String content) {
+        List<String> topics = new ArrayList<>();
+        int topicsIndex = content.indexOf("topics:");
+        if (topicsIndex != -1) {
+            int lineEnd = content.indexOf('\n', topicsIndex);
+            if (lineEnd != -1) {
+                String topicsLine = content.substring(topicsIndex + 7, lineEnd).trim();
+                // Parse YAML array: ["topic1", "topic2"] or [topic1, topic2]
+                topicsLine = topicsLine.replace("[", "").replace("]", "").replace("\"", "");
+                if (!topicsLine.isEmpty()) {
+                    String[] topicArray = topicsLine.split(",");
+                    for (String topic : topicArray) {
+                        String trimmed = topic.trim();
+                        if (!trimmed.isEmpty()) {
+                            topics.add(trimmed);
+                        }
+                    }
+                }
+            }
+        }
+        return topics;
     }
     
     @Deprecated
@@ -1026,10 +1164,23 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
     private KBResult buildResult(AnalysisResult analysisResult, Path outputPath) {
         KBResult result = new KBResult();
         result.setSuccess(true);
-        result.setMessage("Knowledge base built successfully");
-        result.setQuestionsCount(analysisResult.getQuestions() != null ? analysisResult.getQuestions().size() : 0);
-        result.setAnswersCount(analysisResult.getAnswers() != null ? analysisResult.getAnswers().size() : 0);
-        result.setNotesCount(analysisResult.getNotes() != null ? analysisResult.getNotes().size() : 0);
+        
+        if (analysisResult != null) {
+            result.setMessage("Knowledge base built successfully");
+            result.setQuestionsCount(analysisResult.getQuestions() != null ? analysisResult.getQuestions().size() : 0);
+            result.setAnswersCount(analysisResult.getAnswers() != null ? analysisResult.getAnswers().size() : 0);
+            result.setNotesCount(analysisResult.getNotes() != null ? analysisResult.getNotes().size() : 0);
+        } else {
+            // AGGREGATE_ONLY mode - count from filesystem
+            result.setMessage("AI descriptions generated successfully");
+            try {
+                result.setQuestionsCount(countFiles(outputPath, "questions"));
+                result.setAnswersCount(countFiles(outputPath, "answers"));
+                result.setNotesCount(countFiles(outputPath, "notes"));
+            } catch (Exception e) {
+                logger.warn("Failed to count Q/A/N from filesystem", e);
+            }
+        }
         
         // Count people and topics from filesystem
         try {
@@ -1041,6 +1192,19 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
         }
         
         return result;
+    }
+    
+    private int countFiles(Path outputPath, String dirName) throws IOException {
+        Path dir = outputPath.resolve(dirName);
+        if (!Files.exists(dir)) {
+            return 0;
+        }
+        
+        try (Stream<Path> files = Files.list(dir)) {
+            return (int) files.filter(Files::isRegularFile)
+                              .filter(p -> p.getFileName().toString().endsWith(".md"))
+                              .count();
+        }
     }
     
     private int countDirectories(Path dir) throws IOException {

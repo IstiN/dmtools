@@ -104,7 +104,7 @@ public class KBStatistics {
         content.append("## Quick Navigation\n\n");
         content.append("- [[stats/topics_overview|Topics Overview]]\n");
         content.append("- [[stats/activity_timeline|Activity Timeline]]\n");
-        content.append("- [[people/|People]]\n\n");
+        content.append("- [[people/people|People]]\n\n");
         
         content.append("## Top Topics\n\n");
         content.append("![[stats/topics_overview]]\n\n");
