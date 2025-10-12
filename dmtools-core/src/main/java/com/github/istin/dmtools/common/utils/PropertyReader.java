@@ -1,5 +1,8 @@
 package com.github.istin.dmtools.common.utils;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Base64;
@@ -8,6 +11,8 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 public class PropertyReader {
+
+	private static final Logger logger = LogManager.getLogger(PropertyReader.class);
 
 	private static String PATH_TO_CONFIG_FILE = "/config.properties";
 
@@ -547,7 +552,7 @@ public class PropertyReader {
 		try {
 			return Integer.parseInt(value.trim());
 		} catch (NumberFormatException e) {
-			System.err.println("Invalid OLLAMA_NUM_CTX value: " + value + ", using default 16384");
+			logger.warn("Invalid OLLAMA_NUM_CTX value: {}, using default 16384", value);
 			return 16384;
 		}
 	}
@@ -560,7 +565,7 @@ public class PropertyReader {
 		try {
 			return Integer.parseInt(value.trim());
 		} catch (NumberFormatException e) {
-			System.err.println("Invalid OLLAMA_NUM_PREDICT value: " + value + ", using default -1");
+			logger.warn("Invalid OLLAMA_NUM_PREDICT value: {}, using default -1", value);
 			return -1;
 		}
 	}

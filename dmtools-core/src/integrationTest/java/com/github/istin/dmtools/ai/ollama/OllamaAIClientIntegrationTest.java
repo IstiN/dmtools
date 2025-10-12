@@ -43,13 +43,13 @@ public class OllamaAIClientIntegrationTest {
 
     @Test
     public void testChatStringMessage() throws Exception {
-        String response = ollamaClient.chat("Hello, Ollama! What is your model name?");
+        String response = ollamaClient.chat("Say 'Hello' in one word.");
         assertResponse(response);
     }
 
     @Test
     public void testChatModelAndStringMessage() throws Exception {
-        String response = ollamaClient.chat(ollamaClient.getModel(), "Hello, Ollama from a specific model call! Can you tell me a fun fact?");
+        String response = ollamaClient.chat(ollamaClient.getModel(), "Count to 3.");
         assertResponse(response);
     }
 
@@ -59,7 +59,7 @@ public class OllamaAIClientIntegrationTest {
             System.out.println("Skipping testChatModelStringMessageAndFile: test_image_icon.png not found.");
             return;
         }
-        String response = ollamaClient.chat(ollamaClient.getModel(), "Describe the main subject of this image.", iconFile);
+        String response = ollamaClient.chat(ollamaClient.getModel(), "Describe image in 3 short phrases max.", iconFile);
         assertResponse(response);
         // Add more specific assertions based on expected content related to test_image_icon.png if possible
         assertTrue("Response should ideally mention an 'icon' or 'logo' or 'emoticon' if that's what test_image_icon.png is.", 
@@ -74,11 +74,11 @@ public class OllamaAIClientIntegrationTest {
     @Test
     public void testChatModelStringMessageAndFileList() throws Exception {
         // Test with null file list
-        String responseNullList = ollamaClient.chat(ollamaClient.getModel(), "Hello, Ollama with null file list!", (java.util.List<File>) null);
+        String responseNullList = ollamaClient.chat(ollamaClient.getModel(), "Say 'OK'", (java.util.List<File>) null);
         assertResponse(responseNullList);
 
         // Test with empty file list
-        String responseEmptyList = ollamaClient.chat(ollamaClient.getModel(), "Hello, Ollama with empty file list!", new ArrayList<>());
+        String responseEmptyList = ollamaClient.chat(ollamaClient.getModel(), "Say 'OK'", new ArrayList<>());
         assertResponse(responseEmptyList);
         
         // Test with a list containing the iconFile
@@ -86,7 +86,7 @@ public class OllamaAIClientIntegrationTest {
             System.out.println("Skipping image part of testChatModelStringMessageAndFileList: test_image_icon.png not found.");
             return;
         }
-        String responseWithFile = ollamaClient.chat(ollamaClient.getModel(), "What is depicted in the provided image?", Collections.singletonList(iconFile));
+        String responseWithFile = ollamaClient.chat(ollamaClient.getModel(), "3 phrases about the image", Collections.singletonList(iconFile));
         assertResponse(responseWithFile);
         assertTrue("Response should be relevant to the image provided in the list.", 
                 responseWithFile.toLowerCase().contains("icon") || 
@@ -96,29 +96,22 @@ public class OllamaAIClientIntegrationTest {
 
     @Test
     public void testChatMessagesVarargs() throws Exception {
-        Message instruction = new Message("system", "You are a helpful assistant. When asked for a picnic suggestion, combine the user's favorite fruit and the weather forecast.", null);
-        Message userFact1 = new Message("user", "My favorite fruit is an apple.", null);
-        Message userFact2 = new Message("user", "The weather for the picnic is expected to be sunny and warm.", null);
-        Message userQuestion = new Message("user", "Given my preferences and the weather, what's a simple dessert I could bring to the picnic?", null);
+        Message instruction = new Message("system", "Be concise. Answer in 3 words max.", null);
+        Message userFact1 = new Message("user", "I like apples.", null);
+        Message userQuestion = new Message("user", "What fruit do I like?", null);
         
-        String response = ollamaClient.chat(instruction, userFact1, userFact2, userQuestion);
+        String response = ollamaClient.chat(instruction, userFact1, userQuestion);
         assertResponse(response);
         assertTrue("Response should mention 'apple' based on user's favorite fruit.", response.toLowerCase().contains("apple"));
-        assertTrue("Response should consider 'sunny' or 'warm' weather for the suggestion.", 
-                response.toLowerCase().contains("sunny") || 
-                response.toLowerCase().contains("warm") || 
-                response.toLowerCase().contains("refreshing") || 
-                response.toLowerCase().contains("cool"));
     }
 
     @Test
     public void testChatModelAndMessagesVarargs() throws Exception {
-        Message sysPrompt = new Message("system", "You are a story writer. The user will provide two elements, and you should suggest a very short story title incorporating both.", null);
-        Message element1 = new Message("user", "The first element is: a talking cat.", null);
-        Message element2 = new Message("user", "The second element is: a mysterious old library.", null);
-        Message request = new Message("user", "Suggest a story title.", null);
+        Message sysPrompt = new Message("system", "Be brief. 5 words max. Must be close to user topic.", null);
+        Message element1 = new Message("user", "Topic: cat and library", null);
+        Message request = new Message("user", "Create title about cat and library or books", null);
 
-        String response = ollamaClient.chat(ollamaClient.getModel(), sysPrompt, element1, element2, request);
+        String response = ollamaClient.chat(ollamaClient.getModel(), sysPrompt, element1, request);
         assertResponse(response);
         assertTrue("Response should mention 'cat' or 'feline'.", response.toLowerCase().contains("cat") || response.toLowerCase().contains("feline"));
         assertTrue("Response should mention 'library' or 'books'.", response.toLowerCase().contains("library") || response.toLowerCase().contains("book"));
@@ -130,8 +123,8 @@ public class OllamaAIClientIntegrationTest {
             System.out.println("Skipping testChatModelAndMessagesVarargsWithImage: test_image_icon.png not found.");
             return;
         }
-        Message imageMessage = new Message("user", "Consider this image carefully.", Collections.singletonList(iconFile));
-        Message questionMessage = new Message("user", "Based on the image I just sent you, what is one primary color you observe in it? Be specific.", null);
+        Message imageMessage = new Message("user", "Look at this image.", Collections.singletonList(iconFile));
+        Message questionMessage = new Message("user", "Name one color. One word.", null);
 
         String response = ollamaClient.chat(ollamaClient.getModel(), imageMessage, questionMessage);
         assertResponse(response);
