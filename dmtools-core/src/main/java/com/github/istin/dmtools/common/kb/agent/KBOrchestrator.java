@@ -101,13 +101,16 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
             KBContext context = loadKBContext(outputPath);
             
             // Step 4: Read and prepare input
-            String inputContent = Files.readString(inputFilePath);
+            String inputContent = readAndNormalizeFile(inputFilePath);
+            logger.info("Read input file, content length: {} chars", inputContent.length());
             
             // Try to parse as JSON and convert if needed
             inputContent = normalizeInputContent(inputContent);
+            logger.info("After normalization, content length: {} chars", inputContent.length());
             
             // Step 5: Chunk input if large
             List<ChunkPreparation.Chunk> chunks = chunkPreparation.prepareChunks(Arrays.asList(inputContent));
+            logger.info("Created {} chunks from input", chunks.size());
             
             // Step 6: AI Analysis (process each chunk separately)
             AnalysisResult analysisResult;
@@ -768,22 +771,61 @@ public class KBOrchestrator extends AbstractSimpleAgent<KBOrchestratorParams, KB
         return maxId;
     }
     
+    /**
+     * Read file with automatic encoding detection and line ending normalization.
+     * Handles files with mixed line endings (CRLF, LF, NEL) and various encodings.
+     */
+    private String readAndNormalizeFile(Path filePath) throws IOException {
+        // Try UTF-8 first (most common)
+        try {
+            byte[] bytes = Files.readAllBytes(filePath);
+            String content = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            
+            // Check if UTF-8 decoding was successful (no replacement characters in suspicious places)
+            if (!content.contains("\uFFFD") || content.indexOf("\uFFFD") > 100) {
+                return normalizeLineEndings(content);
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to read as UTF-8, trying other encodings: {}", e.getMessage());
+        }
+        
+        // Try ISO-8859-1 (Latin-1) as fallback
+        try {
+            byte[] bytes = Files.readAllBytes(filePath);
+            String content = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+            return normalizeLineEndings(content);
+        } catch (Exception e) {
+            logger.warn("Failed to read with ISO-8859-1, using default encoding: {}", e.getMessage());
+        }
+        
+        // Last resort: use default charset
+        return normalizeLineEndings(Files.readString(filePath));
+    }
+    
+    /**
+     * Normalize all line endings to LF (\n).
+     * Handles CRLF (\r\n), CR (\r), and NEL (U+0085) line endings.
+     */
+    private String normalizeLineEndings(String content) {
+        // Replace NEL (Next Line, U+0085) with LF
+        content = content.replace("\u0085", "\n");
+        // Replace CRLF with LF
+        content = content.replace("\r\n", "\n");
+        // Replace remaining CR with LF
+        content = content.replace("\r", "\n");
+        return content;
+    }
+    
     private String normalizeInputContent(String content) {
         // Try to detect if JSON and convert to more friendly format if needed
         try {
-//            JsonElement element = JsonParser.parseString(content);
-//            if (element.isJsonArray()) {
-//                JsonArray array = element.getAsJsonArray();
-//                // Convert JSON array to text format for better chunking
-//                StringBuilder sb = new StringBuilder();
-//                for (JsonElement item : array) {
-//                    sb.append(item.toString()).append("\n\n");
-//                }
-//                return sb.toString();
-//            }
+            // First check if content is valid JSON
+            com.google.gson.JsonParser.parseString(content);
+            // If we get here, it's valid JSON - format it
             return LLMOptimizedJson.format(content);
         } catch (Exception e) {
-            // Not JSON, return as is
+            // Not JSON or failed to parse - return as is (plain text)
+            logger.debug("Input is not JSON or failed to parse, treating as plain text: {}", e.getMessage());
         }
         
         return content;

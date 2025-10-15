@@ -40,21 +40,36 @@ public class KBAnalysisAgent extends AbstractSimpleAgent<AnalysisParams, Analysi
         // Parse JSON response from AI into AnalysisResult
         // AI returns JSON following analysis_schema.json format
         
+        logger.info("AI Response length: {} chars", response != null ? response.length() : 0);
+        if (response != null && response.length() < 500) {
+            logger.info("AI Response preview: {}", response);
+        } else if (response != null) {
+            logger.info("AI Response preview (first 500 chars): {}", response.substring(0, 500));
+        }
+        
         // Clean markdown code blocks if present (AI sometimes wraps JSON in ```json ... ```)
         String cleanedResponse;
         try {
             JSONObject jsonObject = AIResponseParser.parseResponseAsJSONObject(response);
             cleanedResponse = jsonObject.toString();
         } catch (Exception e) {
+            logger.debug("Failed to parse as JSON object, trying code block extraction: {}", e.getMessage());
             cleanedResponse = AIResponseParser.parseCodeResponse(response);
         }
 
         // Try to parse JSON and capture exception
+        logger.info("Cleaned response length: {} chars", cleanedResponse != null ? cleanedResponse.length() : 0);
+        if (cleanedResponse != null && cleanedResponse.length() < 300) {
+            logger.info("Cleaned response: {}", cleanedResponse);
+        }
+        
         ParseResult parseResult = tryParseJson(cleanedResponse);
         
         // If parsing failed, try to fix JSON with JSONFixAgent (1 retry)
         if (parseResult.result == null && parseResult.exception != null) {
             logger.warn("Initial JSON parsing failed: {}", parseResult.exception.getMessage());
+            logger.warn("Cleaned response that failed to parse: {}", 
+                       cleanedResponse.length() > 500 ? cleanedResponse.substring(0, 500) + "..." : cleanedResponse);
             logger.warn("Attempting to fix with JSONFixAgent...");
             
             String fixedJson = fixMalformedJson(cleanedResponse, parseResult.exception);
