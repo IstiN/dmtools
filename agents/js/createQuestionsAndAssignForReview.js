@@ -6,6 +6,7 @@
 // Import common helper functions
 const { assignForReview, extractTicketKey } = require('./common/jiraHelpers.js');
 const { parseQuestionsResponse, buildSummary, buildDescription } = require('./common/aiResponseParser.js');
+const { ISSUE_TYPES, LABELS } = require('./config.js');
 
 function processQuestionTickets(response, parentKey) {
     const questions = parseQuestionsResponse(response);
@@ -25,7 +26,7 @@ function processQuestionTickets(response, parentKey) {
             const fieldsJson = {
                 summary: summary,
                 description: description,
-                issuetype: { name: 'Subtask' },
+                issuetype: { name: ISSUE_TYPES.SUBTASK },
                 parent: { key: parentKey }
             };
             
@@ -63,6 +64,10 @@ function action(params) {
     try {
         const ticketKey = params.ticket.key;
         const initiatorId = params.initiator;
+        // Dynamically generate WIP label from contextId
+        const wipLabel = params.metadata && params.metadata.contextId 
+            ? params.metadata.contextId + '_wip' 
+            : null;
 
         console.log("Processing ticket:", ticketKey);
         const createdQuestionTickets = processQuestionTickets(params.response, ticketKey);
@@ -70,11 +75,11 @@ function action(params) {
         // Add AI-generated label
         jira_add_label({
             key: ticketKey,
-            label: 'ai_questions_asked'
+            label: LABELS.AI_QUESTIONS_ASKED
         });
 
         // Use common assignForReview function for post-processing
-        const assignResult = assignForReview(ticketKey, initiatorId);
+        const assignResult = assignForReview(ticketKey, initiatorId, wipLabel);
         
         if (!assignResult.success) {
             return assignResult;
@@ -94,3 +99,4 @@ function action(params) {
         };
     }
 }
+
