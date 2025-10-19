@@ -48,10 +48,11 @@ public class AIComponentsModule {
         
         // Check if a specific default LLM is configured
         String defaultLLM = configuration.getDefaultLLM();
+        logger.info("DEFAULT_LLM value from config: '{}'", defaultLLM);
         
         // If DEFAULT_LLM is set, try to initialize that specific provider first
         if (defaultLLM != null && !defaultLLM.trim().isEmpty()) {
-            logger.debug("DEFAULT_LLM is set to: {}", defaultLLM);
+            logger.info("DEFAULT_LLM is set to: '{}', initializing preferred provider...", defaultLLM);
             
             if ("ollama".equalsIgnoreCase(defaultLLM.trim())) {
                 String ollamaModel = configuration.getOllamaModel();
