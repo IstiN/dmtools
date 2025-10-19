@@ -1,14 +1,10 @@
 package com.github.istin.dmtools.common.kb.agent;
 
-import com.github.istin.dmtools.ai.AI;
-import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.agent.JSONFixAgent;
-import com.github.istin.dmtools.ai.google.BasicGeminiAI;
 import com.github.istin.dmtools.common.kb.model.AnalysisResult;
 import com.github.istin.dmtools.common.kb.model.KBContext;
 import com.github.istin.dmtools.common.kb.params.AnalysisParams;
-import com.github.istin.dmtools.common.utils.PropertyReader;
-import com.github.istin.dmtools.prompt.PromptManager;
+import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
+import com.github.istin.dmtools.di.KnowledgeBaseComponent;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -38,19 +34,12 @@ public class KBAnalysisAgentIntegrationTest {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
     private KBAnalysisAgent agent;
-    private AI ai;
     
     @BeforeEach
     void setUp() throws Exception {
-        // Initialize real AI client
-        PropertyReader propertyReader = new PropertyReader();
-        ConversationObserver observer = new ConversationObserver();
-        ai = BasicGeminiAI.create(observer, propertyReader);
-        
-        // Initialize agent with real dependencies via constructor (proper DI)
-        PromptManager promptManager = new PromptManager();
-        JSONFixAgent jsonFixAgent = new JSONFixAgent(ai, promptManager);
-        agent = new KBAnalysisAgent(ai, promptManager, jsonFixAgent);
+        // Initialize agent via Dagger to use default AI from configuration
+        KnowledgeBaseComponent component = DaggerKnowledgeBaseComponent.create();
+        agent = component.kbAnalysisAgent();
     }
     
     @Test

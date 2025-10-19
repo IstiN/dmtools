@@ -210,6 +210,11 @@
 
         Remember: When in doubt, INCLUDE IT. Missing information is worse than including borderline cases.
     </instructions>
+<#if global.extraInstructions?? && global.extraInstructions?has_content>
+    <extra_instructions>
+${global.extraInstructions}
+    </extra_instructions>
+</#if>
     <examples>
         <!-- Enhanced examples covering more cases -->
         <example name="technical_question_with_code">

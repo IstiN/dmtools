@@ -35,6 +35,13 @@ public class KBOrchestratorParams {
      * Will be injected into the Q&A mapping prompt
      */
     private String qaMappingExtraInstructions;
+
+    /**
+     * When true, orchestrator cleans the output directory before processing.
+     * When false, existing files remain (useful for incremental updates and manual inspection).
+     * Default: false (incremental mode)
+     */
+    private boolean cleanOutput = false;
 }
 
 

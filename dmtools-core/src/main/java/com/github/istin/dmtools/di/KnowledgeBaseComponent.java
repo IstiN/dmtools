@@ -13,5 +13,7 @@ import javax.inject.Singleton;
 public interface KnowledgeBaseComponent {
     KBTools kbTools();
     com.github.istin.dmtools.common.kb.agent.KBOrchestrator kbOrchestrator();
+    com.github.istin.dmtools.common.kb.agent.KBAnalysisAgent kbAnalysisAgent();
+    com.github.istin.dmtools.common.kb.agent.KBAggregationAgent kbAggregationAgent();
 }
 

@@ -1,11 +1,8 @@
 package com.github.istin.dmtools.common.kb.agent;
 
-import com.github.istin.dmtools.ai.AI;
-import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.google.BasicGeminiAI;
 import com.github.istin.dmtools.common.kb.params.AggregationParams;
-import com.github.istin.dmtools.common.utils.PropertyReader;
-import com.github.istin.dmtools.prompt.PromptManager;
+import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
+import com.github.istin.dmtools.di.KnowledgeBaseComponent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * This agent generates narrative descriptions for KB entities:
  * - Person profiles
  * - Topic overviews
- * - Theme descriptions
  * 
  * To run this test, you need:
  * 1. Valid AI configuration in dmtools.env
@@ -34,17 +30,12 @@ public class KBAggregationAgentIntegrationTest {
     private static final Logger logger = LogManager.getLogger(KBAggregationAgentIntegrationTest.class);
     
     private KBAggregationAgent agent;
-    private AI ai;
     
     @BeforeEach
     void setUp() throws Exception {
-        // Initialize real AI client
-        PropertyReader propertyReader = new PropertyReader();
-        ConversationObserver observer = new ConversationObserver();
-        ai = BasicGeminiAI.create(observer, propertyReader);
-        
-        // Create agent with proper DI via constructor
-        agent = new KBAggregationAgent(ai, new PromptManager());
+        // Initialize agent via Dagger to use default AI from configuration
+        KnowledgeBaseComponent component = DaggerKnowledgeBaseComponent.create();
+        agent = component.kbAggregationAgent();
     }
     
     @Test
@@ -175,66 +166,6 @@ public class KBAggregationAgentIntegrationTest {
                 "Description should mention agents or AI");
         
         logger.info("✓ Topic overview aggregation test passed successfully");
-        logger.info("=".repeat(80));
-    }
-    
-    @Test
-    void testAggregateTheme() throws Exception {
-        logger.info("=".repeat(80));
-        logger.info("INTEGRATION TEST: KBAggregationAgent - Theme Description");
-        logger.info("=".repeat(80));
-        logger.info("");
-        
-        // Prepare test data for theme
-        String entityDataText = """
-                ID: cursor-licensing
-                Title: Cursor Licensing Issues
-                Topics: cursor, licensing
-                Contributors: John Doe, Mike Johnson
-                Related Discussions: License activation problems, Pro vs Free differences, Team licensing
-                """;
-        
-        // Prepare params
-        AggregationParams params = new AggregationParams();
-        params.setEntityType("theme");
-        params.setEntityId("cursor-licensing");
-        params.setKbPath(Paths.get("test_kb"));
-        params.setEntityData(Map.of("content", entityDataText));
-        
-        logger.info("Entity Type: " + params.getEntityType());
-        logger.info("Entity ID: " + params.getEntityId());
-        logger.info("");
-        logger.info("Entity Data:");
-        logger.info("-".repeat(80));
-        logger.info(entityDataText);
-        logger.info("-".repeat(80));
-        logger.info("");
-        
-        // Run aggregation
-        logger.info("Running AI aggregation...");
-        logger.info("");
-        
-        String description = agent.run(params);
-        
-        // Print result
-        logger.info("=".repeat(80));
-        logger.info("GENERATED DESCRIPTION");
-        logger.info("=".repeat(80));
-        logger.info(description);
-        logger.info("=".repeat(80));
-        logger.info("");
-        
-        // Assertions
-        assertNotNull(description);
-        assertFalse(description.isEmpty(), "Description should not be empty");
-        assertTrue(description.length() > 50, "Description should be substantial");
-        
-        // Check for expected content
-        assertTrue(description.toLowerCase().contains("licens") ||
-                   description.toLowerCase().contains("cursor"),
-                "Description should mention licensing or cursor");
-        
-        logger.info("✓ Theme description aggregation test passed successfully");
         logger.info("=".repeat(80));
     }
 }

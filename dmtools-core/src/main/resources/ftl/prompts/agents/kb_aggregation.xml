@@ -36,6 +36,11 @@ ${global.entityData!''}
         <instruction>Be specific and data-driven: mention actual contributions, specific expertise areas, concrete insights</instruction>
         <instruction>Avoid generic phrases like "active contributor" - instead, specify what they contribute</instruction>
     </instructions>
+<#if global.extraInstructions?? && global.extraInstructions?has_content>
+    <extra_instructions>
+${global.extraInstructions}
+    </extra_instructions>
+</#if>
     <examples>
         <example name="person_profile">
             <human>
@@ -113,4 +118,3 @@ ${global.entityData!''}
         <requirement>Focus on substance: specific contributions, concrete expertise, actual insights</requirement>
     </output_requirements>
 </prompt>
-
