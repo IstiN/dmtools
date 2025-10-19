@@ -1,16 +1,10 @@
 package com.github.istin.dmtools.common.kb.agent;
 
 import com.github.istin.dmtools.ai.AI;
-import com.github.istin.dmtools.ai.ChunkPreparation;
-import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.agent.ContentMergeAgent;
-import com.github.istin.dmtools.ai.agent.JSONFixAgent;
-import com.github.istin.dmtools.ai.google.BasicGeminiAI;
-import com.github.istin.dmtools.common.kb.*;
 import com.github.istin.dmtools.common.kb.model.KBResult;
 import com.github.istin.dmtools.common.kb.params.KBOrchestratorParams;
-import com.github.istin.dmtools.common.utils.PropertyReader;
-import com.github.istin.dmtools.prompt.PromptManager;
+import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
+import com.github.istin.dmtools.di.KnowledgeBaseComponent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.AfterEach;
@@ -21,12 +15,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Integration test for KB incremental updates and auto-increment functionality
@@ -53,38 +45,8 @@ public class KBIncrementalUpdateTest {
         logger.info("Setting up KB Incremental Update Test");
         logger.info("=".repeat(80));
         
-        // Initialize real AI client
-        PropertyReader propertyReader = new PropertyReader();
-        ConversationObserver observer = new ConversationObserver();
-        ai = BasicGeminiAI.create(observer, propertyReader);
-        
-        // Create all required components
-        PromptManager promptManager = new PromptManager();
-        
-        JSONFixAgent jsonFixAgent = new JSONFixAgent(ai, promptManager);
-        KBAnalysisAgent analysisAgent = new KBAnalysisAgent(ai, promptManager, jsonFixAgent);
-        KBStructureBuilder structureBuilder = new KBStructureBuilder();
-        KBAggregationAgent aggregationAgent = new KBAggregationAgent(ai, promptManager);
-        KBQuestionAnswerMappingAgent qaMappingAgent = new KBQuestionAnswerMappingAgent(ai, promptManager);
-        KBStatistics statistics = new KBStatistics();
-        
-        ContentMergeAgent contentMergeAgent = new ContentMergeAgent(ai, promptManager);
-        KBAnalysisResultMerger resultMerger = new KBAnalysisResultMerger(contentMergeAgent);
-        
-        SourceConfigManager sourceConfigManager = new SourceConfigManager();
-        ChunkPreparation chunkPreparation = new ChunkPreparation();
-        
-        // Create orchestrator with constructor injection
-        orchestrator = new KBOrchestrator(
-                analysisAgent,
-                structureBuilder,
-                aggregationAgent,
-                qaMappingAgent,
-                statistics,
-                resultMerger,
-                sourceConfigManager,
-                chunkPreparation
-        );
+        KnowledgeBaseComponent component = DaggerKnowledgeBaseComponent.create();
+        orchestrator = component.kbOrchestrator();
         
         // Use static directory in project's temp folder
         Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
@@ -125,7 +87,6 @@ public class KBIncrementalUpdateTest {
         logger.info("=".repeat(80));
         
         // CLEANUP DISABLED FOR INSPECTION - uncomment to re-enable
-        /*
         logger.info("Cleaning up test resources...");
         
         // Delete input files
@@ -137,6 +98,8 @@ public class KBIncrementalUpdateTest {
         }
         
         // Delete temp directory recursively
+        // DISABLED FOR DEBUGGING
+        /*
         if (tempDir != null && Files.exists(tempDir)) {
             try (Stream<Path> paths = Files.walk(tempDir)) {
                 paths.sorted(Comparator.reverseOrder())
@@ -150,6 +113,7 @@ public class KBIncrementalUpdateTest {
             }
         }
         */
+        logger.info("Output preserved at: {}", tempDir);
     }
     
     @Test
@@ -168,17 +132,18 @@ public class KBIncrementalUpdateTest {
         params1.setInputFile(firstInputFile.toString());
         params1.setDateTime("2024-10-10T10:00:00");
         params1.setOutputPath(tempDir.toString());
+        params1.setCleanOutput(true); // Clean for first build
         
         logger.info("Running first KB build...");
         KBResult result1 = orchestrator.run(params1);
         
         logger.info("First Build Result:");
         logger.info("  Success: {}", result1.isSuccess());
-        logger.info("  Themes: {}", result1.getThemesCount());
         logger.info("  Questions: {}", result1.getQuestionsCount());
         logger.info("  Answers: {}", result1.getAnswersCount());
         logger.info("  People: {}", result1.getPeopleCount());
         logger.info("  Topics: {}", result1.getTopicsCount());
+        logger.info("  Areas: {}", result1.getAreasCount());
         logger.info("");
         
         assertTrue(result1.isSuccess(), "First build should succeed");
@@ -190,12 +155,6 @@ public class KBIncrementalUpdateTest {
         // NEW: Find first topic file and verify it has contributors
         verifyAnyTopicHasContributors();
         logger.info("✓ Topics have contributors");
-        logger.info("");
-        
-        // Verify themes have contributors
-        logger.info("Verifying themes have contributors after first build...");
-        verifyThemesHaveContributors();
-        logger.info("✓ Themes have contributors");
         logger.info("");
         
         // Count initial people
@@ -215,17 +174,18 @@ public class KBIncrementalUpdateTest {
         params2.setInputFile(secondInputFile.toString());
         params2.setDateTime("2024-10-10T12:00:00");
         params2.setOutputPath(tempDir.toString());
+        params2.setCleanOutput(false); // Don't clean existing data for incremental update
         
         logger.info("Running incremental KB update...");
         KBResult result2 = orchestrator.run(params2);
         
         logger.info("Second Build Result:");
         logger.info("  Success: {}", result2.isSuccess());
-        logger.info("  Themes: {}", result2.getThemesCount());
         logger.info("  Questions: {}", result2.getQuestionsCount());
         logger.info("  Answers: {}", result2.getAnswersCount());
         logger.info("  People: {}", result2.getPeopleCount());
         logger.info("  Topics: {}", result2.getTopicsCount());
+        logger.info("  Areas: {}", result2.getAreasCount());
         logger.info("");
         
         assertTrue(result2.isSuccess(), "Second build should succeed");
@@ -312,24 +272,6 @@ public class KBIncrementalUpdateTest {
         String normalizedName = contributorName.replace(" ", "_");
         assertTrue(content.contains(normalizedName) || content.contains(contributorName), 
                 "Topic should reference contributor: " + contributorName + " in topic: " + topicId);
-    }
-    
-    private void verifyThemesHaveContributors() throws IOException {
-        try (Stream<Path> themes = Files.walk(tempDir.resolve("topics"), 3)
-                .filter(p -> p.getFileName().toString().endsWith(".md"))
-                .filter(p -> p.getParent().getFileName().toString().equals("themes"))) {
-            
-            themes.forEach(themeFile -> {
-                try {
-                    String content = Files.readString(themeFile);
-                    if (content.contains("contributors:")) {
-                        logger.info("  Theme has contributors: {}", themeFile.getFileName());
-                    }
-                } catch (IOException e) {
-                    logger.error("Failed to read theme file: {}", themeFile, e);
-                }
-            });
-        }
     }
     
     private int countPeopleDirectories() throws IOException {

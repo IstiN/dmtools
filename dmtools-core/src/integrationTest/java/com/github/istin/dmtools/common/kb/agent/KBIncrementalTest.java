@@ -1,18 +1,8 @@
 package com.github.istin.dmtools.common.kb.agent;
 
-import com.github.istin.dmtools.ai.AI;
-import com.github.istin.dmtools.ai.ChunkPreparation;
-import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.agent.ContentMergeAgent;
-import com.github.istin.dmtools.ai.agent.JSONFixAgent;
-import com.github.istin.dmtools.ai.google.BasicGeminiAI;
-import com.github.istin.dmtools.common.kb.KBAnalysisResultMerger;
-import com.github.istin.dmtools.common.kb.KBStatistics;
-import com.github.istin.dmtools.common.kb.KBStructureBuilder;
-import com.github.istin.dmtools.common.kb.SourceConfigManager;
 import com.github.istin.dmtools.common.kb.params.KBOrchestratorParams;
-import com.github.istin.dmtools.common.utils.PropertyReader;
-import com.github.istin.dmtools.prompt.PromptManager;
+import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
+import com.github.istin.dmtools.di.KnowledgeBaseComponent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.AfterEach;
@@ -23,11 +13,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Integration test for incremental KB updates.
@@ -48,33 +41,9 @@ public class KBIncrementalTest {
         logger.info("=".repeat(80));
         logger.info("INTEGRATION TEST: KB Incremental Updates");
         logger.info("=".repeat(80));
-        
-        // Initialize components
-        PropertyReader propertyReader = new PropertyReader();
-        ConversationObserver observer = new ConversationObserver();
-        AI ai = BasicGeminiAI.create(observer, propertyReader);
-        
-        PromptManager promptManager = new PromptManager();
-        JSONFixAgent jsonFixAgent = new JSONFixAgent(ai, promptManager);
-        KBAnalysisAgent analysisAgent = new KBAnalysisAgent(ai, promptManager, jsonFixAgent);
-        KBStructureBuilder structureBuilder = new KBStructureBuilder();
-        KBAggregationAgent aggregationAgent = new KBAggregationAgent(ai, new PromptManager());
-        KBQuestionAnswerMappingAgent qaMappingAgent = new KBQuestionAnswerMappingAgent(ai, new PromptManager());
-        KBStatistics statistics = new KBStatistics();
-        KBAnalysisResultMerger resultMerger = new KBAnalysisResultMerger(new ContentMergeAgent(ai, new PromptManager()));
-        SourceConfigManager sourceConfigManager = new SourceConfigManager();
-        ChunkPreparation chunkPreparation = new ChunkPreparation();
-        
-        orchestrator = new KBOrchestrator(
-                analysisAgent,
-                structureBuilder,
-                aggregationAgent,
-                qaMappingAgent,
-                statistics,
-                resultMerger,
-                sourceConfigManager,
-                chunkPreparation
-        );
+
+        KnowledgeBaseComponent component = DaggerKnowledgeBaseComponent.create();
+        orchestrator = component.kbOrchestrator();
         
         // Use static directory in project's temp folder
         Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
@@ -129,6 +98,7 @@ public class KBIncrementalTest {
         params1.setSourceName("source_incremental_test");
         params1.setInputFile(batch1File.toString());
         params1.setOutputPath(tempDir.toString());
+        params1.setCleanOutput(true);
         
         orchestrator.run(params1);
         
@@ -144,6 +114,7 @@ public class KBIncrementalTest {
         params2.setSourceName("source_incremental_test");
         params2.setInputFile(batch2File.toString());
         params2.setOutputPath(tempDir.toString());
+        params2.setCleanOutput(false);
         
         orchestrator.run(params2);
         
@@ -159,6 +130,7 @@ public class KBIncrementalTest {
         params3.setSourceName("source_incremental_test");
         params3.setInputFile(batch3File.toString());
         params3.setOutputPath(tempDir.toString());
+        params3.setCleanOutput(false);
         
         orchestrator.run(params3);
         

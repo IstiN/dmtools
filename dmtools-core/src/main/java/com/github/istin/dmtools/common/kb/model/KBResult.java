@@ -9,12 +9,12 @@ import lombok.Data;
 public class KBResult {
     private boolean success;
     private String message;
-    private int themesCount;
     private int questionsCount;
     private int answersCount;
     private int notesCount;
     private int peopleCount;
     private int topicsCount;
+    private int areasCount;
 }
 
 

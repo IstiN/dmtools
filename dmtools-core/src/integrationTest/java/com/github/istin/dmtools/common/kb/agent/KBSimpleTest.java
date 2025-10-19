@@ -11,6 +11,8 @@ import com.github.istin.dmtools.common.kb.model.KBResult;
 import com.github.istin.dmtools.common.kb.params.KBOrchestratorParams;
 import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.prompt.PromptManager;
+import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
+import com.github.istin.dmtools.di.KnowledgeBaseComponent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +43,12 @@ public class KBSimpleTest {
 
     private static final Logger logger = LogManager.getLogger(KBSimpleTest.class);
 
-    private AI ai;
+    /**
+     * Toggle manual review mode. When false, the test keeps generated KB files
+     * in the output directory for inspection after the run.
+     */
+    private static final boolean CLEAN_OUTPUT = false;
+
     private KBOrchestrator orchestrator;
     private Path tempDir;
     private Path inputFile1;
@@ -53,39 +60,16 @@ public class KBSimpleTest {
         logger.info("SETUP: KBSimpleTest - Minimal Test Data");
         logger.info("=".repeat(80));
 
-        // Initialize components
-        PropertyReader propertyReader = new PropertyReader();
-        ConversationObserver observer = new ConversationObserver();
-        ai = BasicGeminiAI.create(observer, propertyReader);
-
-        PromptManager promptManager = new PromptManager();
-        JSONFixAgent jsonFixAgent = new JSONFixAgent(ai, promptManager);
-        KBAnalysisAgent analysisAgent = new KBAnalysisAgent(ai, promptManager, jsonFixAgent);
-        KBStructureBuilder structureBuilder = new KBStructureBuilder();
-        KBAggregationAgent aggregationAgent = new KBAggregationAgent(ai, new PromptManager());
-        KBQuestionAnswerMappingAgent qaMappingAgent = new KBQuestionAnswerMappingAgent(ai, new PromptManager());
-        KBStatistics statistics = new KBStatistics();
-        KBAnalysisResultMerger resultMerger = new KBAnalysisResultMerger(new ContentMergeAgent(ai, new PromptManager()));
-        SourceConfigManager sourceConfigManager = new SourceConfigManager();
-        ChunkPreparation chunkPreparation = new ChunkPreparation();
-
-        orchestrator = new KBOrchestrator(
-                analysisAgent,
-                structureBuilder,
-                aggregationAgent,
-                qaMappingAgent,
-                statistics,
-                resultMerger,
-                sourceConfigManager,
-                chunkPreparation
-        );
+        // Initialize orchestrator and related components via Dagger like production/default tests
+        KnowledgeBaseComponent component = DaggerKnowledgeBaseComponent.create();
+        orchestrator = component.kbOrchestrator();
 
         // Use static directory in project's temp folder
         Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
         tempDir = projectRoot.resolve("temp/kb_simple_test");
 
         // Clean directory before test
-        if (Files.exists(tempDir)) {
+        if (CLEAN_OUTPUT && Files.exists(tempDir)) {
             logger.info("Cleaning existing directory: {}", tempDir);
             try (Stream<Path> paths = Files.walk(tempDir)) {
                 paths.sorted(Comparator.reverseOrder())
@@ -131,6 +115,7 @@ public class KBSimpleTest {
         params1.setDateTime("2024-10-10T12:00:00Z");
         params1.setOutputPath(tempDir.toString());
         params1.setProcessingMode(com.github.istin.dmtools.common.kb.model.KBProcessingMode.PROCESS_ONLY);
+        params1.setCleanOutput(CLEAN_OUTPUT);
 
         logger.info("Building KB from first batch (PROCESS_ONLY mode)...");
         logger.info("  People: Alice, Bob, Charlie");
@@ -139,7 +124,7 @@ public class KBSimpleTest {
         KBResult result1 = orchestrator.run(params1);
 
         logger.info("✓ First batch processed");
-        logger.info("  Themes: {}", result1.getThemesCount());
+        logger.info("  Areas: {}", result1.getAreasCount());
         logger.info("  Questions: {}", result1.getQuestionsCount());
         logger.info("  Answers: {}", result1.getAnswersCount());
 
@@ -159,6 +144,7 @@ public class KBSimpleTest {
         params2.setDateTime("2024-10-11T12:00:00Z");
         params2.setOutputPath(tempDir.toString());
         params2.setProcessingMode(com.github.istin.dmtools.common.kb.model.KBProcessingMode.PROCESS_ONLY);
+        params2.setCleanOutput(CLEAN_OUTPUT);
 
         logger.info("Building KB from second batch (incremental, PROCESS_ONLY mode)...");
         logger.info("  People: Same 3 (Alice, Bob, Charlie)");
@@ -166,7 +152,7 @@ public class KBSimpleTest {
         KBResult result2 = orchestrator.run(params2);
 
         logger.info("✓ Second batch processed");
-        logger.info("  Themes: {}", result2.getThemesCount());
+        logger.info("  Areas: {}", result2.getAreasCount());
         logger.info("  Questions: {}", result2.getQuestionsCount());
         logger.info("  Answers: {}", result2.getAnswersCount());
 
@@ -292,6 +278,7 @@ public class KBSimpleTest {
         fullParams.setDateTime("2024-10-10T12:00:00Z");
         fullParams.setOutputPath(modeTestDir.toString());
         fullParams.setProcessingMode(com.github.istin.dmtools.common.kb.model.KBProcessingMode.FULL);
+        fullParams.setCleanOutput(CLEAN_OUTPUT);
         
         logger.info("Building KB with FULL mode...");
         KBResult fullResult = orchestrator.run(fullParams);
@@ -328,6 +315,7 @@ public class KBSimpleTest {
         processOnlyParams.setDateTime("2024-10-10T12:00:00Z");
         processOnlyParams.setOutputPath(processOnlyDir.toString());
         processOnlyParams.setProcessingMode(com.github.istin.dmtools.common.kb.model.KBProcessingMode.PROCESS_ONLY);
+        processOnlyParams.setCleanOutput(CLEAN_OUTPUT);
         
         logger.info("Building KB with PROCESS_ONLY mode...");
         KBResult processOnlyResult = orchestrator.run(processOnlyParams);
@@ -363,6 +351,7 @@ public class KBSimpleTest {
         aggregateParams.setSourceName("source_simple_test");
         aggregateParams.setOutputPath(processOnlyDir.toString());  // Use existing KB from PROCESS_ONLY
         aggregateParams.setProcessingMode(com.github.istin.dmtools.common.kb.model.KBProcessingMode.AGGREGATE_ONLY);
+        aggregateParams.setCleanOutput(CLEAN_OUTPUT);
         
         logger.info("Generating AI descriptions with AGGREGATE_ONLY mode...");
         KBResult aggregateResult = orchestrator.run(aggregateParams);

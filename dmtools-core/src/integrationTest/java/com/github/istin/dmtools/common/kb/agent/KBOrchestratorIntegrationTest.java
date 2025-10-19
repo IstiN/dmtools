@@ -1,16 +1,10 @@
 package com.github.istin.dmtools.common.kb.agent;
 
 import com.github.istin.dmtools.ai.AI;
-import com.github.istin.dmtools.ai.ChunkPreparation;
-import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.agent.ContentMergeAgent;
-import com.github.istin.dmtools.ai.agent.JSONFixAgent;
-import com.github.istin.dmtools.ai.google.BasicGeminiAI;
-import com.github.istin.dmtools.common.kb.*;
 import com.github.istin.dmtools.common.kb.model.KBResult;
 import com.github.istin.dmtools.common.kb.params.KBOrchestratorParams;
-import com.github.istin.dmtools.common.utils.PropertyReader;
-import com.github.istin.dmtools.prompt.PromptManager;
+import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
+import com.github.istin.dmtools.di.KnowledgeBaseComponent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.AfterEach;
@@ -55,39 +49,9 @@ public class KBOrchestratorIntegrationTest {
         logger.info("=".repeat(80));
         logger.info("Setting up KBOrchestrator integration test");
         logger.info("=".repeat(80));
-        
-        // Initialize real AI client
-        PropertyReader propertyReader = new PropertyReader();
-        ConversationObserver observer = new ConversationObserver();
-        ai = BasicGeminiAI.create(observer, propertyReader);
-        
-        // Create all required components
-        PromptManager promptManager = new PromptManager();
-        
-        JSONFixAgent jsonFixAgent = new JSONFixAgent(ai, promptManager);
-        KBAnalysisAgent analysisAgent = new KBAnalysisAgent(ai, promptManager, jsonFixAgent);
-        KBStructureBuilder structureBuilder = new KBStructureBuilder();
-        KBAggregationAgent aggregationAgent = new KBAggregationAgent(ai, promptManager);
-        KBQuestionAnswerMappingAgent qaMappingAgent = new KBQuestionAnswerMappingAgent(ai, promptManager);
-        KBStatistics statistics = new KBStatistics();
-        
-        ContentMergeAgent contentMergeAgent = new ContentMergeAgent(ai, promptManager);
-        KBAnalysisResultMerger resultMerger = new KBAnalysisResultMerger(contentMergeAgent);
-        
-        SourceConfigManager sourceConfigManager = new SourceConfigManager();
-        ChunkPreparation chunkPreparation = new ChunkPreparation();
-        
-        // Create orchestrator with constructor injection
-        orchestrator = new KBOrchestrator(
-                analysisAgent,
-                structureBuilder,
-                aggregationAgent,
-                qaMappingAgent,
-                statistics,
-                resultMerger,
-                sourceConfigManager,
-                chunkPreparation
-        );
+
+        KnowledgeBaseComponent component = DaggerKnowledgeBaseComponent.create();
+        orchestrator = component.kbOrchestrator();
         
         // Use static directory in project's temp folder
         Path projectRoot = Paths.get(System.getProperty("user.dir")).getParent();
@@ -166,6 +130,7 @@ public class KBOrchestratorIntegrationTest {
         params.setInputFile(inputFile.toString());
         params.setDateTime(LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
         params.setOutputPath(tempDir.toString());
+        params.setCleanOutput(true); // Clean for fresh test
         
         logger.info("Parameters:");
         logger.info("  Source: {}", params.getSourceName());
@@ -187,7 +152,7 @@ public class KBOrchestratorIntegrationTest {
         logger.info("KB BUILD RESULT:");
         logger.info("  Success: {}", result.isSuccess());
         logger.info("  Message: {}", result.getMessage());
-        logger.info("  Themes: {}", result.getThemesCount());
+        logger.info("  Areas: {}", result.getAreasCount());
         logger.info("  Questions: {}", result.getQuestionsCount());
         logger.info("  Answers: {}", result.getAnswersCount());
         logger.info("  Notes: {}", result.getNotesCount());
@@ -198,7 +163,7 @@ public class KBOrchestratorIntegrationTest {
         // Verify result
         assertNotNull(result);
         assertTrue(result.isSuccess(), "KB build should be successful");
-        assertTrue(result.getThemesCount() > 0, "Should have at least one theme");
+        assertTrue(result.getAreasCount() > 0, "Should have at least one area");
         assertTrue(result.getQuestionsCount() > 0, "Should have at least one question");
         
         // Verify directory structure
@@ -239,13 +204,14 @@ public class KBOrchestratorIntegrationTest {
         params.setInputFile(smallInput.toString());
         params.setDateTime(LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
         params.setOutputPath(tempDir.toString());
+        params.setCleanOutput(true); // Clean for fresh test
         
         logger.info("Testing with small input (single chunk)...");
         
         KBResult result = orchestrator.run(params);
         
         logger.info("Result: {} themes, {} questions, {} answers",
-                result.getThemesCount(),
+                result.getAreasCount(),
                 result.getQuestionsCount(),
                 result.getAnswersCount());
         
@@ -281,11 +247,15 @@ public class KBOrchestratorIntegrationTest {
      * Verify that expected files are generated
      */
     private void verifyGeneratedFiles() throws IOException {
-        // Check for at least one topic directory
+        // Check for at least one topic file
         try (Stream<Path> topics = Files.list(tempDir.resolve("topics"))) {
-            long topicCount = topics.filter(Files::isDirectory).count();
-            assertTrue(topicCount > 0, "Should have at least one topic directory");
-            logger.info("  ✓ Found {} topic directories", topicCount);
+            long topicCount = topics
+                    .filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().endsWith(".md"))
+                    .filter(p -> !p.getFileName().toString().endsWith("-desc.md"))
+                    .count();
+            assertTrue(topicCount > 0, "Should have at least one topic file");
+            logger.info("  ✓ Found {} topic files", topicCount);
         }
         
         // Check for at least one person directory

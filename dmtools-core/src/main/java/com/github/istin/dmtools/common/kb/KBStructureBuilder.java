@@ -120,29 +120,6 @@ public class KBStructureBuilder {
     }
     
     /**
-     * Build theme file
-     */
-    public void buildThemeFile(Theme theme, Path outputPath, String sourceName) throws IOException {
-        if (theme.getTopics() == null || theme.getTopics().isEmpty()) {
-            return; // Skip themes without topics
-        }
-        
-        String themeId = slugify(theme.getTitle());
-        
-        for (String topic : theme.getTopics()) {
-            String topicId = slugify(topic);
-            Path topicDir = outputPath.resolve("topics").resolve(topicId);
-            
-            // Only create themes directory if we have actual theme content
-            Path themeDir = topicDir.resolve("themes");
-            Files.createDirectories(themeDir);
-            
-            Path themeFile = themeDir.resolve(themeId + ".md");
-            createThemeFile(themeFile, theme, themeId, sourceName);
-        }
-    }
-    
-    /**
      * Build question file
      */
     /**
@@ -311,11 +288,11 @@ public class KBStructureBuilder {
     }
     
     /**
-     * Update topic file with statistics about themes, questions, answers, and notes
+     * Update topic file with statistics about questions, answers, and notes
      */
     public void updateTopicWithStats(Path outputPath, String topicId, int questionsCount, 
-                                       int answersCount, int notesCount, int themesCount,
-                                       List<String> themeIds, List<String> contributors) throws IOException {
+                                       int answersCount, int notesCount, 
+                                       List<String> contributors) throws IOException {
         Path topicFile = outputPath.resolve("topics").resolve(topicId).resolve(topicId + ".md");
         if (!Files.exists(topicFile)) {
             return;
@@ -330,21 +307,7 @@ public class KBStructureBuilder {
         autoGenSection.append("## Recent Activity\n");
         autoGenSection.append("- Questions: ").append(questionsCount).append("\n");
         autoGenSection.append("- Answers: ").append(answersCount).append("\n");
-        autoGenSection.append("- Notes: ").append(notesCount).append("\n");
-        autoGenSection.append("- Themes: ").append(themesCount).append("\n\n");
-        
-        // Themes
-        if (!themeIds.isEmpty()) {
-            autoGenSection.append("## Themes\n\n");
-            for (String themeId : themeIds) {
-                // Convert theme ID to title (capitalize words)
-                String themeTitle = Arrays.stream(themeId.split("-"))
-                        .map(word -> word.substring(0, 1).toUpperCase() + word.substring(1))
-                        .collect(java.util.stream.Collectors.joining(" "));
-                autoGenSection.append("- [[themes/").append(themeId).append("|").append(themeTitle).append("]]\n");
-            }
-            autoGenSection.append("\n");
-        }
+        autoGenSection.append("- Notes: ").append(notesCount).append("\n\n");
         
         // Key Contributors
         if (!contributors.isEmpty()) {
@@ -482,7 +445,7 @@ public class KBStructureBuilder {
         contributions.getQuestions().sort(idComparator);
         contributions.getAnswers().sort(idComparator);
         contributions.getNotes().sort(idComparator);
-        
+
         // Sort topics by count (descending) for more useful display
         contributions.getTopics().sort((a, b) -> Integer.compare(b.getCount(), a.getCount()));
     }
@@ -653,50 +616,6 @@ public class KBStructureBuilder {
         String pattern = "(?s)<!-- AUTO_GENERATED_START -->.*?<!-- AUTO_GENERATED_END -->";
         content = content.replaceAll(pattern, replacement.replace("\\", "\\\\").replace("$", "\\$"));
         Files.writeString(file, content);
-    }
-    
-    private void createThemeFile(Path file, Theme theme, String id, String source) throws IOException {
-        Map<String, Object> frontmatter = new LinkedHashMap<>();
-        frontmatter.put("id", id);
-        frontmatter.put("title", theme.getTitle());
-        frontmatter.put("type", "theme");
-        frontmatter.put("source", source);
-        frontmatter.put("topics", theme.getTopics());
-        if (theme.getContributors() != null && !theme.getContributors().isEmpty()) {
-            frontmatter.put("contributors", theme.getContributors());
-        }
-        frontmatter.put("tags", Arrays.asList("#theme", formatSourceTag(source)));
-        
-        String content = "---\n" + toYaml(frontmatter) + "---\n\n"
-                + "# " + theme.getTitle() + "\n\n";
-        
-        // Auto-generated section with Key Contributors
-        content += "<!-- AUTO_GENERATED_START -->\n\n";
-        
-        if (theme.getContributors() != null && !theme.getContributors().isEmpty()) {
-            content += "## Key Contributors\n\n";
-            for (String contributor : theme.getContributors()) {
-                String slug = normalizePersonName(contributor);
-                content += "- [[" + slug + "|" + contributor + "]]\n";
-            }
-            content += "\n";
-        }
-        
-        content += "<!-- AUTO_GENERATED_END -->\n\n";
-        
-        // Add embed to description file (like topics do)
-        content += "## Description\n\n![[" + id + "-desc]]\n";
-        
-        Files.writeString(file, content);
-        
-        // Create description file
-        Path descFile = file.getParent().resolve(id + "-desc.md");
-        if (!Files.exists(descFile)) {
-            String descContent = "<!-- AI_CONTENT_START -->\n"
-                    + theme.getDescription() + "\n"
-                    + "<!-- AI_CONTENT_END -->\n";
-            Files.writeString(descFile, descContent);
-        }
     }
     
     private void createQuestionFile(Path file, Question question, String source, List<String> answerIds) throws IOException {

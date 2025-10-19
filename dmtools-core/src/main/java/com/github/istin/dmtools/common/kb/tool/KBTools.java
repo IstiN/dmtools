@@ -306,11 +306,11 @@ public class KBTools {
     private String formatResult(KBResult result) {
         return String.format(
                 "{\"success\": %s, \"message\": \"%s\", " +
-                "\"topics\": %d, \"themes\": %d, \"questions\": %d, \"answers\": %d, \"notes\": %d, \"people\": %d}",
+                "\"topics\": %d, \"areas\": %d, \"questions\": %d, \"answers\": %d, \"notes\": %d, \"people\": %d}",
                 result.isSuccess(),
                 escapeJson(result.getMessage()),
                 result.getTopicsCount(),
-                result.getThemesCount(),
+                result.getAreasCount(),
                 result.getQuestionsCount(),
                 result.getAnswersCount(),
                 result.getNotesCount(),
