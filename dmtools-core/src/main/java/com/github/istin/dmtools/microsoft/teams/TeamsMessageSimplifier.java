@@ -68,7 +68,9 @@ public class TeamsMessageSimplifier {
     public static JSONObject simplifyMessage(ChatMessage message, String chatId) {
         JSONObject simpleMsg = new JSONObject();
         
-        // Check if this is a system event message with recording/transcript info
+        // Check if this is a system event message
+        // NOTE: Noisy system messages are filtered at the performer level (TeamsClient.shouldSkipNoisyMessage)
+        // This simplifier only handles messages that passed the filter
         if (!"message".equals(message.getMessageType())) {
             JSONObject eventDetail = message.getEventDetail();
             if (eventDetail != null) {
@@ -138,26 +140,9 @@ public class TeamsMessageSimplifier {
                     
                     return simpleMsg;
                 }
-            }
-            
-            // Filter out noisy system events (members joining/leaving, call events, pinned messages, app installs)
-            if (eventDetail != null) {
-                String eventType = eventDetail.optString("@odata.type", "");
-                
-                // Skip common noisy events
-                if (eventType.equals("#microsoft.graph.membersDeletedEventMessageDetail") ||
-                    eventType.equals("#microsoft.graph.membersAddedEventMessageDetail") ||
-                    eventType.equals("#microsoft.graph.memberJoinedEventMessageDetail") ||
-                    eventType.equals("#microsoft.graph.membersJoinedEventMessageDetail") ||
-                    eventType.equals("#microsoft.graph.memberLeftEventMessageDetail") ||
-                    eventType.equals("#microsoft.graph.messagePinnedEventMessageDetail") ||
-                    eventType.equals("#microsoft.graph.callEndedEventMessageDetail") ||
-                    eventType.equals("#microsoft.graph.callStartedEventMessageDetail") ||
-                    eventType.equals("#microsoft.graph.teamsAppInstalledEventMessageDetail")) {
-                    return null; // Skip these events
-                }
                 
                 // Include other system messages with basic information
+                // (Noisy events have already been filtered at the performer level)
                 simpleMsg.put("date", message.getCreatedDateTime());
                 simpleMsg.put("type", "system");
                 simpleMsg.put("messageType", message.getMessageType());
