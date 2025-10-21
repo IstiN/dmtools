@@ -105,6 +105,20 @@ public class TeamsClient extends MicrosoftGraphRestClient {
     }
     
     /**
+     * Callback interface for processing messages during pagination.
+     * Allows early exit and on-the-fly filtering of messages.
+     */
+    public interface MessagePerformer {
+        /**
+         * Process a message.
+         * @param message The message to process
+         * @return true to stop iteration, false to continue
+         * @throws IOException if processing fails
+         */
+        boolean perform(ChatMessage message) throws IOException;
+    }
+    
+    /**
      * Retrieves chats for the current user.
      * 
      * @param limit Maximum number of chats to retrieve (0 for all, default: 50)
@@ -298,26 +312,51 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             @MCPParam(name = "limit", description = "Maximum number of messages (0 for all, default: 100)", required = false, example = "100") Integer limit,
             @MCPParam(name = "filter", description = "Optional OData filter (e.g., 'lastModifiedDateTime gt 2025-01-01T00:00:00Z')", required = false, example = "lastModifiedDateTime gt 2025-01-01T00:00:00Z") String filter) throws IOException {
         
-        // Handle limit parameter: null or 0 means "get all messages"
-        // Note: MCP parameter parsing may convert "0" to null, so we need to handle both cases
-        Integer originalLimit = limit;
+        logger.info("Retrieving RAW messages from chat {}: limit={}, filter={}", chatId, limit, filter != null ? filter : "none");
+        
+        // Use performer pattern to collect all messages without filtering
+        List<ChatMessage> allMessages = new ArrayList<>();
+        getMessagesAndPerform(chatId, limit, filter, message -> {
+            allMessages.add(message);
+            return false; // Continue iteration
+        });
+        
+        logger.info("Retrieved {} RAW messages from chat {} (filter: {})", allMessages.size(), chatId, filter != null ? filter : "none");
+        return allMessages;
+    }
+    
+    /**
+     * Iterates through messages with callback-based processing for efficient pagination.
+     * Supports early exit when desired message is found or condition is met.
+     * Does NOT filter messages - filtering should be done in the performer callback if needed.
+     * 
+     * @param chatId The chat ID
+     * @param limit Maximum number of messages to process (0 for all, null for default)
+     * @param filter Optional OData filter for server-side filtering
+     * @param performer Callback to process each message (return true to stop iteration)
+     * @throws IOException if request fails
+     */
+    public void getMessagesAndPerform(String chatId, Integer limit, String filter, MessagePerformer performer) throws IOException {
+        // Handle limit parameter
         boolean getAllMessages = (limit == null || limit == 0);
         int maxMessages = getAllMessages ? Integer.MAX_VALUE : limit;
         
-        List<ChatMessage> allMessages = new ArrayList<>();
         String url = path(String.format("/me/chats/%s/messages", chatId));
         boolean isFirstRequest = true;
         int pageCount = 0;
+        int processedCount = 0;
+        boolean stopEarly = false;
         
-        logger.info("Starting message retrieval: originalLimit={}, getAllMessages={}, maxMessages={}", originalLimit, getAllMessages, maxMessages);
+        logger.info("Starting message iteration: limit={}, getAllMessages={}", limit, getAllMessages);
         
-        while (url != null) {
+        while (url != null && !stopEarly) {
             pageCount++;
             GenericRequest request = new GenericRequest(this, url);
+            
             // Only add query params on first request; nextLink already contains them
             if (isFirstRequest) {
                 if (!getAllMessages) {
-                    request.param("$top", String.valueOf(Math.min(DEFAULT_PAGE_SIZE, maxMessages - allMessages.size())));
+                    request.param("$top", String.valueOf(Math.min(DEFAULT_PAGE_SIZE, maxMessages - processedCount)));
                 } else {
                     request.param("$top", String.valueOf(DEFAULT_PAGE_SIZE));
                 }
@@ -337,33 +376,65 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             
             JSONArray messages = json.optJSONArray("value");
             if (messages != null) {
-                logger.debug("Retrieved {} messages in this page, total so far: {}", messages.length(), allMessages.size());
-                for (int i = 0; i < messages.length(); i++) {
-                    allMessages.add(new ChatMessage(messages.getJSONObject(i)));
-                    if (!getAllMessages && allMessages.size() >= maxMessages) {
-                        logger.debug("Reached message limit: {}, stopping pagination", maxMessages);
-                        // Set url to null to break out of outer while loop
-                        url = null;
+                logger.debug("Retrieved {} messages in page {}, processed so far: {}", messages.length(), pageCount, processedCount);
+                
+                for (int i = 0; i < messages.length() && !stopEarly; i++) {
+                    ChatMessage message = new ChatMessage(messages.getJSONObject(i));
+                    
+                    // Call performer - if it returns true, stop iteration
+                    // Performer can decide whether to filter or process the message
+                    stopEarly = performer.perform(message);
+                    processedCount++;
+                    
+                    if (!getAllMessages && processedCount >= maxMessages) {
+                        stopEarly = true;
                         break;
                     }
                 }
             }
             
-            // Check for next page (only if we haven't already set url to null above)
-            if (url != null && (getAllMessages || allMessages.size() < maxMessages)) {
+            // Check for next page
+            if (!stopEarly && (getAllMessages || processedCount < maxMessages)) {
                 url = json.optString("@odata.nextLink", null);
-                if (url != null) {
-                    logger.debug("Next page found, continuing pagination...");
-                } else {
-                    logger.debug("No more pages available");
-                }
             } else {
                 url = null;
             }
         }
         
-        logger.info("Retrieved {} messages from chat {} in {} pages (filter: {})", allMessages.size(), chatId, pageCount, filter != null ? filter : "none");
-        return allMessages;
+        logger.info("Completed message iteration: processed={}, pages={}", processedCount, pageCount);
+    }
+    
+    /**
+     * Determines if a message should be skipped as a noisy system event.
+     * Based on filtering logic from TeamsMessageSimplifier.
+     * 
+     * @param message The message to check
+     * @return true if message should be skipped, false otherwise
+     */
+    private boolean shouldSkipNoisyMessage(ChatMessage message) {
+        // Only filter system messages, not regular messages
+        if ("message".equals(message.getMessageType())) {
+            return false;
+        }
+        
+        JSONObject eventDetail = message.getEventDetail();
+        if (eventDetail == null) {
+            // System message without event detail - skip it
+            return true;
+        }
+        
+        String eventType = eventDetail.optString("@odata.type", "");
+        
+        // Skip common noisy events (same logic as TeamsMessageSimplifier)
+        return eventType.equals("#microsoft.graph.membersDeletedEventMessageDetail") ||
+               eventType.equals("#microsoft.graph.membersAddedEventMessageDetail") ||
+               eventType.equals("#microsoft.graph.memberJoinedEventMessageDetail") ||
+               eventType.equals("#microsoft.graph.membersJoinedEventMessageDetail") ||
+               eventType.equals("#microsoft.graph.memberLeftEventMessageDetail") ||
+               eventType.equals("#microsoft.graph.messagePinnedEventMessageDetail") ||
+               eventType.equals("#microsoft.graph.callEndedEventMessageDetail") ||
+               eventType.equals("#microsoft.graph.callStartedEventMessageDetail") ||
+               eventType.equals("#microsoft.graph.teamsAppInstalledEventMessageDetail");
     }
     
     // ========== Chat Operations (Name-Based Access) ==========
@@ -477,14 +548,42 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             return error.toString(2);
         }
         
-        // Get messages
+        // Get messages using performer pattern for efficient iteration with noisy message filtering
         String chatId = chat.getId();
-        List<ChatMessage> messages = getChatMessagesRaw(chatId, limit, null);
+        List<ChatMessage> messages = new ArrayList<>();
+        
+        // Handle limit: we need to fetch more messages from API to account for filtered noisy ones
+        // Set fetchLimit to 0 (unlimited) and apply limit after filtering
+        // null → default 100, 0 → all messages
+        int targetLimit;
+        boolean getAllMessages;
+        if (limit == null) {
+            targetLimit = DEFAULT_MAX_MESSAGES; // Default to 100
+            getAllMessages = false;
+        } else if (limit == 0) {
+            targetLimit = Integer.MAX_VALUE;
+            getAllMessages = true;
+        } else {
+            targetLimit = limit;
+            getAllMessages = false;
+        }
+        
+        getMessagesAndPerform(chatId, 0, null, message -> {
+            // Filter out noisy system messages in the performer
+            if (!shouldSkipNoisyMessage(message)) {
+                messages.add(message);
+                // Stop when we have enough non-noisy messages
+                if (!getAllMessages && messages.size() >= targetLimit) {
+                    return true; // Stop iteration
+                }
+            }
+            return false; // Continue iteration
+        });
         
         // Convert to simplified format using TeamsMessageSimplifier (pass chatId for transcript download URLs)
         JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(messages, chatId);
         
-        logger.info("Retrieved {} messages from chat '{}' (simplified)", simplified.length(), chatName);
+        logger.info("Retrieved {} messages from chat '{}'", simplified.length(), chatName);
         return simplified.toString(2); // Pretty print with 2-space indent
     }
     
@@ -509,26 +608,54 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             @MCPParam(name = "chatId", description = "The chat ID", required = true) String chatId,
             @MCPParam(name = "sinceDate", description = "ISO 8601 date string (e.g., '2025-10-08T00:00:00Z')", required = true, example = "2025-10-08T00:00:00Z") String sinceDate) throws IOException {
         
-        // Validate date format
+        // Validate and parse date format
+        Instant sinceInstant;
         try {
-            Instant.parse(sinceDate);
+            sinceInstant = Instant.parse(sinceDate);
         } catch (Exception e) {
             throw new IOException("Invalid date format. Expected ISO 8601 (e.g., '2025-10-08T00:00:00Z'), got: " + sinceDate);
         }
         
-        // Use server-side filtering with OData $filter parameter
-        // Note: createdDateTime is not supported in filters, so we use lastModifiedDateTime
-        String filter = String.format("lastModifiedDateTime gt %s", sinceDate);
+        logger.info("Retrieving messages from chat {} since {} using performer with early exit", chatId, sinceDate);
         
-        logger.info("Retrieving messages from chat {} since {} using server-side filter", chatId, sinceDate);
+        // Use the performer pattern for efficient iteration with early exit
+        // Messages are ordered by createdDateTime desc, so we can stop when we hit the date boundary
+        List<ChatMessage> filteredMessages = new ArrayList<>();
         
-        // Get messages with server-side filter (0 = get all matching messages)
-        List<ChatMessage> messages = getChatMessagesRaw(chatId, 0, filter);
+        getMessagesAndPerform(chatId, 0, null, message -> {
+            try {
+                String createdDateTime = message.getCreatedDateTime();
+                if (createdDateTime != null) {
+                    Instant messageInstant = Instant.parse(createdDateTime);
+                    
+                    // If message is before the cutoff date, stop iteration (early exit)
+                    // Messages are ordered desc, so once we hit an older message, all remaining are older
+                    if (messageInstant.isBefore(sinceInstant) || messageInstant.equals(sinceInstant)) {
+                        logger.debug("Reached date boundary at message {}, stopping iteration", createdDateTime);
+                        return true; // Stop iteration
+                    }
+                    
+                    // Message is after the cutoff date - filter noisy messages and include
+                    if (!shouldSkipNoisyMessage(message)) {
+                        filteredMessages.add(message);
+                    }
+                }
+                return false; // Continue iteration
+            } catch (Exception e) {
+                logger.warn("Failed to parse message date: {}", e.getMessage());
+                // Include message if we can't parse the date (safe default)
+                if (!shouldSkipNoisyMessage(message)) {
+                    filteredMessages.add(message);
+                }
+                return false; // Continue iteration
+            }
+        });
         
         // Convert to simplified format using TeamsMessageSimplifier (pass chatId for transcript download URLs)
-        JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(messages, chatId);
+        JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(filteredMessages, chatId);
         
-        logger.info("Retrieved {} messages from chat {} since {}", simplified.length(), chatId, sinceDate);
+        logger.info("Retrieved {} messages from chat {} since {} using early exit", 
+            simplified.length(), chatId, sinceDate);
         return simplified.toString(2); // Pretty print with 2-space indent
     }
     

@@ -143,7 +143,7 @@ public class TeamsClientMcpToolsIntegrationTest {
             return;
         }
         
-        List<ChatMessage> messages = teamsClient.getChatMessagesRaw(testChatId, 10);
+        List<ChatMessage> messages = teamsClient.getChatMessagesRaw(testChatId, 10, null);
         
         assertNotNull(messages);
         logger.info("Retrieved {} messages from chat {}", messages.size(), testChatId);
@@ -344,10 +344,10 @@ public class TeamsClientMcpToolsIntegrationTest {
         }
         
         // Get first 5 messages
-        List<ChatMessage> fiveMessages = teamsClient.getChatMessagesRaw(testChatId, 5);
+        List<ChatMessage> fiveMessages = teamsClient.getChatMessagesRaw(testChatId, 5, null);
         
         // Get first 10 messages
-        List<ChatMessage> tenMessages = teamsClient.getChatMessagesRaw(testChatId, 10);
+        List<ChatMessage> tenMessages = teamsClient.getChatMessagesRaw(testChatId, 10, null);
         
         assertNotNull(fiveMessages);
         assertNotNull(tenMessages);
@@ -372,7 +372,7 @@ public class TeamsClientMcpToolsIntegrationTest {
             return;
         }
         
-        List<ChatMessage> messages = teamsClient.getChatMessagesRaw(testChatId, 1);
+        List<ChatMessage> messages = teamsClient.getChatMessagesRaw(testChatId, 1, null);
         
         if (!messages.isEmpty()) {
             ChatMessage message = messages.get(0);
