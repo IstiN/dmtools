@@ -219,60 +219,40 @@ public class McpCliHandler {
 
     /**
      * Maps positional arguments to named parameters based on the tool's schema.
-     * Now handles both required and optional parameters.
+     * Uses parameter order from method declaration (via annotation processor).
      */
     private void mapPositionalArguments(String toolName, List<String> positionalArgs, Map<String, Object> arguments) {
         try {
-            // First try to get required parameters
-            List<String> paramNames = new ArrayList<>(MCPSchemaGenerator.getRequiredParameterNames(toolName));
+            // Get all parameter names in declaration order from generated schema
+            List<String> paramNames = MCPSchemaGenerator.getAllParameterNames(toolName);
             
-            // Add common optional parameters that are often provided positionally
-            // This allows commands like: dmtools teams_get_messages_by_name "Chat Name" 0
-            if (positionalArgs.size() > paramNames.size()) {
-                // Common patterns for optional positional parameters
-                if (toolName.equals("teams_get_recent_chats")) {
-                    if (paramNames.size() < positionalArgs.size()) paramNames.add("limit");
-                    if (paramNames.size() < positionalArgs.size()) paramNames.add("chatType");
-                } else if (toolName.contains("_since")) {
-                    // For _since commands: no extra optional params (smart pagination handles it)
-                    // Do nothing - sinceDate is already required
-                } else if (toolName.contains("_messages") && !toolName.contains("_since")) {
-                    // Add "limit" as next expected parameter for message retrieval commands (but not for _since)
-                    if (paramNames.size() < positionalArgs.size()) paramNames.add("limit");
-                } else if (toolName.contains("_chats") || toolName.contains("_recent")) {
-                    // Add "limit" for list commands
-                    if (paramNames.size() < positionalArgs.size()) paramNames.add("limit");
+            if (paramNames.isEmpty()) {
+                logger.warn("No parameters found for tool '{}'. Using indexed fallback.", toolName);
+                // Fallback for when schema cannot be retrieved
+                for (int i = 0; i < positionalArgs.size(); i++) {
+                    arguments.put("arg" + i, positionalArgs.get(i));
                 }
+                return;
             }
             
-            // Special handling for tools with only optional params (no required params)
-            if (paramNames.isEmpty() && !positionalArgs.isEmpty()) {
-                if (toolName.equals("teams_get_recent_chats")) {
-                    paramNames.add("limit");
-                    paramNames.add("chatType");
-                } else if (toolName.contains("_recent") || (toolName.contains("_messages") && !toolName.contains("_since")) || toolName.contains("_chats")) {
-                    paramNames.add("limit");  // Most get/list commands have limit as first optional param
-                }
-            }
-            
-            // Map positional args to parameter names in order
+            // Map positional args to parameter names in declaration order
             int numToMap = Math.min(positionalArgs.size(), paramNames.size());
             for (int i = 0; i < numToMap; i++) {
                 String paramValue = positionalArgs.get(i);
-                // Try to convert to appropriate type (Integer for "limit" parameter)
+                // Try to convert to appropriate type (Integer for "limit" parameter, etc.)
                 Object convertedValue = convertParameterValue(paramNames.get(i), paramValue);
                 arguments.put(paramNames.get(i), convertedValue);
             }
             
-            // If there are still leftover positional args, use indexed fallback
+            // If there are more positional args than parameters, log warning
             if (positionalArgs.size() > paramNames.size()) {
-                for (int i = paramNames.size(); i < positionalArgs.size(); i++) {
-                    arguments.put("arg" + i, positionalArgs.get(i));
-                }
+                logger.warn("Tool '{}' has {} parameters but {} positional arguments provided. Extra arguments ignored.", 
+                    toolName, paramNames.size(), positionalArgs.size());
             }
         } catch (Exception e) {
-            logger.warn("Could not retrieve schema for tool '{}'. Falling back to indexed arguments.", toolName);
-            // Fallback for when schema cannot be retrieved
+            logger.warn("Error mapping parameters for tool '{}': {}. Using indexed fallback.", 
+                toolName, e.getMessage());
+            // Fallback for any errors
             for (int i = 0; i < positionalArgs.size(); i++) {
                 arguments.put("arg" + i, positionalArgs.get(i));
             }
