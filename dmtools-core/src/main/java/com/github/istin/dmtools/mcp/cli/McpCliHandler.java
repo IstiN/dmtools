@@ -406,9 +406,18 @@ public class McpCliHandler {
 
     /**
      * Configures logging for CLI usage - suppresses debug/info logs.
+     * Skips configuration if debug mode is enabled (log4j2-debug.xml).
      */
     private void configureCLILogging() {
         try {
+            // Check if we're in debug mode (--debug flag)
+            String configFile = System.getProperty("log4j2.configurationFile");
+            if (configFile != null && configFile.contains("debug")) {
+                // Debug mode enabled - don't override log configuration
+                System.err.println("[DEBUG] Debug mode enabled, preserving log configuration");
+                return;
+            }
+            
             // Set all loggers to OFF level to completely suppress output
             Configurator.setAllLevels("com.github.istin.dmtools", org.apache.logging.log4j.Level.OFF);
             Configurator.setAllLevels("org.apache", org.apache.logging.log4j.Level.OFF);
