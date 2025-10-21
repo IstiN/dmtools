@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.microsoft.teams;
 
 import com.github.istin.dmtools.microsoft.teams.model.ChatMessage;
+import io.github.furstenheim.CopyDown;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -101,6 +102,24 @@ public class TeamsMessageSimplifier {
                         simpleMsg.put("transcriptICalUid", transcriptICalUid);
                     }
                     
+                    // Include call ID for Call Records API
+                    String callId = eventDetail.optString("callId", null);
+                    if (callId != null) {
+                        simpleMsg.put("callId", callId);
+                    }
+                    
+                    // Include meeting organizer ID for onlineMeetings API
+                    JSONObject meetingOrganizer = eventDetail.optJSONObject("meetingOrganizer");
+                    if (meetingOrganizer != null) {
+                        JSONObject user = meetingOrganizer.optJSONObject("user");
+                        if (user != null) {
+                            String organizerId = user.optString("id", null);
+                            if (organizerId != null) {
+                                simpleMsg.put("organizerId", organizerId);
+                            }
+                        }
+                    }
+                    
                     String messageId = message.getId();
                     if (messageId != null) {
                         simpleMsg.put("messageId", messageId);
@@ -121,7 +140,35 @@ public class TeamsMessageSimplifier {
                 }
             }
             
-            // Skip other system messages
+            // Filter out noisy system events (members joining/leaving, call events, pinned messages, app installs)
+            if (eventDetail != null) {
+                String eventType = eventDetail.optString("@odata.type", "");
+                
+                // Skip common noisy events
+                if (eventType.equals("#microsoft.graph.membersDeletedEventMessageDetail") ||
+                    eventType.equals("#microsoft.graph.membersAddedEventMessageDetail") ||
+                    eventType.equals("#microsoft.graph.memberJoinedEventMessageDetail") ||
+                    eventType.equals("#microsoft.graph.membersJoinedEventMessageDetail") ||
+                    eventType.equals("#microsoft.graph.memberLeftEventMessageDetail") ||
+                    eventType.equals("#microsoft.graph.messagePinnedEventMessageDetail") ||
+                    eventType.equals("#microsoft.graph.callEndedEventMessageDetail") ||
+                    eventType.equals("#microsoft.graph.callStartedEventMessageDetail") ||
+                    eventType.equals("#microsoft.graph.teamsAppInstalledEventMessageDetail")) {
+                    return null; // Skip these events
+                }
+                
+                // Include other system messages with basic information
+                simpleMsg.put("date", message.getCreatedDateTime());
+                simpleMsg.put("type", "system");
+                simpleMsg.put("messageType", message.getMessageType());
+                simpleMsg.put("eventType", eventType.replace("#microsoft.graph.", ""));
+                // Include basic event detail for context
+                simpleMsg.put("eventDetail", eventDetail);
+                
+                return simpleMsg;
+            }
+            
+            // If no eventDetail, skip the system message
             return null;
         }
         
@@ -141,11 +188,25 @@ public class TeamsMessageSimplifier {
         
         // Body (clean HTML tags for readability)
         String body = message.getContent();
+        List<String> extractedImages = null;
         if (body != null && !body.isEmpty()) {
+            // Extract images before cleaning HTML
+            extractedImages = extractImageUrls(body);
             body = cleanHtml(body);
-            simpleMsg.put("body", body);
+        }
+        
+        // If body is empty or only contained attachment placeholders, try to extract from adaptive cards
+        if (body == null || body.trim().isEmpty()) {
+            List<ChatMessage.Attachment> messageAttachments = message.getAttachments();
+            String cardContent = extractAdaptiveCardContent(messageAttachments);
+            if (cardContent != null && !cardContent.isEmpty()) {
+                simpleMsg.put("body", cardContent);
+                body = cardContent; // Set for downstream processing
+            } else {
+                simpleMsg.put("body", "");
+            }
         } else {
-            simpleMsg.put("body", "");
+            simpleMsg.put("body", body);
         }
         
         // Reactions (if any)
@@ -168,36 +229,97 @@ public class TeamsMessageSimplifier {
         
         // Attachments (if any)
         List<ChatMessage.Attachment> attachments = message.getAttachments();
-        if (attachments != null && !attachments.isEmpty()) {
-            JSONArray attachmentsArray = extractAttachments(attachments);
-            if (attachmentsArray.length() > 0) {
-                simpleMsg.put("attachments", attachmentsArray);
+        JSONArray attachmentsArray = new JSONArray();
+        
+        // Add extracted images from body first
+        if (extractedImages != null && !extractedImages.isEmpty()) {
+            for (String imageUrl : extractedImages) {
+                JSONObject imageAttachment = new JSONObject();
+                imageAttachment.put("type", "image");
+                imageAttachment.put("url", imageUrl);
+                attachmentsArray.put(imageAttachment);
             }
+        }
+        
+        // Add regular attachments
+        if (attachments != null && !attachments.isEmpty()) {
+            JSONArray regularAttachments = extractAttachments(attachments);
+            for (int i = 0; i < regularAttachments.length(); i++) {
+                attachmentsArray.put(regularAttachments.get(i));
+            }
+        }
+        
+        if (attachmentsArray.length() > 0) {
+            simpleMsg.put("attachments", attachmentsArray);
         }
         
         return simpleMsg;
     }
     
     /**
-     * Cleans HTML content by removing tags and decoding common HTML entities.
+     * Extracts image URLs from HTML content.
+     * Looks for <img> tags and extracts their src attributes.
+     * Skips hostedContents URLs as they require authentication and are not publicly accessible.
      * 
-     * @param html HTML string to clean
-     * @return Plain text with HTML removed
+     * @param html HTML string to extract images from
+     * @return List of image URLs, or empty list if none found
+     */
+    private static List<String> extractImageUrls(String html) {
+        List<String> imageUrls = new java.util.ArrayList<>();
+        if (html == null || html.isEmpty()) {
+            return imageUrls;
+        }
+        
+        // Simple regex to extract img src attributes
+        // Matches: <img ... src="URL" ... >
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("<img[^>]+src=\"([^\"]+)\"[^>]*>", java.util.regex.Pattern.CASE_INSENSITIVE);
+        java.util.regex.Matcher matcher = pattern.matcher(html);
+        
+        while (matcher.find()) {
+            String url = matcher.group(1);
+            // Skip hostedContents URLs - they require Teams authentication and aren't publicly accessible
+            // These inline pasted images will remain in the markdown body but won't be added as separate attachments
+            if (url != null && !url.isEmpty() && !url.contains("/hostedContents/")) {
+                imageUrls.add(url);
+            }
+        }
+        
+        return imageUrls;
+    }
+    
+    /**
+     * Converts HTML content to Markdown using CopyDown library.
+     * This preserves links as [text](URL) format and handles other HTML elements properly.
+     * 
+     * @param html HTML string to convert
+     * @return Markdown-formatted text
      */
     public static String cleanHtml(String html) {
         if (html == null || html.isEmpty()) {
             return "";
         }
         
-        return html
-            .replaceAll("<[^>]+>", "")       // Remove HTML tags
-            .replaceAll("&nbsp;", " ")        // Decode non-breaking space
-            .replaceAll("&lt;", "<")          // Decode less than
-            .replaceAll("&gt;", ">")          // Decode greater than
-            .replaceAll("&amp;", "&")         // Decode ampersand
-            .replaceAll("&quot;", "\"")       // Decode quote
-            .replaceAll("&#39;", "'")         // Decode apostrophe
-            .trim();
+        try {
+            // Use CopyDown to convert HTML to Markdown
+            CopyDown converter = new CopyDown();
+            String markdown = converter.convert(html);
+            
+            // Clean up excessive whitespace and trim
+            return markdown
+                .replaceAll("\\n\\s*\\n\\s*\\n+", "\n\n")  // Reduce multiple blank lines to max 2
+                .trim();
+        } catch (Exception e) {
+            // Fallback to simple HTML stripping if conversion fails
+            return html
+                .replaceAll("<[^>]+>", "")
+                .replaceAll("&nbsp;", " ")
+                .replaceAll("&lt;", "<")
+                .replaceAll("&gt;", ">")
+                .replaceAll("&amp;", "&")
+                .replaceAll("&quot;", "\"")
+                .replaceAll("&#39;", "'")
+                .trim();
+        }
     }
     
     /**
@@ -279,14 +401,8 @@ public class TeamsMessageSimplifier {
                 }
             }
             
-            // Handle adaptive cards (YouTube, links, etc.) - simple text format
+            // Skip adaptive cards - their content is extracted into the message body
             if ("application/vnd.microsoft.card.adaptive".equals(contentType)) {
-                String cardText = extractAdaptiveCardTitle(attachment);
-                if (cardText != null) {
-                    attachmentsArray.put(cardText);
-                    continue;
-                }
-                attachmentsArray.put("Adaptive Card");
                 continue;
             }
             
@@ -315,9 +431,10 @@ public class TeamsMessageSimplifier {
     
     /**
      * Extracts preview text from a messageReference attachment (reply).
+     * Includes the author of the message being replied to.
      * 
      * @param attachment Attachment with messageReference content
-     * @return Formatted reply preview, or null if extraction fails
+     * @return Formatted reply preview with author, or null if extraction fails
      */
     private static String extractReplyPreview(ChatMessage.Attachment attachment) {
         try {
@@ -325,15 +442,37 @@ public class TeamsMessageSimplifier {
             if (content != null && !content.isEmpty()) {
                 JSONObject contentJson = new JSONObject(content);
                 String preview = contentJson.optString("messagePreview", "");
+                
+                // Extract the author of the message being replied to
+                String authorName = null;
+                JSONObject messageSender = contentJson.optJSONObject("messageSender");
+                if (messageSender != null) {
+                    JSONObject user = messageSender.optJSONObject("user");
+                    if (user != null) {
+                        authorName = user.optString("displayName", null);
+                    }
+                }
+                
+                // Format the reply text
+                StringBuilder replyText = new StringBuilder("Reply");
+                if (authorName != null && !authorName.isEmpty()) {
+                    replyText.append(" to ").append(authorName);
+                }
+                
                 if (!preview.isEmpty()) {
                     // Truncate long previews
                     if (preview.length() > 100) {
                         preview = preview.substring(0, 97) + "...";
                     }
-                    return "Reply: " + preview;
+                    replyText.append(": ").append(preview);
                 } else {
-                    return "Reply to message";
+                    // If no preview but we have an author, still show the reply
+                    if (authorName == null) {
+                        return "Reply to message";
+                    }
                 }
+                
+                return replyText.toString();
             }
         } catch (Exception e) {
             // Fall through to return null
@@ -342,34 +481,119 @@ public class TeamsMessageSimplifier {
     }
     
     /**
-     * Extracts title from an adaptive card attachment.
+     * Recursively extracts content from adaptive card body elements.
+     * Handles TextBlock, ChoiceSet, Container, Column, ColumnSet structures.
      * 
-     * @param attachment Attachment with adaptive card content
-     * @return Formatted card title, or null if extraction fails
+     * @param elements JSONArray of card body elements
+     * @param content StringBuilder to append extracted content to
      */
-    private static String extractAdaptiveCardTitle(ChatMessage.Attachment attachment) {
-        try {
-            String cardContent = attachment.getContent();
-            if (cardContent != null && !cardContent.isEmpty()) {
-                JSONObject cardJson = new JSONObject(cardContent);
-                JSONArray cardBody = cardJson.optJSONArray("body");
-                if (cardBody != null) {
-                    // Look for the title TextBlock (bolder weight)
-                    for (int i = 0; i < cardBody.length(); i++) {
-                        JSONObject block = cardBody.optJSONObject(i);
-                        if (block != null && "TextBlock".equals(block.optString("type"))) {
-                            String text = block.optString("text", "");
-                            if (!text.isEmpty() && "bolder".equals(block.optString("weight"))) {
-                                return "Card: " + text;
+    private static void extractCardBodyContent(JSONArray elements, StringBuilder content) {
+        if (elements == null) {
+            return;
+        }
+        
+        for (int i = 0; i < elements.length(); i++) {
+            JSONObject block = elements.optJSONObject(i);
+            if (block == null) {
+                continue;
+            }
+            
+            String blockType = block.optString("type", "");
+            
+            // Extract text from TextBlock elements
+            if ("TextBlock".equals(blockType)) {
+                String text = block.optString("text", "");
+                if (!text.isEmpty()) {
+                    // Bold text (questions/titles) - make prominent
+                    if ("bolder".equals(block.optString("weight"))) {
+                        content.append("**").append(text).append("**\n");
+                    } else {
+                        content.append(text).append("\n");
+                    }
+                }
+            }
+            
+            // Extract choices from ChoiceSet (poll options - initial question view)
+            else if ("Input.ChoiceSet".equals(blockType)) {
+                JSONArray choices = block.optJSONArray("choices");
+                if (choices != null && choices.length() > 0) {
+                    for (int j = 0; j < choices.length(); j++) {
+                        JSONObject choice = choices.optJSONObject(j);
+                        if (choice != null) {
+                            String title = choice.optString("title", "");
+                            if (!title.isEmpty()) {
+                                content.append("  - ").append(title).append("\n");
                             }
                         }
                     }
                 }
             }
-        } catch (Exception e) {
-            // Fall through to return null
+            
+            // Recursively process Container elements (poll results view)
+            else if ("Container".equals(blockType)) {
+                JSONArray items = block.optJSONArray("items");
+                if (items != null) {
+                    extractCardBodyContent(items, content);
+                }
+            }
+            
+            // Recursively process ColumnSet elements (poll results view)
+            else if ("ColumnSet".equals(blockType)) {
+                JSONArray columns = block.optJSONArray("columns");
+                if (columns != null) {
+                    extractCardBodyContent(columns, content);
+                }
+            }
+            
+            // Recursively process Column elements (poll results view)
+            else if ("Column".equals(blockType)) {
+                JSONArray items = block.optJSONArray("items");
+                if (items != null) {
+                    extractCardBodyContent(items, content);
+                }
+            }
         }
+    }
+    
+    /**
+     * Extracts full content from adaptive card attachments (e.g., polls).
+     * Parses the JSON structure to extract questions, options, and other text.
+     * 
+     * @param attachments List of attachments to search
+     * @return Formatted card content as string, or null if not found
+     */
+    private static String extractAdaptiveCardContent(List<ChatMessage.Attachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            return null;
+        }
+        
+        for (ChatMessage.Attachment attachment : attachments) {
+            if ("application/vnd.microsoft.card.adaptive".equals(attachment.getContentType())) {
+                try {
+                    String cardContentStr = attachment.getContent();
+                    if (cardContentStr != null && !cardContentStr.isEmpty()) {
+                        JSONObject cardJson = new JSONObject(cardContentStr);
+                        StringBuilder content = new StringBuilder();
+                        
+                        // Extract body elements
+                        JSONArray cardBody = cardJson.optJSONArray("body");
+                        if (cardBody != null) {
+                            extractCardBodyContent(cardBody, content);
+                        }
+                        
+                        String result = content.toString().trim();
+                        if (!result.isEmpty()) {
+                            return "[Poll/Card] " + result;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Fall through to try next attachment
+                }
+            }
+        }
+        
         return null;
     }
+    
 }
 

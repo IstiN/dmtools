@@ -110,13 +110,13 @@ public class TeamsClientMcpToolsIntegrationTest {
     @Test
     @Order(2)
     @DisplayName("Test teams_get_chats")
-    void testGetChats() throws IOException {
+    void testGetChatsRaw() throws IOException {
         if (!credentialsAvailable) {
             logger.info("Skipping test - credentials not available");
             return;
         }
         
-        List<Chat> chats = teamsClient.getChats();
+        List<Chat> chats = teamsClient.getChatsRaw(10);
         
         assertNotNull(chats);
         logger.info("Retrieved {} chats", chats.size());
@@ -137,13 +137,13 @@ public class TeamsClientMcpToolsIntegrationTest {
     @Test
     @Order(3)
     @DisplayName("Test teams_get_messages")
-    void testGetChatMessages() throws IOException {
+    void testGetChatMessagesRaw() throws IOException {
         if (!credentialsAvailable || testChatId == null) {
             logger.info("Skipping test - credentials or chat ID not available");
             return;
         }
         
-        List<ChatMessage> messages = teamsClient.getChatMessages(testChatId, 10);
+        List<ChatMessage> messages = teamsClient.getChatMessagesRaw(testChatId, 10);
         
         assertNotNull(messages);
         logger.info("Retrieved {} messages from chat {}", messages.size(), testChatId);
@@ -183,13 +183,13 @@ public class TeamsClientMcpToolsIntegrationTest {
     @Test
     @Order(5)
     @DisplayName("Test teams_get_messages_by_name")
-    void testGetChatMessagesByName() throws IOException {
+    void testGetChatMessagesRawByName() throws IOException {
         if (!credentialsAvailable || testChatName == null || testChatName.isEmpty()) {
             logger.info("Skipping test - credentials or chat name not available");
             return;
         }
         
-        List<ChatMessage> messages = teamsClient.getChatMessagesByName(testChatName, 5);
+        List<ChatMessage> messages = teamsClient.getChatMessagesByNameRaw(testChatName, 5);
         
         assertNotNull(messages);
         logger.info("Retrieved {} messages by chat name", messages.size());
@@ -344,10 +344,10 @@ public class TeamsClientMcpToolsIntegrationTest {
         }
         
         // Get first 5 messages
-        List<ChatMessage> fiveMessages = teamsClient.getChatMessages(testChatId, 5);
+        List<ChatMessage> fiveMessages = teamsClient.getChatMessagesRaw(testChatId, 5);
         
         // Get first 10 messages
-        List<ChatMessage> tenMessages = teamsClient.getChatMessages(testChatId, 10);
+        List<ChatMessage> tenMessages = teamsClient.getChatMessagesRaw(testChatId, 10);
         
         assertNotNull(fiveMessages);
         assertNotNull(tenMessages);
@@ -372,7 +372,7 @@ public class TeamsClientMcpToolsIntegrationTest {
             return;
         }
         
-        List<ChatMessage> messages = teamsClient.getChatMessages(testChatId, 1);
+        List<ChatMessage> messages = teamsClient.getChatMessagesRaw(testChatId, 1);
         
         if (!messages.isEmpty()) {
             ChatMessage message = messages.get(0);

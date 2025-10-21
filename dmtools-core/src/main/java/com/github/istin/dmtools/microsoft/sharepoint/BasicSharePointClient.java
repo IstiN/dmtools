@@ -14,6 +14,11 @@ public class BasicSharePointClient {
     private static final Logger logger = LogManager.getLogger(BasicSharePointClient.class);
     
     private static SharePointClient instance;
+    private static final PropertyReader propertyReader;
+    
+    static {
+        propertyReader = new PropertyReader();
+    }
     
     /**
      * Gets or creates the singleton SharePointClient instance.
@@ -27,8 +32,6 @@ public class BasicSharePointClient {
      */
     public static synchronized SharePointClient getInstance() throws IOException {
         if (instance == null) {
-            PropertyReader propertyReader = new PropertyReader();
-            
             String clientId = propertyReader.getTeamsClientId();
             String tenantId = propertyReader.getTeamsTenantId();
             String scopes = propertyReader.getSharePointScopes(); // Uses Teams scopes + Files.Read

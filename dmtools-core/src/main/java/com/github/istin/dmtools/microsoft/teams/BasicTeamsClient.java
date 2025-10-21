@@ -16,6 +16,11 @@ public class BasicTeamsClient extends TeamsClient {
     
     private static BasicTeamsClient instance;
     private static final Object lock = new Object();
+    private static final PropertyReader propertyReader;
+    
+    static {
+        propertyReader = new PropertyReader();
+    }
     
     /**
      * Private constructor - reads configuration from PropertyReader.
@@ -63,8 +68,7 @@ public class BasicTeamsClient extends TeamsClient {
     // Configuration helper methods
     
     private static String getClientIdOrThrow() {
-        PropertyReader reader = new PropertyReader();
-        String clientId = reader.getTeamsClientId();
+        String clientId = propertyReader.getTeamsClientId();
         if (clientId == null || clientId.trim().isEmpty()) {
             throw new IllegalStateException(
                 "TEAMS_CLIENT_ID environment variable is required. " +
@@ -75,33 +79,27 @@ public class BasicTeamsClient extends TeamsClient {
     }
     
     private static String getTenantId() {
-        PropertyReader reader = new PropertyReader();
-        return reader.getTeamsTenantId();
+        return propertyReader.getTeamsTenantId();
     }
     
     private static String getScopes() {
-        PropertyReader reader = new PropertyReader();
-        return reader.getTeamsScopes();
+        return propertyReader.getTeamsScopes();
     }
     
     private static String getAuthMethod() {
-        PropertyReader reader = new PropertyReader();
-        return reader.getTeamsAuthMethod();
+        return propertyReader.getTeamsAuthMethod();
     }
     
     private static int getAuthPort() {
-        PropertyReader reader = new PropertyReader();
-        return reader.getTeamsAuthPort();
+        return propertyReader.getTeamsAuthPort();
     }
     
     private static String getTokenCachePath() {
-        PropertyReader reader = new PropertyReader();
-        return reader.getTeamsTokenCachePath();
+        return propertyReader.getTeamsTokenCachePath();
     }
     
     private static String getRefreshToken() {
-        PropertyReader reader = new PropertyReader();
-        return reader.getTeamsRefreshToken();
+        return propertyReader.getTeamsRefreshToken();
     }
 }
 

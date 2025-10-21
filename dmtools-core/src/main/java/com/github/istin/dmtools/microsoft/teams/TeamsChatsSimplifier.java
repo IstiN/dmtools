@@ -5,6 +5,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -20,13 +21,14 @@ public class TeamsChatsSimplifier {
      * Simplifies a list of chats to JSON format with basic info.
      * 
      * @param chats List of Chat objects to simplify
+     * @param currentUserDisplayName Current user's display name (to exclude from 1-on-1 chat names)
      * @return JSONArray with simplified chat objects
      */
-    public static JSONArray simplifyChats(List<Chat> chats) {
+    public static JSONArray simplifyChats(List<Chat> chats, String currentUserDisplayName) {
         JSONArray simplified = new JSONArray();
         
         for (Chat chat : chats) {
-            JSONObject chatInfo = simplifyChat(chat, false);
+            JSONObject chatInfo = simplifyChat(chat, false, currentUserDisplayName);
             simplified.put(chatInfo);
         }
         
@@ -38,13 +40,14 @@ public class TeamsChatsSimplifier {
      * 
      * @param chat Chat object to simplify
      * @param includeAuthor If true, includes author name as separate field (for recent chats)
+     * @param currentUserDisplayName Current user's display name (to exclude from 1-on-1 chat names)
      * @return JSONObject with simplified chat data
      */
-    public static JSONObject simplifyChat(Chat chat, boolean includeAuthor) {
+    public static JSONObject simplifyChat(Chat chat, boolean includeAuthor, String currentUserDisplayName) {
         JSONObject chatInfo = new JSONObject();
         
         // Get chat name or contact names (for 1-on-1, show only the other person)
-        String displayName = getChatDisplayName(chat);
+        String displayName = getChatDisplayName(chat, currentUserDisplayName);
         chatInfo.put("chatName", displayName);
         
         // Get last message content
@@ -89,11 +92,12 @@ public class TeamsChatsSimplifier {
      * @param limit Maximum number of recent chats to return
      * @param chatType Filter by chat type: "oneOnOne", "group", "meeting", or "all"
      * @param cutoffDays Number of days to look back for active chats (default: 90)
+     * @param currentUserDisplayName Current user's display name (to exclude from 1-on-1 chat names)
      * @return JSONArray with simplified, sorted, filtered chat list
      */
-    public static JSONArray getRecentChatsSimplified(List<Chat> chats, int limit, String chatType, int cutoffDays) {
+    public static JSONArray getRecentChatsSimplified(List<Chat> chats, int limit, String chatType, int cutoffDays, String currentUserDisplayName) {
         // Calculate cutoff date
-        Instant cutoffDate = Instant.now().minus(cutoffDays, java.time.temporal.ChronoUnit.DAYS);
+        Instant cutoffDate = Instant.now().minus(cutoffDays, ChronoUnit.DAYS);
         
         // Sort by last activity (most recent first)
         List<Chat> sortedChats = new ArrayList<>(chats);
@@ -153,7 +157,8 @@ public class TeamsChatsSimplifier {
             for (Chat chat : activeChats) {
                 if (chatType.equalsIgnoreCase(chat.getChatType())) {
                     filteredChats.add(chat);
-                    if (filteredChats.size() >= limit) {
+                    // limit = 0 means unlimited
+                    if (limit > 0 && filteredChats.size() >= limit) {
                         break;
                     }
                 }
@@ -161,13 +166,14 @@ public class TeamsChatsSimplifier {
             activeChats = filteredChats;
         }
         
-        // Return only the requested number of chats
-        List<Chat> recentChats = activeChats.subList(0, Math.min(limit, activeChats.size()));
+        // Return only the requested number of chats (limit = 0 means all)
+        int effectiveLimit = (limit <= 0) ? activeChats.size() : limit;
+        List<Chat> recentChats = activeChats.subList(0, Math.min(effectiveLimit, activeChats.size()));
         
         // Convert to simplified format with author names
         JSONArray simplified = new JSONArray();
         for (Chat chat : recentChats) {
-            JSONObject chatInfo = simplifyChat(chat, true); // includeAuthor = true
+            JSONObject chatInfo = simplifyChat(chat, true, currentUserDisplayName); // includeAuthor = true
             simplified.put(chatInfo);
         }
         
@@ -176,12 +182,13 @@ public class TeamsChatsSimplifier {
     
     /**
      * Gets a display name for a chat (topic for group chats, contact names for 1-on-1).
-     * For 1-on-1 chats, shows only the OTHER person's name (excludes the last message author).
+     * For 1-on-1 chats, shows only the OTHER person's name (excludes the current user).
      * 
      * @param chat Chat object
+     * @param currentUserDisplayName Current user's display name to exclude
      * @return Display name string
      */
-    private static String getChatDisplayName(Chat chat) {
+    private static String getChatDisplayName(Chat chat, String currentUserDisplayName) {
         String topic = chat.getTopic();
         if (topic != null && !topic.isEmpty()) {
             return topic;
@@ -191,20 +198,17 @@ public class TeamsChatsSimplifier {
         List<Chat.ChatMember> members = chat.getMembers();
         if (members != null && !members.isEmpty()) {
             // For 1-on-1 chats (exactly 2 members), show only the OTHER person's name
-            if (members.size() == 2) {
-                String lastMessageAuthor = chat.getLastMessageAuthor();
-                if (lastMessageAuthor != null) {
-                    // Find the member who is NOT the last message author
-                    for (Chat.ChatMember member : members) {
-                        String memberName = member.getDisplayName();
-                        if (memberName != null && !memberName.equals(lastMessageAuthor)) {
-                            return memberName;
-                        }
+            if (members.size() == 2 && currentUserDisplayName != null && !currentUserDisplayName.isEmpty()) {
+                // Find the member who is NOT the current user
+                for (Chat.ChatMember member : members) {
+                    String memberName = member.getDisplayName();
+                    if (memberName != null && !memberName.equals(currentUserDisplayName)) {
+                        return memberName;
                     }
                 }
             }
             
-            // Fallback: show all member names (for group chats or if we can't determine)
+            // Fallback: show all member names (for group chats or if we can't determine current user)
             List<String> names = new ArrayList<>();
             for (Chat.ChatMember member : members) {
                 String name = member.getDisplayName();

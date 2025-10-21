@@ -236,10 +236,10 @@ public class McpCliHandler {
                 } else if (toolName.contains("_since")) {
                     // For _since commands: no extra optional params (smart pagination handles it)
                     // Do nothing - sinceDate is already required
-                } else if (toolName.contains("_get_messages")) {
+                } else if (toolName.contains("_messages") && !toolName.contains("_since")) {
                     // Add "limit" as next expected parameter for message retrieval commands (but not for _since)
                     if (paramNames.size() < positionalArgs.size()) paramNames.add("limit");
-                } else if (toolName.contains("_get_chats") || toolName.contains("_get_recent")) {
+                } else if (toolName.contains("_chats") || toolName.contains("_recent")) {
                     // Add "limit" for list commands
                     if (paramNames.size() < positionalArgs.size()) paramNames.add("limit");
                 }
@@ -250,7 +250,7 @@ public class McpCliHandler {
                 if (toolName.equals("teams_get_recent_chats")) {
                     paramNames.add("limit");
                     paramNames.add("chatType");
-                } else if (toolName.contains("_get_recent") || toolName.contains("_get_messages") || toolName.contains("_get_chats")) {
+                } else if (toolName.contains("_recent") || (toolName.contains("_messages") && !toolName.contains("_since")) || toolName.contains("_chats")) {
                     paramNames.add("limit");  // Most get/list commands have limit as first optional param
                 }
             }
