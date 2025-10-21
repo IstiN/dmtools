@@ -1,9 +1,11 @@
 package com.github.istin.dmtools.microsoft.teams;
 
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.mcp.MCPParam;
 import com.github.istin.dmtools.mcp.MCPTool;
 import com.github.istin.dmtools.microsoft.common.networking.MicrosoftGraphRestClient;
+import com.github.istin.dmtools.microsoft.sharepoint.BasicSharePointClient;
 import com.github.istin.dmtools.microsoft.teams.model.Channel;
 import com.github.istin.dmtools.microsoft.teams.model.Chat;
 import com.github.istin.dmtools.microsoft.teams.model.ChatMessage;
@@ -13,9 +15,13 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Microsoft Teams REST client implementation.
@@ -27,6 +33,9 @@ public class TeamsClient extends MicrosoftGraphRestClient {
     
     private static final int DEFAULT_PAGE_SIZE = 50; // Microsoft Graph API max
     private static final int DEFAULT_MAX_MESSAGES = 100;
+    
+    // Cache current user's display name (lazy loaded)
+    private String currentUserDisplayName;
     
     /**
      * Creates a Teams client with configuration.
@@ -60,32 +69,100 @@ public class TeamsClient extends MicrosoftGraphRestClient {
         );
     }
     
+    // ========== Helper Methods ==========
+    
+    /**
+     * Gets the current user's display name (cached after first call).
+     * 
+     * @return Current user's display name
+     * @throws IOException if request fails
+     */
+    private String getCurrentUserDisplayName() throws IOException {
+        if (currentUserDisplayName == null) {
+            GenericRequest request = new GenericRequest(this, path("/me"));
+            String response = execute(request);
+            JSONObject user = new JSONObject(response);
+            currentUserDisplayName = user.optString("displayName", "");
+            logger.debug("Cached current user display name: {}", currentUserDisplayName);
+        }
+        return currentUserDisplayName;
+    }
+    
     // ========== Chat Operations (Direct Access) ==========
     
     /**
-     * Retrieves all chats for the current user.
+     * Callback interface for processing chats during pagination.
+     * Similar to JiraClient's Performer pattern.
+     */
+    public interface ChatPerformer {
+        /**
+         * Process a chat.
+         * @param chat The chat to process
+         * @return true to stop iteration, false to continue
+         * @throws IOException if processing fails
+         */
+        boolean perform(Chat chat) throws IOException;
+    }
+    
+    /**
+     * Retrieves chats for the current user.
      * 
+     * @param limit Maximum number of chats to retrieve (0 for all, default: 50)
      * @return List of chats
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_chats_raw",
-        description = "List all chats for the current user with topic, type, and participant information (returns raw JSON)",
+        name = "teams_chats_raw",
+        description = "List chats for the current user with topic, type, and participant information (returns raw JSON)",
         integration = "teams",
         category = "communication"
     )
-    public List<Chat> getChats() throws IOException {
+    public List<Chat> getChatsRaw(
+            @MCPParam(name = "limit", description = "Maximum number of chats (0 for all, default: 50)", required = false, example = "50") Integer limit) throws IOException {
+        
         List<Chat> allChats = new ArrayList<>();
-        java.util.Set<String> seenChatIds = new java.util.HashSet<>(); // Track seen chat IDs to avoid duplicates
+        
+        // Use getChatsAndPerform to collect all chats
+        getChatsAndPerform(limit, chat -> {
+            allChats.add(chat);
+            return false; // Continue to collect all
+        });
+        
+        logger.info("Retrieved {} chats", allChats.size());
+        return allChats;
+    }
+    
+    /**
+     * Retrieves chats for the current user with performer callback for early termination.
+     * Similar to JiraClient's searchAndPerform pattern.
+     * 
+     * @param limit Maximum number of chats to retrieve (0 for all)
+     * @param performer Callback to process each chat; return true to stop iteration
+     * @throws IOException if request fails
+     */
+    public void getChatsAndPerform(Integer limit, ChatPerformer performer) throws IOException {
+        // Handle limit parameter: null or 0 means "get all chats"
+        // Note: MCP parameter parsing may convert "0" to null, so we need to handle both cases
+        boolean getAllChats = (limit == null || limit == 0);
+        int maxChats = getAllChats ? Integer.MAX_VALUE : (limit != null ? limit : 50);
+        
+        Set<String> seenChatIds = new HashSet<>(); // Track seen chat IDs to avoid duplicates
         String url = path("/me/chats");
         int duplicateCount = 0;
+        int processedCount = 0;
         boolean isFirstRequest = true;
+        boolean stopEarly = false;
         
-        while (url != null) {
+        while (url != null && processedCount < maxChats && !stopEarly) {
             GenericRequest request = new GenericRequest(this, url);
-            request.param("$orderby", "lastMessagePreview/createdDateTime desc");
             if (isFirstRequest) {
-                // Expand members to get contact names, lastMessagePreview for last message
+                // Only add query parameters on first request; @odata.nextLink already includes them
+                if (!getAllChats) {
+                    request.param("$top", String.valueOf(Math.min(DEFAULT_PAGE_SIZE, maxChats - processedCount)));
+                } else {
+                    request.param("$top", String.valueOf(DEFAULT_PAGE_SIZE));
+                }
+                request.param("$orderby", "lastMessagePreview/createdDateTime desc");
                 request.param("$expand", "members,lastMessagePreview");
                 isFirstRequest = false;
             }
@@ -98,10 +175,17 @@ public class TeamsClient extends MicrosoftGraphRestClient {
                     Chat chat = new Chat(chats.getJSONObject(i));
                     String chatId = chat.getId();
                     
-                    // Only add if we haven't seen this chat before
+                    // Only process if we haven't seen this chat before
                     if (chatId != null && !seenChatIds.contains(chatId)) {
                         seenChatIds.add(chatId);
-                        allChats.add(chat);
+                        
+                        // Call performer - if it returns true, stop iteration
+                        stopEarly = performer.perform(chat);
+                        processedCount++;
+                        
+                        if (stopEarly || (!getAllChats && processedCount >= maxChats)) {
+                            break;
+                        }
                     } else if (chatId != null) {
                         duplicateCount++;
                         logger.debug("Skipping duplicate chat: {} (ID: {})", chat.getTopic(), chatId);
@@ -110,32 +194,36 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             }
             
             // Check for next page
-            url = json.optString("@odata.nextLink", null);
+            if (!stopEarly && (getAllChats || processedCount < maxChats)) {
+                url = json.optString("@odata.nextLink", null);
+            } else {
+                url = null;
+            }
         }
         
         if (duplicateCount > 0) {
-            logger.info("Retrieved {} unique chats (skipped {} duplicates)", allChats.size(), duplicateCount);
-        } else {
-            logger.info("Retrieved {} chats", allChats.size());
+            logger.debug("Processed {} unique chats (skipped {} duplicates)", processedCount, duplicateCount);
         }
-        return allChats;
     }
     
     /**
-     * Retrieves all chats with simplified information: chat name, last message, and date.
+     * Retrieves chats with simplified information: chat name, last message, and date.
      * 
+     * @param limit Maximum number of chats to retrieve (0 for all, default: 50)
      * @return JSON string with simplified chat list
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_chats",
-        description = "List all chats showing only chat/contact names, last message (truncated to 100 chars), and date",
+        name = "teams_chats",
+        description = "List chats showing only chat/contact names, last message (truncated to 100 chars), and date",
         integration = "teams",
         category = "communication"
     )
-    public String getChatsSimplified() throws IOException {
-        List<Chat> chats = getChats();
-        JSONArray simplified = TeamsChatsSimplifier.simplifyChats(chats);
+    public String getChats(
+            @MCPParam(name = "limit", description = "Maximum number of chats (0 for all, default: 50)", required = false, example = "50") Integer limit) throws IOException {
+        List<Chat> chats = getChatsRaw(limit);
+        String currentUser = getCurrentUserDisplayName();
+        JSONArray simplified = TeamsChatsSimplifier.simplifyChats(chats, currentUser);
         return simplified.toString(2); // Pretty print with 2-space indent
     }
     
@@ -149,77 +237,44 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_recent_chats",
+        name = "teams_recent_chats",
         description = "Get recent chats sorted by last activity showing chat/contact names, last message with author, and date. Shows 'new: true' for unread messages. Filter by type: 'oneOnOne' for 1-on-1 chats, 'group' for group chats, 'meeting' for meeting chats, or 'all' (default). Only shows chats with activity in the last 90 days.",
         integration = "teams",
         category = "communication"
     )
-    public String getRecentChatsSimplified(
-            @MCPParam(name = "limit", description = "Maximum number of recent chats (default: 50, max: 200)", required = false, example = "50") Integer limit,
+    public String getRecentChats(
+            @MCPParam(name = "limit", description = "Maximum number of recent chats (0 for all, default: 50)", required = false, example = "50") Integer limit,
             @MCPParam(name = "chatType", description = "Filter by chat type: 'oneOnOne', 'group', 'meeting', or 'all' (default: 'all')", required = false, example = "oneOnOne") String chatType) throws IOException {
         
-        // Assign default value to limit if null
-        limit = (limit == null) ? 50 : Math.min(limit, 200);
+        // Handle limit parameter: null defaults to 50, 0 means "get all chats"
+        int targetLimit = (limit != null && limit > 0) ? limit : 50; // Default to 50 if null
+        boolean getAllChats = (limit != null && limit == 0); // Only 0 means "get all"
         
         // Fetch more chats than needed for filtering (especially if filtering by chatType)
         // For specific chat types, fetch much more to account for filtering
         int fetchLimit;
-        if (chatType != null && !chatType.trim().isEmpty() && !chatType.equalsIgnoreCase("all")) {
-            fetchLimit = Math.min(limit * 10, 500);
+        if (getAllChats) {
+            // Get all chats for filtering
+            fetchLimit = 0;
+        } else if (chatType != null && !chatType.trim().isEmpty() && !chatType.equalsIgnoreCase("all")) {
+            // For specific chat types, fetch much more to account for filtering
+            fetchLimit = targetLimit * 10;
         } else {
-            fetchLimit = Math.min(limit * 3, 500);
+            // For all chat types, fetch a bit more to account for duplicates/filtering
+            fetchLimit = targetLimit * 3;
         }
         
-        // Fetch raw chats (limited)
-        List<Chat> allChats = new ArrayList<>();
-        java.util.Set<String> seenChatIds = new java.util.HashSet<>();
-        String url = path("/me/chats");
-        boolean isFirstRequest = true;
-        int duplicateCount = 0;
+        // Use the shared getChats() method for pagination
+        List<Chat> allChats = getChatsRaw(fetchLimit);
         
-        while (url != null && allChats.size() < fetchLimit) {
-            GenericRequest request = new GenericRequest(this, url);
-            if (isFirstRequest) {
-                request.param("$expand", "members,lastMessagePreview");
-                request.param("$top", String.valueOf(Math.min(DEFAULT_PAGE_SIZE, fetchLimit)));
-                isFirstRequest = false;
-            }
-            
-            String response = execute(request);
-            JSONObject json = new JSONObject(response);
-            
-            JSONArray chats = json.optJSONArray("value");
-            if (chats != null) {
-                for (int i = 0; i < chats.length(); i++) {
-                    Chat chat = new Chat(chats.getJSONObject(i));
-                    String chatId = chat.getId();
-                    
-                    if (chatId != null && !seenChatIds.contains(chatId)) {
-                        seenChatIds.add(chatId);
-                        allChats.add(chat);
-                        if (allChats.size() >= fetchLimit) {
-                            break;
-                        }
-                    } else if (chatId != null) {
-                        duplicateCount++;
-                    }
-                }
-            }
-            
-            if (allChats.size() < fetchLimit) {
-                url = json.optString("@odata.nextLink", null);
-            } else {
-                url = null;
-            }
-        }
-        
-        if (duplicateCount > 0) {
-            logger.debug("Skipped {} duplicate chats while fetching recent chats", duplicateCount);
-        }
+        // Get current user's display name for proper chat naming
+        String currentUser = getCurrentUserDisplayName();
         
         // Use simplifier to sort, filter, and format
-        JSONArray simplified = TeamsChatsSimplifier.getRecentChatsSimplified(allChats, limit, chatType, 90);
-        logger.info("Retrieved {} recent chats (requested limit: {})", simplified.length(), limit);
+        // Pass 0 to simplifier to get all chats when getAllChats is true
+        int simplifierLimit = getAllChats ? 0 : targetLimit;
+        JSONArray simplified = TeamsChatsSimplifier.getRecentChatsSimplified(allChats, simplifierLimit, chatType, 90, currentUser);
+        logger.info("Retrieved {} recent chats (requested limit: {}, getAllChats: {})", simplified.length(), limit, getAllChats);
         return simplified.toString(2);
     }
     
@@ -228,29 +283,36 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * 
      * @param chatId The chat ID
      * @param limit Maximum number of messages to retrieve (0 for all, default: 100)
+     * @param filter Optional OData filter expression for server-side filtering (e.g., "createdDateTime gt 2025-01-01T00:00:00Z")
      * @return List of messages in chronological order
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_messages_raw",
-        description = "Get messages from a chat by ID with sender info, content, timestamps, and attachments (returns raw JSON)",
+        name = "teams_messages_by_chat_id_raw",
+        description = "Get messages from a chat by ID with optional server-side filtering. Use $filter syntax with lastModifiedDateTime: 'lastModifiedDateTime gt 2025-01-01T00:00:00Z' (returns raw JSON). Note: createdDateTime is not supported in filters.",
         integration = "teams",
         category = "communication"
     )
-    public List<ChatMessage> getChatMessages(
+    public List<ChatMessage> getChatMessagesRaw(
             @MCPParam(name = "chatId", description = "The chat ID", required = true) String chatId,
-            @MCPParam(name = "limit", description = "Maximum number of messages (0 for all, default: 100)", required = false, example = "100") Integer limit) throws IOException {
+            @MCPParam(name = "limit", description = "Maximum number of messages (0 for all, default: 100)", required = false, example = "100") Integer limit,
+            @MCPParam(name = "filter", description = "Optional OData filter (e.g., 'lastModifiedDateTime gt 2025-01-01T00:00:00Z')", required = false, example = "lastModifiedDateTime gt 2025-01-01T00:00:00Z") String filter) throws IOException {
         
-        // Assign default value to limit if null
-        limit = (limit == null) ? DEFAULT_MAX_MESSAGES : limit;
-        boolean getAllMessages = (limit == 0);
+        // Handle limit parameter: null or 0 means "get all messages"
+        // Note: MCP parameter parsing may convert "0" to null, so we need to handle both cases
+        Integer originalLimit = limit;
+        boolean getAllMessages = (limit == null || limit == 0);
         int maxMessages = getAllMessages ? Integer.MAX_VALUE : limit;
         
         List<ChatMessage> allMessages = new ArrayList<>();
         String url = path(String.format("/me/chats/%s/messages", chatId));
         boolean isFirstRequest = true;
+        int pageCount = 0;
+        
+        logger.info("Starting message retrieval: originalLimit={}, getAllMessages={}, maxMessages={}", originalLimit, getAllMessages, maxMessages);
         
         while (url != null) {
+            pageCount++;
             GenericRequest request = new GenericRequest(this, url);
             // Only add query params on first request; nextLink already contains them
             if (isFirstRequest) {
@@ -260,6 +322,13 @@ public class TeamsClient extends MicrosoftGraphRestClient {
                     request.param("$top", String.valueOf(DEFAULT_PAGE_SIZE));
                 }
                 request.param("$orderby", "createdDateTime desc");
+                
+                // Add filter if provided
+                if (filter != null && !filter.trim().isEmpty()) {
+                    request.param("$filter", filter.trim());
+                    logger.debug("Applying server-side filter: {}", filter);
+                }
+                
                 isFirstRequest = false;
             }
             
@@ -268,23 +337,32 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             
             JSONArray messages = json.optJSONArray("value");
             if (messages != null) {
+                logger.debug("Retrieved {} messages in this page, total so far: {}", messages.length(), allMessages.size());
                 for (int i = 0; i < messages.length(); i++) {
                     allMessages.add(new ChatMessage(messages.getJSONObject(i)));
                     if (!getAllMessages && allMessages.size() >= maxMessages) {
+                        logger.debug("Reached message limit: {}, stopping pagination", maxMessages);
+                        // Set url to null to break out of outer while loop
+                        url = null;
                         break;
                     }
                 }
             }
             
-            // Check for next page
-            if (getAllMessages || allMessages.size() < maxMessages) {
+            // Check for next page (only if we haven't already set url to null above)
+            if (url != null && (getAllMessages || allMessages.size() < maxMessages)) {
                 url = json.optString("@odata.nextLink", null);
+                if (url != null) {
+                    logger.debug("Next page found, continuing pagination...");
+                } else {
+                    logger.debug("No more pages available");
+                }
             } else {
                 url = null;
             }
         }
         
-        logger.info("Retrieved {} messages from chat {}", allMessages.size(), chatId);
+        logger.info("Retrieved {} messages from chat {} in {} pages (filter: {})", allMessages.size(), chatId, pageCount, filter != null ? filter : "none");
         return allMessages;
     }
     
@@ -299,7 +377,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_find_chat_by_name_raw",
+        name = "teams_chat_by_name_raw",
         description = "Find a chat by topic/name or participant name (case-insensitive partial match). Works for group chats and 1-on-1 chats. (returns raw JSON)",
         integration = "teams",
         category = "communication"
@@ -307,67 +385,41 @@ public class TeamsClient extends MicrosoftGraphRestClient {
     public Chat findChatByName(
             @MCPParam(name = "chatName", description = "The chat topic or participant name to search for", required = true) String chatName) throws IOException {
         
-        // Use client-side filtering with early exit (faster than server-side for Teams API)
-        // Safety limit: max 10 pages (500 chats) to avoid long searches
-        final int MAX_PAGES = 10;
-        
-        String url = path("/me/chats");
-        boolean isFirstRequest = true;
-        int pageCount = 0;
+        // Use getChatsAndPerform with early exit for efficient search
+        // Search through all chats until found (0 = unlimited)
         String searchLower = chatName.toLowerCase();
+        final Chat[] foundChat = {null}; // Array to capture result in lambda
         
-        while (url != null && pageCount < MAX_PAGES) {
-            pageCount++;
-            GenericRequest request = new GenericRequest(this, url);
-            
-            // Only add params on first request
-            if (isFirstRequest) {
-                request.param("$top", String.valueOf(DEFAULT_PAGE_SIZE));
-                request.param("$expand", "members"); // Need members to search by participant name
-                isFirstRequest = false;
+        getChatsAndPerform(0, chat -> {
+            // Check topic first (group chats, meetings)
+            String topic = chat.getTopic();
+            if (topic != null && topic.toLowerCase().contains(searchLower)) {
+                logger.info("Found chat by topic: {} (ID: {})", topic, chat.getId());
+                foundChat[0] = chat;
+                return true; // Stop iteration
             }
             
-            String response = execute(request);
-            JSONObject json = new JSONObject(response);
-            
-            JSONArray chats = json.optJSONArray("value");
-            if (chats != null) {
-                for (int i = 0; i < chats.length(); i++) {
-                    Chat chat = new Chat(chats.getJSONObject(i));
-                    
-                    // Check topic first (group chats, meetings)
-                    String topic = chat.getTopic();
-                    if (topic != null && topic.toLowerCase().contains(searchLower)) {
-                        logger.info("Found chat by topic: {} (ID: {}) on page {}", topic, chat.getId(), pageCount);
-                        return chat;
-                    }
-                    
-                    // Check individual member names (for 1-on-1 chats)
-                    List<Chat.ChatMember> members = chat.getMembers();
-                    if (members != null) {
-                        for (Chat.ChatMember member : members) {
-                            String memberDisplayName = member.getDisplayName();
-                            if (memberDisplayName != null && memberDisplayName.toLowerCase().contains(searchLower)) {
-                                logger.info("Found chat by member name: {} in chat (ID: {}) on page {}", 
-                                    memberDisplayName, chat.getId(), pageCount);
-                                return chat;
-                            }
-                        }
+            // Check individual member names (for 1-on-1 chats)
+            List<Chat.ChatMember> members = chat.getMembers();
+            if (members != null) {
+                for (Chat.ChatMember member : members) {
+                    String memberDisplayName = member.getDisplayName();
+                    if (memberDisplayName != null && memberDisplayName.toLowerCase().contains(searchLower)) {
+                        logger.info("Found chat by member name: {} in chat (ID: {})", 
+                            memberDisplayName, chat.getId());
+                        foundChat[0] = chat;
+                        return true; // Stop iteration
                     }
                 }
             }
             
-            // Check for next page
-            url = json.optString("@odata.nextLink", null);
-        }
+            return false; // Continue to next chat
+        });
         
-        if (pageCount >= MAX_PAGES) {
-            logger.warn("No chat found with name or member '{}' in first {} pages ({} chats)", 
-                chatName, MAX_PAGES, MAX_PAGES * DEFAULT_PAGE_SIZE);
-        } else {
+        if (foundChat[0] == null) {
             logger.warn("No chat found with name or member: {}", chatName);
         }
-        return null;
+        return foundChat[0];
     }
     
     /**
@@ -379,12 +431,12 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_messages_by_name_raw",
+        name = "teams_messages_raw",
         description = "Get messages from a chat by name (combines find + get messages) (returns raw JSON)",
         integration = "teams",
         category = "communication"
     )
-    public List<ChatMessage> getChatMessagesByName(
+    public List<ChatMessage> getChatMessagesByNameRaw(
             @MCPParam(name = "chatName", description = "The chat name to search for", required = true) String chatName,
             @MCPParam(name = "limit", description = "Maximum number of messages (0 for all, default: 100)", required = false, example = "100") Integer limit) throws IOException {
         
@@ -394,7 +446,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             return new ArrayList<>();
         }
         
-        return getChatMessages(chat.getId(), limit);
+        return getChatMessagesRaw(chat.getId(), limit, null);
     }
     
     /**
@@ -407,12 +459,12 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_messages_simple",
+        name = "teams_messages",
         description = "Get messages from a chat with simplified output showing only: author, body, date, reactions, mentions, and attachments",
         integration = "teams",
         category = "communication"
     )
-    public String getChatMessagesSimple(
+    public String getChatMessages(
             @MCPParam(name = "chatName", description = "The chat name to search for", required = true) String chatName,
             @MCPParam(name = "limit", description = "Maximum number of messages (0 for all, default: 100)", required = false, example = "100") Integer limit) throws IOException {
         
@@ -427,7 +479,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
         
         // Get messages
         String chatId = chat.getId();
-        List<ChatMessage> messages = getChatMessages(chatId, limit);
+        List<ChatMessage> messages = getChatMessagesRaw(chatId, limit, null);
         
         // Convert to simplified format using TeamsMessageSimplifier (pass chatId for transcript download URLs)
         JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(messages, chatId);
@@ -448,7 +500,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_messages_since",
+        name = "teams_messages_since_by_id",
         description = "Get messages from a chat starting from a specific date (ISO 8601 format, e.g., '2025-10-08T00:00:00Z'). Returns simplified format. Uses smart pagination with early exit for performance.",
         integration = "teams",
         category = "communication"
@@ -457,84 +509,26 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             @MCPParam(name = "chatId", description = "The chat ID", required = true) String chatId,
             @MCPParam(name = "sinceDate", description = "ISO 8601 date string (e.g., '2025-10-08T00:00:00Z')", required = true, example = "2025-10-08T00:00:00Z") String sinceDate) throws IOException {
         
-        // Validate and parse date
-        java.time.Instant sinceInstant;
+        // Validate date format
         try {
-            sinceInstant = java.time.Instant.parse(sinceDate);
+            Instant.parse(sinceDate);
         } catch (Exception e) {
             throw new IOException("Invalid date format. Expected ISO 8601 (e.g., '2025-10-08T00:00:00Z'), got: " + sinceDate);
         }
         
-        // Fetch messages with smart pagination and early exit
-        // Safety limits: max 10 pages (500 messages) to stay under 1 minute
-        final int MAX_PAGES = 10; // ~500 messages max, ~30-60 seconds
+        // Use server-side filtering with OData $filter parameter
+        // Note: createdDateTime is not supported in filters, so we use lastModifiedDateTime
+        String filter = String.format("lastModifiedDateTime gt %s", sinceDate);
         
-        List<ChatMessage> filteredMessages = new ArrayList<>();
-        String url = path(String.format("/me/chats/%s/messages", chatId));
-        boolean isFirstRequest = true;
-        int totalFetched = 0;
-        int pageCount = 0;
-        boolean foundOlderMessage = false;
+        logger.info("Retrieving messages from chat {} since {} using server-side filter", chatId, sinceDate);
         
-        while (url != null && !foundOlderMessage && pageCount < MAX_PAGES) {
-            pageCount++;
-            GenericRequest request = new GenericRequest(this, url);
-            
-            // Only add query params on first request
-            if (isFirstRequest) {
-                request.param("$top", String.valueOf(DEFAULT_PAGE_SIZE));
-                request.param("$orderby", "createdDateTime desc");
-                isFirstRequest = false;
-            }
-            
-            String response = execute(request);
-            JSONObject json = new JSONObject(response);
-            
-            JSONArray messages = json.optJSONArray("value");
-            if (messages != null) {
-                for (int i = 0; i < messages.length(); i++) {
-                    ChatMessage message = new ChatMessage(messages.getJSONObject(i));
-                    totalFetched++;
-                    
-                    String createdDateTime = message.getCreatedDateTime();
-                    if (createdDateTime != null) {
-                        try {
-                            java.time.Instant messageTime = java.time.Instant.parse(createdDateTime);
-                            
-                            if (messageTime.isAfter(sinceInstant)) {
-                                // Message is newer than cutoff date - include it
-                                filteredMessages.add(message);
-                            } else {
-                                // Found message older than cutoff date - stop pagination
-                                foundOlderMessage = true;
-                                logger.debug("Found older message at {}, stopping pagination", createdDateTime);
-                                break;
-                            }
-                        } catch (Exception e) {
-                            logger.warn("Failed to parse message date: {}", createdDateTime);
-                        }
-                    }
-                }
-            }
-            
-            // Check for next page (only if we haven't found an older message yet)
-            if (!foundOlderMessage) {
-                url = json.optString("@odata.nextLink", null);
-            }
-        }
-        
-        // Log results with safety limit info
-        if (pageCount >= MAX_PAGES && !foundOlderMessage) {
-            logger.warn("Reached safety limit of {} pages ({} messages scanned). Some messages since {} may not be included.", 
-                MAX_PAGES, totalFetched, sinceDate);
-        }
-        
-        logger.info("Retrieved {} new messages from chat {} since {} (scanned {} messages in {} pages)", 
-            filteredMessages.size(), chatId, sinceDate, totalFetched, pageCount);
+        // Get messages with server-side filter (0 = get all matching messages)
+        List<ChatMessage> messages = getChatMessagesRaw(chatId, 0, filter);
         
         // Convert to simplified format using TeamsMessageSimplifier (pass chatId for transcript download URLs)
-        JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(filteredMessages, chatId);
+        JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(messages, chatId);
         
+        logger.info("Retrieved {} messages from chat {} since {}", simplified.length(), chatId, sinceDate);
         return simplified.toString(2); // Pretty print with 2-space indent
     }
     
@@ -549,7 +543,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_messages_by_name_since",
+        name = "teams_messages_since",
         description = "Get messages from a chat by name starting from a specific date (ISO 8601 format). Returns simplified format. Uses smart pagination with early exit for performance.",
         integration = "teams",
         category = "communication"
@@ -580,7 +574,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_send_message_raw",
+        name = "teams_send_message_by_id",
         description = "Send a message to a chat by ID (returns raw JSON)",
         integration = "teams",
         category = "communication"
@@ -601,7 +595,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_send_message_by_name",
+        name = "teams_send_message",
         description = "Send a message to a chat by name or participant name (finds chat, then sends message)",
         integration = "teams",
         category = "communication"
@@ -671,7 +665,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_myself_messages_raw",
+        name = "teams_myself_messages_raw",
         description = "Get messages from your personal self chat (notes to yourself) with full raw data",
         integration = "teams",
         category = "communication"
@@ -680,7 +674,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             @MCPParam(name = "limit", description = "Maximum number of messages (0 for all, default: 100)", required = false, example = "100") Integer limit) throws IOException {
         
         logger.info("Retrieving messages from self chat (personal notes)");
-        return getChatMessages(SELF_CHAT_ID, limit);
+        return getChatMessagesRaw(SELF_CHAT_ID, limit, null);
     }
     
     /**
@@ -692,7 +686,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * @throws IOException if request fails
      */
     @MCPTool(
-        name = "teams_get_myself_messages_simple",
+        name = "teams_myself_messages",
         description = "Get messages from your personal self chat (notes to yourself) with simplified output",
         integration = "teams",
         category = "communication"
@@ -701,7 +695,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             @MCPParam(name = "limit", description = "Maximum number of messages (0 for all, default: 100)", required = false, example = "100") Integer limit) throws IOException {
         
         // Get messages
-        List<ChatMessage> messages = getChatMessages(SELF_CHAT_ID, limit);
+        List<ChatMessage> messages = getChatMessagesRaw(SELF_CHAT_ID, limit, null);
         
         // Convert to simplified format using TeamsMessageSimplifier (pass chatId for transcript download URLs)
         JSONArray simplified = TeamsMessageSimplifier.simplifyMessages(messages, SELF_CHAT_ID);
@@ -738,6 +732,545 @@ public class TeamsClient extends MicrosoftGraphRestClient {
         
         logger.info("Sent message to self chat (personal notes)");
         return result.toString(2);
+    }
+    
+    // ========== File Download Operations ==========
+    
+    /**
+     * Downloads a file from a Teams message URL (Graph API or SharePoint).
+     * Auto-detects SharePoint sharing URLs and delegates to SharePoint download method.
+     * For Graph API hostedContents URLs, downloads directly using Teams authentication.
+     * 
+     * @param url The URL (Graph API hostedContents URL or SharePoint sharing URL)
+     * @param outputPath Local file path to save the downloaded file
+     * @return JSON with download status and file information
+     * @throws IOException if download fails
+     */
+    @MCPTool(
+        name = "teams_download_file",
+        description = "Download a file from Teams (Graph API hostedContents or SharePoint sharing URL). Auto-detects URL type and uses appropriate method.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String downloadFile(
+            @MCPParam(name = "url", description = "Graph API URL or SharePoint sharing URL", required = true, 
+                example = "https://graph.microsoft.com/v1.0/chats/.../hostedContents/.../$value") String url,
+            @MCPParam(name = "outputPath", description = "Local file path to save to", required = true, 
+                example = "/tmp/file.ext") String outputPath) throws IOException {
+        
+        logger.info("Downloading file from: {}", url);
+        
+        try {
+            // Check if this is a SharePoint sharing URL (format: https://...sharepoint.com/:x:/...)
+            if (url.contains("sharepoint.com") && url.matches(".*sharepoint\\.com/:[a-z]:/.*")) {
+                logger.info("Detected SharePoint sharing URL, delegating to SharePoint download");
+                // Delegate to SharePoint download method
+                // SharePoint uses the same authentication as Teams (Microsoft Graph)
+                return BasicSharePointClient.getInstance().downloadFile(url, outputPath);
+            }
+            
+            // Otherwise, treat as Graph API hostedContents URL
+            logger.info("Processing as Graph API hostedContents URL");
+            
+            // Create output file and ensure directory exists
+            File outputFile = new File(outputPath);
+            File parentDir = outputFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+            
+            // Download using authenticated request
+            GenericRequest request = new GenericRequest(this, url);
+            File downloadedFile = RestClient.Impl.downloadFile(this, request, outputFile);
+            
+            // Return success info
+            JSONObject result = new JSONObject();
+            result.put("success", true);
+            result.put("outputPath", downloadedFile.getAbsolutePath());
+            result.put("fileSize", downloadedFile.length());
+            result.put("url", url);
+            result.put("method", "graphApi");
+            
+            logger.info("Downloaded {} bytes to {}", downloadedFile.length(), downloadedFile.getAbsolutePath());
+            return result.toString(2);
+            
+        } catch (Exception e) {
+            logger.error("Failed to download file from {}: {}", url, e.getMessage());
+            JSONObject error = new JSONObject();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            error.put("url", url);
+            return error.toString(2);
+        }
+    }
+    
+    /**
+     * Gets the hosted contents (files/transcripts) for a specific message.
+     * This is useful for getting transcript files which are stored as hosted content.
+     * 
+     * @param chatId The chat ID containing the message
+     * @param messageId The message ID that has hosted contents
+     * @return JSON array of hosted content items
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_get_message_hosted_contents",
+        description = "Get hosted contents (files/transcripts) for a specific message. Returns list of files with download URLs.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String getMessageHostedContents(
+            @MCPParam(name = "chatId", description = "Chat ID", required = true) String chatId,
+            @MCPParam(name = "messageId", description = "Message ID", required = true) String messageId) throws IOException {
+        
+        String url = path(String.format("/chats/%s/messages/%s/hostedContents", chatId, messageId));
+        logger.info("Getting hosted contents from: {}", url);
+        
+        GenericRequest request = new GenericRequest(this, url);
+        String responseStr = execute(request);
+        JSONObject response = new JSONObject(responseStr);
+        
+        JSONArray hostedContents = response.optJSONArray("value");
+        if (hostedContents == null) {
+            hostedContents = new JSONArray();
+        }
+        
+        // Add download URLs for each hosted content
+        JSONArray result = new JSONArray();
+        for (int i = 0; i < hostedContents.length(); i++) {
+            JSONObject content = hostedContents.getJSONObject(i);
+            String contentId = content.optString("id", "");
+            if (!contentId.isEmpty()) {
+                // Construct download URL
+                String downloadUrl = path(String.format(
+                    "/chats/%s/messages/%s/hostedContents/%s/$value",
+                    chatId, messageId, contentId
+                ));
+                content.put("downloadUrl", downloadUrl);
+            }
+            result.put(content);
+        }
+        
+        return result.toString(2);
+    }
+    
+    /**
+     * Gets call transcripts for a specific call using the Call Records API.
+     * This is the primary way to access meeting transcripts.
+     * 
+     * @param callId The call ID from the meeting
+     * @return JSON array of transcript objects with download URLs
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_get_call_transcripts",
+        description = "Get transcripts for a call/meeting using Call Records API. Returns list of transcripts with download URLs.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String getCallTranscripts(
+            @MCPParam(name = "callId", description = "Call ID from the meeting", required = true) String callId) throws IOException {
+        
+        String url = path(String.format("/communications/callRecords/%s/transcripts", callId));
+        logger.info("Getting call transcripts from: {}", url);
+        
+        GenericRequest request = new GenericRequest(this, url);
+        String responseStr = execute(request);
+        JSONObject response = new JSONObject(responseStr);
+        
+        JSONArray transcripts = response.optJSONArray("value");
+        if (transcripts == null) {
+            transcripts = new JSONArray();
+        }
+        
+        // Add download URLs for each transcript
+        JSONArray result = new JSONArray();
+        for (int i = 0; i < transcripts.length(); i++) {
+            JSONObject transcript = transcripts.getJSONObject(i);
+            String transcriptId = transcript.optString("id", "");
+            if (!transcriptId.isEmpty()) {
+                // Construct download URL for the transcript content
+                String downloadUrl = path(String.format(
+                    "/communications/callRecords/%s/transcripts/%s/content",
+                    callId, transcriptId
+                ));
+                transcript.put("downloadUrl", downloadUrl);
+            }
+            result.put(transcript);
+        }
+        
+        return result.toString(2);
+    }
+    
+    /**
+     * Searches for transcript files in a user's OneDrive.
+     * Transcripts are typically stored in OneDrive/Recordings folder.
+     * Uses existing Sites.Read.All permission to access files.
+     * 
+     * @param userId User ID (typically meeting organizer)
+     * @param searchQuery Search term (e.g., meeting name, "transcript", ".vtt")
+     * @return JSON array of found files with download URLs
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_search_user_drive_files",
+        description = "Search for files in a user's OneDrive (e.g., meeting transcripts/recordings). Returns list of files with download URLs.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String searchUserDriveFiles(
+            @MCPParam(name = "userId", description = "User ID to search OneDrive", required = true) String userId,
+            @MCPParam(name = "searchQuery", description = "Search term (meeting name, 'transcript', '.vtt', etc.)", required = true) String searchQuery) throws IOException {
+        
+        // URL encode the search query
+        String encodedQuery = java.net.URLEncoder.encode(searchQuery, "UTF-8");
+        String url = path(String.format("/users/%s/drive/root/search(q='%s')", userId, encodedQuery));
+        logger.info("Searching user drive: {}", url);
+        
+        GenericRequest request = new GenericRequest(this, url);
+        String responseStr = execute(request);
+        JSONObject response = new JSONObject(responseStr);
+        
+        JSONArray files = response.optJSONArray("value");
+        if (files == null) {
+            files = new JSONArray();
+        }
+        
+        // Process files and add download information
+        JSONArray result = new JSONArray();
+        for (int i = 0; i < files.length(); i++) {
+            JSONObject file = files.getJSONObject(i);
+            
+            // Only include files, not folders
+            if (file.has("file")) {
+                JSONObject fileInfo = new JSONObject();
+                fileInfo.put("name", file.optString("name"));
+                fileInfo.put("size", file.optLong("size", 0));
+                fileInfo.put("webUrl", file.optString("webUrl"));
+                fileInfo.put("downloadUrl", file.optString("@microsoft.graph.downloadUrl"));
+                fileInfo.put("id", file.optString("id"));
+                fileInfo.put("createdDateTime", file.optString("createdDateTime"));
+                fileInfo.put("lastModifiedDateTime", file.optString("lastModifiedDateTime"));
+                
+                // Add parent path if available
+                JSONObject parentRef = file.optJSONObject("parentReference");
+                if (parentRef != null) {
+                    fileInfo.put("path", parentRef.optString("path", ""));
+                }
+                
+                result.put(fileInfo);
+            }
+        }
+        
+        return result.toString(2);
+    }
+    
+    /**
+     * Gets transcript metadata for a recording file in OneDrive/SharePoint.
+     * Uses SharePoint REST API to access transcript information.
+     * 
+     * @param driveId Drive ID where the recording is stored
+     * @param itemId Item ID of the recording file
+     * @return JSON array of transcript objects with download information
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_get_recording_transcripts",
+        description = "Get transcript metadata for a recording file. Returns list of available transcripts with download URLs.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String getRecordingTranscripts(
+            @MCPParam(name = "driveId", description = "Drive ID from the recording file", required = true) String driveId,
+            @MCPParam(name = "itemId", description = "Item ID of the recording file", required = true) String itemId) throws IOException {
+        
+        // Construct SharePoint REST API URL
+        // Format: https://domain-my.sharepoint.com/_api/v2.1/drives/{driveId}/items/{itemId}/media/transcripts
+        String url = String.format("https://graph.microsoft.com/v1.0/drives/%s/items/%s", driveId, itemId);
+        logger.info("Getting recording transcripts for drive {} item {}", driveId, itemId);
+        
+        try {
+            GenericRequest request = new GenericRequest(this, url);
+            String responseStr = execute(request);
+            JSONObject item = new JSONObject(responseStr);
+            
+            // Check if item has media property with transcripts
+            JSONObject media = item.optJSONObject("media");
+            if (media == null) {
+                logger.info("No media property found on item");
+                return new JSONArray().toString(2);
+            }
+            
+            // Try to get transcripts (this might require additional Graph API call)
+            // For now, return item metadata and construct SharePoint transcript URL
+            JSONArray result = new JSONArray();
+            JSONObject transcriptInfo = new JSONObject();
+            
+            // Get parent reference to construct SharePoint site URL
+            JSONObject parentRef = item.optJSONObject("parentReference");
+            if (parentRef != null) {
+                String siteId = parentRef.optString("siteId", "");
+                String path = parentRef.optString("path", "");
+                
+                transcriptInfo.put("driveId", driveId);
+                transcriptInfo.put("itemId", itemId);
+                transcriptInfo.put("siteId", siteId);
+                transcriptInfo.put("path", path);
+                transcriptInfo.put("note", "Use teams_download_recording_transcript with driveId, itemId, and transcriptId to download");
+            }
+            
+            result.put(transcriptInfo);
+            return result.toString(2);
+            
+        } catch (Exception e) {
+            logger.error("Failed to get transcripts: {}", e.getMessage());
+            JSONObject error = new JSONObject();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            error.put("note", "Transcripts may not be available or may require accessing via SharePoint URL directly");
+            return new JSONArray().put(error).toString(2);
+        }
+    }
+    
+    /**
+     * Lists available transcripts for a recording file using direct API call.
+     * Attempts to query SharePoint REST API for transcript metadata.
+     * 
+     * @param driveId Drive ID where the recording is stored
+     * @param itemId Item ID of the recording file
+     * @return JSON with available transcripts
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_list_recording_transcripts",
+        description = "List available transcripts for a recording file. Returns transcript IDs that can be downloaded.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String listRecordingTranscripts(
+            @MCPParam(name = "driveId", description = "Drive ID", required = true) String driveId,
+            @MCPParam(name = "itemId", description = "Recording item ID", required = true) String itemId) throws IOException {
+        
+        logger.info("Listing transcripts for drive {} item {}", driveId, itemId);
+        
+        JSONArray attempts = new JSONArray();
+        
+        // Try multiple possible endpoints
+        String[] endpoints = {
+            // Try Graph API media endpoint
+            String.format("https://graph.microsoft.com/v1.0/drives/%s/items/%s?$expand=media", driveId, itemId),
+            // Try direct media endpoint
+            String.format("https://graph.microsoft.com/v1.0/drives/%s/items/%s/media", driveId, itemId),
+            // Try Graph API with select
+            String.format("https://graph.microsoft.com/v1.0/drives/%s/items/%s?$select=id,name,media", driveId, itemId)
+        };
+        
+        for (String url : endpoints) {
+            try {
+                logger.info("Trying endpoint: {}", url);
+                GenericRequest request = new GenericRequest(this, url);
+                String responseStr = execute(request);
+                
+                JSONObject attempt = new JSONObject();
+                attempt.put("endpoint", url);
+                attempt.put("success", true);
+                attempt.put("response", new JSONObject(responseStr));
+                attempts.put(attempt);
+                
+                // If we got a response, try to extract transcript info
+                JSONObject response = new JSONObject(responseStr);
+                if (response.has("media")) {
+                    JSONObject result = new JSONObject();
+                    result.put("success", true);
+                    result.put("media", response.getJSONObject("media"));
+                    result.put("note", "Found media property - check for transcript information");
+                    return result.toString(2);
+                }
+                
+            } catch (Exception e) {
+                JSONObject attempt = new JSONObject();
+                attempt.put("endpoint", url);
+                attempt.put("success", false);
+                attempt.put("error", e.getMessage());
+                attempts.put(attempt);
+            }
+        }
+        
+        // If no endpoints worked, return summary
+        JSONObject result = new JSONObject();
+        result.put("success", false);
+        result.put("note", "None of the Graph API endpoints returned transcript information");
+        result.put("attempts", attempts);
+        result.put("suggestion", "Transcripts may require SharePoint-specific API access or may not be available via Graph API");
+        return result.toString(2);
+    }
+    
+    /**
+     * Fetches SharePoint page HTML for a recording and attempts to extract transcript information.
+     * Parses the HTML to find transcript IDs and download URLs.
+     * 
+     * @param webUrl SharePoint webUrl of the recording file
+     * @return JSON with transcript information extracted from HTML
+     * @throws IOException if request fails
+     */
+    @MCPTool(
+        name = "teams_extract_transcript_from_sharepoint",
+        description = "Extract transcript information by parsing SharePoint HTML page. Useful for finding transcript IDs.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String extractTranscriptFromSharePoint(
+            @MCPParam(name = "webUrl", description = "SharePoint webUrl of the recording", required = true) String webUrl) throws IOException {
+        
+        logger.info("Fetching SharePoint HTML from: {}", webUrl);
+        
+        try {
+            // Fetch the HTML page using authenticated request
+            GenericRequest request = new GenericRequest(this, webUrl);
+            String html = execute(request);
+            
+            JSONObject result = new JSONObject();
+            result.put("success", true);
+            result.put("htmlLength", html.length());
+            
+            // Try to extract transcript-related information from HTML
+            JSONArray transcripts = new JSONArray();
+            
+            // Look for transcript API URLs in the HTML
+            // Pattern: /media/transcripts/{uuid}/streamContent
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "/media/transcripts/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
+            );
+            java.util.regex.Matcher matcher = pattern.matcher(html);
+            
+            java.util.Set<String> foundIds = new java.util.HashSet<>();
+            while (matcher.find()) {
+                String transcriptId = matcher.group(1);
+                if (foundIds.add(transcriptId)) {
+                    JSONObject transcript = new JSONObject();
+                    transcript.put("transcriptId", transcriptId);
+                    transcript.put("note", "Use teams_download_recording_transcript to download");
+                    transcripts.put(transcript);
+                }
+            }
+            
+            result.put("transcripts", transcripts);
+            result.put("transcriptsFound", transcripts.length());
+            
+            // Also look for driveId and itemId in the URL
+            java.util.regex.Pattern drivePattern = java.util.regex.Pattern.compile("drives/([^/]+)");
+            java.util.regex.Matcher driveMatcher = drivePattern.matcher(html);
+            if (driveMatcher.find()) {
+                result.put("driveId", driveMatcher.group(1));
+            }
+            
+            java.util.regex.Pattern itemPattern = java.util.regex.Pattern.compile("items/([^/]+)");
+            java.util.regex.Matcher itemMatcher = itemPattern.matcher(html);
+            if (itemMatcher.find()) {
+                result.put("itemId", itemMatcher.group(1));
+            }
+            
+            return result.toString(2);
+            
+        } catch (Exception e) {
+            logger.error("Failed to extract transcript info: {}", e.getMessage());
+            JSONObject error = new JSONObject();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            return error.toString(2);
+        }
+    }
+    
+    /**
+     * Downloads a transcript file from a recording using SharePoint REST API.
+     * This accesses transcripts via the SharePoint _api/v2.1 endpoint.
+     * First fetches the item to get the SharePoint site URL, then constructs the proper SharePoint REST API URL.
+     * 
+     * @param driveId Drive ID where the recording is stored
+     * @param itemId Item ID of the recording file
+     * @param transcriptId Transcript ID (UUID)
+     * @param outputPath Local file path to save the transcript
+     * @return JSON with download status
+     * @throws IOException if download fails
+     */
+    @MCPTool(
+        name = "teams_download_recording_transcript",
+        description = "Download transcript (VTT) file from a Teams recording using SharePoint API. Requires driveId, itemId, and transcriptId.",
+        integration = "teams",
+        category = "communication"
+    )
+    public String downloadRecordingTranscript(
+            @MCPParam(name = "driveId", description = "Drive ID", required = true) String driveId,
+            @MCPParam(name = "itemId", description = "Recording item ID", required = true) String itemId,
+            @MCPParam(name = "transcriptId", description = "Transcript ID (UUID)", required = true) String transcriptId,
+            @MCPParam(name = "outputPath", description = "Local file path to save", required = true) String outputPath) throws IOException {
+        
+        logger.info("Downloading transcript {} for item {}", transcriptId, itemId);
+        
+        try {
+            // First, get the item to extract SharePoint site URL
+            String itemUrl = String.format("https://graph.microsoft.com/v1.0/drives/%s/items/%s", driveId, itemId);
+            GenericRequest itemRequest = new GenericRequest(this, itemUrl);
+            String itemResponseStr = execute(itemRequest);
+            JSONObject itemResponse = new JSONObject(itemResponseStr);
+            
+            // Extract SharePoint site URL from webUrl
+            String webUrl = itemResponse.optString("webUrl", "");
+            if (webUrl.isEmpty()) {
+                throw new IOException("Could not get webUrl from item");
+            }
+            
+            // Parse SharePoint site URL (e.g., "https://epam-my.sharepoint.com/personal/ira_skrypnik_epam_com/...")
+            // Extract: https://epam-my.sharepoint.com/personal/ira_skrypnik_epam_com
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(https://[^/]+/personal/[^/]+)");
+            java.util.regex.Matcher matcher = pattern.matcher(webUrl);
+            
+            String sharePointSiteUrl;
+            if (matcher.find()) {
+                sharePointSiteUrl = matcher.group(1);
+            } else {
+                throw new IOException("Could not extract SharePoint site URL from webUrl: " + webUrl);
+            }
+            
+            // Construct SharePoint REST API URL
+            String url = String.format(
+                "%s/_api/v2.1/drives/%s/items/%s/media/transcripts/%s/streamContent",
+                sharePointSiteUrl, driveId, itemId, transcriptId
+            );
+            
+            logger.info("Using SharePoint REST API URL: {}", url);
+            
+            // Create output file
+            File outputFile = new File(outputPath);
+            File parentDir = outputFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+            
+            // Download using authenticated request
+            GenericRequest request = new GenericRequest(this, url);
+            File downloadedFile = RestClient.Impl.downloadFile(this, request, outputFile);
+            
+            // Return success info
+            JSONObject result = new JSONObject();
+            result.put("success", true);
+            result.put("outputPath", downloadedFile.getAbsolutePath());
+            result.put("fileSize", downloadedFile.length());
+            result.put("transcriptId", transcriptId);
+            result.put("sharePointUrl", url);
+            result.put("method", "sharepointRestApi");
+            
+            logger.info("Downloaded {} bytes to {}", downloadedFile.length(), downloadedFile.getAbsolutePath());
+            return result.toString(2);
+            
+        } catch (Exception e) {
+            logger.error("Failed to download transcript: {}", e.getMessage());
+            JSONObject error = new JSONObject();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            error.put("note", "Transcripts require SharePoint REST API access with proper authentication");
+            return error.toString(2);
+        }
     }
     
     // ========== Teams and Channels Operations ==========
@@ -935,7 +1468,7 @@ public class TeamsClient extends MicrosoftGraphRestClient {
             logger.warn("Multiple channels found matching '{}', returning first match", channelName);
         }
         
-        Channel result = matches.get(0);
+        Channel result = matches.getFirst();
         logger.info("Found channel: {} (ID: {})", result.getDisplayName(), result.getId());
         return result;
     }
@@ -982,22 +1515,27 @@ public class TeamsClient extends MicrosoftGraphRestClient {
      * Retrieves messages from a channel.
      */
     private List<ChatMessage> getChannelMessages(String teamId, String channelId, Integer limit) throws IOException {
-        // Assign default value to limit if null
-        limit = (limit == null) ? DEFAULT_MAX_MESSAGES : limit;
-        boolean getAllMessages = (limit == 0);
+        // Handle limit parameter: null or 0 means "get all messages"
+        // Note: MCP parameter parsing may convert "0" to null, so we need to handle both cases
+        boolean getAllMessages = (limit == null || limit == 0);
         int maxMessages = getAllMessages ? Integer.MAX_VALUE : limit;
         
         List<ChatMessage> allMessages = new ArrayList<>();
         String url = path(String.format("/teams/%s/channels/%s/messages", teamId, channelId));
+        boolean isFirstRequest = true;
         
         while (url != null) {
             GenericRequest request = new GenericRequest(this, url);
-            if (!getAllMessages) {
-                request.param("$top", String.valueOf(Math.min(DEFAULT_PAGE_SIZE, maxMessages - allMessages.size())));
-            } else {
-                request.param("$top", String.valueOf(DEFAULT_PAGE_SIZE));
+            // Only add query parameters on first request; @odata.nextLink already includes them
+            if (isFirstRequest) {
+                if (!getAllMessages) {
+                    request.param("$top", String.valueOf(Math.min(DEFAULT_PAGE_SIZE, maxMessages - allMessages.size())));
+                } else {
+                    request.param("$top", String.valueOf(DEFAULT_PAGE_SIZE));
+                }
+                request.param("$orderby", "createdDateTime desc");
+                isFirstRequest = false;
             }
-            request.param("$orderby", "createdDateTime desc");
             
             String response = execute(request);
             JSONObject json = new JSONObject(response);
