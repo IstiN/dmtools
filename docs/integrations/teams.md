@@ -14,15 +14,26 @@ The Microsoft Teams integration provides full access to Teams chats, messages, t
 
 2. **API Permissions**
    - Add the following Microsoft Graph API **Delegated** permissions:
+     
+     **Core Chat Permissions:**
      - `User.Read` - Read user profile
      - `Chat.Create` - Create new chats
      - `Chat.Read` - Read user's chats
      - `Chat.ReadBasic` - Read basic chat info
      - `Chat.ReadWrite` - Read and write chats
      - `ChatMessage.Read` - Read chat messages
-     - `ChatMessage.Send` - Send chat messages
+     - `ChatMessage.Send` - Send chat messages (requires admin consent)
+     
+     **SharePoint/File Access (for recordings and attachments):**
+     - `Files.Read` - Read user's files
+     - `Files.Read.All` - Read all files (requires admin consent)
+     - `Sites.Read.All` - Read SharePoint sites (requires admin consent, recommended for full recording/transcript access)
+     
+     **Email Integration:**
      - `Mail.Read` - Read user's mail
      - `Mail.ReadBasic` - Read basic mail info
+     
+     **Team/Channel Access:**
      - `Team.ReadBasic.All` - Read team info (requires admin consent)
      - `Channel.ReadBasic.All` - Read channel info (requires admin consent)
 
@@ -48,7 +59,7 @@ export TEAMS_TOKEN_CACHE_PATH="./teams.token"  # where to cache tokens
 export TEAMS_REFRESH_TOKEN=""  # pre-configured refresh token (optional)
 
 # Scopes (defaults shown, override if needed)
-export TEAMS_SCOPES="User.Read Chat.Create Chat.Read Chat.ReadBasic Chat.ReadWrite ChatMessage.Read ChatMessage.Send Mail.Read Mail.ReadBasic openid profile email offline_access"
+export TEAMS_SCOPES="User.Read Chat.Create Chat.Read Chat.ReadBasic Chat.ReadWrite ChatMessage.Read Files.Read Sites.Read.All Channel.ReadBasic.All Team.ReadBasic.All openid profile email offline_access"
 ```
 
 ### Authentication Methods
@@ -115,42 +126,105 @@ export TEAMS_AUTH_METHOD="refresh_token"
 ./dmtools.sh mcp list teams
 ```
 
+### Understanding Tool Naming Convention
+
+Teams tools follow a consistent naming pattern:
+
+- Tools ending in `_raw` return full JSON objects from the API
+- Tools without `_raw` return simplified, human-readable output
+- Simplified output filters out noisy system messages (member joins/leaves, pins, etc.)
+- Simplified output includes: author, body, date, reactions, mentions, attachments
+
 ### Common Operations
 
-#### List Chats
+#### List Recent Chats (Simplified)
 
 ```bash
-./dmtools.sh mcp teams_get_chats
+# Get 50 most recent chats (default)
+dmtools teams_recent_chats
+
+# Get all recent chats
+dmtools teams_recent_chats 0
+
+# Get only 1-on-1 chats
+dmtools teams_recent_chats 10 "oneOnOne"
 ```
 
-#### Find Chat by Name
+#### List All Chats (Simplified)
 
 ```bash
-./dmtools.sh mcp teams_find_chat_by_name --data '{"chatName":"Project Team"}'
+# Get 50 chats (default)
+dmtools teams_chats
+
+# Get all chats
+dmtools teams_chats 0
+
+# Get raw JSON data
+dmtools teams_chats_raw 50
 ```
 
-#### Get Chat Messages
+#### Get Chat Messages (Simplified)
 
 ```bash
-./dmtools.sh mcp teams_get_messages --data '{"chatId":"19:xxx@thread.v2", "limit":50}'
+# Get 100 messages (default) from chat by name
+dmtools teams_messages "Project Team"
+
+# Get specific number of messages
+dmtools teams_messages "Project Team" 50
+
+# Get all messages (0 = unlimited)
+dmtools teams_messages "Project Team" 0
+
+# Get messages since a specific date (ISO 8601 format)
+dmtools teams_messages_since "Project Team" "2025-10-21T00:00:00Z"
+```
+
+#### Get Raw Messages
+
+```bash
+# Get raw JSON messages by chat ID
+dmtools teams_messages_by_chat_id_raw "19:xxx@thread.v2" 100
+
+# Get raw messages by chat name
+dmtools teams_messages_raw "Project Team" 50
 ```
 
 #### Send Message to Chat
 
 ```bash
-./dmtools.sh mcp teams_send_message --data '{"chatId":"19:xxx@thread.v2", "content":"Hello from MCP!"}'
+# Send by chat name
+dmtools teams_send_message "Project Team" "Hello from MCP!"
+
+# Send by chat ID
+dmtools teams_send_message_by_id "19:xxx@thread.v2" "Hello!"
+```
+
+#### Personal Notes (Self Chat)
+
+```bash
+# Get your personal notes
+dmtools teams_myself_messages
+
+# Send note to yourself
+dmtools teams_send_myself_message "Remember to check this later"
 ```
 
 #### List Joined Teams
 
 ```bash
-./dmtools.sh mcp teams_get_joined_teams
+dmtools teams_get_joined_teams_raw
 ```
 
 #### Get Team Channels
 
 ```bash
-./dmtools.sh mcp teams_get_team_channels --data '{"teamId":"team-id"}'
+dmtools teams_get_team_channels_raw "team-id"
+```
+
+#### Get Channel Messages
+
+```bash
+dmtools teams_get_channel_messages_by_name_raw "Team Name" "General" 50
 ```
 
 ## Available MCP Tools
@@ -163,20 +237,51 @@ export TEAMS_AUTH_METHOD="refresh_token"
 
 ### Chat Operations
 
-- `teams_get_chats` - List all user chats
-- `teams_find_chat_by_name` - Find chat by name
-- `teams_get_messages` - Get messages from chat by ID
-- `teams_get_messages_by_name` - Get messages from chat by name
-- `teams_send_message` - Send message to chat by ID
-- `teams_send_message_by_name` - Send message to chat by name
+**List Chats:**
+- `teams_chats_raw` - List chats with full JSON (limit parameter: 0 for all, default: 50)
+- `teams_chats` - List chats with simplified output (limit parameter: 0 for all, default: 50)
+- `teams_recent_chats` - Get recent chats sorted by activity with optional chat type filter (default limit: 50)
+
+**Find Chat:**
+- `teams_chat_by_name_raw` - Find a chat by topic or participant name
+
+**Get Messages:**
+- `teams_messages_by_chat_id_raw` - Get raw messages from chat by ID (supports optional OData filter)
+- `teams_messages_raw` - Get raw messages from chat by name
+- `teams_messages` - Get simplified messages from chat by name (filters noisy system messages)
+- `teams_messages_since_by_id` - Get messages since a specific date by chat ID (ISO 8601)
+- `teams_messages_since` - Get messages since a specific date by chat name (ISO 8601)
+
+**Send Messages:**
+- `teams_send_message_by_id` - Send message to chat by ID
+- `teams_send_message` - Send message to chat by name
+
+**Personal Notes (Self Chat):**
+- `teams_myself_messages_raw` - Get personal notes (raw JSON)
+- `teams_myself_messages` - Get personal notes (simplified)
+- `teams_send_myself_message` - Send note to yourself
+
+### File Download Operations
+
+- `teams_download_file` - Download file from Teams (Graph API or SharePoint URL)
+- `teams_get_message_hosted_contents` - Get hosted contents for a message
+- `teams_search_user_drive_files` - Search files in user's OneDrive
+
+### Recording and Transcript Operations
+
+- `teams_get_call_transcripts` - Get transcripts for a call/meeting
+- `teams_get_recording_transcripts` - Get transcript metadata for a recording
+- `teams_list_recording_transcripts` - List available transcripts for a recording
+- `teams_extract_transcript_from_sharepoint` - Extract transcript info by parsing SharePoint HTML
+- `teams_download_recording_transcript` - Download transcript (VTT) file from Teams recording
 
 ### Team Operations
 
-- `teams_get_joined_teams` - List teams user is member of
-- `teams_find_team_by_name` - Find team by name
-- `teams_get_team_channels` - Get channels in a team
-- `teams_find_channel_by_name` - Find channel in team by name
-- `teams_get_channel_messages_by_name` - Get channel messages
+- `teams_get_joined_teams_raw` - List teams user is member of
+- `teams_find_team_by_name_raw` - Find team by name
+- `teams_get_team_channels_raw` - Get channels in a team
+- `teams_find_channel_by_name_raw` - Find channel in team by name
+- `teams_get_channel_messages_by_name_raw` - Get channel messages by team and channel names
 
 ## Architecture
 
@@ -237,33 +342,109 @@ export TEAMS_AUTH_METHOD="device"
 4. **Rotate tokens** - Periodically re-authenticate
 5. **Secure storage** - Protect token cache files with proper file permissions
 
+## Key Features
+
+### Message Filtering
+
+Simplified message output (`teams_messages`, `teams_messages_since`, etc.) automatically filters out noisy system messages:
+
+**Filtered Events:**
+- Member join/leave notifications
+- Message pins/unpins
+- Call start/end notifications
+- App installations
+
+**Preserved Events:**
+- Meeting recordings
+- Meeting transcripts
+- Poll results (Adaptive Cards)
+- User messages
+
+### Limit Parameters
+
+Most tools support a `limit` parameter for controlling result count:
+
+- **Default behavior**: Returns a reasonable default (50 for chats, 100 for messages)
+- **Specific limit**: Pass a number to get exactly that many results
+- **Get all**: Pass `0` to retrieve unlimited results
+
+**Examples:**
+```bash
+# Default (50 chats)
+dmtools teams_recent_chats
+
+# Specific limit (10 chats)
+dmtools teams_recent_chats 10
+
+# All chats (0 = unlimited)
+dmtools teams_recent_chats 0
+
+# Same pattern for messages
+dmtools teams_messages "chat-name"      # Default: 100
+dmtools teams_messages "chat-name" 50   # Limit: 50
+dmtools teams_messages "chat-name" 0    # All messages
+```
+
+### Smart Pagination
+
+Message tools use smart pagination with early exit:
+
+- **`teams_messages_since`**: Stops fetching when encountering messages older than the specified date
+- **Performer pattern**: Efficiently processes messages on-the-fly without loading everything into memory
+- **Duplicate detection**: Automatically filters duplicate chats from API results
+
 ## Examples
 
 ### Automated Chat Monitoring
 
 ```bash
 # Get recent messages from specific chat
-./dmtools.sh mcp teams_get_messages_by_name \
-  --data '{"chatName":"Support Team", "limit":10}'
+dmtools teams_messages "Support Team" 10
+
+# Get messages since yesterday
+dmtools teams_messages_since "Support Team" "2025-10-20T00:00:00Z"
+
+# Get all messages (no limit)
+dmtools teams_messages "Support Team" 0
 ```
 
 ### Team Reporting
 
 ```bash
 # List all teams
-./dmtools.sh mcp teams_get_joined_teams
+dmtools teams_get_joined_teams_raw
 
 # Get channels for specific team
-./dmtools.sh mcp teams_get_team_channels \
-  --data '{"teamId":"your-team-id"}'
+dmtools teams_get_team_channels_raw "your-team-id"
+
+# Get recent channel messages
+dmtools teams_get_channel_messages_by_name_raw "Team Name" "General" 50
 ```
 
 ### Automated Notifications
 
 ```bash
 # Send notification to team chat
-./dmtools.sh mcp teams_send_message_by_name \
-  --data '{"chatName":"Deployment Updates", "content":"Deploy completed successfully!"}'
+dmtools teams_send_message "Deployment Updates" "Deploy completed successfully!"
+
+# Send note to yourself
+dmtools teams_send_myself_message "TODO: Review PRs"
+```
+
+### Working with Recordings and Transcripts
+
+```bash
+# Search for messages with recordings in a chat
+dmtools teams_messages "Meeting Chat" 100
+
+# Download a recording from SharePoint URL
+dmtools teams_download_file "https://company-my.sharepoint.com/:v:/p/..." "/tmp/recording.mp4"
+
+# Extract transcript info from SharePoint page
+dmtools teams_extract_transcript_from_sharepoint "https://company-my.sharepoint.com/..."
+
+# Download transcript
+dmtools teams_download_recording_transcript "driveId" "itemId" "transcriptId" "/tmp/transcript.vtt"
 ```
 
 ## Additional Resources
