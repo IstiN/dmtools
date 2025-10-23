@@ -3,6 +3,8 @@
  * Simple utilities for AI responses - expecting stable, well-formatted responses
  */
 
+const { SUMMARY_MAX_LENGTH } = require('../config.js');
+
 /**
  * Parse AI response containing questions array
  * Expects clean JSON array format from AI
@@ -39,7 +41,7 @@ function parseQuestionsResponse(response) {
  */
 function buildSummary(summary, index) {
     const text = summary || 'Follow-up question #' + (index + 1);
-    return text.length <= 120 ? text : text.slice(0, 117) + '...';
+    return text.length <= SUMMARY_MAX_LENGTH ? text : text.slice(0, SUMMARY_MAX_LENGTH - 3) + '...';
 }
 
 /**
@@ -58,3 +60,4 @@ module.exports = {
     buildSummary,
     buildDescription
 };
+

@@ -3,15 +3,18 @@
  * Shared utilities for Jira ticket operations
  */
 
+const { STATUSES, LABELS } = require('../config.js');
+
 /**
  * Assign ticket to initiator and move to "In Review" status with AI-generated label
  * This is the common post-processing logic used by multiple agents
  * 
  * @param {string} ticketKey - The Jira ticket key
  * @param {string} initiatorId - Account ID of the person to assign the ticket to
+ * @param {string} wipLabel - Optional WIP label to remove after processing
  * @returns {Object} Result object with success status and message
  */
-function assignForReview(ticketKey, initiatorId) {
+function assignForReview(ticketKey, initiatorId, wipLabel) {
     try {
         console.log("Processing ticket:", ticketKey);
         
@@ -24,14 +27,27 @@ function assignForReview(ticketKey, initiatorId) {
         // Move to In Review status
         jira_move_to_status({
             key: ticketKey,
-            statusName: "In Review"
+            statusName: STATUSES.IN_REVIEW
         });
 
         // Add AI-generated label
         jira_add_label({
             key: ticketKey,
-            label: 'ai_generated'
+            label: LABELS.AI_GENERATED
         });
+        
+        // Remove WIP label if provided
+        if (wipLabel) {
+            try {
+                jira_remove_label({
+                    key: ticketKey,
+                    label: wipLabel
+                });
+                console.log('Removed WIP label "' + wipLabel + '" from ' + ticketKey);
+            } catch (labelError) {
+                console.warn('Failed to remove WIP label "' + wipLabel + '":', labelError);
+            }
+        }
         
         console.log("✅ Assigned to initiator and moved to In Review");
         
@@ -104,3 +120,4 @@ module.exports = {
     extractTicketKey,
     setTicketPriority
 };
+
