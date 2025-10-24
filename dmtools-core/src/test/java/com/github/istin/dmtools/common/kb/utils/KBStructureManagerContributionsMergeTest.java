@@ -70,13 +70,8 @@ class KBStructureManagerContributionsMergeTest {
         session1.setAnswers(Arrays.asList());  // Initialize empty lists to avoid NPE
         session1.setNotes(Arrays.asList());
         
-        Map<String, PersonContributions> session1Contribs = new HashMap<>();
-        PersonContributions darinaSession1 = new PersonContributions();
-        darinaSession1.getQuestions().add(new PersonContributions.ContributionItem("q_0001", "testing", "2025-10-24T10:00:00Z"));
-        session1Contribs.put("Darina_Danilovich", darinaSession1);
-        
-        // WHEN: Process session_1
-        structureManager.buildStructure(session1, tempDir, "session_1", session1Contribs, logger);
+        // WHEN: Process session_1 (contributions will be collected inside buildStructure after ID mapping)
+        structureManager.buildStructure(session1, tempDir, "session_1", null, logger);
         
         // THEN: Darina's profile should have question q_0001
         Path darinaProfile = tempDir.resolve("people/Darina_Danilovich/Darina_Danilovich.md");
@@ -97,13 +92,8 @@ class KBStructureManagerContributionsMergeTest {
         session2.setAnswers(Arrays.asList(a1));
         session2.setNotes(Arrays.asList());
         
-        Map<String, PersonContributions> session2Contribs = new HashMap<>();
-        PersonContributions darinaSession2 = new PersonContributions();
-        darinaSession2.getAnswers().add(new PersonContributions.ContributionItem("a_0001", "implementation", "2025-10-24T11:00:00Z"));
-        session2Contribs.put("Darina_Danilovich", darinaSession2);
-        
-        // WHEN: Process session_2
-        structureManager.buildStructure(session2, tempDir, "session_2", session2Contribs, logger);
+        // WHEN: Process session_2 (contributions will be collected inside buildStructure after ID mapping)
+        structureManager.buildStructure(session2, tempDir, "session_2", null, logger);
         
         // THEN: Darina's profile should have BOTH question q_0001 (from session_1) AND answer a_0001 (from session_2)
         String content2 = Files.readString(darinaProfile);
@@ -143,12 +133,7 @@ class KBStructureManagerContributionsMergeTest {
         session1.setAnswers(Arrays.asList());  // Initialize empty lists to avoid NPE
         session1.setNotes(Arrays.asList());
         
-        Map<String, PersonContributions> session1Contribs = new HashMap<>();
-        PersonContributions aliceSession1 = new PersonContributions();
-        aliceSession1.getQuestions().add(new PersonContributions.ContributionItem("q_0001", "topic1", "2025-10-24T10:00:00Z"));
-        session1Contribs.put("Alice", aliceSession1);
-        
-        structureManager.buildStructure(session1, tempDir, "session_1", session1Contribs, logger);
+        structureManager.buildStructure(session1, tempDir, "session_1", null, logger);
         
         // GIVEN: Session_2 with NEW question q_0002 (not duplicate)
         AnalysisResult session2 = new AnalysisResult();
@@ -162,13 +147,8 @@ class KBStructureManagerContributionsMergeTest {
         session2.setAnswers(Arrays.asList());  // Initialize empty lists to avoid NPE
         session2.setNotes(Arrays.asList());
         
-        Map<String, PersonContributions> session2Contribs = new HashMap<>();
-        PersonContributions aliceSession2 = new PersonContributions();
-        aliceSession2.getQuestions().add(new PersonContributions.ContributionItem("q_0002", "topic2", "2025-10-24T11:00:00Z"));
-        session2Contribs.put("Alice", aliceSession2);
-        
         // WHEN: Process session_2
-        structureManager.buildStructure(session2, tempDir, "session_2", session2Contribs, logger);
+        structureManager.buildStructure(session2, tempDir, "session_2", null, logger);
         
         // THEN: Alice's profile should have BOTH questions (no duplicates)
         Path aliceProfile = tempDir.resolve("people/Alice/Alice.md");
@@ -211,16 +191,7 @@ class KBStructureManagerContributionsMergeTest {
         session1.setAnswers(Arrays.asList());  // Initialize empty lists to avoid NPE
         session1.setNotes(Arrays.asList());
         
-        Map<String, PersonContributions> session1Contribs = new HashMap<>();
-        PersonContributions alice1 = new PersonContributions();
-        alice1.getQuestions().add(new PersonContributions.ContributionItem("q_0001", "topic1", "2025-10-24T10:00:00Z"));
-        session1Contribs.put("Alice", alice1);
-        
-        PersonContributions bob1 = new PersonContributions();
-        bob1.getQuestions().add(new PersonContributions.ContributionItem("q_0002", "topic2", "2025-10-24T10:30:00Z"));
-        session1Contribs.put("Bob", bob1);
-        
-        structureManager.buildStructure(session1, tempDir, "session_1", session1Contribs, logger);
+        structureManager.buildStructure(session1, tempDir, "session_1", null, logger);
         
         // GIVEN: Session_2 with Charlie (new person)
         AnalysisResult session2 = new AnalysisResult();
@@ -234,13 +205,8 @@ class KBStructureManagerContributionsMergeTest {
         session2.setAnswers(Arrays.asList());  // Initialize empty lists to avoid NPE
         session2.setNotes(Arrays.asList());
         
-        Map<String, PersonContributions> session2Contribs = new HashMap<>();
-        PersonContributions charlie2 = new PersonContributions();
-        charlie2.getQuestions().add(new PersonContributions.ContributionItem("q_0003", "topic3", "2025-10-24T11:00:00Z"));
-        session2Contribs.put("Charlie", charlie2);
-        
         // WHEN: Process session_2
-        structureManager.buildStructure(session2, tempDir, "session_2", session2Contribs, logger);
+        structureManager.buildStructure(session2, tempDir, "session_2", null, logger);
         
         // THEN: All three people should have their contributions
         Path aliceProfile = tempDir.resolve("people/Alice/Alice.md");

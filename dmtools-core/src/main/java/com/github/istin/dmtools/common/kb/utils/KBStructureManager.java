@@ -40,6 +40,24 @@ public class KBStructureManager {
         KBIdMapper idMapper = new KBIdMapper();
         idMapper.mapAndUpdateIds(analysisResult, idMappingContext);
         
+        // CRITICAL: Collect person contributions AFTER ID mapping
+        // This ensures we use permanent IDs (q_0001) not temporary IDs (q_1)
+        if (personContributions == null) {
+            personContributions = collectPersonContributionsFromAnalysis(analysisResult);
+            if (logger != null) {
+                logger.info("Collected contributions for {} people from current analysis (after ID mapping)", personContributions.size());
+                if (!personContributions.isEmpty()) {
+                    logger.debug("Person contributions collected: {}", personContributions.keySet());
+                    for (Map.Entry<String, PersonContributions> entry : personContributions.entrySet()) {
+                        logger.debug("  - {}: Q={}, A={}, N={}", entry.getKey(), 
+                            entry.getValue().getQuestions().size(),
+                            entry.getValue().getAnswers().size(),
+                            entry.getValue().getNotes().size());
+                    }
+                }
+            }
+        }
+        
         // Build answers first
         for (Answer answer : analysisResult.getAnswers()) {
             structureBuilder.buildAnswerFile(answer, outputPath, sourceName);
@@ -423,5 +441,83 @@ public class KBStructureManager {
         int answers = 0;
         int notes = 0;
         Set<String> contributors = new HashSet<>();
+    }
+    
+    /**
+     * Collect person contributions from analysis result (using already-mapped IDs)
+     * CRITICAL: This must be called AFTER ID mapping to use permanent IDs (q_0001) not temporary (q_1)
+     */
+    private Map<String, PersonContributions> collectPersonContributionsFromAnalysis(AnalysisResult analysisResult) {
+        Map<String, PersonContributions> contributions = new HashMap<>();
+        
+        // Collect from questions
+        if (analysisResult.getQuestions() != null) {
+            for (Question q : analysisResult.getQuestions()) {
+                if (q.getAuthor() != null && q.getId() != null) {
+                    String normalizedAuthor = structureBuilder.normalizePersonName(q.getAuthor());
+                    PersonContributions pc = contributions.computeIfAbsent(normalizedAuthor, k -> new PersonContributions());
+                    
+                    // Get first topic as primary topic for display
+                    String topic = (q.getTopics() != null && !q.getTopics().isEmpty()) ? q.getTopics().get(0) : "general";
+                    String date = (q.getDate() != null) ? q.getDate() : "unknown";
+                    
+                    pc.getQuestions().add(new PersonContributions.ContributionItem(q.getId(), topic, date));
+                }
+            }
+        }
+        
+        // Collect from answers
+        if (analysisResult.getAnswers() != null) {
+            for (Answer a : analysisResult.getAnswers()) {
+                if (a.getAuthor() != null && a.getId() != null) {
+                    String normalizedAuthor = structureBuilder.normalizePersonName(a.getAuthor());
+                    PersonContributions pc = contributions.computeIfAbsent(normalizedAuthor, k -> new PersonContributions());
+                    
+                    String topic = (a.getTopics() != null && !a.getTopics().isEmpty()) ? a.getTopics().get(0) : "general";
+                    String date = (a.getDate() != null) ? a.getDate() : "unknown";
+                    
+                    pc.getAnswers().add(new PersonContributions.ContributionItem(a.getId(), topic, date));
+                }
+            }
+        }
+        
+        // Collect from notes
+        if (analysisResult.getNotes() != null) {
+            for (Note n : analysisResult.getNotes()) {
+                if (n.getAuthor() != null && n.getId() != null) {
+                    String normalizedAuthor = structureBuilder.normalizePersonName(n.getAuthor());
+                    PersonContributions pc = contributions.computeIfAbsent(normalizedAuthor, k -> new PersonContributions());
+                    
+                    String topic = (n.getTopics() != null && !n.getTopics().isEmpty()) ? n.getTopics().get(0) : "general";
+                    String date = (n.getDate() != null) ? n.getDate() : "unknown";
+                    
+                    pc.getNotes().add(new PersonContributions.ContributionItem(n.getId(), topic, date));
+                }
+            }
+        }
+        
+        // Calculate topic contributions
+        for (PersonContributions pc : contributions.values()) {
+            Map<String, Integer> topicCounts = new HashMap<>();
+            
+            // Count contributions per topic
+            for (PersonContributions.ContributionItem item : pc.getQuestions()) {
+                topicCounts.merge(item.getTopic(), 1, Integer::sum);
+            }
+            for (PersonContributions.ContributionItem item : pc.getAnswers()) {
+                topicCounts.merge(item.getTopic(), 1, Integer::sum);
+            }
+            for (PersonContributions.ContributionItem item : pc.getNotes()) {
+                topicCounts.merge(item.getTopic(), 1, Integer::sum);
+            }
+            
+            // Convert to TopicContribution list
+            List<PersonContributions.TopicContribution> topicList = topicCounts.entrySet().stream()
+                    .map(e -> new PersonContributions.TopicContribution(e.getKey(), e.getValue()))
+                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+            pc.setTopics(topicList);
+        }
+        
+        return contributions;
     }
 }
