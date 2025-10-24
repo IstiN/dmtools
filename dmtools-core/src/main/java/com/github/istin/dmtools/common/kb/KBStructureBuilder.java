@@ -843,12 +843,16 @@ public class KBStructureBuilder {
             sources.add(source);
         }
         
+        // Sort contributors for frontmatter to ensure consistent order
+        List<String> sortedContributorsForFrontmatter = new ArrayList<>(contributors);
+        Collections.sort(sortedContributorsForFrontmatter);
+        
         Map<String, Object> frontmatter = new LinkedHashMap<>();
         frontmatter.put("type", "area");
         frontmatter.put("title", title);
         frontmatter.put("id", id);
         frontmatter.put("sources", sources); // Changed from "source" to "sources" (plural, array)
-        frontmatter.put("contributors", contributors);
+        frontmatter.put("contributors", sortedContributorsForFrontmatter);
         // Preserve existing created timestamp, or create new one if doesn't exist
         frontmatter.put("created", existingCreated != null ? existingCreated : java.time.Instant.now().toString());
         
@@ -861,19 +865,23 @@ public class KBStructureBuilder {
         // AI description embed
         content.append("![[").append(id).append("-desc]]\n\n");
         
-        // Topics (themes within this area)
+        // Topics (themes within this area) - sorted alphabetically to reduce git diffs
         if (!topics.isEmpty()) {
             content.append("## Topics\n\n");
-            for (String topic : topics) {
+            List<String> sortedTopics = new ArrayList<>(topics);
+            Collections.sort(sortedTopics);
+            for (String topic : sortedTopics) {
                 String topicId = slugify(topic);
                 content.append("- [[").append(topicId).append("|").append(topic).append("]]\n");
             }
             content.append("\n");
         }
         
-        // Contributors
+        // Contributors - sorted alphabetically to reduce git diffs
         content.append("## Key Contributors\n\n");
-        for (String contributor : contributors) {
+        List<String> sortedContributors = new ArrayList<>(contributors);
+        Collections.sort(sortedContributors);
+        for (String contributor : sortedContributors) {
             content.append("- [[").append(normalizePersonName(contributor)).append("|").append(contributor).append("]]\n");
         }
         

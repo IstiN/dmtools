@@ -127,10 +127,70 @@ public class KBStructureManager {
                 }
             }
 
-            contributions = personContributions;
+            // CRITICAL: Merge personContributions from current analysis with existing contributions from files
+            // Otherwise, contributions from previous sessions will be lost
+            Map<String, PersonContributions> existingContributions = statsCollector.collectPersonContributionsFromFiles(outputPath);
+            contributions = new HashMap<>(existingContributions);
+            
+            // Merge new contributions into existing ones
+            for (Map.Entry<String, PersonContributions> entry : personContributions.entrySet()) {
+                String person = entry.getKey();
+                PersonContributions newContribs = entry.getValue();
+                
+                PersonContributions merged = contributions.computeIfAbsent(person, k -> new PersonContributions());
+                
+                // Merge questions (avoid duplicates by ID)
+                Set<String> existingQuestionIds = merged.getQuestions().stream()
+                    .map(PersonContributions.ContributionItem::getId)
+                    .collect(java.util.stream.Collectors.toSet());
+                for (PersonContributions.ContributionItem q : newContribs.getQuestions()) {
+                    if (!existingQuestionIds.contains(q.getId())) {
+                        merged.getQuestions().add(q);
+                    }
+                }
+                
+                // Merge answers (avoid duplicates by ID)
+                Set<String> existingAnswerIds = merged.getAnswers().stream()
+                    .map(PersonContributions.ContributionItem::getId)
+                    .collect(java.util.stream.Collectors.toSet());
+                for (PersonContributions.ContributionItem a : newContribs.getAnswers()) {
+                    if (!existingAnswerIds.contains(a.getId())) {
+                        merged.getAnswers().add(a);
+                    }
+                }
+                
+                // Merge notes (avoid duplicates by ID)
+                Set<String> existingNoteIds = merged.getNotes().stream()
+                    .map(PersonContributions.ContributionItem::getId)
+                    .collect(java.util.stream.Collectors.toSet());
+                for (PersonContributions.ContributionItem n : newContribs.getNotes()) {
+                    if (!existingNoteIds.contains(n.getId())) {
+                        merged.getNotes().add(n);
+                    }
+                }
+                
+                // Merge topics (accumulate counts)
+                Map<String, Integer> topicCounts = new HashMap<>();
+                for (PersonContributions.TopicContribution t : merged.getTopics()) {
+                    topicCounts.put(t.getTopicId(), t.getCount());
+                }
+                for (PersonContributions.TopicContribution t : newContribs.getTopics()) {
+                    topicCounts.merge(t.getTopicId(), t.getCount(), Integer::sum);
+                }
+                merged.getTopics().clear();
+                for (Map.Entry<String, Integer> tc : topicCounts.entrySet()) {
+                    merged.getTopics().add(new PersonContributions.TopicContribution(tc.getKey(), tc.getValue()));
+                }
+            }
             
             if (logger != null) {
-                logger.debug("Using personContributions: size={}, keys={}", contributions.size(), contributions.keySet());
+                logger.debug("Merged contributions: size={}, keys={}", contributions.size(), contributions.keySet());
+                for (Map.Entry<String, PersonContributions> entry : contributions.entrySet()) {
+                    logger.debug("  - {}: Q={}, A={}, N={}", entry.getKey(),
+                        entry.getValue().getQuestions().size(),
+                        entry.getValue().getAnswers().size(),
+                        entry.getValue().getNotes().size());
+                }
             }
 
             Path answersDir = outputPath.resolve("answers");
@@ -178,14 +238,27 @@ public class KBStructureManager {
             contributions = statsCollector.collectPersonContributionsFromFiles(outputPath);
         }
 
+        if (logger != null) {
+            logger.debug("personStats keys: {}", personStats.keySet());
+            logger.debug("contributions keys: {}", contributions.keySet());
+        }
+        
         for (Map.Entry<String, PersonStatsCollector.PersonStats> entry : personStats.entrySet()) {
             PersonStatsCollector.PersonStats stats = entry.getValue();
             PersonContributions contribution = contributions.get(entry.getKey());
             
-            if (logger != null && contribution == null) {
-                logger.warn("No contribution found for person '{}' (key in contributions: {})", 
-                    entry.getKey(), contributions.containsKey(entry.getKey()));
-                logger.debug("Available contribution keys: {}", contributions.keySet());
+            if (logger != null) {
+                if (contribution != null) {
+                    logger.debug("Person '{}': contribution found - Q={}, A={}, N={}", 
+                        entry.getKey(), 
+                        contribution.getQuestions().size(), 
+                        contribution.getAnswers().size(), 
+                        contribution.getNotes().size());
+                } else {
+                    logger.warn("No contribution found for person '{}' (key in contributions: {})", 
+                        entry.getKey(), contributions.containsKey(entry.getKey()));
+                    logger.debug("Available contribution keys: {}", contributions.keySet());
+                }
             }
             
             // Only pass sourceName if this person has contributions from current analysis
