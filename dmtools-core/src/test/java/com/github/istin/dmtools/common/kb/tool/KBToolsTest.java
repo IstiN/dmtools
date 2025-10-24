@@ -45,7 +45,7 @@ class KBToolsTest {
     @Test
     void testProcessInbox_NoInboxDirectory() throws Exception {
         // Test when inbox/raw doesn't exist
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         assertNotNull(result);
         assertTrue(result.contains("\"success\": true"));
@@ -59,7 +59,7 @@ class KBToolsTest {
         // Create empty inbox/raw
         Files.createDirectories(tempDir.resolve("inbox/raw"));
         
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         assertNotNull(result);
         assertTrue(result.contains("\"success\": true"));
@@ -81,7 +81,7 @@ class KBToolsTest {
         when(mockOrchestrator.run(any(KBOrchestratorParams.class))).thenReturn(mockResult);
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -93,14 +93,15 @@ class KBToolsTest {
         assertTrue(result.contains("\"notes\": 2"));
         assertTrue(result.contains("Processed 1 files"));
         
-        // Verify orchestrator was called with correct params
+        // Verify orchestrator was called twice (PROCESS_ONLY + AGGREGATE_ONLY)
         ArgumentCaptor<KBOrchestratorParams> paramsCaptor = ArgumentCaptor.forClass(KBOrchestratorParams.class);
-        verify(mockOrchestrator).run(paramsCaptor.capture());
+        verify(mockOrchestrator, times(2)).run(paramsCaptor.capture());
         
-        KBOrchestratorParams capturedParams = paramsCaptor.getValue();
-        assertEquals("teams_messages", capturedParams.getSourceName());
-        assertTrue(capturedParams.getInputFile().contains("1234567890-messages.json"));
-        assertNotNull(capturedParams.getDateTime());
+        // Check the first call (PROCESS_ONLY)
+        KBOrchestratorParams firstCall = paramsCaptor.getAllValues().get(0);
+        assertEquals("teams_messages", firstCall.getSourceName());
+        assertTrue(firstCall.getInputFile().contains("1234567890-messages.json"));
+        assertNotNull(firstCall.getDateTime());
     }
 
     @Test
@@ -119,7 +120,7 @@ class KBToolsTest {
         Files.writeString(analyzedFile, "{\"processed\": true}");
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -152,7 +153,7 @@ class KBToolsTest {
             .thenReturn(mockResult2);
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -161,8 +162,8 @@ class KBToolsTest {
         assertTrue(result.contains("teams_messages"));
         assertTrue(result.contains("meeting_notes"));
         
-        // Verify orchestrator was called twice
-        verify(mockOrchestrator, times(2)).run(any(KBOrchestratorParams.class));
+        // Verify orchestrator called 3 times (2 PROCESS_ONLY + 1 AGGREGATE_ONLY)
+        verify(mockOrchestrator, times(3)).run(any(KBOrchestratorParams.class));
     }
 
     @Test
@@ -179,7 +180,7 @@ class KBToolsTest {
         when(mockOrchestrator.run(any(KBOrchestratorParams.class))).thenReturn(mockResult);
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -204,7 +205,7 @@ class KBToolsTest {
             .thenThrow(new RuntimeException("Test exception"));
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -235,7 +236,7 @@ class KBToolsTest {
         when(mockOrchestrator.run(any(KBOrchestratorParams.class))).thenReturn(mockResult);
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -244,8 +245,8 @@ class KBToolsTest {
         assertTrue(result.contains("new-file.json"));
         assertTrue(result.contains("old-file.json"));
         
-        // Verify orchestrator called only once (for new file)
-        verify(mockOrchestrator, times(1)).run(any());
+        // Verify orchestrator called twice (PROCESS_ONLY + AGGREGATE_ONLY)
+        verify(mockOrchestrator, times(2)).run(any());
     }
 
     @Test
@@ -262,14 +263,14 @@ class KBToolsTest {
         when(mockOrchestrator.run(any(KBOrchestratorParams.class))).thenReturn(mockResult);
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
         assertTrue(result.contains("\"success\": true"));
         assertTrue(result.contains("\"file\": \"README\""));
         
-        verify(mockOrchestrator, times(1)).run(any());
+        verify(mockOrchestrator, times(2)).run(any());
     }
 
     @Test
@@ -287,7 +288,7 @@ class KBToolsTest {
         when(mockOrchestrator.run(any(KBOrchestratorParams.class))).thenReturn(mockResult);
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -297,8 +298,8 @@ class KBToolsTest {
         assertTrue(result.contains("file2.json"));
         assertTrue(result.contains("file3.json"));
         
-        // Verify orchestrator called three times
-        verify(mockOrchestrator, times(3)).run(any());
+        // Verify orchestrator called 4 times (3 PROCESS_ONLY + 1 AGGREGATE_ONLY)
+        verify(mockOrchestrator, times(4)).run(any());
     }
 
     @Test
@@ -308,7 +309,7 @@ class KBToolsTest {
         Files.createDirectories(inboxRaw);
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -338,7 +339,7 @@ class KBToolsTest {
         when(mockOrchestrator.run(any(KBOrchestratorParams.class))).thenReturn(mockResult);
         
         // Execute
-        String result = kbTools.kbProcessInbox(tempDir.toString());
+        String result = kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
         // Verify
         assertNotNull(result);
@@ -347,14 +348,14 @@ class KBToolsTest {
         assertTrue(result.contains("regular.json"));
         assertFalse(result.contains("nested.json")); // Nested file ignored
         
-        // Verify orchestrator called only once
-        verify(mockOrchestrator, times(1)).run(any());
+        // Verify orchestrator called twice (PROCESS_ONLY + AGGREGATE_ONLY)
+        verify(mockOrchestrator, times(2)).run(any());
     }
 
     @Test
     void testProcessInbox_NullOutputPath() throws Exception {
         // Test with null output path (should use default from property reader)
-        String result = kbTools.kbProcessInbox(null);
+        String result = kbTools.kbProcessInbox(null, null, null);
         
         assertNotNull(result);
         // Should still work with default path from property reader
@@ -364,7 +365,7 @@ class KBToolsTest {
     @Test
     void testProcessInbox_EmptyOutputPath() throws Exception {
         // Test with empty output path (should use default)
-        String result = kbTools.kbProcessInbox("");
+        String result = kbTools.kbProcessInbox("", null, null);
         
         assertNotNull(result);
         verify(mockPropertyReader).getValue("DMTOOLS_KB_OUTPUT_PATH");
@@ -383,13 +384,13 @@ class KBToolsTest {
         when(mockOrchestrator.run(any(KBOrchestratorParams.class))).thenReturn(mockResult);
         
         // Execute
-        kbTools.kbProcessInbox(tempDir.toString());
+        kbTools.kbProcessInbox(tempDir.toString(), null, null);
         
-        // Verify source name is preserved
+        // Verify source name is preserved (check first call - PROCESS_ONLY)
         ArgumentCaptor<KBOrchestratorParams> paramsCaptor = ArgumentCaptor.forClass(KBOrchestratorParams.class);
-        verify(mockOrchestrator).run(paramsCaptor.capture());
+        verify(mockOrchestrator, times(2)).run(paramsCaptor.capture());
         
-        assertEquals("project_team", paramsCaptor.getValue().getSourceName());
+        assertEquals("project_team", paramsCaptor.getAllValues().get(0).getSourceName());
     }
 
     // ========== Helper Methods ==========

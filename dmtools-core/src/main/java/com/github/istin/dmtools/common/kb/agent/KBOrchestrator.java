@@ -112,7 +112,7 @@ public class KBOrchestrator {
         
         // Handle AGGREGATE_ONLY mode separately
         if (params.getProcessingMode() == KBProcessingMode.AGGREGATE_ONLY) {
-            return runAggregateOnly(outputPath);
+            return runAggregateOnly(outputPath, params);
         }
         
         // Track created files for potential rollback
@@ -167,7 +167,7 @@ public class KBOrchestrator {
             logger.info("Read input file, content length: {} chars", inputContent.length());
             
             // Try to parse as JSON and convert if needed
-            inputContent = normalizeInputContent(inputContent);
+            inputContent = normalizeInputContent(inputContent, params.getDateTime());
             logger.info("After normalization, content length: {} chars", inputContent.length());
             
             // Step 6: Chunk input if large
@@ -263,13 +263,14 @@ public class KBOrchestrator {
     /**
      * Run AGGREGATE_ONLY mode: generate AI descriptions for existing KB structure
      */
-    private KBResult runAggregateOnly(Path outputPath) throws Exception {
-        logger.info("Running AGGREGATE_ONLY mode: generating AI descriptions for existing KB");
-        return aggregateOnlyService.aggregateExisting(outputPath, null, fileUtils, logger);
+    private KBResult runAggregateOnly(Path outputPath, KBOrchestratorParams params) throws Exception {
+        boolean smartMode = params != null && params.isSmartAggregation();
+        logger.info("Running AGGREGATE_ONLY mode: generating AI descriptions for existing KB (smart mode: {})", smartMode);
+        return aggregateOnlyService.aggregateExisting(outputPath, null, fileUtils, logger, smartMode);
     }
 
 
-    private String normalizeInputContent(String content) {
+    private String normalizeInputContent(String content, String dateTime) {
         // Try to detect if JSON and convert to more friendly format if needed
         try {
             // First check if content is valid JSON
@@ -277,10 +278,31 @@ public class KBOrchestrator {
             // If we get here, it's valid JSON - format it
             return LLMOptimizedJson.format(content);
         } catch (Exception e) {
-            // Not JSON or failed to parse - return as is (plain text)
-            logger.debug("Input is not JSON or failed to parse, treating as plain text: {}", e.getMessage());
+            // Not JSON or failed to parse - check for other formats
+            logger.debug("Input is not JSON or failed to parse: {}", e.getMessage());
         }
         
+        // Check if content is VTT format
+        if (VTTUtils.isVTTFormat(content)) {
+            logger.info("Detected VTT format, transforming to clean text");
+            
+            // Extract date from dateTime if available (format: 2025-10-24T11:02:38.229696Z -> 2025-10-24)
+            String date = null;
+            if (dateTime != null && !dateTime.trim().isEmpty()) {
+                try {
+                    date = dateTime.substring(0, 10); // Extract YYYY-MM-DD
+                    logger.debug("Extracted date from dateTime: {}", date);
+                } catch (Exception ex) {
+                    logger.debug("Could not extract date from dateTime: {}", ex.getMessage());
+                }
+            }
+            
+            String transformed = VTTUtils.transformVTT(content, date);
+            logger.info("VTT transformation complete, new length: {} chars", transformed.length());
+            return transformed;
+        }
+        
+        // Return as is (plain text)
         return content;
     }
 

@@ -59,6 +59,34 @@ public class KBStructureManager {
         structureBuilder.buildTopicFiles(analysisResult, outputPath, sourceName);
         structureBuilder.buildAreaStructure(analysisResult, outputPath, sourceName);
 
+        // Track which people have contributions from the current analysis
+        Set<String> peopleFromCurrentAnalysis = new HashSet<>();
+        if (analysisResult.getQuestions() != null) {
+            analysisResult.getQuestions().forEach(q -> {
+                if (q.getAuthor() != null) {
+                    peopleFromCurrentAnalysis.add(structureBuilder.normalizePersonName(q.getAuthor()));
+                }
+            });
+        }
+        if (analysisResult.getAnswers() != null) {
+            analysisResult.getAnswers().forEach(a -> {
+                if (a.getAuthor() != null) {
+                    peopleFromCurrentAnalysis.add(structureBuilder.normalizePersonName(a.getAuthor()));
+                }
+            });
+        }
+        if (analysisResult.getNotes() != null) {
+            analysisResult.getNotes().forEach(n -> {
+                if (n.getAuthor() != null) {
+                    peopleFromCurrentAnalysis.add(structureBuilder.normalizePersonName(n.getAuthor()));
+                }
+            });
+        }
+        
+        if (logger != null && !peopleFromCurrentAnalysis.isEmpty()) {
+            logger.debug("People from current analysis ({}): {}", peopleFromCurrentAnalysis.size(), peopleFromCurrentAnalysis);
+        }
+
         Map<String, PersonStatsCollector.PersonStats> personStats;
         Map<String, PersonContributions> contributions;
 
@@ -141,10 +169,24 @@ public class KBStructureManager {
         for (Map.Entry<String, PersonStatsCollector.PersonStats> entry : personStats.entrySet()) {
             PersonStatsCollector.PersonStats stats = entry.getValue();
             PersonContributions contribution = contributions.get(entry.getKey());
+            
+            // Only pass sourceName if this person has contributions from current analysis
+            String sourceToAdd = peopleFromCurrentAnalysis.contains(entry.getKey()) ? sourceName : null;
+            
+            if (logger != null) {
+                logger.debug("Processing person '{}': inCurrentAnalysis={}, sourceToAdd={}, stats=[Q:{}, A:{}, N:{}]",
+                        entry.getKey(),
+                        peopleFromCurrentAnalysis.contains(entry.getKey()),
+                        sourceToAdd,
+                        stats.questions,
+                        stats.answers,
+                        stats.notes);
+            }
+            
             structureBuilder.buildPersonProfile(
                     entry.getKey(),
                     outputPath,
-                    sourceName,
+                    sourceToAdd,
                     stats.questions,
                     stats.answers,
                     stats.notes,

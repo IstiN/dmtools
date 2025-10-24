@@ -78,6 +78,8 @@ Chat names are sanitized for use as source names:
 
 - `chatName` (optional): Teams chat name to fetch messages from
 - `kbOutputPath` (optional): Override KB output path
+- `generateDescriptions` (optional, default: true): Generate AI descriptions after processing
+- `smartAggregation` (optional, default: true): Only regenerate descriptions if Q/A/N changed
 
 ## Usage
 
@@ -142,6 +144,28 @@ See `examples/js/job-configs/README.md` for more examples and scheduled executio
   }
 }
 ```
+
+#### Advanced: Control Description Generation
+
+```json
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "examples/js/teams-kb-inbox-processor.js",
+    "jobParams": {
+      "chatName": "Project Team",
+      "kbOutputPath": "/path/to/kb",
+      "generateDescriptions": false,
+      "smartAggregation": true
+    }
+  }
+}
+```
+
+**Parameter Details:**
+- `generateDescriptions: false` → Skip AI description generation (faster, only process Q/A/N)
+- `smartAggregation: true` → Only regenerate descriptions if Q/A/N changed (90-95% reduction in AI calls)
+- `smartAggregation: false` → Always regenerate all descriptions (use for full refresh)
 
 ### Via Command Line (Java)
 

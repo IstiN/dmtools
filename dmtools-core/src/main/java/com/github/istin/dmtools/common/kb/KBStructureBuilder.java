@@ -425,7 +425,8 @@ public class KBStructureBuilder {
         
         // Extract existing sources from frontmatter and merge with new source
         List<String> existingSources = extractSourcesFromFrontmatter(content);
-        if (!existingSources.contains(newSource)) {
+        // Only add newSource if provided (null means no contribution from current source)
+        if (newSource != null && !existingSources.contains(newSource)) {
             existingSources.add(newSource);
         }
         
@@ -747,13 +748,28 @@ public class KBStructureBuilder {
      */
     private void createAreaFileWithTopics(Path areaFile, Path areaDescFile, String title, String id, 
                                           String source, List<String> contributors, List<String> topics) throws IOException {
+        // Extract existing sources and created timestamp if file exists
+        List<String> sources = new ArrayList<>();
+        String existingCreated = null;
+        if (Files.exists(areaFile)) {
+            String existingContent = Files.readString(areaFile);
+            sources = extractSourcesFromFrontmatter(existingContent);
+            existingCreated = extractFromFrontmatter(existingContent, "created");
+        }
+        
+        // Add new source if not already present and if source is provided (null means no contribution from current source)
+        if (source != null && !sources.contains(source)) {
+            sources.add(source);
+        }
+        
         Map<String, Object> frontmatter = new LinkedHashMap<>();
         frontmatter.put("type", "area");
         frontmatter.put("title", title);
         frontmatter.put("id", id);
-        frontmatter.put("source", source);
+        frontmatter.put("sources", sources); // Changed from "source" to "sources" (plural, array)
         frontmatter.put("contributors", contributors);
-        frontmatter.put("created", java.time.Instant.now().toString());
+        // Preserve existing created timestamp, or create new one if doesn't exist
+        frontmatter.put("created", existingCreated != null ? existingCreated : java.time.Instant.now().toString());
         
         StringBuilder content = new StringBuilder();
         content.append("---\n");
@@ -806,15 +822,16 @@ public class KBStructureBuilder {
         // Collect data per topic
         Map<String, TopicData> topicDataMap = new HashMap<>();
         
-        // FIRST: Collect from existing Q/A/N files (for incremental updates)
-        collectFromExistingFiles(outputPath, topicDataMap);
+        // Track which topics have contributions from the current analysis
+        Set<String> topicsFromCurrentAnalysis = new HashSet<>();
         
-        // THEN: Collect from current analysis (will add new items)
+        // FIRST: Collect from current analysis to identify which topics are actually from this source
         // Collect from questions
         if (analysis.getQuestions() != null) {
             for (Question q : analysis.getQuestions()) {
                 if (q.getTopics() != null) {
                     for (String topic : q.getTopics()) {
+                        topicsFromCurrentAnalysis.add(topic);
                         TopicData data = topicDataMap.computeIfAbsent(topic, k -> new TopicData());
                         if (q.getId() != null) data.questions.add(q.getId());
                         if (q.getAuthor() != null) data.contributors.add(q.getAuthor());
@@ -829,6 +846,7 @@ public class KBStructureBuilder {
             for (Answer a : analysis.getAnswers()) {
                 if (a.getTopics() != null) {
                     for (String topic : a.getTopics()) {
+                        topicsFromCurrentAnalysis.add(topic);
                         TopicData data = topicDataMap.computeIfAbsent(topic, k -> new TopicData());
                         if (a.getId() != null) data.answers.add(a.getId());
                         if (a.getAuthor() != null) data.contributors.add(a.getAuthor());
@@ -843,6 +861,7 @@ public class KBStructureBuilder {
             for (Note n : analysis.getNotes()) {
                 if (n.getTopics() != null) {
                     for (String topic : n.getTopics()) {
+                        topicsFromCurrentAnalysis.add(topic);
                         TopicData data = topicDataMap.computeIfAbsent(topic, k -> new TopicData());
                         if (n.getId() != null) data.notes.add(n.getId());
                         if (n.getAuthor() != null) data.contributors.add(n.getAuthor());
@@ -852,19 +871,25 @@ public class KBStructureBuilder {
             }
         }
         
+        // THEN: Collect from existing Q/A/N files (for incremental updates) to get full picture
+        collectFromExistingFiles(outputPath, topicDataMap);
+        
         // Create topics directory
         Path topicsDir = outputPath.resolve("topics");
         Files.createDirectories(topicsDir);
         
         // Create file for each unique topic
-        // Always recreate files to ensure all Q/A/N are included (important for incremental updates)
+        // Only add current source to topics that have Q/A/N from current analysis
         for (Map.Entry<String, TopicData> entry : topicDataMap.entrySet()) {
             String topic = entry.getKey();
             String topicId = slugify(topic);
             Path topicFile = topicsDir.resolve(topicId + ".md");
             Path topicDescFile = topicsDir.resolve(topicId + "-desc.md");
             
-            createTopicFileWithAggregation(topicFile, topicDescFile, topic, topicId, sourceName, entry.getValue(), analysis);
+            // Only pass sourceName if this topic has contributions from current analysis
+            String sourceToAdd = topicsFromCurrentAnalysis.contains(topic) ? sourceName : null;
+            
+            createTopicFileWithAggregation(topicFile, topicDescFile, topic, topicId, sourceToAdd, entry.getValue(), analysis);
         }
     }
     
@@ -1021,11 +1046,25 @@ public class KBStructureBuilder {
      */
     private void createTopicFileWithAggregation(Path topicFile, Path topicDescFile, String title, String id, 
                                                  String source, TopicData data, AnalysisResult analysis) throws IOException {
+        // Extract existing sources and created timestamp if file exists
+        List<String> sources = new ArrayList<>();
+        String existingCreated = null;
+        if (Files.exists(topicFile)) {
+            String existingContent = Files.readString(topicFile);
+            sources = extractSourcesFromFrontmatter(existingContent);
+            existingCreated = extractFromFrontmatter(existingContent, "created");
+        }
+        
+        // Add new source if not already present and if source is provided (null means no contribution from current source)
+        if (source != null && !sources.contains(source)) {
+            sources.add(source);
+        }
+        
         Map<String, Object> frontmatter = new LinkedHashMap<>();
         frontmatter.put("type", "topic");
         frontmatter.put("title", title);
         frontmatter.put("id", id);
-        frontmatter.put("source", source);
+        frontmatter.put("sources", sources); // Changed from "source" to "sources" (plural, array)
         frontmatter.put("contributors", new ArrayList<>(data.contributors));
         
         // Add aggregated tags to frontmatter (sorted)
@@ -1035,7 +1074,8 @@ public class KBStructureBuilder {
             frontmatter.put("tags", sortedTags);
         }
         
-        frontmatter.put("created", java.time.Instant.now().toString());
+        // Preserve existing created timestamp, or create new one if doesn't exist
+        frontmatter.put("created", existingCreated != null ? existingCreated : java.time.Instant.now().toString());
         
         StringBuilder content = new StringBuilder();
         content.append("---\n");

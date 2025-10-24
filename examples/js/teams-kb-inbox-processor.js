@@ -366,7 +366,9 @@ function action(params) {
         // Process inbox - scans and processes all unprocessed files
         console.log('Processing inbox...');
         const inboxResult = kb_process_inbox({
-            output_path: kbPath
+            output_path: kbPath,
+            generate_descriptions: params.generateDescriptions !== false ? 'true' : 'false',
+            smart_aggregation: params.smartAggregation !== false ? 'true' : 'false'
         });
         
         console.log('Inbox processing result:', inboxResult);

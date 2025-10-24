@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -287,17 +288,25 @@ public class KBTools {
                 description = "Optional path to KB directory. Defaults to DMTOOLS_KB_OUTPUT_PATH env var or current directory",
                 required = false,
                 example = "/path/to/knowledge-base"
-            ) String outputPath
+            ) String outputPath,
+            @MCPParam(
+                name = "smart_mode",
+                description = "Only regenerate descriptions if Q/A/N files have changed. Default: true",
+                required = false,
+                example = "true"
+            ) String smartMode
     ) {
         try {
             Path kbPath = resolveOutputPath(outputPath);
-            logger.info("Generating AI descriptions (AGGREGATE_ONLY mode) for KB at: {}", kbPath);
+            boolean smart = smartMode == null || smartMode.trim().isEmpty() || smartMode.equalsIgnoreCase("true");
+            logger.info("Generating AI descriptions (AGGREGATE_ONLY mode, smart: {}) for KB at: {}", smart, kbPath);
             
             // Create orchestrator params
             KBOrchestratorParams params = new KBOrchestratorParams();
             params.setSourceName(sourceName);  // Can be null for all sources
             params.setOutputPath(kbPath.toString());
             params.setProcessingMode(KBProcessingMode.AGGREGATE_ONLY);
+            params.setSmartAggregation(smart);
             
             // Run orchestrator
             KBResult result = orchestrator.run(params);
@@ -355,6 +364,8 @@ public class KBTools {
      * Files are processed in place (no copy) - only analyzed tracking files are created.
      * 
      * @param outputPath Optional path to KB directory. If not provided, uses DMTOOLS_KB_OUTPUT_PATH env var or current directory
+     * @param generateDescriptions Whether to generate AI descriptions after processing. Default: true
+     * @param smartAggregation Only regenerate descriptions if Q/A/N changed. Default: true
      * @return JSON string with processing results including processed and skipped files
      */
     @MCPTool(
@@ -368,7 +379,19 @@ public class KBTools {
                 description = "Optional path to KB directory. Defaults to DMTOOLS_KB_OUTPUT_PATH env var or current directory",
                 required = false,
                 example = "/path/to/knowledge-base"
-            ) String outputPath
+            ) String outputPath,
+            @MCPParam(
+                name = "generate_descriptions",
+                description = "Generate AI descriptions after processing. Default: true",
+                required = false,
+                example = "true"
+            ) String generateDescriptions,
+            @MCPParam(
+                name = "smart_aggregation",
+                description = "Only regenerate descriptions if Q/A/N changed. Default: true",
+                required = false,
+                example = "true"
+            ) String smartAggregation
     ) {
         try {
             Path kbPath = resolveOutputPath(outputPath);
@@ -397,84 +420,103 @@ public class KBTools {
                     
                     Path analyzedSourcePath = inboxAnalyzedPath.resolve(sourceName);
                     
-                    // Scan files in source folder
+                    // Scan files in source folder and sort by name to ensure correct order (e.g., batch-1, batch-2, etc.)
+                    List<Path> filesToProcess = new ArrayList<>();
                     try (DirectoryStream<Path> files = Files.newDirectoryStream(sourceFolder, Files::isRegularFile)) {
                         for (Path file : files) {
-                            String fileName = file.getFileName().toString();
-                            String baseFileName = fileName.replaceAll("\\.[^.]+$", ""); // Remove extension
+                            filesToProcess.add(file);
+                        }
+                    }
+                    
+                    // Sort files by name to ensure batch-1, batch-2, batch-3... are processed in order
+                    filesToProcess.sort(Comparator.comparing(path -> path.getFileName().toString()));
+                    logger.debug("Found {} files in source folder '{}', processing in sorted order", filesToProcess.size(), sourceName);
+                    
+                    // Process files in sorted order
+                    for (Path file : filesToProcess) {
+                        String fileName = file.getFileName().toString();
+                        String baseFileName = fileName.replaceAll("\\.[^.]+$", ""); // Remove extension
+                        
+                        // Check if file has been analyzed
+                        Path analyzedFile = analyzedSourcePath.resolve(baseFileName + "_analyzed.json");
+                        
+                        if (Files.exists(analyzedFile)) {
+                            logger.debug("Skipping already processed file: {}/{}", sourceName, fileName);
+                            skippedFiles.add(new SkippedFile(sourceName, fileName, "Already processed"));
+                            continue;
+                        }
+                        
+                        // Process the file in place with PROCESS_ONLY mode
+                        logger.info("Processing file (PROCESS_ONLY): {}/{}", sourceName, fileName);
+                        
+                        try {
+                            // Create orchestrator params - process file in place
+                            KBOrchestratorParams params = new KBOrchestratorParams();
+                            params.setSourceName(sourceName);
+                            params.setInputFile(file.toString()); // Use file in place
+                            params.setDateTime(Instant.now().toString()); // Current timestamp
+                            params.setOutputPath(kbPath.toString());
+                            params.setProcessingMode(KBProcessingMode.PROCESS_ONLY);
                             
-                            // Check if file has been analyzed
-                            Path analyzedFile = analyzedSourcePath.resolve(baseFileName + "_analyzed.json");
+                            // Run orchestrator
+                            KBResult result = orchestrator.run(params);
                             
-                            if (Files.exists(analyzedFile)) {
-                                logger.debug("Skipping already processed file: {}/{}", sourceName, fileName);
-                                skippedFiles.add(new SkippedFile(sourceName, fileName, "Already processed"));
-                                continue;
+                            if (result.isSuccess()) {
+                                processedFiles.add(new ProcessedFile(
+                                    sourceName,
+                                    fileName,
+                                    result.getQuestionsCount(),
+                                    result.getAnswersCount(),
+                                    result.getNotesCount()
+                                ));
+                                processedSources.add(sourceName);
+                                logger.info("✓ Successfully processed (PROCESS_ONLY): {}/{} (Q:{}, A:{}, N:{})", 
+                                    sourceName, fileName, 
+                                    result.getQuestionsCount(), 
+                                    result.getAnswersCount(), 
+                                    result.getNotesCount());
+                            } else {
+                                skippedFiles.add(new SkippedFile(sourceName, fileName, result.getMessage()));
+                                logger.warn("✗ Processing failed: {}/{} - {}", sourceName, fileName, result.getMessage());
                             }
                             
-                            // Process the file in place with PROCESS_ONLY mode
-                            logger.info("Processing file (PROCESS_ONLY): {}/{}", sourceName, fileName);
-                            
-                            try {
-                                // Create orchestrator params - process file in place
-                                KBOrchestratorParams params = new KBOrchestratorParams();
-                                params.setSourceName(sourceName);
-                                params.setInputFile(file.toString()); // Use file in place
-                                params.setDateTime(Instant.now().toString()); // Current timestamp
-                                params.setOutputPath(kbPath.toString());
-                                params.setProcessingMode(KBProcessingMode.PROCESS_ONLY);
-                                
-                                // Run orchestrator
-                                KBResult result = orchestrator.run(params);
-                                
-                                if (result.isSuccess()) {
-                                    processedFiles.add(new ProcessedFile(
-                                        sourceName,
-                                        fileName,
-                                        result.getQuestionsCount(),
-                                        result.getAnswersCount(),
-                                        result.getNotesCount()
-                                    ));
-                                    processedSources.add(sourceName);
-                                    logger.info("✓ Successfully processed (PROCESS_ONLY): {}/{} (Q:{}, A:{}, N:{})", 
-                                        sourceName, fileName, 
-                                        result.getQuestionsCount(), 
-                                        result.getAnswersCount(), 
-                                        result.getNotesCount());
-                                } else {
-                                    skippedFiles.add(new SkippedFile(sourceName, fileName, result.getMessage()));
-                                    logger.warn("✗ Processing failed: {}/{} - {}", sourceName, fileName, result.getMessage());
-                                }
-                                
-                            } catch (Exception e) {
-                                String errorMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                                skippedFiles.add(new SkippedFile(sourceName, fileName, "Error: " + errorMsg));
-                                logger.error("Error processing file {}/{}: {}", sourceName, fileName, errorMsg, e);
-                            }
+                        } catch (Exception e) {
+                            String errorMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                            skippedFiles.add(new SkippedFile(sourceName, fileName, "Error: " + errorMsg));
+                            logger.error("Error processing file {}/{}: {}", sourceName, fileName, errorMsg, e);
                         }
                     }
                 }
             }
             
-            // Phase 2: Run AGGREGATE_ONLY if any files were processed
+            // Parse parameters
+            boolean shouldGenerateDescriptions = generateDescriptions == null || generateDescriptions.trim().isEmpty() || generateDescriptions.equalsIgnoreCase("true");
+            boolean useSmartAggregation = smartAggregation == null || smartAggregation.trim().isEmpty() || smartAggregation.equalsIgnoreCase("true");
+            
+            // Phase 2: Run AGGREGATE_ONLY if any files were processed and descriptions are enabled
             if (!processedFiles.isEmpty()) {
-                logger.info("Phase 2: Running AGGREGATE_ONLY for all sources");
-                try {
-                    KBOrchestratorParams aggregateParams = new KBOrchestratorParams();
-                    aggregateParams.setSourceName(null); // null means all sources
-                    aggregateParams.setOutputPath(kbPath.toString());
-                    aggregateParams.setProcessingMode(KBProcessingMode.AGGREGATE_ONLY);
-                    
-                    KBResult aggregateResult = orchestrator.run(aggregateParams);
-                    
-                    if (aggregateResult.isSuccess()) {
-                        logger.info("✓ Successfully completed AGGREGATE_ONLY phase");
-                    } else {
-                        logger.warn("✗ AGGREGATE_ONLY phase completed with warnings: {}", aggregateResult.getMessage());
+                if (shouldGenerateDescriptions) {
+                    logger.info("Phase 2: Running AGGREGATE_ONLY for all sources (smart mode: {})", useSmartAggregation);
+                    try {
+                        KBOrchestratorParams aggregateParams = new KBOrchestratorParams();
+                        aggregateParams.setSourceName(null); // null means all sources
+                        aggregateParams.setOutputPath(kbPath.toString());
+                        aggregateParams.setProcessingMode(KBProcessingMode.AGGREGATE_ONLY);
+                        aggregateParams.setSmartAggregation(useSmartAggregation);
+                        
+                        KBResult aggregateResult = orchestrator.run(aggregateParams);
+                        
+                        if (aggregateResult.isSuccess()) {
+                            logger.info("✓ Successfully completed AGGREGATE_ONLY phase");
+                        } else {
+                            logger.warn("✗ AGGREGATE_ONLY phase completed with warnings: {}", aggregateResult.getMessage());
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error during AGGREGATE_ONLY phase: {}", e.getMessage(), e);
+                        // Don't fail the entire operation - files were already processed
                     }
-                } catch (Exception e) {
-                    logger.error("Error during AGGREGATE_ONLY phase: {}", e.getMessage(), e);
-                    // Don't fail the entire operation - files were already processed
+                } else {
+                    logger.info("Skipping description generation (generate_descriptions=false)");
                 }
             }
             
