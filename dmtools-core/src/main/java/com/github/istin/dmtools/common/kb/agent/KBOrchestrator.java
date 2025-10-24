@@ -136,17 +136,28 @@ public class KBOrchestrator {
                     deletedIds.size(), params.getSourceName());
             }
             
-            // Step 3: Copy input file to inbox/raw/
+            // Step 3: Handle input file location
             Path inputFilePath = Paths.get(params.getInputFile());
+            String inputFileName = inputFilePath.getFileName().toString();
             Path rawInboxPath = outputPath.resolve("inbox/raw");
             Files.createDirectories(rawInboxPath);
             
-            String timestamp = String.valueOf(System.currentTimeMillis());
-            String inputFileName = inputFilePath.getFileName().toString();
-            Path rawCopyPath = rawInboxPath.resolve(timestamp + "_" + inputFileName);
-            Files.copy(inputFilePath, rawCopyPath);
-            createdFiles.add(rawCopyPath);
-            logger.info("Copied input file to: {}", rawCopyPath);
+            // Check if file is already in inbox/raw - if not, copy it there
+            Path rawCopyPath;
+            boolean isAlreadyInInbox = inputFilePath.startsWith(rawInboxPath);
+            
+            if (isAlreadyInInbox) {
+                // File is already in inbox/raw - use it in place
+                rawCopyPath = inputFilePath;
+                logger.info("Input file is already in inbox/raw, processing in place: {}", rawCopyPath);
+            } else {
+                // File is external - copy it to inbox/raw
+                String timestamp = String.valueOf(System.currentTimeMillis());
+                rawCopyPath = rawInboxPath.resolve(timestamp + "_" + inputFileName);
+                Files.copy(inputFilePath, rawCopyPath);
+                createdFiles.add(rawCopyPath);
+                logger.info("Copied external input file to: {}", rawCopyPath);
+            }
             
             // Step 4: Load existing KB context
             KBContext context = contextLoader.loadKBContext(outputPath);
@@ -179,10 +190,14 @@ public class KBOrchestrator {
                        (analysisEndTime - analysisStartTime) / 1000,
                        (analysisEndTime - analysisStartTime) % 1000);
             
-            // Save analyzed JSON
-            Path analyzedInboxPath = outputPath.resolve("inbox/analyzed");
+            // Save analyzed JSON to inbox/analyzed/[source]/[filename]_analyzed.json
+            Path analyzedInboxPath = outputPath.resolve("inbox/analyzed").resolve(params.getSourceName());
             Files.createDirectories(analyzedInboxPath);
-            analyzedJsonPath = analyzedInboxPath.resolve(timestamp + "_analyzed.json");
+            
+            // Remove extension from input filename and add _analyzed.json suffix
+            String baseFileName = inputFileName.replaceAll("\\.[^.]+$", "");
+            analyzedJsonPath = analyzedInboxPath.resolve(baseFileName + "_analyzed.json");
+            
             String analyzedJson = GSON.toJson(analysisResult);
             Files.writeString(analyzedJsonPath, analyzedJson);
             createdFiles.add(analyzedJsonPath);
