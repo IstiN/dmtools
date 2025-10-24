@@ -218,6 +218,15 @@ public class KBOrchestrator {
             // Step 7.7: Collect person contributions from current analysis
             Map<String, PersonContributions> personContributions = collectPersonContributions(analysisResult);
             logger.info("Collected contributions for {} people from current analysis", personContributions.size());
+            if (!personContributions.isEmpty()) {
+                logger.debug("Person contributions collected: {}", personContributions.keySet());
+                for (Map.Entry<String, PersonContributions> entry : personContributions.entrySet()) {
+                    logger.debug("  - {}: Q={}, A={}, N={}", entry.getKey(), 
+                        entry.getValue().getQuestions().size(),
+                        entry.getValue().getAnswers().size(),
+                        entry.getValue().getNotes().size());
+                }
+            }
             
             // Step 8: Build Structure (mechanical) - track created files
             structureManager.buildStructure(analysisResult, outputPath, params.getSourceName(), personContributions, logger);

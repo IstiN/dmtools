@@ -99,6 +99,12 @@ public class KBStructureManager {
                 String normalizedPerson = structureBuilder.normalizePersonName(person);
                 personStats.putIfAbsent(normalizedPerson, new PersonStatsCollector.PersonStats());
             }
+            
+            // IMPORTANT: Also add people from current analysis (personContributions)
+            // On first run, context.getExistingPeople() is empty, so we need to add people from current analysis
+            for (String person : personContributions.keySet()) {
+                personStats.putIfAbsent(person, new PersonStatsCollector.PersonStats());
+            }
 
             Map<String, List<KBContext.QuestionSummary>> questionsByPerson = new HashMap<>();
             for (KBContext.QuestionSummary summary : context.getExistingQuestions()) {
@@ -122,6 +128,10 @@ public class KBStructureManager {
             }
 
             contributions = personContributions;
+            
+            if (logger != null) {
+                logger.debug("Using personContributions: size={}, keys={}", contributions.size(), contributions.keySet());
+            }
 
             Path answersDir = outputPath.resolve("answers");
             Path notesDir = outputPath.resolve("notes");
@@ -171,6 +181,12 @@ public class KBStructureManager {
         for (Map.Entry<String, PersonStatsCollector.PersonStats> entry : personStats.entrySet()) {
             PersonStatsCollector.PersonStats stats = entry.getValue();
             PersonContributions contribution = contributions.get(entry.getKey());
+            
+            if (logger != null && contribution == null) {
+                logger.warn("No contribution found for person '{}' (key in contributions: {})", 
+                    entry.getKey(), contributions.containsKey(entry.getKey()));
+                logger.debug("Available contribution keys: {}", contributions.keySet());
+            }
             
             // Only pass sourceName if this person has contributions from current analysis
             boolean inCurrentAnalysis = peopleFromCurrentAnalysis.contains(entry.getKey());
