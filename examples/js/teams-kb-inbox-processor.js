@@ -165,79 +165,31 @@ function fetchAndSaveTeamsMessages(chatName, kbPath) {
             };
         }
         
-        let filesWritten = 0;
-        let totalSaved = 0;
+        // Always save to single file: input.json (overwrites previous content)
+        const fileName = 'input.json';
         
-        // For first sync with ASC order: split into batches of 100
-        if (isFirstSync && messageCount > 100) {
-            console.log('First sync detected - splitting', messageCount, 'messages into batches of 100');
-            
-            const batchSize = 100;
-            const batchCount = Math.ceil(messageCount / batchSize);
-            
-            for (let i = 0; i < batchCount; i++) {
-                const start = i * batchSize;
-                const end = Math.min(start + batchSize, messageCount);
-                const batch = messages.slice(start, end);
-                
-                // Generate timestamp and batch number for filename
-                const timestamp = Date.now() + i; // Increment timestamp slightly to avoid collisions
-                const fileName = timestamp + '-batch-' + (i + 1) + '-of-' + batchCount + '-messages.json';
-                
-                // Build inbox path
-                const inboxPath = kbPath ? kbPath + '/inbox/raw/' + sourceName + '/' + fileName
-                                         : 'inbox/raw/' + sourceName + '/' + fileName;
-                
-                console.log('Saving batch', (i + 1), 'of', batchCount, '(' + batch.length, 'messages) to:', inboxPath);
-                
-                // Save batch to inbox using file_write
-                const batchJson = JSON.stringify(batch, null, 2);
-                const writeResult = file_write({
-                    path: inboxPath,
-                    content: batchJson
-                });
-                
-                if (!writeResult) {
-                    throw new Error('Failed to write batch ' + (i + 1) + ' file');
-                }
-                
-                filesWritten++;
-                totalSaved += batch.length;
-            }
-            
-            console.log('✅ Saved', totalSaved, 'messages in', filesWritten, 'batches to inbox');
-            
-        } else {
-            // Incremental sync or small first sync: single file
-            const timestamp = Date.now();
-            const fileName = timestamp + '-messages.json';
-            
-            // Build inbox path
-            const inboxPath = kbPath ? kbPath + '/inbox/raw/' + sourceName + '/' + fileName
-                                     : 'inbox/raw/' + sourceName + '/' + fileName;
-            
-            console.log('Saving messages to:', inboxPath);
-            
-            // Save messages to inbox using file_write
-            const writeResult = file_write({
-                path: inboxPath,
-                content: messagesJson
-            });
-            
-            if (!writeResult) {
-                throw new Error('Failed to write messages file');
-            }
-            
-            filesWritten = 1;
-            totalSaved = messageCount;
-            console.log('✅ Saved', messageCount, 'messages to inbox');
+        // Build inbox path
+        const inboxPath = kbPath ? kbPath + '/inbox/raw/' + sourceName + '/' + fileName
+                                 : 'inbox/raw/' + sourceName + '/' + fileName;
+        
+        console.log('Saving', messageCount, 'messages to:', inboxPath);
+        
+        // Save messages to inbox using file_write
+        const writeResult = file_write({
+            path: inboxPath,
+            content: messagesJson
+        });
+        
+        if (!writeResult) {
+            throw new Error('Failed to write messages file');
         }
+        
+        console.log('✅ Saved', messageCount, 'messages to', fileName);
         
         return {
             success: true,
-            messageCount: totalSaved,
-            filesWritten: filesWritten,
-            message: 'Saved ' + totalSaved + ' messages in ' + filesWritten + ' file(s)'
+            messageCount: messageCount,
+            message: 'Saved ' + messageCount + ' messages to ' + fileName
         };
         
     } catch (error) {

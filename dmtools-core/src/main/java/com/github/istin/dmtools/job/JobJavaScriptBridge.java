@@ -69,6 +69,14 @@ public class JobJavaScriptBridge {
         this.clientInstances.put("cli", new CliCommandExecutor());  // CLI command execution for automation workflows
         this.clientInstances.put("kb", kbTools);  // Knowledge Base tools for KB management
         
+        // Initialize Teams client if configured
+        try {
+            this.clientInstances.put("teams", com.github.istin.dmtools.microsoft.teams.BasicTeamsClient.getInstance());
+            logger.debug("BasicTeamsClient initialized for JavaScript bridge");
+        } catch (Exception e) {
+            logger.debug("BasicTeamsClient not initialized: {}. Teams tools will not be available.", e.getMessage());
+        }
+        
         initializeJavaScriptContext();
     }
 

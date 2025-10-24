@@ -21,7 +21,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * MCP Tools for Knowledge Base operations.
@@ -384,8 +386,10 @@ public class KBTools {
             
             List<ProcessedFile> processedFiles = new ArrayList<>();
             List<SkippedFile> skippedFiles = new ArrayList<>();
+            Set<String> processedSources = new HashSet<>();
             
-            // Scan source folders in inbox/raw/
+            // Phase 1: Scan and process all files with PROCESS_ONLY mode
+            logger.info("Phase 1: Processing files with PROCESS_ONLY mode");
             try (DirectoryStream<Path> sourceFolders = Files.newDirectoryStream(inboxRawPath, Files::isDirectory)) {
                 for (Path sourceFolder : sourceFolders) {
                     String sourceName = sourceFolder.getFileName().toString();
@@ -408,8 +412,8 @@ public class KBTools {
                                 continue;
                             }
                             
-                            // Process the file in place
-                            logger.info("Processing file: {}/{}", sourceName, fileName);
+                            // Process the file in place with PROCESS_ONLY mode
+                            logger.info("Processing file (PROCESS_ONLY): {}/{}", sourceName, fileName);
                             
                             try {
                                 // Create orchestrator params - process file in place
@@ -418,7 +422,7 @@ public class KBTools {
                                 params.setInputFile(file.toString()); // Use file in place
                                 params.setDateTime(Instant.now().toString()); // Current timestamp
                                 params.setOutputPath(kbPath.toString());
-                                params.setProcessingMode(KBProcessingMode.FULL);
+                                params.setProcessingMode(KBProcessingMode.PROCESS_ONLY);
                                 
                                 // Run orchestrator
                                 KBResult result = orchestrator.run(params);
@@ -431,7 +435,8 @@ public class KBTools {
                                         result.getAnswersCount(),
                                         result.getNotesCount()
                                     ));
-                                    logger.info("✓ Successfully processed: {}/{} (Q:{}, A:{}, N:{})", 
+                                    processedSources.add(sourceName);
+                                    logger.info("✓ Successfully processed (PROCESS_ONLY): {}/{} (Q:{}, A:{}, N:{})", 
                                         sourceName, fileName, 
                                         result.getQuestionsCount(), 
                                         result.getAnswersCount(), 
@@ -448,6 +453,28 @@ public class KBTools {
                             }
                         }
                     }
+                }
+            }
+            
+            // Phase 2: Run AGGREGATE_ONLY if any files were processed
+            if (!processedFiles.isEmpty()) {
+                logger.info("Phase 2: Running AGGREGATE_ONLY for all sources");
+                try {
+                    KBOrchestratorParams aggregateParams = new KBOrchestratorParams();
+                    aggregateParams.setSourceName(null); // null means all sources
+                    aggregateParams.setOutputPath(kbPath.toString());
+                    aggregateParams.setProcessingMode(KBProcessingMode.AGGREGATE_ONLY);
+                    
+                    KBResult aggregateResult = orchestrator.run(aggregateParams);
+                    
+                    if (aggregateResult.isSuccess()) {
+                        logger.info("✓ Successfully completed AGGREGATE_ONLY phase");
+                    } else {
+                        logger.warn("✗ AGGREGATE_ONLY phase completed with warnings: {}", aggregateResult.getMessage());
+                    }
+                } catch (Exception e) {
+                    logger.error("Error during AGGREGATE_ONLY phase: {}", e.getMessage(), e);
+                    // Don't fail the entire operation - files were already processed
                 }
             }
             
