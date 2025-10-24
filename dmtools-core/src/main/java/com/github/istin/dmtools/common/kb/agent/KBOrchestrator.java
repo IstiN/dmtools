@@ -21,9 +21,11 @@ import javax.inject.Inject;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import com.github.istin.dmtools.common.kb.model.PersonContributions;
+import com.github.istin.dmtools.common.kb.model.Question;
+import com.github.istin.dmtools.common.kb.model.Answer;
+import com.github.istin.dmtools.common.kb.model.Note;
 
 /**
  * Main orchestration service for Knowledge Base building
@@ -213,8 +215,12 @@ public class KBOrchestrator {
             // Step 7.6: Map new answers/notes to existing unanswered questions
             qaMappingService.applyMapping(analysisResult, context, params.getQaMappingExtraInstructions(), logger);
             
+            // Step 7.7: Collect person contributions from current analysis
+            Map<String, PersonContributions> personContributions = collectPersonContributions(analysisResult);
+            logger.info("Collected contributions for {} people from current analysis", personContributions.size());
+            
             // Step 8: Build Structure (mechanical) - track created files
-            structureManager.buildStructure(analysisResult, outputPath, params.getSourceName(), null, logger);
+            structureManager.buildStructure(analysisResult, outputPath, params.getSourceName(), personContributions, logger);
 
             // Step 9: AI Aggregation (conditional based on mode)
             long start = System.nanoTime();
@@ -304,6 +310,63 @@ public class KBOrchestrator {
         
         // Return as is (plain text)
         return content;
+    }
+
+    /**
+     * Collect person contributions from analysis result
+     * Returns a map of normalized person names to their contributions (questions, answers, notes with IDs and dates)
+     */
+    private Map<String, PersonContributions> collectPersonContributions(AnalysisResult analysisResult) {
+        Map<String, PersonContributions> contributions = new HashMap<>();
+        KBStructureBuilder builder = new KBStructureBuilder();
+        
+        // Collect from questions
+        if (analysisResult.getQuestions() != null) {
+            for (Question q : analysisResult.getQuestions()) {
+                if (q.getAuthor() != null && q.getId() != null) {
+                    String normalizedAuthor = builder.normalizePersonName(q.getAuthor());
+                    PersonContributions pc = contributions.computeIfAbsent(normalizedAuthor, k -> new PersonContributions());
+                    
+                    // Get first topic as primary topic for display
+                    String topic = (q.getTopics() != null && !q.getTopics().isEmpty()) ? q.getTopics().get(0) : "general";
+                    String date = (q.getDate() != null) ? q.getDate() : "unknown";
+                    
+                    pc.getQuestions().add(new PersonContributions.ContributionItem(q.getId(), topic, date));
+                }
+            }
+        }
+        
+        // Collect from answers
+        if (analysisResult.getAnswers() != null) {
+            for (Answer a : analysisResult.getAnswers()) {
+                if (a.getAuthor() != null && a.getId() != null) {
+                    String normalizedAuthor = builder.normalizePersonName(a.getAuthor());
+                    PersonContributions pc = contributions.computeIfAbsent(normalizedAuthor, k -> new PersonContributions());
+                    
+                    String topic = (a.getTopics() != null && !a.getTopics().isEmpty()) ? a.getTopics().get(0) : "general";
+                    String date = (a.getDate() != null) ? a.getDate() : "unknown";
+                    
+                    pc.getAnswers().add(new PersonContributions.ContributionItem(a.getId(), topic, date));
+                }
+            }
+        }
+        
+        // Collect from notes
+        if (analysisResult.getNotes() != null) {
+            for (Note n : analysisResult.getNotes()) {
+                if (n.getAuthor() != null && n.getId() != null) {
+                    String normalizedAuthor = builder.normalizePersonName(n.getAuthor());
+                    PersonContributions pc = contributions.computeIfAbsent(normalizedAuthor, k -> new PersonContributions());
+                    
+                    String topic = (n.getTopics() != null && !n.getTopics().isEmpty()) ? n.getTopics().get(0) : "general";
+                    String date = (n.getDate() != null) ? n.getDate() : "unknown";
+                    
+                    pc.getNotes().add(new PersonContributions.ContributionItem(n.getId(), topic, date));
+                }
+            }
+        }
+        
+        return contributions;
     }
 
 }

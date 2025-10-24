@@ -33,9 +33,14 @@ public class KBStructureBuilder {
         Map<String, Set<String>> areaContributors = new HashMap<>();
         Map<String, Set<String>> areaTopics = new HashMap<>();
         
+        // Track which areas have contributions from the current analysis
+        Set<String> areasFromCurrentAnalysis = new HashSet<>();
+        
+        // FIRST: Collect from current analysis to identify which areas are actually from this source
         if (analysis.getQuestions() != null) {
             analysis.getQuestions().forEach(q -> {
                 if (q.getArea() != null && !q.getArea().isEmpty()) {
+                    areasFromCurrentAnalysis.add(q.getArea());
                     // Track contributors per area
                     areaContributors.computeIfAbsent(q.getArea(), k -> new HashSet<>()).add(q.getAuthor());
                     // Track topics per area
@@ -48,6 +53,7 @@ public class KBStructureBuilder {
         if (analysis.getAnswers() != null) {
             analysis.getAnswers().forEach(a -> {
                 if (a.getArea() != null && !a.getArea().isEmpty()) {
+                    areasFromCurrentAnalysis.add(a.getArea());
                     // Track contributors per area
                     areaContributors.computeIfAbsent(a.getArea(), k -> new HashSet<>()).add(a.getAuthor());
                     // Track topics per area
@@ -60,6 +66,7 @@ public class KBStructureBuilder {
         if (analysis.getNotes() != null) {
             analysis.getNotes().forEach(n -> {
                 if (n.getArea() != null && !n.getArea().isEmpty()) {
+                    areasFromCurrentAnalysis.add(n.getArea());
                     // Track contributors per area
                     if (n.getAuthor() != null) {
                         areaContributors.computeIfAbsent(n.getArea(), k -> new HashSet<>()).add(n.getAuthor());
@@ -72,21 +79,68 @@ public class KBStructureBuilder {
             });
         }
         
+        // THEN: Collect contributors and topics from existing area files (for incremental updates)
+        Path areasDir = outputPath.resolve("areas");
+        if (Files.exists(areasDir)) {
+            try (java.util.stream.Stream<Path> areaDirs = Files.list(areasDir)) {
+                areaDirs.filter(Files::isDirectory).forEach(areaDir -> {
+                    try {
+                        String areaId = areaDir.getFileName().toString();
+                        Path areaFile = areaDir.resolve(areaId + ".md");
+                        if (Files.exists(areaFile)) {
+                            String content = Files.readString(areaFile);
+                            
+                            // Extract area title from frontmatter
+                            String areaTitle = extractFromFrontmatter(content, "title");
+                            if (areaTitle != null) {
+                                
+                                // Extract existing contributors
+                                List<String> existingContributors = extractListFromFrontmatter(content, "contributors");
+                                if (!existingContributors.isEmpty()) {
+                                    areaContributors.computeIfAbsent(areaTitle, k -> new HashSet<>()).addAll(existingContributors);
+                                }
+                                
+                                // Extract existing topics from content (after ## Topics)
+                                java.util.regex.Pattern topicsPattern = java.util.regex.Pattern.compile("##\\s+Topics\\s+(.+?)(?=##|<!--|$)", java.util.regex.Pattern.DOTALL);
+                                java.util.regex.Matcher topicsMatcher = topicsPattern.matcher(content);
+                                if (topicsMatcher.find()) {
+                                    String topicsSection = topicsMatcher.group(1);
+                                    // Extract topic names from links: [[topic-id|Topic Name]]
+                                    java.util.regex.Pattern linkPattern = java.util.regex.Pattern.compile("\\[\\[([^|\\]]+)\\|([^\\]]+)\\]\\]");
+                                    java.util.regex.Matcher linkMatcher = linkPattern.matcher(topicsSection);
+                                    while (linkMatcher.find()) {
+                                        String topicName = linkMatcher.group(2).trim();
+                                        areaTopics.computeIfAbsent(areaTitle, k -> new HashSet<>()).add(topicName);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (IOException e) {
+                        logger.warn("Failed to read area file: {}", areaDir, e);
+                    }
+                });
+            }
+        }
+        
         // Create directory and files for each area
+        Files.createDirectories(areasDir);
         for (String area : areaContributors.keySet()) {
             String areaId = slugify(area);
-            Path areaDir = outputPath.resolve("areas").resolve(areaId);
+            Path areaDir = areasDir.resolve(areaId);
             Files.createDirectories(areaDir);
             
             // Get contributors and topics for this area
             List<String> contributors = new ArrayList<>(areaContributors.getOrDefault(area, Collections.emptySet()));
             List<String> topics = new ArrayList<>(areaTopics.getOrDefault(area, Collections.emptySet()));
             
-            // Create main area file (always recreate to ensure all topics/contributors are included)
+            // Create main area file
             Path areaFile = areaDir.resolve(areaId + ".md");
             Path areaDescFile = areaDir.resolve(areaId + "-desc.md");
             
-            createAreaFileWithTopics(areaFile, areaDescFile, area, areaId, sourceName, contributors, topics);
+            // Only pass sourceName if this area has contributions from current analysis
+            String sourceToAdd = areasFromCurrentAnalysis.contains(area) ? sourceName : null;
+            
+            createAreaFileWithTopics(areaFile, areaDescFile, area, areaId, sourceToAdd, contributors, topics);
         }
     }
     
@@ -391,6 +445,33 @@ public class KBStructureBuilder {
             }
         }
         return sources;
+    }
+    
+    /**
+     * Extract list from frontmatter (e.g., contributors, tags)
+     */
+    private List<String> extractListFromFrontmatter(String content, String fieldName) {
+        List<String> items = new ArrayList<>();
+        // Match field: [item1, item2] or field: item1
+        Pattern pattern = Pattern.compile(fieldName + ":\\s*\\[([^\\]]+)\\]");
+        Matcher matcher = pattern.matcher(content);
+        if (matcher.find()) {
+            String itemsStr = matcher.group(1);
+            for (String item : itemsStr.split(",")) {
+                String cleaned = item.trim().replace("\"", "").replace("'", "");
+                if (!cleaned.isEmpty()) {
+                    items.add(cleaned);
+                }
+            }
+        } else {
+            // Try single item: field: "item1"
+            pattern = Pattern.compile(fieldName + ":\\s*\"?([^\\n\"]+)\"?");
+            matcher = pattern.matcher(content);
+            if (matcher.find()) {
+                items.add(matcher.group(1).trim());
+            }
+        }
+        return items;
     }
     
     /**
@@ -1015,13 +1096,21 @@ public class KBStructureBuilder {
     
     /**
      * Extract value from frontmatter
+     * Removes surrounding quotes from the extracted value
      */
     private String extractFromFrontmatter(String content, String key) {
         String pattern = key + ":\\s*(.+)";
         Pattern p = Pattern.compile(pattern);
         Matcher m = p.matcher(content);
         if (m.find()) {
-            return m.group(1).trim();
+            String value = m.group(1).trim();
+            // Remove surrounding quotes (single or double)
+            if (value.startsWith("\"") && value.endsWith("\"")) {
+                value = value.substring(1, value.length() - 1);
+            } else if (value.startsWith("'") && value.endsWith("'")) {
+                value = value.substring(1, value.length() - 1);
+            }
+            return value;
         }
         return null;
     }
