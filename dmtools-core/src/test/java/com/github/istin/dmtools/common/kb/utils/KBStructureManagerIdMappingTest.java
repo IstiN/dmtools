@@ -242,6 +242,99 @@ class KBStructureManagerIdMappingTest {
     }
 
     /**
+     * CRITICAL REGRESSION TEST: Verify questions are NOT duplicated when they belong to multiple topics.
+     * 
+     * Bug scenario (from user's screenshot):
+     * - q_0006 has 2 topics: "enterprise-jira-limitations" and "workflow-management"
+     * - PersonContributions collected q_0006 twice (once per topic)
+     * - Profile showed: q_0006, q_0006 (duplicate!)
+     * 
+     * Expected: q_0006 should appear only once, regardless of how many topics it has.
+     */
+    @Test
+    void testNoDuplicates_WhenQuestionHasMultipleTopics() throws Exception {
+        // GIVEN: Question with 2 topics
+        AnalysisResult analysis = new AnalysisResult();
+        Question q = new Question();
+        q.setId("q_1");  // Will be mapped to q_0001
+        q.setAuthor("Aliaksandr Raukuts");
+        q.setArea("enterprise");
+        q.setTopics(Arrays.asList("enterprise-jira-limitations", "workflow-management"));
+        q.setDate("2025-10-24T10:00:00Z");
+        
+        analysis.setQuestions(Arrays.asList(q));
+        analysis.setAnswers(Arrays.asList());
+        analysis.setNotes(Arrays.asList());
+        
+        // WHEN: Process (this creates files and profiles)
+        structureManager.buildStructure(analysis, tempDir, "session_1", null, logger);
+        
+        // THEN: Person profile should show q_0001 ONLY ONCE, not twice
+        Path profileFile = tempDir.resolve("people/Aliaksandr_Raukuts/Aliaksandr_Raukuts.md");
+        assertTrue(Files.exists(profileFile), "Profile should exist");
+        
+        String content = Files.readString(profileFile);
+        
+        System.out.println("=== Profile Content ===");
+        System.out.println(content);
+        System.out.println("=== End ===");
+        
+        // Count exact link occurrences
+        int linkCount = countOccurrences(content, "[[../../questions/q_0001|q_0001]]");
+        assertEquals(1, linkCount, 
+            "q_0001 should appear EXACTLY ONCE in profile, even though it has 2 topics. Found: " + linkCount);
+        
+        // Verify frontmatter
+        assertTrue(content.contains("questionsAsked: 1"), 
+            "Frontmatter should show 1 question (not 2)");
+        
+        // Verify Topics section
+        assertTrue(content.contains("## Topics"), "Should have Topics section");
+        assertTrue(content.contains("enterprise-jira-limitations"), "Should list first topic");
+        assertTrue(content.contains("workflow-management"), "Should list second topic");
+        
+        // Topic count should be 1 (unique Q/A/N count, not topic assignments)
+        // enterprise-jira-limitations appears in 1 question
+        // workflow-management appears in 1 question (same question!)
+        String topicsSection = content.substring(content.indexOf("## Topics"));
+        assertTrue(topicsSection.contains("1 contribution") || topicsSection.contains("2 contributions"), 
+            "Topics section should show contribution counts");
+    }
+
+    /**
+     * TEST: Verify same behavior for answers with multiple topics
+     */
+    @Test
+    void testNoDuplicates_WhenAnswerHasMultipleTopics() throws Exception {
+        // GIVEN: Answer with 3 topics
+        AnalysisResult analysis = new AnalysisResult();
+        Answer a = new Answer();
+        a.setId("a_1");  // Will be mapped to a_0001
+        a.setAuthor("Developer");
+        a.setArea("coding");
+        a.setTopics(Arrays.asList("java", "kotlin", "spring"));
+        a.setDate("2025-10-24T10:00:00Z");
+        
+        analysis.setQuestions(Arrays.asList());
+        analysis.setAnswers(Arrays.asList(a));
+        analysis.setNotes(Arrays.asList());
+        
+        // WHEN: Process
+        structureManager.buildStructure(analysis, tempDir, "session_1", null, logger);
+        
+        // THEN: Profile should show a_0001 only once
+        Path profileFile = tempDir.resolve("people/Developer/Developer.md");
+        String content = Files.readString(profileFile);
+        
+        int linkCount = countOccurrences(content, "[[../../answers/a_0001|a_0001]]");
+        assertEquals(1, linkCount, 
+            "a_0001 should appear EXACTLY ONCE, even with 3 topics. Found: " + linkCount);
+        
+        assertTrue(content.contains("answersProvided: 1"), 
+            "Frontmatter should show 1 answer");
+    }
+
+    /**
      * Helper to count link occurrences (not just substring)
      */
     private int countOccurrences(String text, String substring) {

@@ -373,8 +373,12 @@ public class KBStructureBuilder {
     }
     
     /**
-     * Sort contributions by ID number for consistent ordering
+     * Sort contributions by ID number for consistent ordering AND deduplicate by ID.
      * IDs are in format: q_0001, a_0002, n_0003, etc.
+     * 
+     * CRITICAL: When a Q/A/N belongs to multiple topics, it appears multiple times in contributions.
+     * Example: q_0006 has 2 topics → appears twice in getQuestions()
+     * We must deduplicate to show each Q/A/N only once in person profile.
      */
     private void sortContributionsByIdNumber(PersonContributions contributions) {
         Comparator<PersonContributions.ContributionItem> idComparator = (a, b) -> {
@@ -383,12 +387,34 @@ public class KBStructureBuilder {
             return Integer.compare(numA, numB);
         };
         
-        contributions.getQuestions().sort(idComparator);
-        contributions.getAnswers().sort(idComparator);
-        contributions.getNotes().sort(idComparator);
+        // CRITICAL: Deduplicate by ID first, then sort
+        // Use LinkedHashMap to preserve insertion order during deduplication
+        contributions.setQuestions(deduplicateAndSort(contributions.getQuestions(), idComparator));
+        contributions.setAnswers(deduplicateAndSort(contributions.getAnswers(), idComparator));
+        contributions.setNotes(deduplicateAndSort(contributions.getNotes(), idComparator));
 
         // Sort topics by count (descending) for more useful display
         contributions.getTopics().sort((a, b) -> Integer.compare(b.getCount(), a.getCount()));
+    }
+    
+    /**
+     * Deduplicate contribution items by ID and sort them.
+     * If a Q/A/N appears multiple times (due to multiple topics), keep only the first occurrence.
+     */
+    private List<PersonContributions.ContributionItem> deduplicateAndSort(
+            List<PersonContributions.ContributionItem> items,
+            Comparator<PersonContributions.ContributionItem> comparator) {
+        
+        // Use LinkedHashMap to deduplicate while preserving first occurrence
+        Map<String, PersonContributions.ContributionItem> deduped = new LinkedHashMap<>();
+        for (PersonContributions.ContributionItem item : items) {
+            deduped.putIfAbsent(item.getId(), item);
+        }
+        
+        // Convert to list and sort
+        List<PersonContributions.ContributionItem> result = new ArrayList<>(deduped.values());
+        result.sort(comparator);
+        return result;
     }
     
     /**
