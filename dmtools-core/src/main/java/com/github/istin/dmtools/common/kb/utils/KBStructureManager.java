@@ -95,15 +95,17 @@ public class KBStructureManager {
             KBContext context = contextLoader.loadKBContext(outputPath);
             personStats = new HashMap<>();
             for (String person : context.getExistingPeople()) {
-                personStats.putIfAbsent(person, new PersonStatsCollector.PersonStats());
+                // Normalize person name to match peopleFromCurrentAnalysis format
+                String normalizedPerson = structureBuilder.normalizePersonName(person);
+                personStats.putIfAbsent(normalizedPerson, new PersonStatsCollector.PersonStats());
             }
 
             Map<String, List<KBContext.QuestionSummary>> questionsByPerson = new HashMap<>();
             for (KBContext.QuestionSummary summary : context.getExistingQuestions()) {
                 String author = summary.getAuthor();
                 if (author != null) {
-                    // Normalize author name to match directory format (replace spaces with underscores)
-                    String normalizedAuthor = author.replace(" ", "_");
+                    // Normalize author name using the same method as peopleFromCurrentAnalysis
+                    String normalizedAuthor = structureBuilder.normalizePersonName(author);
                     questionsByPerson.computeIfAbsent(normalizedAuthor, key -> new ArrayList<>()).add(summary);
                 }
             }
@@ -132,8 +134,8 @@ public class KBStructureManager {
                                     String content = Files.readString(path);
                                     String author = statsCollector.extractAuthor(content);
                                     if (author != null) {
-                                        // Normalize author name to match directory format
-                                        String normalizedAuthor = author.replace(" ", "_");
+                                        // Normalize author name using the same method as peopleFromCurrentAnalysis
+                                        String normalizedAuthor = structureBuilder.normalizePersonName(author);
                                         PersonStatsCollector.PersonStats stats = personStats.computeIfAbsent(normalizedAuthor, k -> new PersonStatsCollector.PersonStats());
                                         stats.answers++;
                                     }
@@ -151,8 +153,8 @@ public class KBStructureManager {
                                     String content = Files.readString(path);
                                     String author = statsCollector.extractAuthor(content);
                                     if (author != null) {
-                                        // Normalize author name to match directory format
-                                        String normalizedAuthor = author.replace(" ", "_");
+                                        // Normalize author name using the same method as peopleFromCurrentAnalysis
+                                        String normalizedAuthor = structureBuilder.normalizePersonName(author);
                                         PersonStatsCollector.PersonStats stats = personStats.computeIfAbsent(normalizedAuthor, k -> new PersonStatsCollector.PersonStats());
                                         stats.notes++;
                                     }
@@ -171,16 +173,23 @@ public class KBStructureManager {
             PersonContributions contribution = contributions.get(entry.getKey());
             
             // Only pass sourceName if this person has contributions from current analysis
-            String sourceToAdd = peopleFromCurrentAnalysis.contains(entry.getKey()) ? sourceName : null;
+            boolean inCurrentAnalysis = peopleFromCurrentAnalysis.contains(entry.getKey());
+            String sourceToAdd = inCurrentAnalysis ? sourceName : null;
             
             if (logger != null) {
-                logger.debug("Processing person '{}': inCurrentAnalysis={}, sourceToAdd={}, stats=[Q:{}, A:{}, N:{}]",
+                logger.debug("Processing person '{}': inCurrentAnalysis={}, sourceToAdd={}, stats=[Q:{}, A:{}, N:{}], key='{}', peopleSet contains key={}",
                         entry.getKey(),
-                        peopleFromCurrentAnalysis.contains(entry.getKey()),
+                        inCurrentAnalysis,
                         sourceToAdd,
                         stats.questions,
                         stats.answers,
-                        stats.notes);
+                        stats.notes,
+                        entry.getKey(),
+                        peopleFromCurrentAnalysis.contains(entry.getKey()));
+                if (!inCurrentAnalysis && entry.getKey().contains("Tarasevich")) {
+                    logger.debug("DEBUG: peopleFromCurrentAnalysis={}", peopleFromCurrentAnalysis);
+                    logger.debug("DEBUG: Looking for key='{}' in set", entry.getKey());
+                }
             }
             
             structureBuilder.buildPersonProfile(

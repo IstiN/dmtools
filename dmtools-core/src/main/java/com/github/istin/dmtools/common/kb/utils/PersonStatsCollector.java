@@ -93,15 +93,17 @@ public class PersonStatsCollector {
                  .filter(p -> p.getFileName().toString().endsWith(".md"))
                  .forEach(file -> {
                      try {
-                         String content = Files.readString(file);
-                         String author = parser.extractAuthor(content);
-                         if (author != null) {
-                             PersonStats stat = stats.computeIfAbsent(author, k -> new PersonStats());
-                             updater.update(stat);
-                         }
-                     } catch (IOException e) {
-                         logger.warn("Failed to read file: {}", file, e);
-                     }
+                        String content = Files.readString(file);
+                        String author = parser.extractAuthor(content);
+                        if (author != null) {
+                            // Normalize author name to match peopleFromCurrentAnalysis format
+                            String normalizedAuthor = structureBuilder.normalizePersonName(author);
+                            PersonStats stat = stats.computeIfAbsent(normalizedAuthor, k -> new PersonStats());
+                            updater.update(stat);
+                        }
+                    } catch (IOException e) {
+                        logger.warn("Failed to read file: {}", file, e);
+                    }
                  });
         }
         
