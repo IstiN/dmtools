@@ -22,13 +22,16 @@ public class PersonStatsCollector {
     
     private static final Logger logger = LogManager.getLogger(PersonStatsCollector.class);
     
-    @Getter
     private final KBFileParser parser;
     private final KBStructureBuilder structureBuilder;
     
     public PersonStatsCollector(KBFileParser parser, KBStructureBuilder structureBuilder) {
         this.parser = parser;
         this.structureBuilder = structureBuilder;
+    }
+    
+    public KBFileParser getFileParser() {
+        return parser;
     }
 
     public String extractAuthor(String content) {

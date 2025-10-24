@@ -5,6 +5,7 @@ import com.github.istin.dmtools.common.kb.KBStructureBuilder;
 import com.github.istin.dmtools.common.kb.model.*;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -187,19 +188,13 @@ public class KBStructureManager {
                     }
                 }
                 
-                // Merge topics (accumulate counts)
-                Map<String, Integer> topicCounts = new HashMap<>();
-                for (PersonContributions.TopicContribution t : merged.getTopics()) {
-                    topicCounts.put(t.getTopicId(), t.getCount());
-                }
-                for (PersonContributions.TopicContribution t : newContribs.getTopics()) {
-                    topicCounts.merge(t.getTopicId(), t.getCount(), Integer::sum);
-                }
-                merged.getTopics().clear();
-                for (Map.Entry<String, Integer> tc : topicCounts.entrySet()) {
-                    merged.getTopics().add(new PersonContributions.TopicContribution(tc.getKey(), tc.getValue()));
-                }
+                // NOTE: Topics will be recalculated from files after merge, not merged here
+                // because the topic counts may be incorrect (based on first topic only in some cases)
             }
+            
+            // CRITICAL: Recalculate topic contributions from ALL files (current + existing)
+            // This ensures we count ALL topics per Q/A/N, not just the first one
+            recalculateTopicContributionsFromFiles(contributions, outputPath);
             
             if (logger != null) {
                 logger.debug("Merged contributions: size={}, keys={}", contributions.size(), contributions.keySet());
@@ -496,28 +491,212 @@ public class KBStructureManager {
             }
         }
         
-        // Calculate topic contributions
-        for (PersonContributions pc : contributions.values()) {
-            Map<String, Integer> topicCounts = new HashMap<>();
-            
-            // Count contributions per topic
-            for (PersonContributions.ContributionItem item : pc.getQuestions()) {
-                topicCounts.merge(item.getTopic(), 1, Integer::sum);
-            }
-            for (PersonContributions.ContributionItem item : pc.getAnswers()) {
-                topicCounts.merge(item.getTopic(), 1, Integer::sum);
-            }
-            for (PersonContributions.ContributionItem item : pc.getNotes()) {
-                topicCounts.merge(item.getTopic(), 1, Integer::sum);
-            }
-            
-            // Convert to TopicContribution list
-            List<PersonContributions.TopicContribution> topicList = topicCounts.entrySet().stream()
-                    .map(e -> new PersonContributions.TopicContribution(e.getKey(), e.getValue()))
-                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-            pc.setTopics(topicList);
-        }
+        // Calculate topic contributions from analysisResult directly to count ALL topics per Q/A/N
+        // CRITICAL: Don't use ContributionItem.topic which only stores the first topic!
+        // A question with 2 topics should contribute to BOTH topic counts.
+        calculateTopicContributionsFromAnalysis(contributions, analysisResult);
         
         return contributions;
+    }
+    
+    /**
+     * Recalculate topic contributions by reading ALL Q/A/N files from disk.
+     * CRITICAL: Use this after merging contributions to ensure topic counts are correct.
+     * Counts ALL topics per Q/A/N (not just the first one).
+     * 
+     * Example: q_0006 has topics ["enterprise-jira-limitations", "workflow-management"]
+     * Should contribute 1 to EACH topic, not just the first one.
+     */
+    private void recalculateTopicContributionsFromFiles(
+            Map<String, PersonContributions> contributions,
+            Path outputPath) {
+        
+        // Initialize topic counts per person
+        Map<String, Map<String, Integer>> personTopicCounts = new HashMap<>();
+        for (String person : contributions.keySet()) {
+            personTopicCounts.put(person, new HashMap<>());
+        }
+        
+        // Read questions directory
+        Path questionsDir = outputPath.resolve("questions");
+        if (Files.exists(questionsDir)) {
+            try (java.util.stream.Stream<Path> files = Files.list(questionsDir)) {
+                files.filter(Files::isRegularFile)
+                     .filter(p -> p.getFileName().toString().endsWith(".md"))
+                     .forEach(file -> {
+                         try {
+                             String content = Files.readString(file);
+                             String author = statsCollector.getFileParser().extractAuthor(content);
+                             List<String> topics = statsCollector.getFileParser().extractTopics(content);
+                             
+                             if (author != null && topics != null && !topics.isEmpty()) {
+                                 String normalizedAuthor = structureBuilder.normalizePersonName(author);
+                                 Map<String, Integer> topicCounts = personTopicCounts.get(normalizedAuthor);
+                                 if (topicCounts != null) {
+                                     for (String topic : topics) {
+                                         String topicSlug = structureBuilder.slugify(topic);
+                                         topicCounts.merge(topicSlug, 1, Integer::sum);
+                                     }
+                                 }
+                             }
+                         } catch (IOException e) {
+                             // Skip files that can't be read
+                         }
+                     });
+            } catch (IOException e) {
+                // Skip if directory doesn't exist or can't be read
+            }
+        }
+        
+        // Read answers directory
+        Path answersDir = outputPath.resolve("answers");
+        if (Files.exists(answersDir)) {
+            try (java.util.stream.Stream<Path> files = Files.list(answersDir)) {
+                files.filter(Files::isRegularFile)
+                     .filter(p -> p.getFileName().toString().endsWith(".md"))
+                     .forEach(file -> {
+                         try {
+                             String content = Files.readString(file);
+                             String author = statsCollector.getFileParser().extractAuthor(content);
+                             List<String> topics = statsCollector.getFileParser().extractTopics(content);
+                             
+                             if (author != null && topics != null && !topics.isEmpty()) {
+                                 String normalizedAuthor = structureBuilder.normalizePersonName(author);
+                                 Map<String, Integer> topicCounts = personTopicCounts.get(normalizedAuthor);
+                                 if (topicCounts != null) {
+                                     for (String topic : topics) {
+                                         String topicSlug = structureBuilder.slugify(topic);
+                                         topicCounts.merge(topicSlug, 1, Integer::sum);
+                                     }
+                                 }
+                             }
+                         } catch (IOException e) {
+                             // Skip files that can't be read
+                         }
+                     });
+            } catch (IOException e) {
+                // Skip if directory doesn't exist or can't be read
+            }
+        }
+        
+        // Read notes directory
+        Path notesDir = outputPath.resolve("notes");
+        if (Files.exists(notesDir)) {
+            try (java.util.stream.Stream<Path> files = Files.list(notesDir)) {
+                files.filter(Files::isRegularFile)
+                     .filter(p -> p.getFileName().toString().endsWith(".md"))
+                     .forEach(file -> {
+                         try {
+                             String content = Files.readString(file);
+                             String author = statsCollector.getFileParser().extractAuthor(content);
+                             List<String> topics = statsCollector.getFileParser().extractTopics(content);
+                             
+                             if (author != null && topics != null && !topics.isEmpty()) {
+                                 String normalizedAuthor = structureBuilder.normalizePersonName(author);
+                                 Map<String, Integer> topicCounts = personTopicCounts.get(normalizedAuthor);
+                                 if (topicCounts != null) {
+                                     for (String topic : topics) {
+                                         String topicSlug = structureBuilder.slugify(topic);
+                                         topicCounts.merge(topicSlug, 1, Integer::sum);
+                                     }
+                                 }
+                             }
+                         } catch (IOException e) {
+                             // Skip files that can't be read
+                         }
+                     });
+            } catch (IOException e) {
+                // Skip if directory doesn't exist or can't be read
+            }
+        }
+        
+        // Update PersonContributions with recalculated topic counts
+        for (Map.Entry<String, PersonContributions> entry : contributions.entrySet()) {
+            Map<String, Integer> topicCounts = personTopicCounts.get(entry.getKey());
+            if (topicCounts != null && !topicCounts.isEmpty()) {
+                List<PersonContributions.TopicContribution> topicList = topicCounts.entrySet().stream()
+                        .map(e -> new PersonContributions.TopicContribution(e.getKey(), e.getValue()))
+                        .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+                entry.getValue().setTopics(topicList);
+            }
+        }
+    }
+    
+    /**
+     * Calculate topic contributions from analysis result.
+     * CRITICAL: Goes directly to analysisResult to count ALL topics per Q/A/N.
+     * ContributionItem.topic only stores the first topic, which loses multi-topic information.
+     * 
+     * Example: q_0006 has topics ["enterprise-jira-limitations", "workflow-management"]
+     * Should contribute 1 to EACH topic, not just the first one.
+     */
+    private void calculateTopicContributionsFromAnalysis(
+            Map<String, PersonContributions> contributions,
+            AnalysisResult analysisResult) {
+        
+        // Initialize topic counts per person
+        Map<String, Map<String, Integer>> personTopicCounts = new HashMap<>();
+        for (String person : contributions.keySet()) {
+            personTopicCounts.put(person, new HashMap<>());
+        }
+        
+        // Count from questions (using ALL topics per question)
+        if (analysisResult.getQuestions() != null) {
+            for (Question q : analysisResult.getQuestions()) {
+                if (q.getAuthor() != null && q.getTopics() != null) {
+                    String normalizedAuthor = structureBuilder.normalizePersonName(q.getAuthor());
+                    Map<String, Integer> topicCounts = personTopicCounts.get(normalizedAuthor);
+                    if (topicCounts != null) {
+                        for (String topic : q.getTopics()) {
+                            String topicSlug = structureBuilder.slugify(topic);
+                            topicCounts.merge(topicSlug, 1, Integer::sum);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Count from answers (using ALL topics per answer)
+        if (analysisResult.getAnswers() != null) {
+            for (Answer a : analysisResult.getAnswers()) {
+                if (a.getAuthor() != null && a.getTopics() != null) {
+                    String normalizedAuthor = structureBuilder.normalizePersonName(a.getAuthor());
+                    Map<String, Integer> topicCounts = personTopicCounts.get(normalizedAuthor);
+                    if (topicCounts != null) {
+                        for (String topic : a.getTopics()) {
+                            String topicSlug = structureBuilder.slugify(topic);
+                            topicCounts.merge(topicSlug, 1, Integer::sum);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Count from notes (using ALL topics per note)
+        if (analysisResult.getNotes() != null) {
+            for (Note n : analysisResult.getNotes()) {
+                if (n.getAuthor() != null && n.getTopics() != null) {
+                    String normalizedAuthor = structureBuilder.normalizePersonName(n.getAuthor());
+                    Map<String, Integer> topicCounts = personTopicCounts.get(normalizedAuthor);
+                    if (topicCounts != null) {
+                        for (String topic : n.getTopics()) {
+                            String topicSlug = structureBuilder.slugify(topic);
+                            topicCounts.merge(topicSlug, 1, Integer::sum);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Convert to TopicContribution lists
+        for (Map.Entry<String, PersonContributions> entry : contributions.entrySet()) {
+            Map<String, Integer> topicCounts = personTopicCounts.get(entry.getKey());
+            if (topicCounts != null && !topicCounts.isEmpty()) {
+                List<PersonContributions.TopicContribution> topicList = topicCounts.entrySet().stream()
+                        .map(e -> new PersonContributions.TopicContribution(e.getKey(), e.getValue()))
+                        .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+                entry.getValue().setTopics(topicList);
+            }
+        }
     }
 }
