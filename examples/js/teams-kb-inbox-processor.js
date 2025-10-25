@@ -367,8 +367,8 @@ function action(params) {
         console.log('Processing inbox...');
         const inboxResult = kb_process_inbox({
             output_path: kbPath,
-            generate_descriptions: params.generateDescriptions !== false ? 'true' : 'false',
-            smart_aggregation: params.smartAggregation !== false ? 'true' : 'false'
+            generate_descriptions: jobParams.generateDescriptions !== false ? 'true' : 'false',
+            smart_aggregation: jobParams.smartAggregation !== false ? 'true' : 'false'
         });
         
         console.log('Inbox processing result:', inboxResult);
