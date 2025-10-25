@@ -267,8 +267,9 @@ public class KBTools {
     /**
      * Generate AI descriptions for existing KB structure (without processing new data).
      * 
-     * @param sourceName Name of the data source (required for proper tagging)
+     * @param sourceName Optional: Filter to only regenerate for specific source. If null/empty, regenerates for ALL sources.
      * @param outputPath Optional path to KB directory. If not provided, uses DMTOOLS_KB_OUTPUT_PATH env var or current directory
+     * @param smartMode Optional: Only regenerate descriptions if Q/A/N files have changed. Default: true.
      * @return JSON string with build results including counts and status
      */
     @MCPTool(
@@ -279,8 +280,8 @@ public class KBTools {
     public String kbAggregate(
             @MCPParam(
                 name = "source_name",
-                description = "Name of the data source (required for proper tagging)",
-                required = true,
+                description = "Optional: Filter to only regenerate for specific source. If null/empty, regenerates for ALL sources (recommended for description regeneration).",
+                required = false,
                 example = "teams_chat"
             ) String sourceName,
             @MCPParam(
