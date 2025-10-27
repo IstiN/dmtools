@@ -5,12 +5,19 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [cursor-agent options] "prompt"
 
+Runs cursor-agent with the provided options and prompt.
+
 Example:
+  $(basename "$0") "process the input folder"
   $(basename "$0") --force --print --model sonnet-4.5 "process the input folder"
 
 Notes:
-  - The script always appends --output-format=json to the cursor-agent command.
-  - Provide the prompt as the final argument; everything before it is passed through.
+  - Provide the prompt as the final argument
+  - All other arguments are passed through to cursor-agent
+  - Default options: --force --print --model sonnet-4.5 --output-format=text
+  - Output is visible in real-time when run directly in terminal
+  - Final response is written to outputs/response.md by cursor-agent
+  - Note: When called from Java/dmtools, output may be buffered until completion
 EOF
 }
 
@@ -24,59 +31,37 @@ if ! command -v cursor-agent >/dev/null 2>&1; then
   exit 127
 fi
 
-PROMPT=${!#}
+# Extract prompt (last argument)
+PROMPT="${!#}"
+
 if [ -z "$PROMPT" ]; then
   echo "Error: prompt argument is required" >&2
   usage
   exit 1
 fi
 
-PASS_ARGS=("${@:1:$#-1}")
-
-LOG_FILE=$(mktemp)
-PIPE_PATH=$(mktemp -u)
-mkfifo "$PIPE_PATH"
-
-cleanup() {
-  rm -f "$LOG_FILE" "$PIPE_PATH" || true
-}
-trap cleanup EXIT
-
-CMD=(cursor-agent --force --print --model sonnet-4.5 "${PASS_ARGS[@]+"${PASS_ARGS[@]}"}" --output-format=json "$PROMPT")
-
-echo "Running: ${CMD[*]}"
-
-tee "$LOG_FILE" <"$PIPE_PATH" &
-TEE_PID=$!
-
-"${CMD[@]}" >"$PIPE_PATH" 2>&1 &
-AGENT_PID=$!
-
-exit_code=1
-
-while kill -0 "$AGENT_PID" 2>/dev/null; do
-  if grep -q '"type"\s*:\s*"result"' "$LOG_FILE"; then
-    RESULT_LINE=$(grep '"type"\s*:\s*"result"' "$LOG_FILE" | tail -1)
-    echo "Detected result event:"
-    echo "$RESULT_LINE"
-    kill -TERM "$AGENT_PID" 2>/dev/null || true
-    wait "$AGENT_PID" 2>/dev/null || true
-    exit_code=0
-    break
-  fi
-  sleep 1
-done
-
-if kill -0 "$AGENT_PID" 2>/dev/null; then
-  wait "$AGENT_PID"
-  exit_code=$?
+# Get all arguments except the last one (the prompt)
+PASS_ARGS=()
+if [ $# -gt 1 ]; then
+  PASS_ARGS=("${@:1:$#-1}")
 fi
 
-wait "$TEE_PID" 2>/dev/null || true
+# Build command with defaults if no options provided
+if [ ${#PASS_ARGS[@]} -eq 0 ]; then
+  CMD=(cursor-agent --force --print --model sonnet-4.5 --output-format=text "$PROMPT")
+else
+  CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=text "$PROMPT")
+fi
+
+echo "Running: ${CMD[*]}"
+echo ""
+
+# Execute cursor-agent directly
+"${CMD[@]}"
+
+exit_code=$?
 
 echo ""
-echo "=== Cursor Agent log ==="
-cat "$LOG_FILE"
+echo "=== Cursor Agent completed with exit code: $exit_code ==="
 
 exit $exit_code
-

@@ -18,12 +18,8 @@ permissions:
 jobs:
   cursor-agent:
     runs-on: ubuntu-latest
-    # Generate unique job ID based on config_file and encoded_config
-    name: cursor-agent-${{ github.run_id }}-${{ github.run_attempt }}
-    # Prevent parallel execution of jobs with same config inputs
-    # Note: GitHub Actions supports special chars in concurrency groups
     concurrency:
-      group: cursor-agent-${{ inputs.config_file }}-${{ inputs.encoded_config }}
+      group: cursor-agent-${{ inputs.config_file }}
       cancel-in-progress: false
     
     steps:
@@ -67,7 +63,7 @@ jobs:
     - name: Build and Install DMTools CLI from source
       run: |
         dmtools || echo "dmtools version failed"
-        cursor-agent --version || echo "dmtools version failed"
+        cursor-agent --version || echo "cursor-agent version failed"
 
     - name: Run AI Teammate
       env:
@@ -89,7 +85,7 @@ jobs:
         CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
 
         # DMTools Integration Settings
-        DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai"
+        DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai,cli,file"
 
         # AI Service Configuration
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -98,6 +94,10 @@ jobs:
         FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
         FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
         ENCODED_CONFIG: ${{ inputs.encoded_config }}
+        
+        # GitHub Authentication for PR creation
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       run: |
         echo "Using configuration: ${{ inputs.config_file }}"

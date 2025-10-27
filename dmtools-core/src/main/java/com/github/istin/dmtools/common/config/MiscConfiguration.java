@@ -6,9 +6,7 @@ package com.github.istin.dmtools.common.config;
  */
 public interface MiscConfiguration extends 
         RallyConfiguration, 
-        AppCenterConfiguration, 
-        FigmaConfiguration, 
-        FirebaseConfiguration, 
+        FigmaConfiguration,
         MetricsConfiguration {
     
     /**

@@ -332,16 +332,6 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     }
     
     @Override
-    public String getAppCenterToken() {
-        return propertyReader.getAppCenterToken();
-    }
-    
-    @Override
-    public String getAppCenterOrganization() {
-        return propertyReader.getAppCenterOrganization();
-    }
-    
-    @Override
     public String getFigmaBasePath() {
         return propertyReader.getFigmaBasePath();
     }
@@ -372,12 +362,28 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     }
     
     @Override
-    public String getFirebaseProjectId() {
-        return propertyReader.getFirebaseProjectId();
+    public String getOllamaBasePath() {
+        return propertyReader.getOllamaBasePath();
     }
     
     @Override
-    public String getFirebaseServiceAccountJsonAuth() {
-        return propertyReader.getFirebaseServiceAccountJsonAuth();
+    public String getOllamaModel() {
+        return propertyReader.getOllamaModel();
     }
-} 
+    
+    @Override
+    public int getOllamaNumCtx() {
+        return propertyReader.getOllamaNumCtx();
+    }
+    
+    @Override
+    public int getOllamaNumPredict() {
+        return propertyReader.getOllamaNumPredict();
+    }
+    
+    @Override
+    public String getDefaultLLM() {
+        return propertyReader.getDefaultLLM();
+    }
+    
+}

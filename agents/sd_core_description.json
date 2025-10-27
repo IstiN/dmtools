@@ -22,6 +22,7 @@
         "Assess if additional core implementation subtasks are needed beyond solution design based on parent story acceptance criteria coverage",
         "Set coreSubtaskCreation: true if some of acceptance criterias are not covered automatically and implementation is needed, false if according to description all acceptance criterias are covered automatically by existing implementation",
         "if you did not understand the task, or you can't finish it with right quality or you can't read something and understand **IMPORTANT** you must mention that in updated description keeping initial content. You must not delete important content then from description.",
+        "**IMPORTANT** Implementation details is out of scope here. Focus on highlevel solution design",
         "**IMPORTANT** your response must be in JSON format."
       ],
       "knownInfo" : "",
@@ -29,7 +30,7 @@
       "fewShots" : "{\n  \"description\": \"*Purpose:*\\nEnhanced technical description following SD CORE template...\\n\\n*Technical Requirements:*\\n- Component details...\\n\\n*Story AC Coverage:*\\n- AC1: Covered by...\",\n  \"coreSubtaskCreation\": true,\n  \"diagram\": \"graph TD\\n    A[User Request] --> B[Workflow Engine]\\n    B --> C[AI Analysis]\\n    C --> D[Enhanced Description]\\n    D --> E[Jira Update]\"\n}"
     },
     "cliCommands" : [
-      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** implementation details and development is not part of the task. Follow instructions from input.request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request. **IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
+      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** implementation details and development is not part of the task. You must not write code here. Follow instructions from input.request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request. **IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
     ],
     "outputType" : "none",
     "ticketContextDepth" : 0,

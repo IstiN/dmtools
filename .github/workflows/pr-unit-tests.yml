@@ -4,6 +4,12 @@ on:
   pull_request:
     branches: [ main, develop ]
     types: [ opened, synchronize, reopened, ready_for_review ]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to run tests for'
+        required: true
+        type: string
 
 jobs:
   unit-tests:
@@ -15,10 +21,31 @@ jobs:
       pull-requests: write # Required for PR comments
 
     steps:
+      - name: Determine PR number
+        id: pr-info
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "PR_NUMBER=${{ inputs.pr_number }}" >> $GITHUB_OUTPUT
+            echo "Manual trigger for PR #${{ inputs.pr_number }}"
+          else
+            echo "PR_NUMBER=${{ github.event.number }}" >> $GITHUB_OUTPUT
+            echo "Automatic trigger for PR #${{ github.event.number }}"
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      
+      - name: Checkout PR branch (for manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_BRANCH=$(gh pr view ${{ inputs.pr_number }} --json headRefName -q .headRefName)
+          echo "Checking out PR branch: $PR_BRANCH"
+          git fetch origin "$PR_BRANCH"
+          git checkout "$PR_BRANCH"
 
       - name: Setup Java Environment
         uses: ./.github/actions/setup-java-only
@@ -278,7 +305,7 @@ jobs:
             fi
             
             echo "" >> failure-summary.md
-            echo "**Context:** This analysis was generated for PR #${{ github.event.number }} on branch ${{ github.head_ref }}" >> failure-summary.md
+            echo "**Context:** This analysis was generated for PR #${{ steps.pr-info.outputs.PR_NUMBER }} on branch ${{ github.head_ref || 'unknown' }}" >> failure-summary.md
             echo "**Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> failure-summary.md
             
             # Also add to step summary (only summary for human readability)
@@ -350,7 +377,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-results-pr-${{ github.event.number }}
+          name: unit-test-results-pr-${{ steps.pr-info.outputs.PR_NUMBER }}
           path: |
             build/reports/tests/test
             build/test-results/test
@@ -460,8 +487,9 @@ jobs:
             comment += '\n[View full test results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
             comment += '\n[Download build logs and test results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
             
+            const prNumber = '${{ steps.pr-info.outputs.PR_NUMBER }}';
             github.rest.issues.createComment({
-              issue_number: context.issue.number,
+              issue_number: parseInt(prNumber),
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: comment

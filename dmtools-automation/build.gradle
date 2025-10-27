@@ -19,8 +19,8 @@ repositories {
 
 // Define versions for automation dependencies
 def versions = [
-    selenium : '4.11.0',
-    appium   : '8.3.0',
+    selenium : '4.34.0',
+    appium   : '9.5.0',
     playwright: '1.50.0'
 ]
 
@@ -35,7 +35,6 @@ dependencies {
     
     // Appium for Mobile Automation
     api("io.appium:java-client:${versions.appium}") {
-        exclude group: 'org.seleniumhq.selenium'
         exclude group: 'com.google.guava'
     }
     
@@ -43,9 +42,12 @@ dependencies {
     api "com.microsoft.playwright:playwright:${versions.playwright}"
     
     // WebDriver Manager for automatic driver management
-    api('io.github.bonigarcia:webdrivermanager:5.9.2') {
+    api('io.github.bonigarcia:webdrivermanager:6.3.2') {
         exclude group: 'com.google.guava'
     }
+    
+    // Apache Commons Exec for process execution
+    api 'org.apache.commons:commons-exec:1.4.0'
     
     // Testing dependencies
     testImplementation 'junit:junit:4.13.2'
@@ -56,7 +58,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
-configurations.all {
+configurations.configureEach {
     resolutionStrategy {
         // Force specific versions for key dependencies to avoid conflicts
         force "org.seleniumhq.selenium:selenium-java:${versions.selenium}"
@@ -88,6 +90,6 @@ shadowJar {
     zip64 = true
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }

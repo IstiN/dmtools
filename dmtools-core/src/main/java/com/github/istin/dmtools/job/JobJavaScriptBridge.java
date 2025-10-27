@@ -2,8 +2,10 @@ package com.github.istin.dmtools.job;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
+import com.github.istin.dmtools.cli.CliCommandExecutor;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
+import com.github.istin.dmtools.file.FileTools;
 import com.github.istin.dmtools.mcp.generated.MCPSchemaGenerator;
 import com.github.istin.dmtools.mcp.generated.MCPToolExecutor;
 import org.apache.commons.io.IOUtils;
@@ -42,6 +44,7 @@ public class JobJavaScriptBridge {
     private final AI ai;
     private final Confluence confluence;
     private final SourceCode sourceCode;
+    private final com.github.istin.dmtools.common.kb.tool.KBTools kbTools;
     private final Map<String, String> resourceCache = new ConcurrentHashMap<>();
     private final Map<String, Object> moduleCache = new ConcurrentHashMap<>();
     private Context jsContext;
@@ -49,11 +52,12 @@ public class JobJavaScriptBridge {
     private String currentScriptDirectory;
 
     @Inject
-    public JobJavaScriptBridge(TrackerClient<?> trackerClient, AI ai, Confluence confluence, SourceCode sourceCode) {
+    public JobJavaScriptBridge(TrackerClient<?> trackerClient, AI ai, Confluence confluence, SourceCode sourceCode, com.github.istin.dmtools.common.kb.tool.KBTools kbTools) {
         this.trackerClient = trackerClient;
         this.ai = ai;
         this.confluence = confluence;
         this.sourceCode = sourceCode;
+        this.kbTools = kbTools;
         
         // Prepare client instances for MCP executor
         // Note: The MCP system expects specific integration keys regardless of actual implementation
@@ -61,6 +65,17 @@ public class JobJavaScriptBridge {
         this.clientInstances.put("jira", trackerClient);  // MCP expects "jira" key for any tracker implementation
         this.clientInstances.put("ai", ai);
         this.clientInstances.put("confluence", confluence);
+        this.clientInstances.put("file", new FileTools());  // File operations for reading files from working directory
+        this.clientInstances.put("cli", new CliCommandExecutor());  // CLI command execution for automation workflows
+        this.clientInstances.put("kb", kbTools);  // Knowledge Base tools for KB management
+        
+        // Initialize Teams client if configured
+        try {
+            this.clientInstances.put("teams", com.github.istin.dmtools.microsoft.teams.BasicTeamsClient.getInstance());
+            logger.debug("BasicTeamsClient initialized for JavaScript bridge");
+        } catch (Exception e) {
+            logger.debug("BasicTeamsClient not initialized: {}. Teams tools will not be available.", e.getMessage());
+        }
         
         initializeJavaScriptContext();
     }
@@ -199,7 +214,7 @@ public class JobJavaScriptBridge {
      */
     private void exposeMCPToolsUsingGenerated() {
         // Get all available integrations dynamically based on what's actually configured
-        Set<String> integrations = Set.of("jira", "ai", "confluence", "figma");
+        Set<String> integrations = Set.of("jira", "ai", "confluence", "figma", "file", "cli", "teams", "sharepoint", "kb");
         
         // Generate tool schemas using MCP infrastructure
         Map<String, Object> toolsResponse = MCPSchemaGenerator.generateToolsListResponse(integrations);

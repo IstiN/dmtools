@@ -4,7 +4,6 @@ import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import com.github.istin.dmtools.qa.automation.playwright.PlaywrightBridge;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.URL;
@@ -13,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-@Ignore("Disabled - Playwright integration test causing issues in CI")
 public class ShadowDomTest {
     private AutomationTester tester;
     private String testPageUrl;
@@ -29,9 +27,13 @@ public class ShadowDomTest {
     @Test
     public void testClearingOfPage() {
         String screenSource = tester.getScreenSource();
-        System.out.println(screenSource);
-        System.out.println(" ====== cleared ===== ");
-        System.out.println(HtmlCleaner.cleanOnlyStylesAndSizes(screenSource));
+        // Note: Commented out to avoid XML test result writing issues
+        // System.out.println(screenSource);
+        // System.out.println(" ====== cleared ===== ");
+        // System.out.println(HtmlCleaner.cleanOnlyStylesAndSizes(screenSource));
+        assertNotNull("Screen source should not be null", screenSource);
+        String cleaned = HtmlCleaner.cleanOnlyStylesAndSizes(screenSource);
+        assertNotNull("Cleaned HTML should not be null", cleaned);
     }
 
     @After
