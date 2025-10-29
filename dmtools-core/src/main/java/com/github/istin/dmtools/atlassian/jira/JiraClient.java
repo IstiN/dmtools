@@ -299,7 +299,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return new GenericRequest(this, path("issue/" + key + "?expand=changelog&fields=summary"));
     }
 
-    protected T createTicket(String body) {
+    @Override
+    public T createTicket(String body) {
         return (T) new Ticket(body);
     }
 
