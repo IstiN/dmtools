@@ -108,15 +108,41 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     public List<TestCasesResult> runJob(TestCasesGeneratorParams params) throws Exception {
         final List<TestCasesResult> result = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
-            List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
-            TicketContext ticketContext = new TicketContext(trackerClient, ticket);
-            ticketContext.prepareContext(false, params.isIncludeOtherTicketReferences());
-            String additionalRules = extractFromConfluence(params.getConfluencePages());
-            result.add(generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params));
-            trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
+            try {
+                List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
+                TicketContext ticketContext = new TicketContext(trackerClient, ticket);
+                ticketContext.prepareContext(false, params.isIncludeOtherTicketReferences());
+                String additionalRules = extractFromConfluence(params.getConfluencePages());
+                result.add(generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params));
+                trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
+            } catch (Exception e) {
+                String errorMessage = String.format("%s, test case generation failed with error: %s\n\nStack trace:\n%s", 
+                    trackerClient.tag(params.getInitiator()),
+                    e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
+                    getStackTraceAsString(e, 10));
+                try {
+                    trackerClient.postComment(ticket.getTicketKey(), errorMessage);
+                } catch (Exception commentException) {
+                    System.err.println("Failed to post error comment to ticket " + ticket.getTicketKey() + ": " + commentException.getMessage());
+                }
+                throw new RuntimeException("Test case generation failed for ticket " + ticket.getTicketKey(), e);
+            }
             return false;
         }, params.getInputJql(), trackerClient.getExtendedQueryFields());
         return result;
+    }
+
+    private String getStackTraceAsString(Exception e, int maxLines) {
+        StringBuilder sb = new StringBuilder();
+        StackTraceElement[] stackTrace = e.getStackTrace();
+        int linesToShow = Math.min(maxLines, stackTrace.length);
+        for (int i = 0; i < linesToShow; i++) {
+            sb.append(stackTrace[i].toString()).append("\n");
+        }
+        if (stackTrace.length > maxLines) {
+            sb.append("... (").append(stackTrace.length - maxLines).append(" more lines)");
+        }
+        return sb.toString();
     }
 
     public TestCasesResult generateTestCases(TicketContext ticketContext, String extraRules, List<? extends ITicket> listOfAllTestCases, TestCasesGeneratorParams params) throws Exception {
@@ -352,7 +378,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             for (int j = 0; j < testCaseKeys.length(); j++) {
                 String testCaseKey = testCaseKeys.getString(j);
                 ITicket testCase = listOfAllTestCases.stream().filter(t -> t.getKey().equals(testCaseKey)).findFirst().orElse(null);
-                if (testCase != null) {
+                if (testCase != null && !finaResults.contains(testCase)) {
                     boolean isConfirmed = relatedTestCaseAgent.run(new RelatedTestCaseAgent.Params(ticketText, testCase.toText(), extraRelatedTestCaseRulesFromConfluence));
                     if (isConfirmed) {
                         finaResults.add(testCase);
