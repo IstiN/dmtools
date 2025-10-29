@@ -26,8 +26,16 @@ jobs:
         run: |
           mkdir -p cli-release
           
+          # Verify CLI JAR exists
+          if [ ! -f build-artifacts/dmtools-cli.jar ]; then
+            echo "ERROR: CLI JAR not found in build artifacts"
+            echo "Available files:"
+            ls -lh build-artifacts/
+            exit 1
+          fi
+          
           # Copy CLI JAR with version in filename
-          cp build-artifacts/dmtools-*-all.jar cli-release/dmtools-v${{ inputs.version }}-all.jar
+          cp build-artifacts/dmtools-cli.jar cli-release/dmtools-v${{ inputs.version }}-all.jar
           
           # Copy scripts
           cp build-artifacts/install.sh cli-release/

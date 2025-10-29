@@ -33,9 +33,17 @@ jobs:
       
       - name: Restore Server JAR to Expected Location
         run: |
+          # Verify Server JAR exists
+          if [ ! -f build-artifacts/dmtools-server.jar ]; then
+            echo "ERROR: Server JAR not found in build artifacts"
+            echo "Available files:"
+            ls -lh build-artifacts/
+            exit 1
+          fi
+          
           # The standalone script expects the JAR at dmtools-server/build/libs/
           mkdir -p dmtools-server/build/libs
-          cp build-artifacts/dmtools-server-*.jar dmtools-server/build/libs/
+          cp build-artifacts/dmtools-server.jar dmtools-server/build/libs/dmtools-server-${{ inputs.version }}.jar
           
           echo "Server JAR restored:"
           ls -lh dmtools-server/build/libs/

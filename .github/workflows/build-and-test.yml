@@ -198,11 +198,25 @@ jobs:
         run: |
           mkdir -p build-artifacts
           
-          # Copy CLI JAR
-          cp dmtools-core/build/libs/dmtools-*-all.jar build-artifacts/ || echo "CLI JAR not found"
+          # Copy CLI JAR (rename for consistency)
+          CLI_JAR=$(ls dmtools-core/build/libs/*-all.jar 2>/dev/null | head -1)
+          if [ -n "$CLI_JAR" ]; then
+            cp "$CLI_JAR" build-artifacts/dmtools-cli.jar
+            echo "CLI JAR: $CLI_JAR -> build-artifacts/dmtools-cli.jar"
+          else
+            echo "ERROR: CLI JAR not found"
+            exit 1
+          fi
           
-          # Copy Server JAR
-          cp dmtools-server/build/libs/dmtools-server-*.jar build-artifacts/ || echo "Server JAR not found"
+          # Copy Server JAR (rename for consistency)
+          SERVER_JAR=$(ls dmtools-server/build/libs/dmtools-server-*.jar 2>/dev/null | head -1)
+          if [ -n "$SERVER_JAR" ]; then
+            cp "$SERVER_JAR" build-artifacts/dmtools-server.jar
+            echo "Server JAR: $SERVER_JAR -> build-artifacts/dmtools-server.jar"
+          else
+            echo "ERROR: Server JAR not found"
+            exit 1
+          fi
           
           # Copy scripts
           cp install.sh build-artifacts/
