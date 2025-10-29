@@ -109,6 +109,11 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
     }
 
     @Override
+    public PdfPageAsTicket createTicket(String body) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String createTicketInProject(String project, String issueType, String summary, String description, FieldsInitializer fieldsInitializer) throws IOException {
         throw new UnsupportedOperationException();
     }

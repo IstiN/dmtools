@@ -9,8 +9,6 @@ import com.github.istin.dmtools.ai.agent.RelatedTestCasesAgent;
 import com.github.istin.dmtools.ai.agent.TestCaseDeduplicationAgent;
 import com.github.istin.dmtools.ai.agent.TestCaseGeneratorAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
-import com.github.istin.dmtools.atlassian.jira.model.Fields;
-import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
@@ -109,7 +107,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         final List<TestCasesResult> result = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
             try {
-                List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), new String[]{Fields.SUMMARY, Fields.DESCRIPTION});
+                List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), params.getTestCasesRelatedFields());
                 TicketContext ticketContext = new TicketContext(trackerClient, ticket);
                 ticketContext.prepareContext(false, params.isIncludeOtherTicketReferences());
                 String additionalRules = extractFromConfluence(params.getConfluencePages());
@@ -119,7 +117,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 String errorMessage = String.format("%s, test case generation failed with error: %s\n\nStack trace:\n%s", 
                     trackerClient.tag(params.getInitiator()),
                     e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
-                    getStackTraceAsString(e, 10));
+                    getStackTraceAsString(e));
                 try {
                     trackerClient.postComment(ticket.getTicketKey(), errorMessage);
                 } catch (Exception commentException) {
@@ -132,9 +130,10 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         return result;
     }
 
-    private String getStackTraceAsString(Exception e, int maxLines) {
+    private String getStackTraceAsString(Exception e) {
         StringBuilder sb = new StringBuilder();
         StackTraceElement[] stackTrace = e.getStackTrace();
+        int maxLines = 10;
         int linesToShow = Math.min(maxLines, stackTrace.length);
         for (int i = 0; i < linesToShow; i++) {
             sb.append(stackTrace[i].toString()).append("\n");
@@ -163,7 +162,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         int tokenLimit = (systemTokenLimits - storyTokens)/2;
         System.out.println("GENERATION TOKEN LIMIT: " + tokenLimit);
         List<TestCaseGeneratorAgent.TestCase> newTestCases;
-        String examples = unpackExamples(params.getExamples());
+        String examples = unpackExamples(params.getExamples(), params.getTestCasesExampleFields());
 
         if (!finaResults.isEmpty()) {
             // Chunk existing test cases for generation
@@ -186,11 +185,15 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 System.out.println("Generated " + chunkTestCases.size() + " test cases from chunk");
             }
 
-            // Deduplicate results - reuse testCaseChunks instead of converting to text again
-            newTestCases = deduplicateInChunks(
-                    allGeneratedTestCases,
-                    testCaseChunks
-            );
+            if (testCaseChunks.size() > 1) {
+                // Deduplicate results - reuse testCaseChunks instead of converting to text again
+                newTestCases = deduplicateInChunks(
+                        allGeneratedTestCases,
+                        testCaseChunks
+                );
+            } else {
+                newTestCases = allGeneratedTestCases;
+            }
             System.out.println("Final deduplicated test cases: " + newTestCases.size());
         } else {
             newTestCases = testCaseGeneratorAgent.run(
@@ -200,7 +203,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                             ticketContext.toText(),
                             extraRules,
                             params.isOverridePromptExamples(),
-                            examples //TODO and apply in prompt, and ignore linking via parameter but think about checks of relationships
+                            examples
                     )
             );
         }
@@ -219,7 +222,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 if (params.isConvertToJiraMarkdown()) {
                     description = StringUtils.convertToMarkdown(description);
                 }
-                Ticket createdTestCase = new Ticket(trackerClient.createTicketInProject(projectCode, params.getTestCaseIssueType(), testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
+                ITicket createdTestCase = trackerClient.createTicket(trackerClient.createTicketInProject(projectCode, params.getTestCaseIssueType(), testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
                     @Override
                     public void init(TrackerClient.TrackerTicketFields fields) {
                         fields.set("priority",
@@ -235,13 +238,13 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         return new TestCasesResult(ticketContext.getTicket().getKey(), finaResults, newTestCases);
     }
 
-    public String unpackExamples(String examples) throws Exception {
+    public String unpackExamples(String examples, String[] testCasesExamplesFields) throws Exception {
         String unpackedExamples;
         if (examples.startsWith("https://")) {
             unpackedExamples = extractFromConfluence(examples);
         } else if (examples.startsWith("ql(")) {
             String ql = examples.substring(3, examples.length() - 1);
-            List<? extends ITicket> tickets = trackerClient.searchAndPerform(ql, new String[]{Fields.SUMMARY, Fields.DESCRIPTION, Fields.PRIORITY});
+            List<? extends ITicket> tickets = trackerClient.searchAndPerform(ql, testCasesExamplesFields);
 
             JSONArray examplesArray = new JSONArray();
             for (ITicket ticket : tickets) {

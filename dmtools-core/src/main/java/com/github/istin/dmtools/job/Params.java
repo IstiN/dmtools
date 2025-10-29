@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.job;
 
+import com.github.istin.dmtools.atlassian.jira.model.Fields;
 import com.github.istin.dmtools.common.ai.config.AIPromptConfig;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
 import com.github.istin.dmtools.common.tracker.model.TrackerConfig;
@@ -28,6 +29,8 @@ public class Params extends TrackerParams {
     public static final String TRACKER_ITERATIONS = "trackerIterations";
     public static final String REQUEST_DECOMPOSITION_CHUNK_PROCESSING = "requestDecompositionChunkProcessing";
     public static final String POST_ACTION = "postJSAction";
+    public static final String TEST_CASES_EXAMPLE_FIELDS = "testCasesExampleFields";
+    public static final String TEST_CASES_RELATED_FIELDS = "testCasesRelatedFields";
 
     @SerializedName(IS_CODE_AS_SOURCE)
     private boolean isCodeAsSource = false;
@@ -39,6 +42,12 @@ public class Params extends TrackerParams {
     private boolean isTrackerAsSource = false;
     @SerializedName(TRANSFORM_CONFLUENCE_PAGES_TO_MARKDOWN)
     private boolean transformConfluencePagesToMarkdown = true;
+
+    @SerializedName(TEST_CASES_EXAMPLE_FIELDS)
+    private String[] testCasesExampleFields = new String[] {Fields.SUMMARY, Fields.DESCRIPTION, Fields.PRIORITY};
+
+    @SerializedName(TEST_CASES_RELATED_FIELDS)
+    private String[] testCasesRelatedFields = new String[] {Fields.SUMMARY, Fields.DESCRIPTION};
 
     @SerializedName(CONFLUENCE_PAGES)
     private String[] confluencePages;

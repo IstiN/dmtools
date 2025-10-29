@@ -54,7 +54,7 @@ public class JiraClientTest {
             }
 
             @Override
-            protected Ticket createTicket(String body) {
+            public Ticket createTicket(String body) {
                 return new Ticket(body);
             }
 
