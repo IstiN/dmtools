@@ -1,0 +1,1 @@
+**IMPORTANT** Response must be valid JSON object with keys: description (string with enhanced SD CORE technical description in Jira Markdown), coreSubtaskCreation (boolean indicating if additional core implementation work needed), diagram (string with valid Mermaid diagram syntax)
