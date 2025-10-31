@@ -25,7 +25,7 @@ public class FigmaClientMcpToolsIntegrationTest {
     private static final Logger logger = LoggerFactory.getLogger(FigmaClientMcpToolsIntegrationTest.class);
     
     // Replace with your test URL for local testing (DO NOT COMMIT)
-    private static final String TEST_FIGMA_URL = "REPLACE_WITH_YOUR_TEST_URL";
+    private static final String TEST_FIGMA_URL = "https://www.figma.com/design/5sR5fH4Vp9jmSXVI2M3OUo/Business-App?node-id=26032-397193&t=yrriuD2fNYqRmhpW-4";
     
     private BasicFigmaClient figmaClient;
 
@@ -340,6 +340,55 @@ public class FigmaClientMcpToolsIntegrationTest {
     }
 
     @Test
+    @Order(6)
+    @DisplayName("Test figma_download_image_of_file MCP tool")
+    public void testFigmaDownloadImageOfFile() throws Exception {
+        // Skip test if URL is not configured
+        if ("REPLACE_WITH_YOUR_TEST_URL".equals(TEST_FIGMA_URL)) {
+            logger.warn("Skipping test - TEST_FIGMA_URL not configured");
+            return;
+        }
+        
+        logger.info("Testing figma_download_image_of_file with URL: {}", TEST_FIGMA_URL);
+        
+        FigmaClient figmaClient = new BasicFigmaClient();
+        File file = figmaClient.convertUrlToFile(TEST_FIGMA_URL);
+
+        // Verify file was downloaded successfully
+        assertNotNull(file, "File should not be null");
+        assertTrue(file.exists(), "Downloaded file should exist: " + file.getAbsolutePath());
+        assertTrue(file.isFile(), "Should be a regular file, not a directory");
+        assertTrue(file.length() > 0, "File should not be empty");
+        
+        // Verify it's a PNG image
+        String fileName = file.getName();
+        assertTrue(fileName.endsWith(".png"), "File should be a PNG image: " + fileName);
+        
+        logger.info("✅ Successfully downloaded image file:");
+        logger.info("   Path: {}", file.getAbsolutePath());
+        logger.info("   Size: {} bytes", file.length());
+        logger.info("   Name: {}", fileName);
+        
+        // Verify file content by checking PNG header
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+            byte[] header = new byte[8];
+            int bytesRead = fis.read(header);
+            
+            assertEquals(8, bytesRead, "Should read 8 bytes for PNG header");
+            
+            // PNG header: 89 50 4E 47 0D 0A 1A 0A
+            assertEquals((byte) 0x89, header[0], "PNG header byte 0");
+            assertEquals((byte) 0x50, header[1], "PNG header byte 1 ('P')");
+            assertEquals((byte) 0x4E, header[2], "PNG header byte 2 ('N')");
+            assertEquals((byte) 0x47, header[3], "PNG header byte 3 ('G')");
+            
+            logger.info("✅ Verified PNG file header is correct");
+        }
+        
+        logger.info("figma_download_image_of_file test completed successfully");
+    }
+
+    @Test
     @DisplayName("Explore JSON structure to find actual icons")
     public void testExploreJsonStructure() throws Exception {
         System.out.println("=== EXPLORING FIGMA JSON STRUCTURE ===");
@@ -366,6 +415,8 @@ public class FigmaClientMcpToolsIntegrationTest {
         // Force assertion to ensure we found something
         assertTrue(fileResponse.hasNodesResponse(), "Should have nodes response");
     }
+
+
     
     private void exploreNodeStructure(FigmaFileDocument node, int depth) {
         String indent = "  ".repeat(depth);
