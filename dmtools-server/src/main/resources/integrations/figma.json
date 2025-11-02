@@ -18,7 +18,7 @@
       "required": false,
       "sensitive": false,
       "inputType": "url",
-      "defaultValue": "https://api.figma.com",
+      "defaultValue": "https://api.figma.com/",
       "validation": {
         "pattern": "^https?://.*"
       }

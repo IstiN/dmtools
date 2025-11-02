@@ -1017,12 +1017,29 @@ public class IntegrationService {
                 return errorResult;
             }
             
+            // Normalize base path to handle all variants:
+            // https://api.figma.com       → https://api.figma.com/v1
+            // https://api.figma.com/      → https://api.figma.com/v1
+            // https://api.figma.com/v1    → https://api.figma.com/v1
+            // https://api.figma.com/v1/   → https://api.figma.com/v1
+            basePath = basePath.trim();
+            
+            // Remove trailing slashes
+            while (basePath.endsWith("/")) {
+                basePath = basePath.substring(0, basePath.length() - 1);
+            }
+            
+            // Add /v1 if not present
+            if (!basePath.endsWith("/v1")) {
+                basePath = basePath + "/v1";
+            }
+            
             // Create a basic HTTP client to test connection
             HttpClient httpClient = HttpClient.newHttpClient();
             
             // Test basic connectivity to Figma
             HttpRequest testRequest = HttpRequest.newBuilder()
-                .uri(URI.create(basePath + "/v1/me"))
+                .uri(URI.create(basePath + "/me"))
                 .header("X-Figma-Token", token)
                 .header("Accept", "application/json")
                 .GET()
