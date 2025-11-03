@@ -48,6 +48,91 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
         super(basePath, authorization);
     }
 
+    /**
+     * Normalizes Figma API base path to ensure consistent URL format.
+     * Handles all common variations of base path configuration.
+     * 
+     * @param basePath The raw base path from configuration
+     * @return Normalized base path (e.g., "https://api.figma.com/v1")
+     * 
+     * Examples:
+     * - "https://api.figma.com"       → "https://api.figma.com/v1"
+     * - "https://api.figma.com/"      → "https://api.figma.com/v1"
+     * - "https://api.figma.com/v1"    → "https://api.figma.com/v1"
+     * - "https://api.figma.com/v1/"   → "https://api.figma.com/v1"
+     */
+    public static String normalizeBasePath(String basePath) {
+        if (basePath == null) {
+            return "https://api.figma.com/v1";
+        }
+        
+        // Trim whitespace
+        basePath = basePath.trim();
+        
+        // Remove trailing slashes
+        while (basePath.endsWith("/")) {
+            basePath = basePath.substring(0, basePath.length() - 1);
+        }
+        
+        // Add /v1 if not present
+        if (!basePath.endsWith("/v1")) {
+            basePath = basePath + "/v1";
+        }
+        
+        return basePath;
+    }
+
+    /**
+     * Gets current user information from Figma API using the /me endpoint.
+     * This method can be used both for connection testing and retrieving user details.
+     * 
+     * @return Map containing results with keys:
+     *         - success: boolean indicating if the request was successful
+     *         - message: descriptive message about the result
+     *         - user: user information (id, handle, email) if successful
+     *         - error: error type if failed
+     */
+    public Map<String, Object> me() {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            String path = path("me");
+            GenericRequest getRequest = new GenericRequest(this, path);
+            String response = execute(getRequest);
+            
+            if (response != null && !response.isEmpty()) {
+                JSONObject jsonResponse = new JSONObject(response);
+                
+                if (jsonResponse.has("id") || jsonResponse.has("handle")) {
+                    result.put("success", true);
+                    result.put("message", "Figma API connection successful");
+                    
+                    // Add user details
+                    Map<String, Object> userDetails = new HashMap<>();
+                    userDetails.put("id", jsonResponse.optString("id", "unknown"));
+                    userDetails.put("handle", jsonResponse.optString("handle", "unknown"));
+                    if (jsonResponse.has("email")) {
+                        userDetails.put("email", jsonResponse.optString("email"));
+                    }
+                    result.put("user", userDetails);
+                } else {
+                    result.put("success", false);
+                    result.put("message", "Unexpected response format from Figma API");
+                }
+            } else {
+                result.put("success", false);
+                result.put("message", "Empty response from Figma API");
+            }
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "Figma API connection failed: " + e.getMessage());
+            result.put("error", e.getClass().getSimpleName());
+            logger.warn("Figma connection test failed", e);
+        }
+        
+        return result;
+    }
+
     @Override
     public String path(String path) {
         String basePath = getBasePath();

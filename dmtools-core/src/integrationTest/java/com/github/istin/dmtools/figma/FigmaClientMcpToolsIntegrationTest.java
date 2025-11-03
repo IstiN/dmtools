@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.figma;
 
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.figma.model.FigmaIcon;
 import com.github.istin.dmtools.figma.model.FigmaIconsResult;
 import com.github.istin.dmtools.figma.model.FigmaFileResponse;
@@ -35,13 +36,14 @@ public class FigmaClientMcpToolsIntegrationTest {
     private static final Logger logger = LoggerFactory.getLogger(FigmaClientMcpToolsIntegrationTest.class);
     
     // Replace with your test URL for local testing (DO NOT COMMIT)
-    private static final String TEST_FIGMA_URL = "REPLACE_WITH_YOUR_TEST_URL";
+    private static String TEST_FIGMA_URL = "REPLACE_WITH_YOUR_TEST_URL";
     
     private BasicFigmaClient figmaClient;
 
     @BeforeEach
     void setUp() throws Exception {
         // Initialize BasicFigmaClient for testing
+        TEST_FIGMA_URL = new PropertyReader().getValue("FIGMA_TEST_URL", TEST_FIGMA_URL);
         figmaClient = new BasicFigmaClient();
         logger.info("BasicFigmaClient initialized");
         logger.info("Using Figma base path: {}", figmaClient.getBasePath());

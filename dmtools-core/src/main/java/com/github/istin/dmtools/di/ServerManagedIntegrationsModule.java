@@ -459,7 +459,7 @@ public class ServerManagedIntegrationsModule {
                     (key.toLowerCase().contains("token") ? "[SENSITIVE]" : value));
             }
             
-            String basePath = figmaConfig.optString("FIGMA_BASE_PATH", "https://api.figma.com/v1/");
+            String basePath = figmaConfig.optString("FIGMA_BASE_PATH", "https://api.figma.com");
             String token = figmaConfig.optString("FIGMA_TOKEN", null);
             
             if (token == null) {
@@ -467,9 +467,18 @@ public class ServerManagedIntegrationsModule {
                 return null;
             }
             
-            System.out.println("✅ [ServerManagedIntegrationsModule] Creating FigmaClient with basePath=" + basePath);
+            // Normalize base path using FigmaClient's static method
+            basePath = FigmaClient.normalizeBasePath(basePath);
             
-            return new FigmaClient(basePath, token);
+            System.out.println("✅ [ServerManagedIntegrationsModule] Creating FigmaClient with normalized basePath=" + basePath);
+            
+            FigmaClient figmaClient = new FigmaClient(basePath, token);
+            
+            // Clear cache to ensure fresh data for server-managed execution
+            figmaClient.setClearCache(true);
+            System.out.println("✅ [ServerManagedIntegrationsModule] FigmaClient configured with cache clearing enabled for fresh data");
+            
+            return figmaClient;
             
         } catch (Exception e) {
             System.err.println("❌ [ServerManagedIntegrationsModule] Failed to provide Figma integration: " + e.getMessage());
