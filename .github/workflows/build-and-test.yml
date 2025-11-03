@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: main
       
       - name: Setup Java Environment
         uses: ./.github/actions/setup-java-only
