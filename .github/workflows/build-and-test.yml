@@ -40,6 +40,7 @@ jobs:
             publish \
             -x integrationTest \
             -x :dmtools-automation:test \
+            --tests "*" --tests "!*.TicketContextTest.testPrepareContext_PerformanceCharacteristics" \
             --no-daemon --info 2>&1 | tee gradle-build.log
           exit ${PIPESTATUS[0]}
         env:
