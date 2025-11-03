@@ -156,6 +156,11 @@ jobs:
           MACOS_X64_SIZE=$(du -h standalone/bundles/dmtools-standalone-macos-x64.zip | cut -f1)
           WINDOWS_X64_SIZE=$(du -h standalone/bundles/dmtools-standalone-windows-x64.zip | cut -f1)
           
+          # Get API-only bundle sizes
+          API_MACOS_ARM_SIZE=$(du -h standalone/api-bundles/dmtools-server-api-macos-aarch64.zip | cut -f1)
+          API_MACOS_X64_SIZE=$(du -h standalone/api-bundles/dmtools-server-api-macos-x64.zip | cut -f1)
+          API_WINDOWS_X64_SIZE=$(du -h standalone/api-bundles/dmtools-server-api-windows-x64.zip | cut -f1)
+          
           cat > release_notes.md << EOF
           # 🚀 DMTools Complete Release v${VERSION}
           
@@ -240,6 +245,43 @@ jobs:
           #### Option 3: WAR (for application servers)
           Deploy \`dmtools-standalone.war\` to your favorite servlet container (Tomcat, Jetty, etc.)
           
+          ### API-Only Server Bundles (No UI)
+          
+          For headless deployments, custom frontends, or API-only usage, we provide server bundles without the Flutter UI:
+          
+          **macOS Apple Silicon:**
+          \`\`\`bash
+          # Download dmtools-server-api-macos-aarch64.zip
+          unzip dmtools-server-api-macos-aarch64.zip
+          cd dmtools-server-api-macos-aarch64
+          ./run.sh
+          \`\`\`
+          
+          **macOS Intel:**
+          \`\`\`bash
+          # Download dmtools-server-api-macos-x64.zip
+          unzip dmtools-server-api-macos-x64.zip
+          cd dmtools-server-api-macos-x64
+          ./run.sh
+          \`\`\`
+          
+          **Windows:**
+          \`\`\`cmd
+          :: Download dmtools-server-api-windows-x64.zip
+          unzip dmtools-server-api-windows-x64.zip
+          cd dmtools-server-api-windows-x64
+          run.cmd
+          \`\`\`
+          
+          **Use Cases:**
+          - Custom frontend development
+          - API-only integrations
+          - Headless automation servers
+          - CI/CD environments
+          - Microservices architecture
+          
+          **Note:** API-only bundles include embedded JRE (no Java required) but no web UI. Access the API at \`http://localhost:8080/api\` and Swagger UI at \`http://localhost:8080/swagger-ui.html\`.
+          
           ## 📋 System Requirements
           
           ### Portable Bundles (Recommended)
@@ -277,9 +319,14 @@ jobs:
           - **CLI JAR Size:** ${CLI_JAR_SIZE}
           - **Standalone JAR Size:** ${STANDALONE_JAR_SIZE}
           - **Standalone WAR Size:** ${STANDALONE_WAR_SIZE}
-          - **macOS Apple Silicon Bundle:** ${MACOS_ARM_SIZE}
-          - **macOS Intel Bundle:** ${MACOS_X64_SIZE}
-          - **Windows x64 Bundle:** ${WINDOWS_X64_SIZE}
+          - **Standalone Bundles (with UI):**
+            - macOS Apple Silicon: ${MACOS_ARM_SIZE}
+            - macOS Intel: ${MACOS_X64_SIZE}
+            - Windows x64: ${WINDOWS_X64_SIZE}
+          - **API-Only Bundles (no UI):**
+            - macOS Apple Silicon: ${API_MACOS_ARM_SIZE}
+            - macOS Intel: ${API_MACOS_X64_SIZE}
+            - Windows x64: ${API_WINDOWS_X64_SIZE}
           - **Git Commit:** \`${GITHUB_SHA:0:8}\`
           
           ## 🔒 Security Notes
@@ -336,6 +383,9 @@ jobs:
             standalone/bundles/dmtools-standalone-macos-aarch64.zip
             standalone/bundles/dmtools-standalone-macos-x64.zip
             standalone/bundles/dmtools-standalone-windows-x64.zip
+            standalone/api-bundles/dmtools-server-api-macos-aarch64.zip
+            standalone/api-bundles/dmtools-server-api-macos-x64.zip
+            standalone/api-bundles/dmtools-server-api-windows-x64.zip
       
       - name: Summary
         run: |
@@ -351,9 +401,12 @@ jobs:
           echo "- install.sh" >> $GITHUB_STEP_SUMMARY
           echo "- dmtools.sh" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Standalone Server:**" >> $GITHUB_STEP_SUMMARY
+          echo "**Standalone Server (with UI):**" >> $GITHUB_STEP_SUMMARY
           echo "- dmtools-standalone.jar" >> $GITHUB_STEP_SUMMARY
           echo "- dmtools-standalone.war" >> $GITHUB_STEP_SUMMARY
+          echo "- Portable Bundles (macOS ARM/Intel, Windows x64)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API-Only Server (no UI):**" >> $GITHUB_STEP_SUMMARY
           echo "- Portable Bundles (macOS ARM/Intel, Windows x64)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ All artifacts compiled once, tested once, and packaged in parallel!" >> $GITHUB_STEP_SUMMARY
