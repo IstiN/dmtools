@@ -1,0 +1,20 @@
+---
+alwaysApply: true
+---
+
+## Code Style Rules
+
+### Package Imports
+- **Always use package imports instead of fully qualified class names**
+- Never write full package paths (e.g., `com.github.istin.dmtools.ai.ollama.OllamaAIClient`) unless there's a naming conflict
+- Use import statements at the top of the file (e.g., `import com.github.istin.dmtools.ai.ollama.OllamaAIClient;`)
+- Only use fully qualified names when there are multiple classes with the same name from different packages that would conflict
+- Examples:
+  - ✅ Good: `import com.github.istin.dmtools.ai.ollama.OllamaAIClient;` then use `OllamaAIClient`
+  - ❌ Bad: `new com.github.istin.dmtools.ai.ollama.OllamaAIClient(...)`
+  - ✅ Good (when conflict exists): `new java.util.Date()` vs `new java.sql.Date()`
+
+### General Guidelines
+- Always respond in English. No comments in code in Russian.
+- Don't write documentation unless it's not asked
+- Prefer clean, readable code with proper imports over verbose fully qualified names
