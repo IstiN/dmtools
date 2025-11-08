@@ -1,0 +1,57 @@
+{
+  "type": "ollama",
+  "displayNameKey": "integration.ollama.displayName",
+  "descriptionKey": "integration.ollama.description",
+  "iconUrl": "/img/integrations/ollama-icon.svg",
+  "categories": ["AI"],
+  "supportsMcp": true,
+  "setupDocumentation": {
+    "en": "/docs/integrations/ollama_setup_en.md",
+    "ru": "/docs/integrations/ollama_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "OLLAMA_BASE_PATH",
+      "displayNameKey": "ollama.basePath.displayName",
+      "descriptionKey": "ollama.basePath.description",
+      "instructionsKey": "ollama.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "http://localhost:11434",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "OLLAMA_MODEL",
+      "displayNameKey": "ollama.model.displayName",
+      "descriptionKey": "ollama.model.description",
+      "instructionsKey": "ollama.model.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "OLLAMA_NUM_CTX",
+      "displayNameKey": "ollama.numCtx.displayName",
+      "descriptionKey": "ollama.numCtx.description",
+      "instructionsKey": "ollama.numCtx.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "16384"
+    },
+    {
+      "key": "OLLAMA_NUM_PREDICT",
+      "displayNameKey": "ollama.numPredict.displayName",
+      "descriptionKey": "ollama.numPredict.description",
+      "instructionsKey": "ollama.numPredict.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "-1"
+    }
+  ]
+}

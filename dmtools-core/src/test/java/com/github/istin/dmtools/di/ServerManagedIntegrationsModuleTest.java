@@ -157,6 +157,97 @@ public class ServerManagedIntegrationsModuleTest {
     }
 
     @Test
+    void testProvideAI_WithOllamaConfig() {
+        // Arrange
+        JSONObject ollamaIntegrations = new JSONObject();
+        JSONObject ollamaConfig = new JSONObject();
+        ollamaConfig.put("OLLAMA_BASE_PATH", "http://localhost:11434");
+        ollamaConfig.put("OLLAMA_MODEL", "llama3");
+        ollamaConfig.put("OLLAMA_NUM_CTX", 16384);
+        ollamaConfig.put("OLLAMA_NUM_PREDICT", -1);
+        ollamaIntegrations.put("ollama", ollamaConfig);
+        
+        ServerManagedIntegrationsModule ollamaModule = new ServerManagedIntegrationsModule(ollamaIntegrations);
+        ConversationObserver observer = ollamaModule.provideConversationObserver();
+
+        // Act
+        AI ai = ollamaModule.provideAI(observer);
+
+        // Assert
+        assertNotNull(ai);
+        // OllamaAIClient should be created
+        assertTrue(ai instanceof com.github.istin.dmtools.ai.ollama.OllamaAIClient);
+    }
+
+    @Test
+    void testProvideAI_WithOllamaConfigDefaultValues() {
+        // Arrange
+        JSONObject ollamaIntegrations = new JSONObject();
+        JSONObject ollamaConfig = new JSONObject();
+        ollamaConfig.put("OLLAMA_MODEL", "mistral");
+        // Using default values for other parameters
+        ollamaIntegrations.put("ollama", ollamaConfig);
+        
+        ServerManagedIntegrationsModule ollamaModule = new ServerManagedIntegrationsModule(ollamaIntegrations);
+        ConversationObserver observer = ollamaModule.provideConversationObserver();
+
+        // Act
+        AI ai = ollamaModule.provideAI(observer);
+
+        // Assert
+        assertNotNull(ai);
+        assertTrue(ai instanceof com.github.istin.dmtools.ai.ollama.OllamaAIClient);
+    }
+
+    @Test
+    void testProvideAI_WithOllamaConfigMissingModel() {
+        // Arrange
+        JSONObject ollamaIntegrations = new JSONObject();
+        JSONObject ollamaConfig = new JSONObject();
+        ollamaConfig.put("OLLAMA_BASE_PATH", "http://localhost:11434");
+        // Missing required OLLAMA_MODEL
+        ollamaIntegrations.put("ollama", ollamaConfig);
+        
+        ServerManagedIntegrationsModule ollamaModule = new ServerManagedIntegrationsModule(ollamaIntegrations);
+        ConversationObserver observer = ollamaModule.provideConversationObserver();
+
+        // Act
+        AI ai = ollamaModule.provideAI(observer);
+
+        // Assert
+        assertNull(ai); // Should return null when model is missing
+    }
+
+    @Test
+    void testProvideAI_OllamaPriorityOverGemini() {
+        // Arrange - Both Ollama and Gemini configured
+        JSONObject bothIntegrations = new JSONObject();
+        
+        JSONObject ollamaConfig = new JSONObject();
+        ollamaConfig.put("OLLAMA_BASE_PATH", "http://localhost:11434");
+        ollamaConfig.put("OLLAMA_MODEL", "llama3");
+        ollamaConfig.put("OLLAMA_NUM_CTX", 16384);
+        ollamaConfig.put("OLLAMA_NUM_PREDICT", -1);
+        bothIntegrations.put("ollama", ollamaConfig);
+        
+        JSONObject geminiConfig = new JSONObject();
+        geminiConfig.put("GEMINI_API_KEY", "test-api-key");
+        geminiConfig.put("GEMINI_DEFAULT_MODEL", "gemini-1.5-flash");
+        bothIntegrations.put("gemini", geminiConfig);
+        
+        ServerManagedIntegrationsModule bothModule = new ServerManagedIntegrationsModule(bothIntegrations);
+        ConversationObserver observer = bothModule.provideConversationObserver();
+
+        // Act
+        AI ai = bothModule.provideAI(observer);
+
+        // Assert
+        assertNotNull(ai);
+        // Ollama should have priority over Gemini
+        assertTrue(ai instanceof com.github.istin.dmtools.ai.ollama.OllamaAIClient);
+    }
+
+    @Test
     void testProvideAI_WithGeminiConfig() {
         // Arrange
         ConversationObserver observer = module.provideConversationObserver();

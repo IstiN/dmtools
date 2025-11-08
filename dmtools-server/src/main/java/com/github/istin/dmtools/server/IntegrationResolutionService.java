@@ -85,6 +85,8 @@ public class IntegrationResolutionService {
             case "ai":
             case "dial":
                 return resolveDialIntegration();
+            case "ollama":
+                return resolveOllamaIntegration();
             case "github":
                 return resolveGitHubIntegration();
                 
@@ -176,6 +178,29 @@ public class IntegrationResolutionService {
         }
         
         return dialConfig;
+    }
+    
+    /**
+     * Resolves Ollama integration credentials.
+     */
+    private JSONObject resolveOllamaIntegration() {
+        JSONObject ollamaConfig = new JSONObject();
+        
+        String basePath = propertyReader.getOllamaBasePath();
+        String model = propertyReader.getOllamaModel();
+        int numCtx = propertyReader.getOllamaNumCtx();
+        int numPredict = propertyReader.getOllamaNumPredict();
+        
+        if (basePath != null && !basePath.trim().isEmpty()) {
+            ollamaConfig.put("OLLAMA_BASE_PATH", basePath);
+        }
+        if (model != null && !model.trim().isEmpty()) {
+            ollamaConfig.put("OLLAMA_MODEL", model);
+        }
+        ollamaConfig.put("OLLAMA_NUM_CTX", numCtx);
+        ollamaConfig.put("OLLAMA_NUM_PREDICT", numPredict);
+        
+        return ollamaConfig;
     }
     
     /**
