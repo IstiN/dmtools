@@ -113,7 +113,7 @@ public class IntegrationResolutionHelper {
             logger.info("🔍 [IntegrationResolutionHelper] Finding first AI integration for user: {}", userId);
             
             // Define AI integration types
-            Set<String> aiIntegrationTypes = Set.of("gemini", "dial", "openai", "claude", "gpt");
+            Set<String> aiIntegrationTypes = Set.of("gemini", "dial", "openai", "claude", "gpt", "ollama");
             
             // Get all user integrations
             List<IntegrationDto> userIntegrations = integrationService.getIntegrationsForUser(userId);
