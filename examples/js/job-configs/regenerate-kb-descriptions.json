@@ -1,0 +1,10 @@
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "examples/js/regenerate-kb-descriptions.js",
+    "jobParams": {
+      "smartMode": true
+    }
+  }
+}
+

@@ -142,5 +142,10 @@ cacheBasicFigmaClient
 cacheGeminiJSAIClient
 /dmtools-automation/screenshots
 *.token
-dmtools-core/cache**
-cache**
+test-output.txt
+cacheBasicTeamsClient
+/dmtools-core/cacheTeamsClient
+dmtools-core/cacheTeamsClient
+/dmtools-core/cacheBasicOllamaAI/*
+cache**/
+dmtools-core/cache**/

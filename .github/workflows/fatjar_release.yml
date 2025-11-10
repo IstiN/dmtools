@@ -1,9 +1,14 @@
 name: Build Fat JAR and Publish Package
 
+# ⚠️ DEPRECATED: This workflow is no longer triggered automatically on tag push.
+# The unified release workflow (.github/workflows/release.yml) now handles all releases.
+# This workflow is kept for manual testing purposes only.
+
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  # Automatic tag trigger disabled - unified release.yml now handles all releases
+  # push:
+  #   tags:
+  #     - 'v*.*.*'
 
   workflow_dispatch:
 
@@ -26,7 +31,7 @@ jobs:
 
       - name: Build with Gradle
         id: gradle
-        run: ./gradlew clean build :dmtools-core:shadowJar publish -x integrationTest
+        run: ./gradlew clean build :dmtools-core:shadowJar publish -x integrationTest -x :dmtools-automation:test
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

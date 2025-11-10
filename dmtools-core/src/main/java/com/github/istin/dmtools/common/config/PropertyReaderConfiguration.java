@@ -361,4 +361,44 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
         return propertyReader.getTicketFieldsChangedDivider(fieldName);
     }
     
+    @Override
+    public String getOllamaBasePath() {
+        return propertyReader.getOllamaBasePath();
+    }
+    
+    @Override
+    public String getOllamaModel() {
+        return propertyReader.getOllamaModel();
+    }
+    
+    @Override
+    public int getOllamaNumCtx() {
+        return propertyReader.getOllamaNumCtx();
+    }
+    
+    @Override
+    public int getOllamaNumPredict() {
+        return propertyReader.getOllamaNumPredict();
+    }
+    
+    @Override
+    public String getAnthropicBasePath() {
+        return propertyReader.getAnthropicBasePath();
+    }
+    
+    @Override
+    public String getAnthropicModel() {
+        return propertyReader.getAnthropicModel();
+    }
+    
+    @Override
+    public int getAnthropicMaxTokens() {
+        return propertyReader.getAnthropicMaxTokens();
+    }
+    
+    @Override
+    public String getDefaultLLM() {
+        return propertyReader.getDefaultLLM();
+    }
+    
 }

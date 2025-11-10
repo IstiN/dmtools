@@ -1,5 +1,8 @@
 package com.github.istin.dmtools.common.utils;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Base64;
@@ -8,6 +11,8 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 public class PropertyReader {
+
+	private static final Logger logger = LogManager.getLogger(PropertyReader.class);
 
 	private static String PATH_TO_CONFIG_FILE = "/config.properties";
 
@@ -513,6 +518,14 @@ public class PropertyReader {
 	public static final String GEMINI_API_KEY = "GEMINI_API_KEY";
 	public static final String GEMINI_DEFAULT_MODEL_KEY = "GEMINI_DEFAULT_MODEL";
 	public static final String GEMINI_BASE_PATH_KEY = "GEMINI_BASE_PATH";
+	public static final String OLLAMA_BASE_PATH = "OLLAMA_BASE_PATH";
+	public static final String OLLAMA_MODEL = "OLLAMA_MODEL";
+	public static final String OLLAMA_NUM_CTX = "OLLAMA_NUM_CTX";
+	public static final String OLLAMA_NUM_PREDICT = "OLLAMA_NUM_PREDICT";
+	public static final String ANTHROPIC_BASE_PATH = "ANTHROPIC_BASE_PATH";
+	public static final String ANTHROPIC_MODEL = "ANTHROPIC_MODEL";
+	public static final String ANTHROPIC_MAX_TOKENS = "ANTHROPIC_MAX_TOKENS";
+	public static final String DEFAULT_LLM = "DEFAULT_LLM";
 
 	public String getGeminiApiKey() {
 		return getValue(GEMINI_API_KEY);
@@ -524,6 +537,133 @@ public class PropertyReader {
 
 	public String getGeminiBasePath() {
 		return getValue(GEMINI_BASE_PATH_KEY, DEFAULT_GEMINI_BASE_PATH);
+	}
+
+	// Microsoft Teams configuration
+	public String getTeamsClientId() {
+		return getValue("TEAMS_CLIENT_ID");
+	}
+
+	public String getTeamsTenantId() {
+		return getValue("TEAMS_TENANT_ID", "common");
+	}
+
+	public String getTeamsScopes() {
+		return getValue("TEAMS_SCOPES", 
+			"User.Read Chat.Read ChatMessage.Read Mail.Read " +
+			"Team.ReadBasic.All Channel.ReadBasic.All " +
+			"openid profile email offline_access");
+	}
+
+	public String getTeamsAuthMethod() {
+		return getValue("TEAMS_AUTH_METHOD", "device");
+	}
+
+	public int getTeamsAuthPort() {
+		String value = getValue("TEAMS_AUTH_PORT");
+		if (value == null || value.trim().isEmpty()) {
+			return 8080;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			return 8080;
+		}
+	}
+
+	public String getTeamsTokenCachePath() {
+		return getValue("TEAMS_TOKEN_CACHE_PATH", "./teams.token");
+	}
+
+	public String getTeamsRefreshToken() {
+		return getValue("TEAMS_REFRESH_TOKEN");
+	}
+
+	// Microsoft SharePoint configuration (reuses Teams auth, adds Files.Read)
+	public String getSharePointScopes() {
+		// SharePoint needs Files.Read.All or Files.ReadWrite.All in addition to Teams scopes
+		return getValue("SHAREPOINT_SCOPES", 
+			"User.Read Chat.Read ChatMessage.Read Mail.Read " +
+			"Team.ReadBasic.All Channel.ReadBasic.All " +
+			"Files.Read.All Sites.Read.All " +
+			"openid profile email offline_access");
+	}
+
+	// Ollama configuration
+	public String getOllamaBasePath() {
+		return getValue(OLLAMA_BASE_PATH, "http://localhost:11434");
+	}
+
+	public String getOllamaModel() {
+		return getValue(OLLAMA_MODEL);
+	}
+
+	public int getOllamaNumCtx() {
+		String value = getValue(OLLAMA_NUM_CTX);
+		if (value == null || value.trim().isEmpty()) {
+			return 16384;
+		}
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid OLLAMA_NUM_CTX value: {}, using default 16384", value);
+			return 16384;
+		}
+	}
+
+	public int getOllamaNumPredict() {
+		String value = getValue(OLLAMA_NUM_PREDICT);
+		if (value == null || value.trim().isEmpty()) {
+			return -1;
+		}
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid OLLAMA_NUM_PREDICT value: {}, using default -1", value);
+			return -1;
+		}
+	}
+
+	public String getOllamaCustomHeaderNames() {
+		return getValue("OLLAMA_CUSTOM_HEADER_NAMES");
+	}
+
+	public String getOllamaCustomHeaderValues() {
+		return getValue("OLLAMA_CUSTOM_HEADER_VALUES");
+	}
+
+	// Anthropic configuration
+	public String getAnthropicBasePath() {
+		return getValue(ANTHROPIC_BASE_PATH, "https://api.anthropic.com/v1/messages");
+	}
+
+	public String getAnthropicModel() {
+		return getValue(ANTHROPIC_MODEL);
+	}
+
+	public int getAnthropicMaxTokens() {
+		String value = getValue(ANTHROPIC_MAX_TOKENS);
+		if (value == null || value.trim().isEmpty()) {
+			return 4096;
+		}
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid ANTHROPIC_MAX_TOKENS value: {}, using default 4096", value);
+			return 4096;
+		}
+	}
+
+	public String getAnthropicCustomHeaderNames() {
+		return getValue("ANTHROPIC_CUSTOM_HEADER_NAMES");
+	}
+
+	public String getAnthropicCustomHeaderValues() {
+		return getValue("ANTHROPIC_CUSTOM_HEADER_VALUES");
+	}
+
+	public String getDefaultLLM() {
+		return getValue(DEFAULT_LLM);
 	}
 
 }

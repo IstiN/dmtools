@@ -172,6 +172,11 @@ public class InMemoryConfiguration implements ApplicationConfiguration {
     }
     
     @Override
+    public String getDefaultLLM() {
+        return getValue("DEFAULT_LLM");
+    }
+    
+    @Override
     public int getAiRetryAmount() {
         String value = getValue("AI_RETRY_AMOUNT");
         if (value == null || value.trim().isEmpty()) {
@@ -262,6 +267,69 @@ public class InMemoryConfiguration implements ApplicationConfiguration {
     @Override
     public String getGeminiBasePath() {
         return getValue("GEMINI_BASE_PATH", "https://generativelanguage.googleapis.com/v1beta/models");
+    }
+    
+    // OllamaConfiguration
+    
+    @Override
+    public String getOllamaBasePath() {
+        return getValue("OLLAMA_BASE_PATH", "http://localhost:11434");
+    }
+    
+    @Override
+    public String getOllamaModel() {
+        return getValue("OLLAMA_MODEL");
+    }
+    
+    @Override
+    public int getOllamaNumCtx() {
+        String value = getValue("OLLAMA_NUM_CTX");
+        if (value == null || value.trim().isEmpty()) {
+            return 16384;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return 16384;
+        }
+    }
+    
+    @Override
+    public int getOllamaNumPredict() {
+        String value = getValue("OLLAMA_NUM_PREDICT");
+        if (value == null || value.trim().isEmpty()) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+    
+    // AnthropicConfiguration
+    
+    @Override
+    public String getAnthropicBasePath() {
+        return getValue("ANTHROPIC_BASE_PATH", "https://api.anthropic.com/v1/messages");
+    }
+    
+    @Override
+    public String getAnthropicModel() {
+        return getValue("ANTHROPIC_MODEL");
+    }
+    
+    @Override
+    public int getAnthropicMaxTokens() {
+        String value = getValue("ANTHROPIC_MAX_TOKENS");
+        if (value == null || value.trim().isEmpty()) {
+            return 4096;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return 4096;
+        }
     }
     
     // JSAIConfiguration

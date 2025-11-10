@@ -44,6 +44,8 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
 
     String createTicketInProject(String project, String issueType, String summary, String description, FieldsInitializer fieldsInitializer) throws IOException;
 
+    T createTicket(String body);
+
     List<T> searchAndPerform(String searchQuery, String[] fields) throws Exception;
 
     void searchAndPerform(JiraClient.Performer<T> performer, String searchQuery, String[] fields) throws Exception;
