@@ -143,9 +143,8 @@ public class JobRunner {
         }
         
         if (args.length == 0) {
-            System.err.println("Error: No arguments provided.");
             printHelp();
-            System.exit(1);
+            return;
         }
         
         // Existing base64-only parameter handling for backward compatibility
@@ -198,30 +197,65 @@ public class JobRunner {
     }
 
     private static void printHelp() {
-        System.out.println("DMTools - Development Management Toolkit");
+        System.out.println("DMTools CLI Wrapper");
         System.out.println();
-        System.out.println("Usage: java -jar dmtools.jar [OPTIONS] [BASE64_ENCODED_JOB_PARAMS]");
-        System.out.println("       java -jar dmtools.jar run <json-file-path> [encoded-config]");
-        System.out.println("       java -jar dmtools.jar mcp <command> [args...]");
+        System.out.println("Usage:");
+        System.out.println("  dmtools list                           # List available MCP tools");
+        System.out.println("  dmtools run <json-file>                # Execute job with JSON config file");
+        System.out.println("  dmtools run <json-file> <encoded>      # Execute job with file + encoded overrides");
+        System.out.println("  dmtools <tool> [args...]              # Execute MCP tool with args");
+        System.out.println("  dmtools <tool> --data '{\"json\"}'      # Execute with inline JSON");
+        System.out.println("  dmtools <tool> --file params.json     # Execute with JSON file");
+        System.out.println("  dmtools <tool> --verbose              # Execute with verbose output");
+        System.out.println("  dmtools <tool> --debug                # Execute with debug output and error messages");
+        System.out.println("  dmtools <tool> <<EOF                  # Execute with heredoc");
+        System.out.println("  {\"json\": \"data\"}");
+        System.out.println("  EOF");
         System.out.println();
-        System.out.println("Options:");
-        System.out.println("  --version, -v     Show version information");
-        System.out.println("  --help, -h        Show this help message");
-        System.out.println("  --list-jobs       List all available jobs");
+        System.out.println("Examples:");
+        System.out.println("  dmtools list");
+        System.out.println("  dmtools run job-config.json");
+        System.out.println("  dmtools run job-config.json \"eyJvdmVycmlkZSI6InZhbHVlIn0=\"  # base64 encoded");
+        System.out.println("  dmtools run job-config.json \"%7B%22override%22%3A%22value%22%7D\"  # URL encoded");
+        System.out.println("  dmtools jira_get_ticket DMC-479 summary,description");
+        System.out.println("  dmtools jira_get_ticket --data '{\"key\": \"DMC-479\", \"fields\": [\"summary\"]}'");
+        System.out.println("  dmtools jira_get_ticket <<EOF");
+        System.out.println("  {");
+        System.out.println("    \"key\": \"DMC-479\",");
+        System.out.println("    \"fields\": [\"summary\", \"description\"]");
+        System.out.println("  }");
+        System.out.println("  EOF");
         System.out.println();
-        System.out.println("Run Commands:");
-        System.out.println("  run <json-file>           Execute job with JSON config file only");
-        System.out.println("  run <json-file> <encoded> Execute job with file + encoded overrides");
-        System.out.println("                            (supports base64 and URL encoding auto-detection)");
+        System.out.println("Environment Variables:");
+        System.out.println("  DMTOOLS_INTEGRATIONS    Comma-separated list of integrations (jira,confluence,figma)");
         System.out.println();
-        System.out.println("MCP Commands:");
-        System.out.println("  mcp list                    List available MCP tools");
-        System.out.println("  mcp <tool_name> [args...]   Execute MCP tool");
-        System.out.println("  mcp <tool_name> --data '{\"json\": \"data\"}'  Execute with JSON data");
+        System.out.println("Environment Files:");
+        System.out.println("  The script automatically loads environment variables from the following files (in order of precedence):");
+        System.out.println("  1. .env (current directory)");
+        System.out.println("  2. dmtools.env (current directory)");
+        System.out.println("  3. dmtools-local.env (current directory)");
+        System.out.println("  4. .env (script directory)");
+        System.out.println("  5. dmtools.env (script directory)");
+        System.out.println("  6. dmtools-local.env (script directory)");
         System.out.println();
-        System.out.println("For legacy job execution, provide Base64-encoded JSON parameters.");
-        String baseUrl = System.getProperty("app.base-url", "http://localhost:8080");
-        System.out.println("Use the web interface at " + baseUrl + " for easier job configuration.");
+        System.out.println("  File format supports:");
+        System.out.println("  - KEY=VALUE pairs");
+        System.out.println("  - Comments (lines starting with #)");
+        System.out.println("  - Quoted values: KEY=\"value with spaces\"");
+        System.out.println("  - Empty lines (ignored)");
+        System.out.println();
+        System.out.println("  Common variables:");
+        System.out.println("  - JIRA_BASE_PATH, JIRA_EMAIL, JIRA_API_TOKEN");
+        System.out.println("  - CONFLUENCE_BASE_PATH, CONFLUENCE_API_TOKEN");
+        System.out.println("  - FIGMA_API_KEY");
+        System.out.println("  - GEMINI_API_KEY, OPEN_AI_API_KEY");
+        System.out.println("  - GITHUB_TOKEN, GITLAB_TOKEN, BITBUCKET_TOKEN");
+        System.out.println();
+        System.out.println("Installation:");
+        System.out.println("  If you don't have DMTools installed, run:");
+        System.out.println("  curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash");
+        System.out.println();
+        System.out.println("DM.ai uses DMTools. Do you?");
     }
 
     private static void listJobs() {
