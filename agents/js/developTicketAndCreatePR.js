@@ -5,6 +5,7 @@
 
 // Import common helper functions
 const { extractTicketKey } = require('./common/jiraHelpers.js');
+const { GIT_CONFIG, STATUSES, LABELS } = require('./config.js');
 
 /**
  * Extract issue type prefix from ticket summary
@@ -15,7 +16,7 @@ const { extractTicketKey } = require('./common/jiraHelpers.js');
  */
 function extractIssueTypePrefix(summary) {
     if (!summary) {
-        return 'feature';
+        return GIT_CONFIG.DEFAULT_ISSUE_TYPE_PREFIX;
     }
     
     // Match first word in square brackets at the beginning
@@ -25,7 +26,7 @@ function extractIssueTypePrefix(summary) {
         return match[1].toLowerCase().replace(/[^a-z0-9]/g, '');
     }
     
-    return 'feature';
+    return GIT_CONFIG.DEFAULT_ISSUE_TYPE_PREFIX;
 }
 
 /**
@@ -76,11 +77,11 @@ function generateUniqueBranchName(baseType, ticketKey) {
 function configureGitAuthor() {
     try {
         cli_execute_command({
-            command: 'git config user.name "AI Teammate"'
+            command: 'git config user.name "' + GIT_CONFIG.AUTHOR_NAME + '"'
         });
         
         cli_execute_command({
-            command: 'git config user.email "agent.ai.native@gmail.com"'
+            command: 'git config user.email "' + GIT_CONFIG.AUTHOR_EMAIL + '"'
         });
         
         console.log('✅ Configured git author as AI Teammate');
@@ -174,7 +175,7 @@ function createPullRequest(title) {
         
         // Create PR using gh CLI with body-file
         const output = cli_execute_command({
-            command: 'gh pr create --title "' + escapedTitle + '" --body-file "' + bodyFilePath + '" --base main'
+            command: 'gh pr create --title "' + escapedTitle + '" --body-file "' + bodyFilePath + '" --base ' + GIT_CONFIG.DEFAULT_BASE_BRANCH
         }) || '';
         
         // Extract PR URL from output
@@ -350,7 +351,7 @@ function action(params) {
         try {
             jira_move_to_status({
                 key: ticketKey,
-                statusName: 'In Review'
+                statusName: STATUSES.IN_REVIEW
             });
             console.log('✅ Moved ticket to In Review status');
         } catch (error) {
@@ -364,10 +365,26 @@ function action(params) {
         try {
             jira_add_label({
                 key: ticketKey,
-                label: 'ai_developed'
+                label: LABELS.AI_DEVELOPED
             });
         } catch (error) {
             console.warn('Failed to add ai_developed label:', error);
+        }
+        
+        // Remove WIP label if configured (dynamically generated from contextId)
+        const wipLabel = params.metadata && params.metadata.contextId 
+            ? params.metadata.contextId + '_wip' 
+            : null;
+        if (wipLabel) {
+            try {
+                jira_remove_label({
+                    key: ticketKey,
+                    label: wipLabel
+                });
+                console.log('Removed WIP label "' + wipLabel + '" from ' + ticketKey);
+            } catch (labelError) {
+                console.warn('Failed to remove WIP label "' + wipLabel + '":', labelError);
+            }
         }
         
         console.log('✅ Development workflow completed successfully');
