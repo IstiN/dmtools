@@ -1,0 +1,68 @@
+{
+  "type": "anthropic",
+  "displayNameKey": "integration.anthropic.displayName",
+  "descriptionKey": "integration.anthropic.description",
+  "iconUrl": "/img/integrations/anthropic-icon.svg",
+  "categories": ["AI"],
+  "supportsMcp": true,
+  "setupDocumentation": {
+    "en": "/docs/integrations/anthropic_setup_en.md",
+    "ru": "/docs/integrations/anthropic_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "ANTHROPIC_BASE_PATH",
+      "displayNameKey": "anthropic.basePath.displayName",
+      "descriptionKey": "anthropic.basePath.description",
+      "instructionsKey": "anthropic.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "https://api.anthropic.com/v1/messages",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    },
+    {
+      "key": "ANTHROPIC_MODEL",
+      "displayNameKey": "anthropic.model.displayName",
+      "descriptionKey": "anthropic.model.description",
+      "instructionsKey": "anthropic.model.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "ANTHROPIC_MAX_TOKENS",
+      "displayNameKey": "anthropic.maxTokens.displayName",
+      "descriptionKey": "anthropic.maxTokens.description",
+      "instructionsKey": "anthropic.maxTokens.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "number",
+      "defaultValue": "4096"
+    },
+    {
+      "key": "ANTHROPIC_CUSTOM_HEADER_NAMES",
+      "displayNameKey": "anthropic.customHeaderNames.displayName",
+      "descriptionKey": "anthropic.customHeaderNames.description",
+      "instructionsKey": "anthropic.customHeaderNames.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null
+    },
+    {
+      "key": "ANTHROPIC_CUSTOM_HEADER_VALUES",
+      "displayNameKey": "anthropic.customHeaderValues.displayName",
+      "descriptionKey": "anthropic.customHeaderValues.description",
+      "instructionsKey": "anthropic.customHeaderValues.instructions",
+      "required": false,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    }
+  ]
+}
+

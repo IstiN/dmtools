@@ -4,6 +4,7 @@ import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.Message;
 
 
+import com.github.istin.dmtools.common.utils.LLMOptimizedJson;
 import com.github.istin.dmtools.dto.ChatMessage;
 import com.github.istin.dmtools.dto.ChatRequest;
 import com.github.istin.dmtools.dto.ChatResponse;
@@ -14,6 +15,7 @@ import com.github.istin.dmtools.server.service.McpConfigurationResolverService;
 import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
 import com.github.istin.dmtools.ai.agent.ToolSelectorAgent;
 import com.github.istin.dmtools.dto.ToolCallRequest;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -340,6 +342,9 @@ public class ChatService {
      */
     private String formatToolsForToolSelector(List<Map<String, Object>> tools) {
         try {
+            if (true) {
+                return LLMOptimizedJson.format(new JSONArray().put(tools).get(0).toString());
+            }
             // Convert tools list to JSON string for ToolSelectorAgent
             JSONObject toolsJson = new JSONObject();
             toolsJson.put("tools", tools);

@@ -52,6 +52,26 @@
       "sensitive": false,
       "inputType": "number",
       "defaultValue": "-1"
+    },
+    {
+      "key": "OLLAMA_CUSTOM_HEADER_NAMES",
+      "displayNameKey": "ollama.customHeaderNames.displayName",
+      "descriptionKey": "ollama.customHeaderNames.description",
+      "instructionsKey": "ollama.customHeaderNames.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null
+    },
+    {
+      "key": "OLLAMA_CUSTOM_HEADER_VALUES",
+      "displayNameKey": "ollama.customHeaderValues.displayName",
+      "descriptionKey": "ollama.customHeaderValues.description",
+      "instructionsKey": "ollama.customHeaderValues.instructions",
+      "required": false,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
     }
   ]
 }
