@@ -1571,6 +1571,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         String updateResult = jiraRequest.put();
         log("Updated field '" + resolvedFieldName + "' (originally '" + field + "') on ticket " + key + " with value: " + value);
 
+        // Jira's PUT endpoint returns empty response body on success
+        // Return a meaningful success message instead of empty string for MCP
+        if (updateResult == null || updateResult.trim().isEmpty()) {
+            return "Field '" + field + "' updated successfully on ticket " + key;
+        }
+        
         return updateResult;
     }
 
