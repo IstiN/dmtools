@@ -2,6 +2,7 @@ package com.github.istin.dmtools.di;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
+import com.github.istin.dmtools.ai.anthropic.BasicAnthropicAI;
 import com.github.istin.dmtools.ai.google.BasicGeminiAI;
 import com.github.istin.dmtools.ai.js.JSAIClient;
 import com.github.istin.dmtools.bridge.DMToolsBridge;
@@ -45,6 +46,7 @@ public class AIComponentsModule {
         boolean ollamaAttempted = false;
         boolean dialAttempted = false;
         boolean geminiAttempted = false;
+        boolean anthropicAttempted = false;
         
         // Check if a specific default LLM is configured
         String defaultLLM = configuration.getDefaultLLM();
@@ -89,6 +91,21 @@ public class AIComponentsModule {
                     logger.error("Failed to initialize BasicGeminiAI (DEFAULT_LLM=gemini): " + e.getMessage());
                 }
                 geminiAttempted = true;
+            } else if ("anthropic".equalsIgnoreCase(defaultLLM.trim())) {
+                String anthropicModel = configuration.getAnthropicModel();
+                if (anthropicModel != null && !anthropicModel.trim().isEmpty() && !anthropicModel.startsWith("$")) {
+                    try {
+                        logger.debug("Attempting to initialize AI via BasicAnthropicAI as DEFAULT_LLM=anthropic...");
+                        AI anthropic = new BasicAnthropicAI(observer, configuration);
+                        logger.debug("BasicAnthropicAI initialized successfully.");
+                        return anthropic;
+                    } catch (Exception e) {
+                        logger.error("Failed to initialize BasicAnthropicAI (DEFAULT_LLM=anthropic): " + e.getMessage());
+                    }
+                } else {
+                    logger.warn("DEFAULT_LLM is set to 'anthropic' but ANTHROPIC_MODEL is not configured. Skipping Anthropic initialization.");
+                }
+                anthropicAttempted = true;
             }
         }
         
@@ -104,6 +121,21 @@ public class AIComponentsModule {
                     return ollama;
                 } catch (Exception e) {
                     logger.error("Failed to initialize BasicOllamaAI, trying fallback options. Error: " + e.getMessage());
+                }
+            }
+        }
+        
+        // Check for Anthropic configuration (skip if already attempted)
+        if (!anthropicAttempted) {
+            String anthropicModel = configuration.getAnthropicModel();
+            if (anthropicModel != null && !anthropicModel.trim().isEmpty() && !anthropicModel.startsWith("$")) {
+                try {
+                    logger.debug("Attempting to initialize AI via BasicAnthropicAI as ANTHROPIC_MODEL is set...");
+                    AI anthropic = new BasicAnthropicAI(observer, configuration);
+                    logger.debug("BasicAnthropicAI initialized successfully.");
+                    return anthropic;
+                } catch (Exception e) {
+                    logger.error("Failed to initialize BasicAnthropicAI, trying fallback options. Error: " + e.getMessage());
                 }
             }
         }
