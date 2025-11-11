@@ -234,5 +234,87 @@ public class AIComponentsModule {
     IPromptTemplateReader providePromptTemplateReader() {
         return new PromptManager();
     }
+    
+    /**
+     * Static helper method to create AI instance without Dagger injection.
+     * This allows reuse of the AI detection logic in non-Dagger contexts (e.g., CLI).
+     * 
+     * @param observer The conversation observer
+     * @param configuration The application configuration
+     * @return AI instance based on configuration
+     */
+    public static AI createAI(ConversationObserver observer, ApplicationConfiguration configuration) {
+        AIComponentsModule module = new AIComponentsModule();
+        return module.provideAI(observer, configuration);
+    }
+    
+    /**
+     * Creates an Ollama AI client if configuration is available.
+     * @param observer The conversation observer
+     * @param configuration The application configuration
+     * @return Ollama AI instance or null if not configured
+     */
+    public static AI createOllamaAI(ConversationObserver observer, ApplicationConfiguration configuration) {
+        String ollamaModel = configuration.getOllamaModel();
+        if (ollamaModel != null && !ollamaModel.trim().isEmpty() && !ollamaModel.startsWith("$")) {
+            try {
+                return new com.github.istin.dmtools.ai.ollama.BasicOllamaAI(observer, configuration);
+            } catch (Exception e) {
+                logger.debug("Failed to create BasicOllamaAI: {}", e.getMessage());
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Creates an Anthropic AI client if configuration is available.
+     * @param observer The conversation observer
+     * @param configuration The application configuration
+     * @return Anthropic AI instance or null if not configured
+     */
+    public static AI createAnthropicAI(ConversationObserver observer, ApplicationConfiguration configuration) {
+        String anthropicModel = configuration.getAnthropicModel();
+        if (anthropicModel != null && !anthropicModel.trim().isEmpty() && !anthropicModel.startsWith("$")) {
+            try {
+                return new BasicAnthropicAI(observer, configuration);
+            } catch (Exception e) {
+                logger.debug("Failed to create BasicAnthropicAI: {}", e.getMessage());
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Creates a Gemini AI client if configuration is available.
+     * @param observer The conversation observer
+     * @param configuration The application configuration
+     * @return Gemini AI instance or null if not configured
+     */
+    public static AI createGeminiAI(ConversationObserver observer, ApplicationConfiguration configuration) {
+        String geminiApiKey = configuration.getGeminiApiKey();
+        if (geminiApiKey != null && !geminiApiKey.trim().isEmpty() && !geminiApiKey.startsWith("$")) {
+            try {
+                return BasicGeminiAI.create(observer, configuration);
+            } catch (Exception e) {
+                logger.debug("Failed to create BasicGeminiAI: {}", e.getMessage());
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Creates a Dial AI client (always available as fallback).
+     * @param observer The conversation observer
+     * @param configuration The application configuration
+     * @return Dial AI instance or null if creation fails
+     */
+    public static AI createDialAI(ConversationObserver observer, ApplicationConfiguration configuration) {
+        try {
+            return new BasicDialAI(observer, configuration);
+        } catch (Exception e) {
+            logger.debug("Failed to create BasicDialAI: {}", e.getMessage());
+            return null;
+        }
+    }
 
 }

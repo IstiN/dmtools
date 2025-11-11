@@ -1,11 +1,13 @@
 package com.github.istin.dmtools.mcp.cli;
 
+import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
-import com.github.istin.dmtools.ai.google.BasicGeminiAI;
+import com.github.istin.dmtools.common.config.ApplicationConfiguration;
+import com.github.istin.dmtools.common.config.PropertyReaderConfiguration;
+import com.github.istin.dmtools.di.AIComponentsModule;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.cli.CliCommandExecutor;
-import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
 import com.github.istin.dmtools.di.KnowledgeBaseComponent;
 import com.github.istin.dmtools.figma.BasicFigmaClient;
@@ -34,10 +36,12 @@ public class McpCliHandler {
     private static final Logger logger = LogManager.getLogger(McpCliHandler.class);
 
     private final Map<String, Object> clientInstances;
+    private final Map<String, AI> availableAIClients;
 
     public McpCliHandler() {
         // Configure logging for CLI usage - suppress all logs except errors
         configureCLILogging();
+        this.availableAIClients = createAllAIClients();
         this.clientInstances = createClientInstances();
     }
 
@@ -99,6 +103,12 @@ public class McpCliHandler {
             Map<String, Object> arguments = parseToolArguments(args);
 
             logger.info("Executing MCP tool: {} with arguments: {}", toolName, arguments);
+
+            // Set the appropriate AI client for this tool
+            AI appropriateAIClient = getAIClientForTool(toolName);
+            if (appropriateAIClient != null) {
+                clientInstances.put("ai", appropriateAIClient);
+            }
 
             Object result = MCPToolExecutor.executeTool(toolName, arguments, clientInstances);
             if (result == null) {
@@ -309,12 +319,13 @@ public class McpCliHandler {
             logger.warn("Failed to create BasicFigmaClient: {}", e.getMessage());
         }
 
-        try {
-            // Create AI client
-            clients.put("ai", BasicGeminiAI.create(new ConversationObserver(), new PropertyReader()));
-            logger.debug("Created BasicGeminiAI instance");
-        } catch (Exception e) {
-            logger.warn("Failed to create BasicGeminiAI: {}", e.getMessage());
+        // AI clients are created separately and selected based on tool name
+        // See createAllAIClients() and getAIClientForTool()
+        // Put default AI client for tools that don't require specific types
+        if (!availableAIClients.isEmpty()) {
+            AI defaultAI = availableAIClients.values().iterator().next();
+            clients.put("ai", defaultAI);
+            logger.debug("Created default AI client instance: {}", defaultAI.getClass().getSimpleName());
         }
 
         try {
@@ -368,6 +379,79 @@ public class McpCliHandler {
 
         logger.info("Created {} client instances for MCP CLI", clients.size());
         return clients;
+    }
+    
+    /**
+     * Creates all available AI clients based on configuration.
+     * Returns a map of client type names to AI instances.
+     * Uses AIComponentsModule helper methods to create specific client types.
+     */
+    private Map<String, AI> createAllAIClients() {
+        Map<String, AI> aiClients = new HashMap<>();
+        ConversationObserver observer = new ConversationObserver();
+        ApplicationConfiguration configuration = new PropertyReaderConfiguration();
+        
+        // Try to create Ollama client using AIComponentsModule
+        AI ollama = AIComponentsModule.createOllamaAI(observer, configuration);
+        if (ollama != null) {
+            aiClients.put("ollama", ollama);
+            logger.debug("Created BasicOllamaAI instance");
+        }
+        
+        // Try to create Anthropic client using AIComponentsModule
+        AI anthropic = AIComponentsModule.createAnthropicAI(observer, configuration);
+        if (anthropic != null) {
+            aiClients.put("anthropic", anthropic);
+            logger.debug("Created BasicAnthropicAI instance");
+        }
+        
+        // Try to create Gemini client using AIComponentsModule
+        AI gemini = AIComponentsModule.createGeminiAI(observer, configuration);
+        if (gemini != null) {
+            aiClients.put("gemini", gemini);
+            logger.debug("Created BasicGeminiAI instance");
+        }
+        
+        // Try to create Dial client (fallback) using AIComponentsModule
+        AI dial = AIComponentsModule.createDialAI(observer, configuration);
+        if (dial != null) {
+            aiClients.put("dial", dial);
+            logger.debug("Created BasicDialAI instance");
+        }
+        
+        logger.debug("Created {} AI client instances", aiClients.size());
+        return aiClients;
+    }
+    
+    /**
+     * Gets the appropriate AI client for a given tool name.
+     * Returns the client that matches the tool's expected type.
+     */
+    private AI getAIClientForTool(String toolName) {
+        if (toolName == null) {
+            return null;
+        }
+        
+        String toolLower = toolName.toLowerCase();
+        String[] parts = toolLower.split("_");
+        System.out.println(toolLower);
+        System.out.println(availableAIClients);
+        if (parts.length > 0) {
+            String agentType = parts[0];
+            
+            // Check if the agent type is available in our map
+            AI client = availableAIClients.get(agentType);
+            if (client != null) {
+                return client;
+            }
+        }
+        
+        // For other AI tools, return the first available client
+        if (!availableAIClients.isEmpty()) {
+            return availableAIClients.values().iterator().next();
+        }
+        
+        return null;
     }
 
     /**
