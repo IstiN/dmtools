@@ -9,13 +9,13 @@
       "instructions" : [
         "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11403369/Template+SD+API",
         "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/18186241/Template+Jira+Markdown",
-        "./instructions/common/response_output.md",
-        "./instructions/common/no_development.md",
-        "./instructions/common/preserve_references.md",
-        "./instructions/common/media_handling.md",
-        "./instructions/common/jira_context.md",
-        "./instructions/common/error_handling.md",
-        "./instructions/common/json_validation.md",
+        "./agents/instructions/common/response_output.md",
+        "./agents/instructions/common/no_development.md",
+        "./agents/instructions/common/preserve_references.md",
+        "./agents/instructions/common/media_handling.md",
+        "./agents/instructions/common/jira_context.md",
+        "./agents/instructions/common/error_handling.md",
+        "./agents/instructions/common/json_validation.md",
         "Content from the response.md file will be parsed via JSON Parser for automated description update and assessment",
         "**IMPORTANT** your role is to enhance SD API ticket description with comprehensive technical details!",
         "**IMPORTANT** Return JSON format: {\"description\": \"enhanced technical description with SD API template\", \"apiSubtaskCreation\": boolean, \"diagram\": \"valid mermaid sequence diagram\"}",
@@ -27,8 +27,8 @@
         "**IMPORTANT** mention only API (server module) related changes in description. Dmtools-core module changes is out of scope and will be designed in another ticket."
       ],
       "knownInfo" : "",
-      "formattingRules" : "./instructions/enhancement/sd_api_formatting_rules.md",
-      "fewShots" : "./instructions/enhancement/sd_api_few_shots.md"
+      "formattingRules" : "./agents/instructions/enhancement/sd_api_formatting_rules.md",
+      "fewShots" : "./agents/instructions/enhancement/sd_api_few_shots.md"
     },
     "cliCommands" : [
       "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** implementation details and development is not part of the task. Follow instructions from input.request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request. **IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""

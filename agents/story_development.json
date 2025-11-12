@@ -7,11 +7,11 @@
     "agentParams" : {
       "aiRole" : "Senior Java Software Engineer",
       "instructions" : [
-        "./instructions/development/implementation_instructions.md"
+        "./agents/instructions/development/implementation_instructions.md"
       ],
       "knownInfo" : "",
-      "formattingRules" : "./instructions/development/formatting_rules.md",
-      "fewShots" : "./instructions/development/few_shots.md"
+      "formattingRules" : "./agents/instructions/development/formatting_rules.md",
+      "fewShots" : "./agents/instructions/development/few_shots.md"
     },
     "cliCommands" : [
       "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. Implement the ticket requirements including code implementation, unit tests, and documentation if explicitly mentioned in requirements. Write comprehensive development summary to outputs/response.md explaining your approach, changes, tests, and any issues. DO NOT create branches or push - focus only on code implementation. You must compile and run tests before finish.\""

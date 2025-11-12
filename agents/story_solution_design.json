@@ -7,9 +7,9 @@
     "agentParams" : {
       "aiRole" : "Senior Software Architect",
       "instructions" : [
-        "./instructions/common/response_output.md",
-        "./instructions/common/no_development.md",
-        "./instructions/common/json_validation.md",
+        "./agents/instructions/common/response_output.md",
+        "./agents/instructions/common/no_development.md",
+        "./agents/instructions/common/json_validation.md",
         "Analyze story requirements to determine which dmtools modules need implementation changes",
         "**DMTOOLS-CORE MODULE**: Business logic, data processing, integrations, CLI commands, core functionality, workflow engines, AI clients, AI Job, configuration processing",
         "**DMTOOLS-SERVER MODULE**: REST API endpoints, web controllers, server-side processing, HTTP services, web interfaces, API routes",
