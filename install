@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # DMTools CLI Cross-Platform Installation Wrapper
-# Usage: curl https://github.com/IstiN/dmtools/releases/latest/download/install | bash
+# Usage: curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
 # This script auto-detects the platform and runs the appropriate installer
 # Works even if this file doesn't exist in older releases - falls back to install.sh
 
