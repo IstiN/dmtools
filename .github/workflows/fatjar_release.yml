@@ -140,14 +140,19 @@ jobs:
         run: |
           # Copy scripts to build directory for consistent paths
           cp install.sh build/libs/
+          cp install build/libs/ 2>/dev/null || true
+          cp install.ps1 build/libs/ 2>/dev/null || true
           cp dmtools.sh build/libs/
           chmod +x build/libs/install.sh
+          [ -f build/libs/install ] && chmod +x build/libs/install || true
           chmod +x build/libs/dmtools.sh
           
           # List files to verify they exist
           echo "Release assets prepared:"
           ls -la build/libs/dmtools-${{ github.ref_name }}-all.jar
           ls -la build/libs/install.sh
+          [ -f build/libs/install ] && ls -la build/libs/install || true
+          [ -f build/libs/install.ps1 ] && ls -la build/libs/install.ps1 || true
           ls -la build/libs/dmtools.sh
 
       - name: Create a Release
@@ -164,4 +169,6 @@ jobs:
           files: |
             build/libs/dmtools-${{ github.ref_name }}-all.jar
             build/libs/install.sh
+            build/libs/install
+            build/libs/install.ps1
             build/libs/dmtools.sh

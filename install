@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# DMTools CLI Cross-Platform Installation Wrapper
+# Usage: curl https://github.com/IstiN/dmtools/releases/latest/download/install | bash
+# This script auto-detects the platform and runs the appropriate installer
+
+set -e
+
+REPO="IstiN/dmtools"
+INSTALL_URL="https://github.com/${REPO}/releases/latest/download"
+
+# Detect platform and shell
+detect_platform() {
+    # Check if we're in PowerShell (Windows)
+    if [ -n "${PSVersionTable}" ] || [ -n "${POWERSHELL_DISTRIBUTION_CHANNEL}" ]; then
+        echo "windows-powershell"
+    # Check if we're in Git Bash or WSL on Windows
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]] || [[ -n "$MSYSTEM" ]]; then
+        echo "windows-bash"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    else
+        echo "unknown"
+    fi
+}
+
+# Download and run installer
+run_installer() {
+    local platform=$(detect_platform)
+    
+    case "$platform" in
+        windows-powershell)
+            echo "Detected Windows PowerShell - using PowerShell installer..."
+            # If we're already in PowerShell, we can't use bash script
+            # This case is actually handled by PowerShell directly calling install.ps1
+            # But if someone pipes this script to PowerShell, we need to handle it
+            if command -v pwsh >/dev/null 2>&1; then
+                pwsh -Command "irm '${INSTALL_URL}/install.ps1' | iex"
+            elif command -v powershell >/dev/null 2>&1; then
+                powershell -Command "irm '${INSTALL_URL}/install.ps1' | iex"
+            else
+                echo "Error: PowerShell not found."
+                exit 1
+            fi
+            ;;
+        windows-bash)
+            echo "Detected Windows (Git Bash/WSL) - using bash installer..."
+            if command -v curl >/dev/null 2>&1; then
+                curl -fsSL "${INSTALL_URL}/install.sh" | bash
+            elif command -v wget >/dev/null 2>&1; then
+                wget -qO- "${INSTALL_URL}/install.sh" | bash
+            else
+                echo "Error: Neither curl nor wget is available."
+                exit 1
+            fi
+            ;;
+        macos|linux)
+            echo "Detected ${platform} - using bash installer..."
+            if command -v curl >/dev/null 2>&1; then
+                curl -fsSL "${INSTALL_URL}/install.sh" | bash
+            elif command -v wget >/dev/null 2>&1; then
+                wget -qO- "${INSTALL_URL}/install.sh" | bash
+            else
+                echo "Error: Neither curl nor wget is available."
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Error: Unsupported platform: $OSTYPE"
+            echo "Please use the platform-specific installer:"
+            echo "  macOS/Linux: curl -fsSL ${INSTALL_URL}/install.sh | bash"
+            echo "  Windows PowerShell: irm ${INSTALL_URL}/install.ps1 | iex"
+            exit 1
+            ;;
+    esac
+}
+
+# Main
+run_installer

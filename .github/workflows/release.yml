@@ -171,7 +171,7 @@ jobs:
           ### 🖥️ DMTools CLI
           - **Command-line interface** for DMTools operations
           - **Java-based** automation and integration tools
-          - **Install script** for easy setup (\`install.sh\`)
+          - **Cross-platform install scripts** for easy setup (\`install\`, \`install.sh\`, \`install.ps1\`)
           - **Wrapper script** (\`dmtools.sh\`)
           
           ### 🌐 Standalone Server
@@ -185,13 +185,26 @@ jobs:
           
           ### DMTools CLI Installation
           
-          Install the DMTools CLI using the provided script:
-          
+          **One-line installation (works on macOS, Linux, and Windows):**
           \`\`\`bash
-          # Download and run install script
-          curl -fsSL https://github.com/IstiN/dmtools/releases/download/v${VERSION}/install.sh | bash
+          curl https://github.com/IstiN/dmtools/releases/download/v${VERSION}/install | bash
+          \`\`\`
           
-          # Or download dmtools-v${VERSION}-all.jar manually and use dmtools.sh
+          **Alternative methods (backward compatible):**
+          
+          **macOS/Linux:**
+          \`\`\`bash
+          curl -fsSL https://github.com/IstiN/dmtools/releases/download/v${VERSION}/install.sh | bash
+          \`\`\`
+          
+          **Windows (PowerShell):**
+          \`\`\`powershell
+          irm https://github.com/IstiN/dmtools/releases/download/v${VERSION}/install.ps1 | iex
+          \`\`\`
+          
+          **Manual download:**
+          \`\`\`bash
+          # Download dmtools-v${VERSION}-all.jar manually and use dmtools.sh
           \`\`\`
           
           ### Standalone Server Options
@@ -377,6 +390,8 @@ jobs:
           files: |
             cli/dmtools-v${{ needs.version-and-tag.outputs.version }}-all.jar
             cli/install.sh
+            cli/install
+            cli/install.ps1
             cli/dmtools.sh
             standalone/dmtools-standalone.jar
             standalone/dmtools-standalone.war
@@ -398,7 +413,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**CLI Tools:**" >> $GITHUB_STEP_SUMMARY
           echo "- CLI JAR (dmtools-v${{ needs.version-and-tag.outputs.version }}-all.jar)" >> $GITHUB_STEP_SUMMARY
-          echo "- install.sh" >> $GITHUB_STEP_SUMMARY
+          echo "- install (cross-platform wrapper)" >> $GITHUB_STEP_SUMMARY
+          echo "- install.sh (macOS/Linux)" >> $GITHUB_STEP_SUMMARY
+          echo "- install.ps1 (Windows PowerShell)" >> $GITHUB_STEP_SUMMARY
           echo "- dmtools.sh" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Standalone Server (with UI):**" >> $GITHUB_STEP_SUMMARY

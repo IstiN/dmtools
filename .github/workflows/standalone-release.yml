@@ -180,6 +180,8 @@ jobs:
             mkdir -p build/libs
             cp "${ACTUAL_JAR}" "${CLI_JAR_RELEASE}"
             cp install.sh build/libs/
+            cp install build/libs/ 2>/dev/null || true
+            cp install.ps1 build/libs/ 2>/dev/null || true
             cp dmtools.sh build/libs/
           else
             echo "✅ Found FatJar release: ${BASE_TAG}"
@@ -204,6 +206,10 @@ jobs:
               cp install.sh build/libs/
             fi
             
+            # Copy new cross-platform install scripts (if they exist)
+            cp install build/libs/ 2>/dev/null || true
+            cp install.ps1 build/libs/ 2>/dev/null || true
+            
             # Download dmtools.sh
             DMTOOLS_SH_URL=$(echo "${RELEASE_INFO}" | jq -r '.assets[] | select(.name == "dmtools.sh") | .browser_download_url')
             if [ -n "${DMTOOLS_SH_URL}" ] && [ "${DMTOOLS_SH_URL}" != "null" ]; then
@@ -214,6 +220,7 @@ jobs:
           fi
           
           chmod +x build/libs/install.sh
+          [ -f build/libs/install ] && chmod +x build/libs/install || true
           chmod +x build/libs/dmtools.sh
           
           # Get CLI JAR size
@@ -226,6 +233,8 @@ jobs:
           echo "cli_jar_path=${CLI_JAR_RELEASE}" >> $GITHUB_OUTPUT
           echo "cli_jar_size=${CLI_JAR_SIZE}" >> $GITHUB_OUTPUT
           echo "install_sh_path=build/libs/install.sh" >> $GITHUB_OUTPUT
+          echo "install_path=build/libs/install" >> $GITHUB_OUTPUT
+          echo "install_ps1_path=build/libs/install.ps1" >> $GITHUB_OUTPUT
           echo "dmtools_sh_path=build/libs/dmtools.sh" >> $GITHUB_OUTPUT
           echo "fatjar_source_tag=${BASE_TAG}" >> $GITHUB_OUTPUT
 
@@ -676,13 +685,26 @@ jobs:
           
           ### DMTools CLI Installation
           
-          Install the DMTools CLI using the provided script:
-          
+          **One-line installation (works on macOS, Linux, and Windows):**
           \`\`\`bash
-          # Download and run install script
-          curl -fsSL https://github.com/IstiN/dmtools/releases/download/${{ github.event.inputs.release_tag }}/install.sh | bash
+          curl https://github.com/IstiN/dmtools/releases/download/${{ github.event.inputs.release_tag }}/install | bash
+          \`\`\`
           
-          # Or download dmtools-${{ github.event.inputs.release_tag }}-all.jar manually and use dmtools.sh
+          **Alternative methods (backward compatible):**
+          
+          **macOS/Linux:**
+          \`\`\`bash
+          curl -fsSL https://github.com/IstiN/dmtools/releases/download/${{ github.event.inputs.release_tag }}/install.sh | bash
+          \`\`\`
+          
+          **Windows PowerShell:**
+          \`\`\`powershell
+          irm https://github.com/IstiN/dmtools/releases/download/${{ github.event.inputs.release_tag }}/install.ps1 | iex
+          \`\`\`
+          
+          **Manual download:**
+          \`\`\`bash
+          # Download dmtools-${{ github.event.inputs.release_tag }}-all.jar manually and use dmtools.sh
           \`\`\`
           
           ### Standalone Server Options
@@ -901,6 +923,8 @@ jobs:
           files: |
             ${{ steps.download_cli.outputs.cli_jar_path }}
             ${{ steps.download_cli.outputs.install_sh_path }}
+            ${{ steps.download_cli.outputs.install_path }}
+            ${{ steps.download_cli.outputs.install_ps1_path }}
             ${{ steps.download_cli.outputs.dmtools_sh_path }}
             ${{ steps.create_standalone.outputs.jar_path }}
             ${{ steps.create_standalone.outputs.war_path }}
@@ -955,9 +979,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🚀 Quick Start Options" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**CLI Installation:**" >> $GITHUB_STEP_SUMMARY
+          echo "**CLI Installation (One-line, all platforms):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "curl https://github.com/IstiN/dmtools/releases/download/${{ github.event.inputs.release_tag }}/install | bash" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Alternative (macOS/Linux):**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "curl -fsSL https://github.com/IstiN/dmtools/releases/download/${{ github.event.inputs.release_tag }}/install.sh | bash" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Alternative (Windows PowerShell):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`powershell" >> $GITHUB_STEP_SUMMARY
+          echo "irm https://github.com/IstiN/dmtools/releases/download/${{ github.event.inputs.release_tag }}/install.ps1 | iex" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Standalone Server - Option 1: Portable Bundle (No Java Required) ⭐**" >> $GITHUB_STEP_SUMMARY
