@@ -39,10 +39,13 @@ jobs:
           
           # Copy scripts
           cp build-artifacts/install.sh cli-release/
+          cp build-artifacts/install cli-release/ 2>/dev/null || true
+          cp build-artifacts/install.ps1 cli-release/ 2>/dev/null || true
           cp build-artifacts/dmtools.sh cli-release/
           
           # Make scripts executable
           chmod +x cli-release/install.sh
+          [ -f cli-release/install ] && chmod +x cli-release/install || true
           chmod +x cli-release/dmtools.sh
           
           # List prepared artifacts

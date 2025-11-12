@@ -199,7 +199,11 @@ jobs:
           
           **Windows (PowerShell):**
           \`\`\`powershell
+          # PowerShell 5.1+ (irm is an alias)
           irm https://github.com/IstiN/dmtools/releases/download/v${VERSION}/install.ps1 | iex
+          
+          # Or use full command (works in all PowerShell versions)
+          Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/download/v${VERSION}/install.ps1' | Invoke-Expression
           \`\`\`
           
           **Manual download:**

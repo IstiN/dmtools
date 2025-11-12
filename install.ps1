@@ -1,5 +1,6 @@
 # DMTools CLI Installation Script for Windows PowerShell
-# Usage: irm https://github.com/IstiN/dmtools/releases/latest/download/install.ps1 | iex
+# Usage: Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/latest/download/install.ps1' | Invoke-Expression
+# Or: irm https://github.com/IstiN/dmtools/releases/latest/download/install.ps1 | iex (PowerShell 5.1+)
 # Requirements: Java 23 (will attempt automatic installation)
 
 $ErrorActionPreference = "Stop"
