@@ -64,14 +64,38 @@ download_and_run() {
     return $exit_code
 }
 
-# Detect platform and shell
-detect_platform() {
-    # Check if we're in Git Bash or WSL on Windows
-    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]] || [[ -n "$MSYSTEM" ]]; then
-        echo "windows-bash"
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
+# Detect if we are running on Windows (PowerShell, Git Bash, WSL)
+is_windows() {
+    # Common environment variables available in Windows shells
+    if [[ -n "$WINDIR" ]] || [[ -n "$MSYSTEM" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        return 0
+    fi
+
+    # uname checks (Git Bash / MSYS / Cygwin)
+    local uname_s
+    uname_s="$(uname -s 2>/dev/null || echo "")"
+    if [[ "$uname_s" == *"MINGW"* ]] || [[ "$uname_s" == *"MSYS"* ]] || [[ "$uname_s" == *"CYGWIN"* ]]; then
+        return 0
+    fi
+
+    # Detect WSL (Windows Subsystem for Linux)
+    if [[ -f /proc/version ]] && grep -qi microsoft /proc/version 2>/dev/null; then
+        return 0
+    fi
+
+    # WSL usually mounts the Windows drive under /mnt/c
+    if [[ -d /mnt/c/Windows ]] || [[ -d /mnt/c/windows ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Detect platform (returns macos or linux for non-Windows hosts)
+detect_unix_platform() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "macos"
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    elif [[ "$OSTYPE" == "linux-gnu"* ]] || [[ "$(uname -s 2>/dev/null)" == "Linux" ]]; then
         echo "linux"
     else
         echo "unknown"
@@ -80,33 +104,51 @@ detect_platform() {
 
 # Download and run installer
 run_installer() {
-    local platform=$(detect_platform)
-    
+    if is_windows; then
+        echo "Detected windows environment - downloading PowerShell installer..."
+
+        local install_ps_url="https://github.com/${REPO}/releases/latest/download/install.ps1"
+        local pwsh_exe=""
+
+        if command -v pwsh >/dev/null 2>&1; then
+            pwsh_exe="pwsh"
+        elif command -v powershell >/dev/null 2>&1; then
+            pwsh_exe="powershell"
+        elif command -v powershell.exe >/dev/null 2>&1; then
+            pwsh_exe="powershell.exe"
+        else
+            echo "Error: PowerShell is required but was not found. Please install PowerShell or use the macOS/Linux installer."
+            exit 1
+        fi
+
+        "$pwsh_exe" -NoLogo -NoProfile -Command "Invoke-RestMethod -Uri '${install_ps_url}' | Invoke-Expression"
+        return $?
+    fi
+
+    local platform
+    platform=$(detect_unix_platform)
+
     case "$platform" in
-        windows-bash|macos|linux)
+        macos|linux)
             echo "Detected ${platform} - downloading installer..."
-            
-            # Always try install.sh first (it exists in all releases)
-            # Try to get install.sh URL from GitHub API
-            local install_url=$(get_asset_url "latest" "install.sh")
-            
-            # If API method failed, try direct URL
+
+            local install_url
+            install_url=$(get_asset_url "latest" "install.sh")
+
             if [ -z "$install_url" ]; then
                 install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
             fi
-            
-            # Download and run install.sh
+
             if download_and_run "$install_url"; then
                 return 0
             fi
-            
-            # If that failed, try with a specific version pattern
+
             echo "Trying alternative download method..."
             install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
             if download_and_run "$install_url"; then
                 return 0
             fi
-            
+
             echo ""
             echo "Error: Failed to download installer script."
             echo ""
@@ -120,7 +162,7 @@ run_installer() {
             exit 1
             ;;
         *)
-            echo "Error: Unsupported platform: $OSTYPE"
+            echo "Error: Unsupported platform detected."
             echo "Please use the platform-specific installer:"
             echo "  macOS/Linux: curl -fsSL https://github.com/${REPO}/releases/latest/download/install.sh | bash"
             echo "  Windows PowerShell: Invoke-RestMethod -Uri 'https://github.com/${REPO}/releases/latest/download/install.ps1' | Invoke-Expression"
