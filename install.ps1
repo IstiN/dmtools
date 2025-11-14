@@ -162,6 +162,12 @@ if "%JAVA_HOME%"=="" (
 )
 if not exist "%JAVA_EXE%" set JAVA_EXE=java
 
+REM Check for --debug flag
+set DEBUG_MODE=0
+for %%a in (%*) do (
+    if "%%a"=="--debug" set DEBUG_MODE=1
+)
+
 REM Handle special commands that don't need 'mcp' prefix
 if "%1"=="--version" goto :direct
 if "%1"=="-v" goto :direct
@@ -172,11 +178,19 @@ if "%1"=="run" goto :direct
 if "%1"=="mcp" goto :direct
 
 REM For all other commands, prepend 'mcp' to route through MCP handler
-"%JAVA_EXE%" -jar "$JAR_PATH" mcp %*
+if %DEBUG_MODE%==1 (
+    "%JAVA_EXE%" -jar "$JAR_PATH" mcp %*
+) else (
+    "%JAVA_EXE%" -jar "$JAR_PATH" mcp %* 2>nul
+)
 goto :end
 
 :direct
-"%JAVA_EXE%" -jar "$JAR_PATH" %*
+if %DEBUG_MODE%==1 (
+    "%JAVA_EXE%" -jar "$JAR_PATH" %*
+) else (
+    "%JAVA_EXE%" -jar "$JAR_PATH" %* 2>nul
+)
 
 :end
 endlocal

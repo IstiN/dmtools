@@ -34,10 +34,11 @@ jobs:
           
           Write-Host "Checking dmtools installation..."
           if (Test-Path "$DMToolsPath\dmtools.cmd") {
-            Write-Host "✅ dmtools.cmd found at: $DMToolsPath\dmtools.cmd"
-            & "$DMToolsPath\dmtools.cmd" --version
+            Write-Host "✅ dmtools found at: $DMToolsPath\dmtools.cmd"
+            # Use dmtools command (should be in PATH)
+            dmtools --version
           } else {
-            Write-Host "❌ dmtools.cmd not found at: $DMToolsPath\dmtools.cmd"
+            Write-Host "❌ dmtools not found at: $DMToolsPath\dmtools.cmd"
             exit 1
           }
 
@@ -72,7 +73,8 @@ jobs:
           $env:Path = "$DMToolsPath;$env:Path"
           
           Write-Host "Testing Jira integration with ticket DMC-100..."
-          $Output = & "$DMToolsPath\dmtools.cmd" jira_get_ticket DMC-100 2>&1 | Out-String
+          # Use dmtools command (should be in PATH), suppress stderr (debug logs)
+          $Output = dmtools jira_get_ticket DMC-100 2>$null | Out-String
           Write-Host "Command output:"
           Write-Host $Output
           
