@@ -150,18 +150,36 @@ function Download-DMTools {
     $tempScript = "$env:TEMP\dmtools.sh"
     Download-File -Url $scriptUrl -Output $tempScript -Description "DMTools shell script"
     
-    # Create Windows batch wrapper
+    # Create Windows batch wrapper that mimics dmtools.sh behavior
     $batchContent = @"
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 set JAVA_HOME=%JAVA_HOME%
 if "%JAVA_HOME%"=="" (
-    for /f "tokens=*" %%i in ('where java') do set JAVA_EXE=%%i
+    for /f "tokens=*" %%i in ('where java 2^>nul') do set JAVA_EXE=%%i
 ) else (
     set JAVA_EXE=%JAVA_HOME%\bin\java.exe
 )
 if not exist "%JAVA_EXE%" set JAVA_EXE=java
+
+REM Handle special commands that don't need 'mcp' prefix
+if "%1"=="--version" goto :direct
+if "%1"=="-v" goto :direct
+if "%1"=="--help" goto :direct
+if "%1"=="-h" goto :direct
+if "%1"=="--list-jobs" goto :direct
+if "%1"=="run" goto :direct
+if "%1"=="mcp" goto :direct
+
+REM For all other commands, prepend 'mcp' to route through MCP handler
+"%JAVA_EXE%" -jar "$JAR_PATH" mcp %*
+goto :end
+
+:direct
 "%JAVA_EXE%" -jar "$JAR_PATH" %*
+
+:end
+endlocal
 "@
     Set-Content -Path $SCRIPT_PATH -Value $batchContent
 }
@@ -201,7 +219,9 @@ function Print-Instructions {
     Write-Info "🎉 DMTools CLI installation completed!"
     Write-Host ""
     Write-Host "To get started:"
-    Write-Host "  1. Restart your PowerShell or run: `$env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')"
+    Write-Host "  1. Restart your terminal (PowerShell or CMD) to reload PATH"
+    Write-Host "     Or in PowerShell: `$env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')"
+    Write-Host "     Or in CMD: set PATH=%PATH%;$BIN_DIR"
     Write-Host "  2. Run: dmtools list"
     Write-Host "  3. Set up your integrations with environment variables:"
     Write-Host "     `$env:DMTOOLS_INTEGRATIONS='jira,confluence,figma'"

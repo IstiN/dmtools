@@ -32,36 +32,58 @@ get_asset_url() {
 # Download and validate script before executing
 download_and_run() {
     local url="$1"
-    local temp_file=$(mktemp /tmp/dmtools-install-XXXXXX.sh 2>/dev/null || mktemp /tmp/dmtools-install-XXXXXX.sh)
+    local temp_file
+    temp_file=$(mktemp /tmp/dmtools-install-XXXXXX.sh 2>/dev/null || mktemp /tmp/dmtools-install-XXXXXX.sh 2>/dev/null || echo "/tmp/dmtools-install-$$.sh")
     
     # Download to temp file
     if command -v curl >/dev/null 2>&1; then
-        if ! curl -fsSL "$url" -o "$temp_file" 2>/dev/null; then
+        if ! curl -fsSL "$url" -o "$temp_file" 2>&1; then
+            echo "Failed to download from $url" >&2
             rm -f "$temp_file" 2>/dev/null
             return 1
         fi
     elif command -v wget >/dev/null 2>&1; then
-        if ! wget -qO "$temp_file" "$url" 2>/dev/null; then
+        if ! wget -qO "$temp_file" "$url" 2>&1; then
+            echo "Failed to download from $url" >&2
             rm -f "$temp_file" 2>/dev/null
             return 1
         fi
     else
-        echo "Error: Neither curl nor wget is available."
+        echo "Error: Neither curl nor wget is available." >&2
+        return 1
+    fi
+    
+    # Check if file was downloaded and has content
+    if [ ! -f "$temp_file" ] || [ ! -s "$temp_file" ]; then
+        echo "Downloaded file is empty or missing" >&2
+        rm -f "$temp_file" 2>/dev/null
         return 1
     fi
     
     # Check if downloaded file is a valid script (not HTML error page)
-    if [ ! -s "$temp_file" ] || head -1 "$temp_file" 2>/dev/null | grep -qiE "(html|<!doctype|not found|404|github)" 2>/dev/null; then
+    if head -1 "$temp_file" 2>/dev/null | grep -qiE "(html|<!doctype|not found|404|github)" 2>/dev/null; then
+        echo "Downloaded file appears to be an HTML error page" >&2
+        rm -f "$temp_file" 2>/dev/null
+        return 1
+    fi
+    
+    # Check if it starts with shebang or is a valid bash script
+    if ! head -1 "$temp_file" 2>/dev/null | grep -qE "^#!"; then
+        echo "Downloaded file does not appear to be a script" >&2
         rm -f "$temp_file" 2>/dev/null
         return 1
     fi
     
     # Make executable and run
     chmod +x "$temp_file" 2>/dev/null
-    bash "$temp_file"
-    local exit_code=$?
+    if ! bash "$temp_file"; then
+        local exit_code=$?
+        echo "Installer script exited with code: $exit_code" >&2
+        rm -f "$temp_file" 2>/dev/null
+        return $exit_code
+    fi
     rm -f "$temp_file" 2>/dev/null
-    return $exit_code
+    return 0
 }
 
 # Detect if we are running on Windows (PowerShell, Git Bash, WSL)
@@ -152,12 +174,16 @@ run_installer() {
 
             if download_and_run "$install_url"; then
                 return 0
+            else
+                echo "Failed to download from: $install_url" >&2
             fi
 
             echo "Trying alternative download method..."
             install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
             if download_and_run "$install_url"; then
                 return 0
+            else
+                echo "Failed to download from: $install_url" >&2
             fi
 
             echo ""
