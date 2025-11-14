@@ -1,0 +1,78 @@
+name: Integration Test - Windows
+
+on:
+  release:
+    types: [created, published]
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    runs-on: windows-latest
+    continue-on-error: true
+    
+    steps:
+      - name: Setup Java Environment
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '23'
+
+      - name: Install DMTools CLI
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
+          echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+
+      - name: Verify Installation
+        shell: bash
+        run: |
+          export PATH="$HOME/.dmtools/bin:$PATH"
+          dmtools --version || echo "Version check failed"
+          which dmtools || echo "dmtools not found in PATH"
+
+      - name: Test Jira Integration
+        shell: bash
+        env:
+          # Jira Configuration
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+          JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+
+          # Confluence Configuration
+          CONFLUENCE_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+          CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+          CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
+
+          # DMTools Integration Settings
+          DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai,cli,file"
+
+          # AI Service Configuration
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          
+          # Figma Configuration
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+          FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
+
+        run: |
+          export PATH="$HOME/.dmtools/bin:$PATH"
+          
+          echo "Testing Jira integration with ticket DMC-100..."
+          OUTPUT=$(dmtools jira_get_ticket DMC-100 2>&1)
+          echo "Command output:"
+          echo "$OUTPUT"
+          
+          if echo "$OUTPUT" | grep -q "DMC-100"; then
+            echo "✅ Success: Response contains DMC-100"
+            exit 0
+          else
+            echo "❌ Failure: Response does not contain DMC-100"
+            echo "Full output:"
+            echo "$OUTPUT"
+            exit 1
+          fi
+
