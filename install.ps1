@@ -168,6 +168,13 @@ for %%a in (%*) do (
     if "%%a"=="--debug" set DEBUG_MODE=1
 )
 
+REM Set log4j config based on debug mode (same as dmtools.sh)
+if %DEBUG_MODE%==1 (
+    set LOG_CONFIG=log4j2-debug.xml
+) else (
+    set LOG_CONFIG=log4j2-cli.xml
+)
+
 REM Handle special commands that don't need 'mcp' prefix
 if "%1"=="--version" goto :direct
 if "%1"=="-v" goto :direct
@@ -179,17 +186,17 @@ if "%1"=="mcp" goto :direct
 
 REM For all other commands, prepend 'mcp' to route through MCP handler
 if %DEBUG_MODE%==1 (
-    "%JAVA_EXE%" -jar "$JAR_PATH" mcp %*
+    "%JAVA_EXE%" -Dlog4j2.configurationFile=classpath:%LOG_CONFIG% -Dlog4j.configuration=%LOG_CONFIG% --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -jar "$JAR_PATH" mcp %*
 ) else (
-    "%JAVA_EXE%" -jar "$JAR_PATH" mcp %* 2>nul
+    "%JAVA_EXE%" -Dlog4j2.configurationFile=classpath:%LOG_CONFIG% -Dlog4j.configuration=%LOG_CONFIG% --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -jar "$JAR_PATH" mcp %* 2>nul
 )
 goto :end
 
 :direct
 if %DEBUG_MODE%==1 (
-    "%JAVA_EXE%" -jar "$JAR_PATH" %*
+    "%JAVA_EXE%" -Dlog4j2.configurationFile=classpath:%LOG_CONFIG% -Dlog4j.configuration=%LOG_CONFIG% --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -jar "$JAR_PATH" %*
 ) else (
-    "%JAVA_EXE%" -jar "$JAR_PATH" %* 2>nul
+    "%JAVA_EXE%" -Dlog4j2.configurationFile=classpath:%LOG_CONFIG% -Dlog4j.configuration=%LOG_CONFIG% --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -jar "$JAR_PATH" %* 2>nul
 )
 
 :end
