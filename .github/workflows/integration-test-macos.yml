@@ -24,7 +24,15 @@ jobs:
 
       - name: Install DMTools CLI
         run: |
+          set +e  # Don't exit on error, we want to see what happens
+          echo "Downloading and running install script..."
           curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
+          INSTALL_EXIT=$?
+          if [ $INSTALL_EXIT -ne 0 ]; then
+            echo "Install script exited with code: $INSTALL_EXIT"
+            echo "Trying direct install.sh as fallback..."
+            curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+          fi
           echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
 
       - name: Verify Installation
