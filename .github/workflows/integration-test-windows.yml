@@ -24,17 +24,24 @@ jobs:
         shell: bash
         run: |
           curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
-          echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+          # The install script adds to Windows PATH, but we'll use full path in PowerShell steps
 
       - name: Verify Installation
-        shell: bash
         run: |
-          export PATH="$HOME/.dmtools/bin:$PATH"
-          dmtools --version || echo "Version check failed"
-          which dmtools || echo "dmtools not found in PATH"
+          # Use Windows path format
+          $DMToolsPath = "$env:USERPROFILE\.dmtools\bin"
+          $env:Path = "$DMToolsPath;$env:Path"
+          
+          Write-Host "Checking dmtools installation..."
+          if (Test-Path "$DMToolsPath\dmtools.cmd") {
+            Write-Host "✅ dmtools.cmd found at: $DMToolsPath\dmtools.cmd"
+            & "$DMToolsPath\dmtools.cmd" --version
+          } else {
+            Write-Host "❌ dmtools.cmd not found at: $DMToolsPath\dmtools.cmd"
+            exit 1
+          }
 
       - name: Test Jira Integration
-        shell: bash
         env:
           # Jira Configuration
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
@@ -60,20 +67,22 @@ jobs:
           FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
 
         run: |
-          export PATH="$HOME/.dmtools/bin:$PATH"
+          # Use Windows path format and PowerShell
+          $DMToolsPath = "$env:USERPROFILE\.dmtools\bin"
+          $env:Path = "$DMToolsPath;$env:Path"
           
-          echo "Testing Jira integration with ticket DMC-100..."
-          OUTPUT=$(dmtools jira_get_ticket DMC-100 2>&1)
-          echo "Command output:"
-          echo "$OUTPUT"
+          Write-Host "Testing Jira integration with ticket DMC-100..."
+          $Output = & "$DMToolsPath\dmtools.cmd" jira_get_ticket DMC-100 2>&1 | Out-String
+          Write-Host "Command output:"
+          Write-Host $Output
           
-          if echo "$OUTPUT" | grep -q "DMC-100"; then
-            echo "✅ Success: Response contains DMC-100"
+          if ($Output -match "DMC-100") {
+            Write-Host "✅ Success: Response contains DMC-100"
             exit 0
-          else
-            echo "❌ Failure: Response does not contain DMC-100"
-            echo "Full output:"
-            echo "$OUTPUT"
+          } else {
+            Write-Host "❌ Failure: Response does not contain DMC-100"
+            Write-Host "Full output:"
+            Write-Host $Output
             exit 1
-          fi
+          }
 
