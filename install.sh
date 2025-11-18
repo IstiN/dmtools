@@ -42,12 +42,16 @@ detect_platform() {
     local os=""
     local arch=""
     
-    case "$(uname -s)" in
-        Darwin*) os="darwin" ;;
-        Linux*) os="linux" ;;
-        CYGWIN*|MINGW*|MSYS*) os="windows" ;;
-        *) error "Unsupported operating system: $(uname -s)" ;;
-    esac
+    # Check for Windows first (Git Bash, WSL, Cygwin, MSYS)
+    if [[ -n "$WINDIR" ]] || [[ -n "$MSYSTEM" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$(uname -s)" == *"MINGW"* ]] || [[ "$(uname -s)" == *"MSYS"* ]] || [[ "$(uname -s)" == *"CYGWIN"* ]]; then
+        os="windows"
+    else
+        case "$(uname -s)" in
+            Darwin*) os="darwin" ;;
+            Linux*) os="linux" ;;
+            *) error "Unsupported operating system: $(uname -s)" ;;
+        esac
+    fi
     
     case "$(uname -m)" in
         x86_64|amd64) arch="amd64" ;;
@@ -137,13 +141,162 @@ create_install_dir() {
     mkdir -p "$BIN_DIR"
 }
 
+# Check if running on Windows (Git Bash, WSL, Cygwin, MSYS)
+is_windows() {
+    # Check various Windows indicators
+    if [[ -n "$WINDIR" ]] || [[ -n "$MSYSTEM" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        return 0
+    fi
+    
+    # Check uname output
+    local uname_s=$(uname -s 2>/dev/null || echo "")
+    if [[ "$uname_s" == *"MINGW"* ]] || [[ "$uname_s" == *"MSYS"* ]] || [[ "$uname_s" == *"CYGWIN"* ]]; then
+        return 0
+    fi
+    
+    # Check for WSL (Windows Subsystem for Linux)
+    if [[ -f /proc/version ]] && grep -qi microsoft /proc/version 2>/dev/null; then
+        return 0
+    fi
+    
+    # Check for Windows mount point in WSL
+    if [[ -d /mnt/c/Windows ]] || [[ -d /mnt/c/windows ]]; then
+        return 0
+    fi
+    
+    return 1
+}
+
+# Get JAVA_HOME from Windows environment if not set
+get_windows_java_home() {
+    if is_windows && [ -z "${JAVA_HOME:-}" ]; then
+        # Try to get JAVA_HOME from Windows environment using cmd.exe
+        local win_java_home
+        win_java_home=$(cmd.exe //c "echo %JAVA_HOME%" 2>/dev/null | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        if [ -n "$win_java_home" ] && [ "$win_java_home" != "%JAVA_HOME%" ]; then
+            echo "$win_java_home"
+            return 0
+        fi
+        
+        # Try PowerShell method
+        win_java_home=$(powershell.exe -Command "[Environment]::GetEnvironmentVariable('JAVA_HOME', 'User')" 2>/dev/null | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [ -n "$win_java_home" ]; then
+            echo "$win_java_home"
+            return 0
+        fi
+        
+        # Try Machine scope
+        win_java_home=$(powershell.exe -Command "[Environment]::GetEnvironmentVariable('JAVA_HOME', 'Machine')" 2>/dev/null | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [ -n "$win_java_home" ]; then
+            echo "$win_java_home"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Convert Windows path to Git Bash format
+convert_windows_path() {
+    local path="$1"
+    
+    # If already in Unix format, return as-is
+    if [[ "$path" == /* ]]; then
+        echo "$path"
+        return
+    fi
+    
+    # Try using cygpath if available (most reliable)
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -u "$path" 2>/dev/null && return
+    fi
+    
+    # Manual conversion: Windows path (C:\...) to Unix path (/c/...)
+    # Handle both forward and backslashes, convert drive letter
+    echo "$path" | sed 's|\\|/|g' | sed -E 's|^([A-Za-z]):|/\1|' | tr '[:upper:]' '[:lower:]'
+}
+
 # Check and install Java
 check_java() {
     progress "Checking Java installation..."
     
-    # Check if Java is available
+    # Check if Java is available in PATH
+    local java_cmd="java"
     if ! command -v java >/dev/null 2>&1; then
-        if [ -n "${GITHUB_ACTIONS:-}" ]; then
+        # Java not in PATH, check JAVA_HOME
+        # First try to get JAVA_HOME from Windows if not set
+        if [ -z "${JAVA_HOME:-}" ] && is_windows; then
+            local win_java_home
+            if win_java_home=$(get_windows_java_home); then
+                export JAVA_HOME="$win_java_home"
+                info "Found JAVA_HOME from Windows environment: $JAVA_HOME"
+            fi
+        fi
+        
+        if [ -n "${JAVA_HOME:-}" ]; then
+            info "Java not found in PATH, checking JAVA_HOME: $JAVA_HOME"
+            
+            # Convert Windows path to Unix path if running in Git Bash/MSYS
+            local java_home_path="$JAVA_HOME"
+            if is_windows; then
+                java_home_path=$(convert_windows_path "$JAVA_HOME")
+                info "Converted JAVA_HOME path: $java_home_path"
+            fi
+            
+            # Check if java executable exists in JAVA_HOME
+            local java_exe=""
+            if [ -f "$java_home_path/bin/java.exe" ]; then
+                java_exe="$java_home_path/bin/java.exe"
+            elif [ -f "$java_home_path/bin/java" ]; then
+                java_exe="$java_home_path/bin/java"
+            fi
+            
+            if [ -n "$java_exe" ] && [ -x "$java_exe" ]; then
+                java_cmd="$java_exe"
+                info "Found Java in JAVA_HOME: $java_exe"
+                # Add Java bin directory to PATH for this session
+                export PATH="$java_home_path/bin:$PATH"
+                info "Added $java_home_path/bin to PATH"
+            else
+                warn "JAVA_HOME is set to $JAVA_HOME but java executable not found"
+                warn "Searched for: $java_home_path/bin/java.exe and $java_home_path/bin/java"
+                if [ -d "$java_home_path/bin" ]; then
+                    warn "Directory exists. Contents: $(ls -la "$java_home_path/bin" 2>/dev/null | head -5 || echo 'cannot list')"
+                else
+                    warn "Directory $java_home_path/bin does not exist"
+                fi
+            fi
+        fi
+        
+        # If still not found, show error with platform-specific instructions
+        if ! command -v "$java_cmd" >/dev/null 2>&1 && [ "$java_cmd" = "java" ]; then
+            # First check if we're on Windows - don't try to install Java automatically
+            if is_windows; then
+                error "Java 23 is required but not found in PATH or JAVA_HOME. Please ensure Java is installed and accessible:
+
+1. Export JAVA_HOME in Git Bash (Quick Fix):
+   Run this command in Git Bash before running the installer:
+   export JAVA_HOME=\"/c/Program Files/Eclipse Adoptium/jdk-23.0.2.7-hotspot\"
+   (Replace with your actual Java installation path)
+
+2. Or set JAVA_HOME in Windows:
+   - Open Windows System Properties → Environment Variables
+   - Set JAVA_HOME to: C:\\Program Files\\Eclipse Adoptium\\jdk-23.0.2.7-hotspot
+   - Restart Git Bash to pick up the environment variable
+
+3. Or add Java to PATH:
+   - Add Java bin directory to Windows PATH environment variable
+   - Example: C:\\Program Files\\Eclipse Adoptium\\jdk-23.0.2.7-hotspot\\bin
+   - Restart Git Bash after changing PATH
+
+Download Java 23 from:
+  - Eclipse Temurin: https://adoptium.net/
+  - Or use Chocolatey: choco install temurin23jdk
+
+Note: If you're using WSL, you can install Java in WSL using:
+  sudo apt-get update && sudo apt-get install -y openjdk-23-jdk"
+            fi
+        elif [ -n "${GITHUB_ACTIONS:-}" ]; then
             error "Java is not available in GitHub Actions. Please set up Java first:
             
 steps:
@@ -167,7 +320,8 @@ steps:
   - Via Oracle: https://www.oracle.com/java/technologies/downloads/
   - Via Eclipse Temurin: https://adoptium.net/"
             fi
-        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        elif [[ "$OSTYPE" == "linux-gnu"* ]] || [[ "$(uname -s)" == "Linux" ]]; then
+            # This is real Linux (not Windows/WSL)
             if command -v apt-get >/dev/null 2>&1; then
                 warn "Java not found. Attempting to install via apt..."
                 progress "Installing OpenJDK 23..."
@@ -192,9 +346,9 @@ steps:
         fi
     fi
     
-    # Verify Java version
+    # Verify Java version using the detected java command
     local java_version
-    java_version=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2)
+    java_version=$("$java_cmd" -version 2>&1 | head -n 1 | cut -d'"' -f2)
     local java_major_version
     java_major_version=$(echo "$java_version" | cut -d'.' -f1)
     
