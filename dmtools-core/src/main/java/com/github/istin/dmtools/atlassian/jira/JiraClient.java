@@ -299,7 +299,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return new GenericRequest(this, path("issue/" + key + "?expand=changelog&fields=summary"));
     }
 
-    protected T createTicket(String body) {
+    @Override
+    public T createTicket(String body) {
         return (T) new Ticket(body);
     }
 
@@ -367,13 +368,13 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             SearchResult searchResults = searchByPage(searchQueryJQL, null, resolvedFields);
             if (searchResults == null) {
                 logger.error("Received null search results for JQL: {}", searchQueryJQL);
-                throw new RestClient.RestClientException("Search returned null results", "null");
+                throw new RestClient.RestClientException("Search returned null results", "null", -1);
             }
             
             JSONArray errorMessages = searchResults.getErrorMessages();
             if (errorMessages != null && errorMessages.length() > 0) {
                 logger.error("Search failed with errors: {}", errorMessages);
-                throw new RestClient.RestClientException("Search failed: " + errorMessages.toString(), errorMessages.toString());
+                throw new RestClient.RestClientException("Search failed: " + errorMessages.toString(), errorMessages.toString(), -1);
             }
             
             boolean isBreak = false;
@@ -418,7 +419,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                     }
                 } catch (Exception e) {
                     logger.error("Error during pagination at token {}: {}", nextToken, e.getMessage());
-                    throw new RestClient.RestClientException("Pagination failed: " + e.getMessage(), e.toString());
+                    throw new RestClient.RestClientException("Pagination failed: " + e.getMessage(), e.toString(), -1);
                 }
             }
         } else {
@@ -1451,7 +1452,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         String lowerJql = jql.toLowerCase();
         
         // Pattern 1: "project = PROJECTKEY" (with or without spaces)
-        String[] patterns = {"project=", "project ="};
+        String[] patterns = {"project=", "project =", "project in ("};
         
         for (String pattern : patterns) {
             int patternIndex = lowerJql.indexOf(pattern);
@@ -1570,6 +1571,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         String updateResult = jiraRequest.put();
         log("Updated field '" + resolvedFieldName + "' (originally '" + field + "') on ticket " + key + " with value: " + value);
 
+        // Jira's PUT endpoint returns empty response body on success
+        // Return a meaningful success message instead of empty string for MCP
+        if (updateResult == null || updateResult.trim().isEmpty()) {
+            return "Field '" + field + "' updated successfully on ticket " + key;
+        }
+        
         return updateResult;
     }
 
@@ -2244,10 +2251,10 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         RestClient client = this;
         return cacheManager.getOrComputeSimple("getFields_" + project, () -> {
             try {
-                GenericRequest genericRequest = new GenericRequest(client, path("issue/createmeta?projectKeys=" + project + "&expand=projects.issuetypes.fields"));
+                GenericRequest genericRequest = new GenericRequest(client, path("field"));
                 return genericRequest.execute();
             } catch (Exception e) {
-                GenericRequest genericRequest = new GenericRequest(client, path("field"));
+                GenericRequest genericRequest = new GenericRequest(client, path("issue/createmeta?projectKeys=" + project + "&expand=projects.issuetypes.fields"));
                 try {
                     return  genericRequest.execute();
                 } catch (IOException ex) {

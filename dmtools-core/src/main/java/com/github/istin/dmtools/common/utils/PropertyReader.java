@@ -5,6 +5,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Properties;
@@ -28,6 +31,38 @@ public class PropertyReader {
 
 
 	static Properties prop;
+	private static Properties envFileProps;
+
+	/**
+	 * Loads properties from dmtools.env file in current working directory.
+	 * This is called lazily on first access.
+	 */
+	private static void loadEnvFileProperties() {
+		if (envFileProps != null) {
+			return; // Already loaded
+		}
+		
+		envFileProps = new Properties();
+		
+		// Try to load from current working directory
+		String currentDir = System.getProperty("user.dir");
+		if (currentDir != null) {
+			Path envFile = Paths.get(currentDir, "dmtools.env");
+			if (Files.exists(envFile) && Files.isRegularFile(envFile)) {
+				try {
+					Map<String, String> envVars = CommandLineUtils.loadEnvironmentFromFile(envFile.toString());
+					if (!envVars.isEmpty()) {
+						envVars.forEach(envFileProps::setProperty);
+						logger.debug("Loaded {} properties from dmtools.env at: {}", envVars.size(), envFile);
+					}
+				} catch (Exception e) {
+					logger.warn("Failed to load dmtools.env from {}: {}", envFile, e.getMessage());
+				}
+			} else {
+				logger.debug("dmtools.env not found in current directory: {}", currentDir);
+			}
+		}
+	}
 
 	public String getValue(String propertyKey) {
 		if (prop == null) {
@@ -50,11 +85,22 @@ public class PropertyReader {
 				}
 			}
 		}
+		
+		// Priority 1: Resource file (config.properties)
 		String property = prop.getProperty(propertyKey);
-		if (property == null || property.isEmpty()) {
-			return System.getenv(propertyKey);
+		if (property != null && !property.isEmpty()) {
+			return property;
 		}
-		return property;
+		
+		// Priority 2: dmtools.env file in current directory
+		loadEnvFileProperties();
+		property = envFileProps.getProperty(propertyKey);
+		if (property != null && !property.isEmpty()) {
+			return property;
+		}
+		
+		// Priority 3: System environment variables
+		return System.getenv(propertyKey);
 	}
 
 	public String getValue(String propertyKey, String defaultValue) {
@@ -522,6 +568,9 @@ public class PropertyReader {
 	public static final String OLLAMA_MODEL = "OLLAMA_MODEL";
 	public static final String OLLAMA_NUM_CTX = "OLLAMA_NUM_CTX";
 	public static final String OLLAMA_NUM_PREDICT = "OLLAMA_NUM_PREDICT";
+	public static final String ANTHROPIC_BASE_PATH = "ANTHROPIC_BASE_PATH";
+	public static final String ANTHROPIC_MODEL = "ANTHROPIC_MODEL";
+	public static final String ANTHROPIC_MAX_TOKENS = "ANTHROPIC_MAX_TOKENS";
 	public static final String DEFAULT_LLM = "DEFAULT_LLM";
 
 	public String getGeminiApiKey() {
@@ -619,6 +668,44 @@ public class PropertyReader {
 			logger.warn("Invalid OLLAMA_NUM_PREDICT value: {}, using default -1", value);
 			return -1;
 		}
+	}
+
+	public String getOllamaCustomHeaderNames() {
+		return getValue("OLLAMA_CUSTOM_HEADER_NAMES");
+	}
+
+	public String getOllamaCustomHeaderValues() {
+		return getValue("OLLAMA_CUSTOM_HEADER_VALUES");
+	}
+
+	// Anthropic configuration
+	public String getAnthropicBasePath() {
+		return getValue(ANTHROPIC_BASE_PATH, "https://api.anthropic.com/v1/messages");
+	}
+
+	public String getAnthropicModel() {
+		return getValue(ANTHROPIC_MODEL);
+	}
+
+	public int getAnthropicMaxTokens() {
+		String value = getValue(ANTHROPIC_MAX_TOKENS);
+		if (value == null || value.trim().isEmpty()) {
+			return 4096;
+		}
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid ANTHROPIC_MAX_TOKENS value: {}, using default 4096", value);
+			return 4096;
+		}
+	}
+
+	public String getAnthropicCustomHeaderNames() {
+		return getValue("ANTHROPIC_CUSTOM_HEADER_NAMES");
+	}
+
+	public String getAnthropicCustomHeaderValues() {
+		return getValue("ANTHROPIC_CUSTOM_HEADER_VALUES");
 	}
 
 	public String getDefaultLLM() {

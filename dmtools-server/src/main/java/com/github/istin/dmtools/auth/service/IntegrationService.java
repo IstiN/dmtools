@@ -4,6 +4,7 @@ import com.github.istin.dmtools.auth.model.*;
 import com.github.istin.dmtools.auth.repository.*;
 import com.github.istin.dmtools.auth.util.EncryptionUtils;
 import com.github.istin.dmtools.dto.*;
+import com.github.istin.dmtools.figma.FigmaClient;
 import com.github.istin.dmtools.github.GitHub;
 import com.github.istin.dmtools.github.BasicGithub;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
@@ -1004,95 +1005,43 @@ public class IntegrationService {
      * @return A map containing the result of the connection test.
      */
     private Map<String, Object> testFigmaIntegration(Map<String, String> configParams) {
+        String token = configParams.get("FIGMA_TOKEN");
+        String basePath = configParams.getOrDefault("FIGMA_BASE_PATH", "https://api.figma.com");
+        
+        // Validate required parameters
+        if (token == null || token.trim().isEmpty()) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "Figma token is required");
+            errorResult.put("error", "missing_token");
+            return errorResult;
+        }
+        
         try {
-            String token = configParams.get("FIGMA_TOKEN");
-            String basePath = configParams.getOrDefault("FIGMA_BASE_PATH", "https://api.figma.com");
+            // Normalize base path using FigmaClient's static method
+            basePath = FigmaClient.normalizeBasePath(basePath);
             
-            // Validate required parameters
-            if (token == null || token.trim().isEmpty()) {
-                Map<String, Object> errorResult = new HashMap<>();
-                errorResult.put("success", false);
-                errorResult.put("message", "Figma token is required");
-                errorResult.put("error", "missing_token");
-                return errorResult;
-            }
+            // Create FigmaClient instance (same as ServerManagedIntegrationsModule)
+            FigmaClient figmaClient = new FigmaClient(basePath, token);
             
-            // Create a basic HTTP client to test connection
-            HttpClient httpClient = HttpClient.newHttpClient();
+            // Disable caching for the test
+            figmaClient.setClearCache(true);
+            figmaClient.setCacheGetRequestsEnabled(false);
             
-            // Test basic connectivity to Figma
-            HttpRequest testRequest = HttpRequest.newBuilder()
-                .uri(URI.create(basePath + "/v1/me"))
-                .header("X-Figma-Token", token)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
+            // Test the connection using FigmaClient's me() method
+            Map<String, Object> result = figmaClient.me();
             
-            HttpResponse<String> response = httpClient.send(testRequest, HttpResponse.BodyHandlers.ofString());
+            // Add configuration details to the result for context
+            Map<String, String> configContext = new HashMap<>();
+            configContext.put("basePath", basePath);
+            result.put("configuration", configContext);
             
-            if (response.statusCode() == 200) {
-                // Parse response to get user info
-                ObjectMapper objectMapper = new ObjectMapper();
-                JsonNode userInfo = objectMapper.readTree(response.body());
-                
-                Map<String, Object> successResult = new HashMap<>();
-                successResult.put("success", true);
-                successResult.put("message", "Figma connection test successful");
-                
-                // Add user information
-                Map<String, Object> userDetails = new HashMap<>();
-                userDetails.put("id", userInfo.path("id").asText());
-                userDetails.put("handle", userInfo.path("handle").asText());
-                if (userInfo.has("email")) {
-                    userDetails.put("email", userInfo.path("email").asText());
-                }
-                successResult.put("user", userDetails);
-                
-                // Add configuration info
-                Map<String, Object> configInfo = new HashMap<>();
-                configInfo.put("basePath", basePath);
-                successResult.put("configuration", configInfo);
-                
-                return successResult;
-            } else {
-                Map<String, Object> errorResult = new HashMap<>();
-                errorResult.put("success", false);
-                
-                if (response.statusCode() == 401) {
-                    errorResult.put("message", "Figma authentication failed - invalid token");
-                    errorResult.put("error", "authentication_failed");
-                } else if (response.statusCode() == 403) {
-                    errorResult.put("message", "Figma access forbidden - insufficient permissions");
-                    errorResult.put("error", "access_forbidden");
-                } else if (response.statusCode() == 404) {
-                    errorResult.put("message", "Figma API endpoint not found");
-                    errorResult.put("error", "endpoint_not_found");
-                } else {
-                    errorResult.put("message", "Figma connection failed with status: " + response.statusCode());
-                    errorResult.put("error", "connection_failed");
-                }
-                
-                return errorResult;
-            }
-            
+            return result;
         } catch (IOException e) {
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("success", false);
-            errorResult.put("message", "Figma connection failed: " + e.getMessage());
-            errorResult.put("error", "io_error");
-            return errorResult;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("success", false);
-            errorResult.put("message", "Figma connection test was interrupted");
-            errorResult.put("error", "interrupted");
-            return errorResult;
-        } catch (Exception e) {
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("success", false);
-            errorResult.put("message", "Unexpected error during Figma connection test: " + e.getMessage());
-            errorResult.put("error", "unexpected_error");
+            errorResult.put("message", "Failed to create Figma client: " + e.getMessage());
+            errorResult.put("error", e.getClass().getSimpleName());
             return errorResult;
         }
     }

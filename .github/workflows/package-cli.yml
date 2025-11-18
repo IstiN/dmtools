@@ -1,0 +1,61 @@
+name: Package CLI (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+    outputs:
+      artifact_name:
+        description: 'Name of the uploaded artifact'
+        value: cli-package
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build-artifacts/
+      
+      - name: Prepare CLI Package
+        run: |
+          mkdir -p cli-release
+          
+          # Verify CLI JAR exists
+          if [ ! -f build-artifacts/dmtools-cli.jar ]; then
+            echo "ERROR: CLI JAR not found in build artifacts"
+            echo "Available files:"
+            ls -lh build-artifacts/
+            exit 1
+          fi
+          
+          # Copy CLI JAR with version in filename
+          cp build-artifacts/dmtools-cli.jar cli-release/dmtools-v${{ inputs.version }}-all.jar
+          
+          # Copy scripts
+          cp build-artifacts/install.sh cli-release/
+          cp build-artifacts/install cli-release/ 2>/dev/null || true
+          cp build-artifacts/install.ps1 cli-release/ 2>/dev/null || true
+          cp build-artifacts/dmtools.sh cli-release/
+          
+          # Make scripts executable
+          chmod +x cli-release/install.sh
+          [ -f cli-release/install ] && chmod +x cli-release/install || true
+          chmod +x cli-release/dmtools.sh
+          
+          # List prepared artifacts
+          echo "CLI package prepared:"
+          ls -lh cli-release/
+      
+      - name: Upload CLI Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-package
+          path: cli-release/
+          retention-days: 7
+

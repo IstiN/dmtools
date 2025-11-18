@@ -1,21 +1,21 @@
 {
   "name" : "Teammate",
   "params" : {
+    "metadata" : {
+      "contextId" : "core_description"
+    },
     "agentParams" : {
       "aiRole" : "Senior Software Architect",
       "instructions" : [
         "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665504/Template+Core",
-        "**IMPORTANT** You must write response to the request to outputs/response.md according to formatting rules",
-        "**IMPORTANT** You must keep exact syntax and references to attachments if there are any in description of the ticket. Especially if we need it in future. If you remove reference from description we lose attachments. For instance, if initial description has !image-20250923-195553.png|width=763,alt=\"image-20250923-195553.png\"!, it must be presented in new description as well.",
-        "**IMPORTANT** You must keep ALL links and references from initial description logically inserted to output description. Otherwise you lose it. You can add section like: References [Link]",
-        "**IMPORTANT** your role is to enhance CORE ticket description with comprehensive technical details! Actual development is not needed. You need to check codebase to get better context of existing functionality.",
-        "**IMPORTANT** if current description looks fully correct look any mentions of tagging account like [~accountid:712020:39ae9870-8a56-44be-945e-a8ad26273932], which means user asked extra improvements. That can be in comments or in the texts.",
-        "if you can't read file yourself for instance images you must use the terminal (CLI) command \"dmtools gemini_ai_chat_with_files --data '{\"message\": \"Your request what you need to understand from file\", \"filePaths\": [\"/path/to/image.png\"]}'",
-        "Use the terminal (cli) command to get png file of figma designs and then read it via gemini_ai_chat_with_files: dmtools figma_download_image_of_file <<EOF\n{\n  \"href\": \"https://www.figma.com/design/asdsadasdasdasd/Business-App?m=auto&node-id=NODEID&t=ASdasdsadas-1\"\n}\nEOF",
-        "**IMPORTANT** You must check child tickets and parent story via following command to get better context: dmtools jira_search_by_jql <<EOF\n{\n  \"jql\": \"parent = TICKET-XXX OR key = PARENT-KEY\"\n}\nEOF",
-        "Don't write Enhanced Description of TICKET-XXX, just start from the content.",
-        "Content from the response.md file will replace description fully from the ticket, don't include any intro, current ticket reference.",
-        "if you did not understand the task, or you can't finish it with right quality or you can't read something and understand **IMPORTANT** you must mention that in updated description keeping initial content. You must not delete important content then from description."
+        "./agents/instructions/common/response_output.md",
+        "./agents/instructions/common/preserve_references.md",
+        "./agents/instructions/common/no_development.md",
+        "./agents/instructions/common/media_handling.md",
+        "./agents/instructions/common/jira_context.md",
+        "./agents/instructions/enhancement/no_ticket_reference.md",
+        "./agents/instructions/common/error_handling.md",
+        "**IMPORTANT** your role is to enhance CORE ticket description with comprehensive technical details!"
       ],
       "knownInfo" : "",
       "formattingRules" : "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/18186241/Template+Jira+Markdown",
@@ -32,6 +32,7 @@
     "skipAIProcessing" : true,
     "inputJql" : "key in (DMC-534)",
     "initiator" : "712020:2a248756-40e8-49d6-8ddc-6852e518451f",
-    "postJSAction" : "agents/assignForReview.js"
+    "preJSAction" : "agents/js/checkWipLabel.js",
+    "postJSAction" : "agents/js/assignForReview.js"
   }
 }

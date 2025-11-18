@@ -22,15 +22,21 @@ echo "ZIP: ${ZIP_PATH}"
 echo "Server dir: ${SERVER_DIR}"
 echo "Repo root: ${REPO_ROOT}"
 
-echo "Building server bootJar..."
-pushd "${REPO_ROOT}" >/dev/null
-./gradlew :dmtools-server:bootJar --no-daemon --info >/dev/null
-popd >/dev/null
-
 BOOT_JAR="${REPO_ROOT}/dmtools-appengine.jar"
+
+# Only build if JAR doesn't exist (for CI, it's pre-built)
 if [[ ! -f "${BOOT_JAR}" ]]; then
-  echo "ERROR: Expected boot jar not found: ${BOOT_JAR}" >&2
-  exit 1
+  echo "Building server bootJar..."
+  pushd "${REPO_ROOT}" >/dev/null
+  ./gradlew :dmtools-server:bootJar --no-daemon --info >/dev/null
+  popd >/dev/null
+  
+  if [[ ! -f "${BOOT_JAR}" ]]; then
+    echo "ERROR: Expected boot jar not found after build: ${BOOT_JAR}" >&2
+    exit 1
+  fi
+else
+  echo "Using existing boot jar: ${BOOT_JAR}"
 fi
 
 STAGE_DIR="${SERVER_DIR}/build/standalone"

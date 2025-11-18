@@ -5,6 +5,7 @@
 
 // Import common helper functions
 const { assignForReview, extractTicketKey } = require('./common/jiraHelpers.js');
+const { ISSUE_TYPES, PRIORITIES, LABELS, SOLUTION_DESIGN_MODULES } = require('./config.js');
 
 /**
  * Parse AI response for module analysis
@@ -54,14 +55,7 @@ function createSolutionDesignTickets(moduleAnalysis, parentKey, parentSummary) {
     const projectKey = parentKey.split('-')[0];
     const createdTickets = [];
     
-    // Module mapping
-    const modules = [
-        { flag: 'core', prefix: '[SD CORE]', label: 'sd_core' },
-        { flag: 'api', prefix: '[SD API]', label: 'sd_api' },
-        { flag: 'ui', prefix: '[SD UI]', label: 'sd_ui' }
-    ];
-    
-    modules.forEach(function(module) {
+    SOLUTION_DESIGN_MODULES.forEach(function(module) {
         if (moduleAnalysis[module.flag]) {
             const summary = module.prefix + ' ' + parentSummary;
             const description = 'Details are in [' + parentKey + '|https://dmtools.atlassian.net/browse/' + parentKey + '|smart-link] \n\n' +
@@ -71,7 +65,7 @@ function createSolutionDesignTickets(moduleAnalysis, parentKey, parentSummary) {
                 // Create subtask using the dedicated parent method
                 const result = jira_create_ticket_with_parent({
                     project: projectKey,
-                    issueType: 'Subtask',
+                    issueType: ISSUE_TYPES.SUBTASK,
                     summary: summary,
                     description: description,
                     parentKey: parentKey
@@ -84,7 +78,7 @@ function createSolutionDesignTickets(moduleAnalysis, parentKey, parentSummary) {
                     try {
                         jira_set_priority({
                             key: createdKey,
-                            priority: 'Medium'
+                            priority: PRIORITIES.MEDIUM
                         });
                     } catch (priorityError) {
                         console.warn('Failed to set priority on ' + createdKey + ':', priorityError);
@@ -179,6 +173,10 @@ function action(params) {
         const ticketKey = params.ticket.key;
         const ticketSummary = params.ticket.fields.summary;
         const initiatorId = params.initiator;
+        // Dynamically generate WIP label from contextId
+        const wipLabel = params.metadata && params.metadata.contextId 
+            ? params.metadata.contextId + '_wip' 
+            : null;
 
         console.log("Processing solution design creation for ticket:", ticketKey);
         
@@ -214,14 +212,14 @@ function action(params) {
         try {
             jira_add_label({
                 key: ticketKey,
-                label: 'ai_solution_design_created'
+                label: LABELS.AI_SOLUTION_DESIGN_CREATED
             });
         } catch (labelError) {
             console.warn('Failed to add ai_solution_design_created label:', labelError);
         }
 
         // Use common assignForReview function for post-processing
-        const assignResult = assignForReview(ticketKey, initiatorId);
+        const assignResult = assignForReview(ticketKey, initiatorId, wipLabel);
         
         if (!assignResult.success) {
             return assignResult;
@@ -257,3 +255,4 @@ function action(params) {
         };
     }
 }
+

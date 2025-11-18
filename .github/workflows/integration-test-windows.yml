@@ -1,0 +1,90 @@
+name: Integration Test - Windows
+
+on:
+  release:
+    types: [created, published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    runs-on: windows-latest
+    continue-on-error: true
+    
+    steps:
+      - name: Setup Java Environment
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '23'
+
+      - name: Install DMTools CLI
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
+          # The install script adds to Windows PATH, but we'll use full path in PowerShell steps
+
+      - name: Verify Installation
+        run: |
+          # Use Windows path format
+          $DMToolsPath = "$env:USERPROFILE\.dmtools\bin"
+          $env:Path = "$DMToolsPath;$env:Path"
+          
+          Write-Host "Checking dmtools installation..."
+          if (Test-Path "$DMToolsPath\dmtools.cmd") {
+            Write-Host "✅ dmtools found at: $DMToolsPath\dmtools.cmd"
+            # Use dmtools command (should be in PATH)
+            dmtools --version
+          } else {
+            Write-Host "❌ dmtools not found at: $DMToolsPath\dmtools.cmd"
+            exit 1
+          }
+
+      - name: Test Jira Integration
+        env:
+          # Jira Configuration
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+          JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+
+          # Confluence Configuration
+          CONFLUENCE_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+          CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+          CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
+
+          # DMTools Integration Settings
+          DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai,cli,file"
+
+          # AI Service Configuration
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          
+          # Figma Configuration
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+          FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
+
+        run: |
+          # Use Windows path format and PowerShell
+          $DMToolsPath = "$env:USERPROFILE\.dmtools\bin"
+          $env:Path = "$DMToolsPath;$env:Path"
+          
+          Write-Host "Testing Jira integration with ticket DMC-100..."
+          # Use dmtools command (should be in PATH), suppress stderr (debug logs)
+          $Output = dmtools jira_get_ticket DMC-100 2>$null | Out-String
+          Write-Host "Command output:"
+          Write-Host $Output
+          
+          if ($Output -match "DMC-100") {
+            Write-Host "✅ Success: Response contains DMC-100"
+            exit 0
+          } else {
+            Write-Host "❌ Failure: Response does not contain DMC-100"
+            Write-Host "Full output:"
+            Write-Host $Output
+            exit 1
+          }
+

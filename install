@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# DMTools CLI Cross-Platform Installation Wrapper
+# Usage: curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
+# This script auto-detects the platform and runs the appropriate installer
+# Works even if this file doesn't exist in older releases - falls back to install.sh
+
+set -e
+
+REPO="IstiN/dmtools"
+
+# Get download URL for a specific asset from GitHub release using API
+get_asset_url() {
+    local tag="$1"
+    local asset_name="$2"
+    
+    # Try latest release API
+    local api_url="https://api.github.com/repos/${REPO}/releases/latest"
+    local release_info=$(curl -s --connect-timeout 10 --max-time 30 "${api_url}" 2>/dev/null)
+    
+    if [ -n "$release_info" ] && ! echo "$release_info" | grep -q '"message":"Not Found"'; then
+        # Try to extract download URL using grep and sed (works without jq)
+        local download_url=$(echo "$release_info" | grep -o "\"browser_download_url\":\"[^\"]*${asset_name}[^\"]*\"" | head -1 | sed 's/.*"browser_download_url":"\([^"]*\)".*/\1/')
+        if [ -n "$download_url" ] && [ "$download_url" != "null" ]; then
+            echo "$download_url"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+# Download and validate script before executing
+download_and_run() {
+    local url="$1"
+    local temp_file
+    temp_file=$(mktemp /tmp/dmtools-install-XXXXXX.sh 2>/dev/null || mktemp /tmp/dmtools-install-XXXXXX.sh 2>/dev/null || echo "/tmp/dmtools-install-$$.sh")
+    
+    # Download to temp file
+    if command -v curl >/dev/null 2>&1; then
+        if ! curl -fsSL "$url" -o "$temp_file" 2>&1; then
+            echo "Failed to download from $url" >&2
+            rm -f "$temp_file" 2>/dev/null
+            return 1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if ! wget -qO "$temp_file" "$url" 2>&1; then
+            echo "Failed to download from $url" >&2
+            rm -f "$temp_file" 2>/dev/null
+            return 1
+        fi
+    else
+        echo "Error: Neither curl nor wget is available." >&2
+        return 1
+    fi
+    
+    # Check if file was downloaded and has content
+    if [ ! -f "$temp_file" ] || [ ! -s "$temp_file" ]; then
+        echo "Downloaded file is empty or missing" >&2
+        rm -f "$temp_file" 2>/dev/null
+        return 1
+    fi
+    
+    # Check if downloaded file is a valid script (not HTML error page)
+    if head -1 "$temp_file" 2>/dev/null | grep -qiE "(html|<!doctype|not found|404|github)" 2>/dev/null; then
+        echo "Downloaded file appears to be an HTML error page" >&2
+        rm -f "$temp_file" 2>/dev/null
+        return 1
+    fi
+    
+    # Check if it starts with shebang or is a valid bash script
+    if ! head -1 "$temp_file" 2>/dev/null | grep -qE "^#!"; then
+        echo "Downloaded file does not appear to be a script" >&2
+        rm -f "$temp_file" 2>/dev/null
+        return 1
+    fi
+    
+    # Make executable and run
+    chmod +x "$temp_file" 2>/dev/null
+    if ! bash "$temp_file"; then
+        local exit_code=$?
+        echo "Installer script exited with code: $exit_code" >&2
+        rm -f "$temp_file" 2>/dev/null
+        return $exit_code
+    fi
+    rm -f "$temp_file" 2>/dev/null
+    return 0
+}
+
+# Detect if we are running on Windows (PowerShell, Git Bash, WSL)
+is_windows() {
+    # Common environment variables available in Windows shells
+    if [[ -n "$WINDIR" ]] || [[ -n "$MSYSTEM" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        return 0
+    fi
+
+    # Detect Windows executables available from Unix layer (Git Bash / WSL)
+    if command -v powershell.exe >/dev/null 2>&1 || command -v pwsh.exe >/dev/null 2>&1 || command -v cmd.exe >/dev/null 2>&1; then
+        # Ensure we're really on Windows and not just on macOS with PowerShell Core
+        if [[ -d /mnt/c/Windows ]] || [[ -d /mnt/c/windows ]] || [[ -n "$WSL_DISTRO_NAME" ]]; then
+            return 0
+        fi
+    fi
+
+    # uname checks (Git Bash / MSYS / Cygwin)
+    local uname_s
+    uname_s="$(uname -s 2>/dev/null || echo "")"
+    if [[ "$uname_s" == *"MINGW"* ]] || [[ "$uname_s" == *"MSYS"* ]] || [[ "$uname_s" == *"CYGWIN"* ]]; then
+        return 0
+    fi
+
+    # Detect WSL (Windows Subsystem for Linux)
+    if [[ -n "$WSL_DISTRO_NAME" ]] || [[ -n "$WSL_INTEROP" ]]; then
+        return 0
+    fi
+    if [[ -f /proc/version ]] && grep -qi microsoft /proc/version 2>/dev/null; then
+        return 0
+    fi
+
+    # WSL usually mounts the Windows drive under /mnt/c
+    if [[ -d /mnt/c/Windows ]] || [[ -d /mnt/c/windows ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Detect platform (returns macos or linux for non-Windows hosts)
+detect_unix_platform() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]] || [[ "$(uname -s 2>/dev/null)" == "Linux" ]]; then
+        echo "linux"
+    else
+        echo "unknown"
+    fi
+}
+
+# Download and run installer
+run_installer() {
+    if is_windows; then
+        echo "Detected windows environment - downloading PowerShell installer..."
+
+        local install_ps_url="https://github.com/${REPO}/releases/latest/download/install.ps1"
+        local pwsh_exe=""
+
+        if command -v pwsh >/dev/null 2>&1; then
+            pwsh_exe="pwsh"
+        elif command -v powershell >/dev/null 2>&1; then
+            pwsh_exe="powershell"
+        elif command -v powershell.exe >/dev/null 2>&1; then
+            pwsh_exe="powershell.exe"
+        else
+            echo "Error: PowerShell is required but was not found. Please install PowerShell or use the macOS/Linux installer."
+            exit 1
+        fi
+
+        "$pwsh_exe" -NoLogo -NoProfile -Command "Invoke-RestMethod -Uri '${install_ps_url}' | Invoke-Expression"
+        return $?
+    fi
+
+    local platform
+    platform=$(detect_unix_platform)
+
+    case "$platform" in
+        macos|linux)
+            echo "Detected ${platform} - downloading installer..."
+
+            local install_url
+            install_url=$(get_asset_url "latest" "install.sh")
+
+            if [ -z "$install_url" ]; then
+                install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
+            fi
+
+            if download_and_run "$install_url"; then
+                return 0
+            else
+                echo "Failed to download from: $install_url" >&2
+            fi
+
+            echo "Trying alternative download method..."
+            install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
+            if download_and_run "$install_url"; then
+                return 0
+            else
+                echo "Failed to download from: $install_url" >&2
+            fi
+
+            echo ""
+            echo "Error: Failed to download installer script."
+            echo ""
+            echo "Please try one of these methods:"
+            echo ""
+            echo "1. Direct download (recommended):"
+            echo "   curl -fsSL https://github.com/${REPO}/releases/latest/download/install.sh | bash"
+            echo ""
+            echo "2. Or download manually from:"
+            echo "   https://github.com/${REPO}/releases/latest"
+            exit 1
+            ;;
+        *)
+            echo "Error: Unsupported platform detected."
+            echo "Please use the platform-specific installer:"
+            echo "  macOS/Linux: curl -fsSL https://github.com/${REPO}/releases/latest/download/install.sh | bash"
+            echo "  Windows PowerShell: Invoke-RestMethod -Uri 'https://github.com/${REPO}/releases/latest/download/install.ps1' | Invoke-Expression"
+            exit 1
+            ;;
+    esac
+}
+
+# Main
+run_installer

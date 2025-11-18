@@ -4,6 +4,8 @@ import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.dial.DialAIClient;
 import com.github.istin.dmtools.ai.js.JSAIClient;
+import com.github.istin.dmtools.ai.ollama.OllamaAIClient;
+import com.github.istin.dmtools.ai.anthropic.AnthropicAIClient;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.utils.SecurityUtils;
@@ -32,6 +34,7 @@ import org.json.JSONObject;
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.*;
+import java.util.Base64;
 
 /**
  * Dagger module for server-managed job execution with pre-resolved integrations.
@@ -215,7 +218,7 @@ public class ServerManagedIntegrationsModule {
         }
         
         @Override
-        public String getTextFieldsOnly(com.github.istin.dmtools.common.model.ITicket ticket) {
+        public String getTextFieldsOnly(ITicket ticket) {
             StringBuilder ticketDescription = null;
             try {
                 ticketDescription = new StringBuilder(ticket.getTicketTitle());
@@ -294,7 +297,7 @@ public class ServerManagedIntegrationsModule {
                     } else {
                         // For Basic auth, combine email:token and base64 encode
                         String credentials = email.trim() + ":" + apiToken.trim();
-                        token = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+                        token = Base64.getEncoder().encodeToString(credentials.getBytes());
                     }
                     System.out.println("✅ [ServerManagedIntegrationsModule] Combined CONFLUENCE_EMAIL + CONFLUENCE_API_TOKEN for authentication");
                 }
@@ -372,7 +375,54 @@ public class ServerManagedIntegrationsModule {
             // Check available AI integrations in priority order
             System.out.println("🔍 [ServerManagedIntegrationsModule] Checking available AI integrations...");
             
-            // First check for Gemini
+            // First check for Ollama
+            if (resolvedIntegrations.has("ollama")) {
+                JSONObject ollamaConfig = resolvedIntegrations.getJSONObject("ollama");
+                System.out.println("🔍 [ServerManagedIntegrationsModule] Found Ollama configuration: " + ollamaConfig.length() + " parameters");
+                
+                String basePath = ollamaConfig.optString("OLLAMA_BASE_PATH", "http://localhost:11434");
+                String model = ollamaConfig.optString("OLLAMA_MODEL", null);
+                int numCtx = ollamaConfig.optInt("OLLAMA_NUM_CTX", 16384);
+                int numPredict = ollamaConfig.optInt("OLLAMA_NUM_PREDICT", -1);
+                
+                // Parse custom headers
+                Map<String, String> customHeaders = parseCustomHeaders(
+                    ollamaConfig.optString("OLLAMA_CUSTOM_HEADER_NAMES", null),
+                    ollamaConfig.optString("OLLAMA_CUSTOM_HEADER_VALUES", null)
+                );
+                
+                if (model != null && !model.isEmpty()) {
+                    System.out.println("✅ [ServerManagedIntegrationsModule] Creating OllamaAIClient with resolved credentials");
+                    return new OllamaAIClient(basePath, model, numCtx, numPredict, observer, customHeaders);
+                } else {
+                    System.out.println("⚠️ [ServerManagedIntegrationsModule] Ollama configuration missing OLLAMA_MODEL, skipping");
+                }
+            }
+            
+            // Then check for Anthropic
+            if (resolvedIntegrations.has("anthropic")) {
+                JSONObject anthropicConfig = resolvedIntegrations.getJSONObject("anthropic");
+                System.out.println("🔍 [ServerManagedIntegrationsModule] Found Anthropic configuration: " + anthropicConfig.length() + " parameters");
+                
+                String basePath = anthropicConfig.optString("ANTHROPIC_BASE_PATH", "https://api.anthropic.com/v1/messages");
+                String model = anthropicConfig.optString("ANTHROPIC_MODEL", null);
+                int maxTokens = anthropicConfig.optInt("ANTHROPIC_MAX_TOKENS", 4096);
+                
+                // Parse custom headers
+                Map<String, String> customHeaders = parseCustomHeaders(
+                    anthropicConfig.optString("ANTHROPIC_CUSTOM_HEADER_NAMES", null),
+                    anthropicConfig.optString("ANTHROPIC_CUSTOM_HEADER_VALUES", null)
+                );
+                
+                if (model != null && !model.isEmpty()) {
+                    System.out.println("✅ [ServerManagedIntegrationsModule] Creating AnthropicAIClient with resolved credentials");
+                    return new AnthropicAIClient(basePath, model, maxTokens, observer, customHeaders);
+                } else {
+                    System.out.println("⚠️ [ServerManagedIntegrationsModule] Anthropic configuration missing ANTHROPIC_MODEL, skipping");
+                }
+            }
+            
+            // Then check for Gemini
             if (resolvedIntegrations.has("gemini")) {
                 JSONObject geminiConfig = resolvedIntegrations.getJSONObject("gemini");
                 System.out.println("🔍 [ServerManagedIntegrationsModule] Found Gemini configuration: " + geminiConfig.length() + " parameters");
@@ -459,7 +509,7 @@ public class ServerManagedIntegrationsModule {
                     (key.toLowerCase().contains("token") ? "[SENSITIVE]" : value));
             }
             
-            String basePath = figmaConfig.optString("FIGMA_BASE_PATH", "https://api.figma.com/v1/");
+            String basePath = figmaConfig.optString("FIGMA_BASE_PATH", "https://api.figma.com");
             String token = figmaConfig.optString("FIGMA_TOKEN", null);
             
             if (token == null) {
@@ -467,9 +517,18 @@ public class ServerManagedIntegrationsModule {
                 return null;
             }
             
-            System.out.println("✅ [ServerManagedIntegrationsModule] Creating FigmaClient with basePath=" + basePath);
+            // Normalize base path using FigmaClient's static method
+            basePath = FigmaClient.normalizeBasePath(basePath);
             
-            return new FigmaClient(basePath, token);
+            System.out.println("✅ [ServerManagedIntegrationsModule] Creating FigmaClient with normalized basePath=" + basePath);
+            
+            FigmaClient figmaClient = new FigmaClient(basePath, token);
+            
+            // Clear cache to ensure fresh data for server-managed execution
+            figmaClient.setClearCache(true);
+            System.out.println("✅ [ServerManagedIntegrationsModule] FigmaClient configured with cache clearing enabled for fresh data");
+            
+            return figmaClient;
             
         } catch (Exception e) {
             System.err.println("❌ [ServerManagedIntegrationsModule] Failed to provide Figma integration: " + e.getMessage());
@@ -566,6 +625,46 @@ public class ServerManagedIntegrationsModule {
         }
     }
     
+    /**
+     * Parses comma-separated header names and values into a Map.
+     * If names and values count don't match, logs a warning and returns null.
+     * 
+     * @param headerNames Comma-separated header names
+     * @param headerValues Comma-separated header values (must match names by index)
+     * @return Map of header names to values, or null if parsing fails
+     */
+    private Map<String, String> parseCustomHeaders(String headerNames, String headerValues) {
+        if (headerNames == null || headerNames.trim().isEmpty() || 
+            headerValues == null || headerValues.trim().isEmpty()) {
+            return null;
+        }
+        
+        String[] names = headerNames.split(",");
+        String[] values = headerValues.split(",");
+        
+        // Trim whitespace from all elements
+        for (int i = 0; i < names.length; i++) {
+            names[i] = names[i].trim();
+        }
+        for (int i = 0; i < values.length; i++) {
+            values[i] = values[i].trim();
+        }
+        
+        if (names.length != values.length) {
+            System.err.println("⚠️ [ServerManagedIntegrationsModule] Custom header names and values count mismatch. " +
+                "Names: " + names.length + ", Values: " + values.length + ". Skipping custom headers.");
+            return null;
+        }
+        
+        Map<String, String> headers = new HashMap<>();
+        for (int i = 0; i < names.length; i++) {
+            if (!names[i].isEmpty() && !values[i].isEmpty()) {
+                headers.put(names[i], values[i]);
+            }
+        }
+        
+        return headers.isEmpty() ? null : headers;
+    }
 
     /**
      * Public method to create AI instance directly from the module.

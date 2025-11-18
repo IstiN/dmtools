@@ -1,0 +1,86 @@
+name: Integration Test - macOS
+
+on:
+  release:
+    types: [created, published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    runs-on: macos-latest
+    continue-on-error: true
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java Environment
+        uses: ./.github/actions/setup-java-only
+        with:
+          cache-key-suffix: '-integration-test-macos'
+
+      - name: Install DMTools CLI
+        run: |
+          set +e  # Don't exit on error, we want to see what happens
+          echo "Downloading and running install script..."
+          curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
+          INSTALL_EXIT=$?
+          if [ $INSTALL_EXIT -ne 0 ]; then
+            echo "Install script exited with code: $INSTALL_EXIT"
+            echo "Trying direct install.sh as fallback..."
+            curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+          fi
+          echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+
+      - name: Verify Installation
+        run: |
+          export PATH="$HOME/.dmtools/bin:$PATH"
+          dmtools --version || echo "Version check failed"
+          which dmtools || echo "dmtools not found in PATH"
+
+      - name: Test Jira Integration
+        env:
+          # Jira Configuration
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
+          JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+
+          # Confluence Configuration
+          CONFLUENCE_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+          CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+          CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
+
+          # DMTools Integration Settings
+          DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai,cli,file"
+
+          # AI Service Configuration
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          
+          # Figma Configuration
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+          FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
+
+        run: |
+          export PATH="$HOME/.dmtools/bin:$PATH"
+          
+          echo "Testing Jira integration with ticket DMC-100..."
+          OUTPUT=$(dmtools jira_get_ticket DMC-100 2>&1)
+          echo "Command output:"
+          echo "$OUTPUT"
+          
+          if echo "$OUTPUT" | grep -q "DMC-100"; then
+            echo "✅ Success: Response contains DMC-100"
+            exit 0
+          else
+            echo "❌ Failure: Response does not contain DMC-100"
+            echo "Full output:"
+            echo "$OUTPUT"
+            exit 1
+          fi
+

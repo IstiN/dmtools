@@ -249,7 +249,8 @@ public abstract class RallyClient extends AbstractRestClient implements TrackerC
 
     }
 
-    protected RallyIssue createTicket(String body) {
+    @Override
+    public RallyIssue createTicket(String body) {
         return new RallyIssue(body);
     }
 

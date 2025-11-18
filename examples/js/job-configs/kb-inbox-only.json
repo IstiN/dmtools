@@ -1,0 +1,10 @@
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "examples/js/teams-kb-inbox-processor.js",
+    "jobParams": {
+      "kbOutputPath": "/path/to/your/knowledge-base"
+    }
+  }
+}
+

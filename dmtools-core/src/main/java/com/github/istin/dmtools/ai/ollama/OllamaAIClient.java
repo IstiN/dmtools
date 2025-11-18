@@ -24,7 +24,9 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class OllamaAIClient extends AbstractRestClient implements AI {
 
@@ -52,28 +54,37 @@ public class OllamaAIClient extends AbstractRestClient implements AI {
     @Setter
     private ConversationObserver conversationObserver;
 
+    @Getter
+    private final Map<String, String> customHeaders;
+
     // Default constructor - backward compatibility
     public OllamaAIClient(String basePath, String model) throws IOException {
-        this(basePath, model, 16384, -1, null);
+        this(basePath, model, 16384, -1, null, null);
     }
 
     // Default constructor with observer - backward compatibility
     public OllamaAIClient(String basePath, String model, ConversationObserver conversationObserver) throws IOException {
-        this(basePath, model, 16384, -1, conversationObserver);
+        this(basePath, model, 16384, -1, conversationObserver, null);
     }
 
     // Full constructor with all parameters
     public OllamaAIClient(String basePath, String model, int numCtx, int numPredict, ConversationObserver conversationObserver) throws IOException {
-        this(basePath, model, numCtx, numPredict, conversationObserver, LogManager.getLogger(OllamaAIClient.class));
+        this(basePath, model, numCtx, numPredict, conversationObserver, null);
+    }
+    
+    // Constructor with custom headers
+    public OllamaAIClient(String basePath, String model, int numCtx, int numPredict, ConversationObserver conversationObserver, Map<String, String> customHeaders) throws IOException {
+        this(basePath, model, numCtx, numPredict, conversationObserver, customHeaders, LogManager.getLogger(OllamaAIClient.class));
     }
     
     // NEW: Constructor with logger injection for server-managed mode
-    public OllamaAIClient(String basePath, String model, int numCtx, int numPredict, ConversationObserver conversationObserver, Logger logger) throws IOException {
+    public OllamaAIClient(String basePath, String model, int numCtx, int numPredict, ConversationObserver conversationObserver, Map<String, String> customHeaders, Logger logger) throws IOException {
         super(basePath, null);
         this.model = model;
         this.numCtx = numCtx;
         this.numPredict = numPredict;
         this.conversationObserver = conversationObserver;
+        this.customHeaders = customHeaders != null ? new HashMap<>(customHeaders) : null;
         this.logger = logger != null ? logger : LogManager.getLogger(OllamaAIClient.class);
         setCachePostRequestsEnabled(true);
     }
@@ -94,8 +105,16 @@ public class OllamaAIClient extends AbstractRestClient implements AI {
 
     @Override
     public Request.Builder sign(Request.Builder builder) {
-        return builder
-                .header("Content-Type", "application/json");
+        builder = builder.header("Content-Type", "application/json");
+        
+        // Add custom headers if provided
+        if (customHeaders != null && !customHeaders.isEmpty()) {
+            for (Map.Entry<String, String> header : customHeaders.entrySet()) {
+                builder = builder.header(header.getKey(), header.getValue());
+            }
+        }
+        
+        return builder;
     }
 
     @Override
@@ -234,10 +253,12 @@ public class OllamaAIClient extends AbstractRestClient implements AI {
                     contentArray.put(new JSONObject().put("type", "text").put("text", message.getText()));
                 }
                 // Add image part
-                contentArray.put(new JSONObject()
+                contentArray.put(
+                        new JSONObject()
                         .put("type", "image_url")
                         .put("image_url", new JSONObject()
-                                .put("url", "data:image/" + extension + ";base64," + imageBase64)));
+                                .put("url", "data:image/" + extension + ";base64," + imageBase64))
+                );
                 messageJson.put("content", contentArray);
             } else {
                 messageJson.put("content", message.getText());
@@ -269,6 +290,3 @@ public class OllamaAIClient extends AbstractRestClient implements AI {
     }
 
 }
-
-
-

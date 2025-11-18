@@ -4,6 +4,8 @@ import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.Message;
 
 
+import com.github.istin.dmtools.common.model.ToText;
+import com.github.istin.dmtools.common.utils.LLMOptimizedJson;
 import com.github.istin.dmtools.dto.ChatMessage;
 import com.github.istin.dmtools.dto.ChatRequest;
 import com.github.istin.dmtools.dto.ChatResponse;
@@ -14,6 +16,7 @@ import com.github.istin.dmtools.server.service.McpConfigurationResolverService;
 import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
 import com.github.istin.dmtools.ai.agent.ToolSelectorAgent;
 import com.github.istin.dmtools.dto.ToolCallRequest;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -340,6 +343,9 @@ public class ChatService {
      */
     private String formatToolsForToolSelector(List<Map<String, Object>> tools) {
         try {
+            if (true) {
+                return LLMOptimizedJson.format(new JSONArray().put(tools).get(0).toString());
+            }
             // Convert tools list to JSON string for ToolSelectorAgent
             JSONObject toolsJson = new JSONObject();
             toolsJson.put("tools", tools);
@@ -394,18 +400,26 @@ public class ChatService {
                 // Execute the tool
                 Object result = mcpConfigurationResolverService.executeToolCallRaw(
                     mcpConfigResult, toolCall.getToolName(), toolCall.getArguments());
-                
+
+                if (result instanceof ToText) {
+                    result = ((ToText) result).toText();
+                } else if (result instanceof String jsonString) {
+                    if (jsonString.startsWith("[") && jsonString.endsWith("]") ||
+                            jsonString.startsWith("{") && jsonString.endsWith("}")) {
+                        result = LLMOptimizedJson.format(jsonString);
+                    }
+                }
                 String resultString = result != null ? result.toString() : "Tool executed successfully but returned no result.";
                 
                 // Store result for final response formatting
                 String toolReason = (toolCall.getReason() != null && !toolCall.getReason().trim().isEmpty()) 
                     ? String.format(" (%s)", toolCall.getReason()) 
                     : "";
-                toolExecutionResults.add(String.format("Tool: %s%s\nResult: %s", toolCall.getToolName(), toolReason, resultString));
+                toolExecutionResults.add(resultString);
                 
                 // Create model message with tool execution result
-                Message toolResultMessage = new Message("model", 
-                    String.format("Tool execution result for '%s'%s: %s", toolCall.getToolName(), toolReason, resultString), 
+                Message toolResultMessage = new Message("model",
+                    String.format("Tool execution result for '%s'%s: %s", toolCall.getToolName(), toolReason, resultString),
                     null);
                 
                 // Insert before the last user message
@@ -430,7 +444,7 @@ public class ChatService {
     }
 
     /**
-     * Formats the final response with markdown showing tool executions BEFORE the AI response
+     * Formats the final response with collapsible nested tool execution details
      */
     private String formatFinalResponseWithToolInfo(String finalResponse, List<ToolCallRequest> toolCalls, List<String> toolResults) {
         if (toolCalls == null || toolCalls.isEmpty()) {
@@ -439,48 +453,96 @@ public class ChatService {
         
         StringBuilder formattedResponse = new StringBuilder();
         
-        // Add tool execution information as markdown FIRST
-        formattedResponse.append("## Tools Used\n\n");
+        // Add AI response first (main content)
+        formattedResponse.append(finalResponse);
+        
+        // Add collapsible tool execution information at the end
+        formattedResponse.append("\n\n---\n\n");
         
         for (int i = 0; i < toolCalls.size(); i++) {
             ToolCallRequest toolCall = toolCalls.get(i);
-            formattedResponse.append(String.format("**%d. %s**\n", i + 1, toolCall.getToolName()));
             
+            // Outer details block for each tool
+            formattedResponse.append("<details>\n");
+            formattedResponse.append("<summary>").append(toolCall.getToolName()).append("</summary>\n\n");
+            
+            // Add reason if available
             if (toolCall.getReason() != null && !toolCall.getReason().trim().isEmpty()) {
-                formattedResponse.append("- Reason: ").append(toolCall.getReason()).append("\n");
+                formattedResponse.append("**Reason:** ").append(toolCall.getReason()).append("\n\n");
             }
             
+            // Add parameters as table with copyable values
             if (toolCall.getArguments() != null && !toolCall.getArguments().isEmpty()) {
-                formattedResponse.append("- Arguments: `").append(formatArgumentsForDisplay(toolCall.getArguments())).append("`\n");
+                formattedResponse.append(formatArgumentsAsTable(toolCall.getArguments()));
+                formattedResponse.append("\n");
             }
             
-            // Add tool result as code block
-            if (toolResults != null && i < toolResults.size()) {
-                formattedResponse.append("- Response:\n```\n");
+            // Inner details block for response
+            if (toolResults != null && i < toolResults.size() && toolResults.get(i) != null && !toolResults.get(i).trim().isEmpty()) {
+                formattedResponse.append("<details>\n");
+                formattedResponse.append("<summary>Response</summary>\n\n");
+                formattedResponse.append("```\n");
                 formattedResponse.append(toolResults.get(i));
                 formattedResponse.append("\n```\n");
+                formattedResponse.append("</details>\n");
             }
             
-            formattedResponse.append("\n");
+            formattedResponse.append("</details>\n\n");
         }
-        
-        // Add separator and then the AI response
-        formattedResponse.append("---\n\n");
-        formattedResponse.append(finalResponse);
         
         return formattedResponse.toString();
     }
     
     /**
-     * Helper method to format arguments for display in markdown
+     * Formats arguments as a markdown table with copyable parameter values
      */
-    private String formatArgumentsForDisplay(Map<String, Object> arguments) {
-        try {
-            JSONObject argsJson = new JSONObject(arguments);
-            return argsJson.toString();
-        } catch (Exception e) {
-            return arguments.toString();
+    private String formatArgumentsAsTable(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return "";
         }
+        
+        StringBuilder table = new StringBuilder();
+        table.append("| Parameter | Value |\n");
+        table.append("|-----------|-------|\n");
+        
+        for (Map.Entry<String, Object> entry : arguments.entrySet()) {
+            String paramName = entry.getKey();
+            Object paramValue = entry.getValue();
+            
+            // Format value as code block for easy copying
+            String valueStr;
+            if (paramValue == null) {
+                valueStr = "`null`";
+            } else if (paramValue instanceof String) {
+                valueStr = "`" + escapeMarkdownCode(paramValue.toString()) + "`";
+            } else if (paramValue instanceof Number || paramValue instanceof Boolean) {
+                valueStr = "`" + paramValue.toString() + "`";
+            } else {
+                // For complex objects, format as JSON in code block
+                try {
+                    JSONObject jsonObj = new JSONObject();
+                    jsonObj.put("value", paramValue);
+                    valueStr = "```json\n" + jsonObj.toString(2) + "\n```";
+                } catch (Exception e) {
+                    valueStr = "`" + paramValue.toString() + "`";
+                }
+            }
+            
+            table.append("| ").append(paramName).append(" | ").append(valueStr).append(" |\n");
+        }
+        
+        return table.toString();
+    }
+    
+    /**
+     * Escapes special characters for markdown code blocks
+     */
+    private String escapeMarkdownCode(String text) {
+        if (text == null) {
+            return "";
+        }
+        // Escape backticks and pipes for markdown table compatibility
+        return text.replace("`", "\\`").replace("|", "\\|");
     }
 
 
