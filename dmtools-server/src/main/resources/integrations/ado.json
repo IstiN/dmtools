@@ -1,0 +1,62 @@
+{
+  "type": "ado",
+  "displayNameKey": "integration.ado.displayName",
+  "descriptionKey": "integration.ado.description",
+  "iconUrl": "/img/integrations/ado-icon.svg",
+  "categories": ["TrackerClient"],
+  "supportsMcp": true,
+  "setupDocumentation": {
+    "en": "/docs/integrations/ado_setup_en.md",
+    "ru": "/docs/integrations/ado_setup_ru.md"
+  },
+  "configParams": [
+    {
+      "key": "ADO_ORGANIZATION",
+      "displayNameKey": "ado.organization.displayName",
+      "descriptionKey": "ado.organization.description",
+      "instructionsKey": "ado.organization.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null,
+      "validation": {
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$"
+      }
+    },
+    {
+      "key": "ADO_PROJECT",
+      "displayNameKey": "ado.project.displayName",
+      "descriptionKey": "ado.project.description",
+      "instructionsKey": "ado.project.instructions",
+      "required": true,
+      "sensitive": false,
+      "inputType": "string",
+      "defaultValue": null
+    },
+    {
+      "key": "ADO_PAT_TOKEN",
+      "displayNameKey": "ado.patToken.displayName",
+      "descriptionKey": "ado.patToken.description",
+      "instructionsKey": "ado.patToken.instructions",
+      "required": true,
+      "sensitive": true,
+      "inputType": "password",
+      "defaultValue": null
+    },
+    {
+      "key": "ADO_BASE_PATH",
+      "displayNameKey": "ado.basePath.displayName",
+      "descriptionKey": "ado.basePath.description",
+      "instructionsKey": "ado.basePath.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "url",
+      "defaultValue": "https://dev.azure.com",
+      "validation": {
+        "pattern": "^https?://.*"
+      }
+    }
+  ]
+}
+
+
