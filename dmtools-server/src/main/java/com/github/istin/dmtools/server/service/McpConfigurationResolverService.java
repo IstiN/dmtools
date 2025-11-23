@@ -282,6 +282,17 @@ public class McpConfigurationResolverService {
             }
         }
 
+        // Create ADO client if available
+        if (resolvedIntegrations.has("ado")) {
+            try {
+                Object adoClient = integrationsModule.provideTrackerClient();
+                clientInstances.put("ado", adoClient);
+                logger.info("Created ADO client instance");
+            } catch (Exception e) {
+                logger.error("Failed to create ADO client: {}", e.getMessage());
+            }
+        }
+
         // Create Confluence client if available
         if (resolvedIntegrations.has("confluence")) {
             try {
