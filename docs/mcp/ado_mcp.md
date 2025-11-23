@@ -620,7 +620,7 @@ adoClient.postComment("12345",
     "</ul>");
 ```
 
-**Note**: ADO comments API uses `api-version=7.0-preview`.
+**Note**: ADO comments API uses `api-version=7.0-preview`, which is a preview API version. Preview APIs may have different stability guarantees and could change or be deprecated without notice. Use with caution in production environments.
 
 ---
 
