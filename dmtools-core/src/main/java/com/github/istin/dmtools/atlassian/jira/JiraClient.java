@@ -1679,6 +1679,28 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         }
     }
 
+    @MCPTool(
+            name = "jira_attach_file_to_ticket",
+            description = "Attach a file to a Jira ticket from a local file path. The file will only be attached if a file with the same name doesn't already exist",
+            integration = "jira",
+            category = "file_management"
+    )
+    public JSONObject attachFileToTicket(@MCPParam(name = "ticketKey", description = "The Jira ticket key to attach the file to", required = true, example = "PRJ-123") String ticketKey,
+                                   @MCPParam(name = "name", description = "The name of the file to attach", required = true, example = "document.pdf") String name,
+                                   @MCPParam(name = "contentType", description = "The content type of the file (e.g., 'application/pdf', 'image/png'). If not provided, defaults to 'image/*'", required = false, example = "application/pdf") String contentType,
+                                   @MCPParam(name = "filePath", description = "Absolute path to the file on disk", required = true, example = "/tmp/document.pdf") String filePath) throws IOException {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            throw new IOException("File does not exist: " + filePath);
+        }
+        attachFileToTicket(ticketKey, name, contentType, file);
+        return new JSONObject()
+                .put("status", SUCCESS)
+                .put("message", "File '" + name + "' attached to ticket " + ticketKey)
+                .put("ticket", ticketKey)
+                .put("fileName", name);
+    }
+
     private String execute(String url, boolean isRepeatIfFails, boolean isIgnoreCache) throws IOException {
         try {
             timeMeasurement.put(url, System.currentTimeMillis());
