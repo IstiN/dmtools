@@ -76,6 +76,11 @@ jobs:
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
         JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
         JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
+        JIRA_CLEAR_CACHE: ${{ vars.JIRA_CLEAR_CACHE }}
+        JIRA_EXTRA_FIELDS: ${{ vars.JIRA_EXTRA_FIELDS }}
+        JIRA_EXTRA_FIELDS_PROJECT: ${{ vars.JIRA_EXTRA_FIELDS_PROJECT }}
+        JIRA_LOGGING_ENABLED: ${{ vars.JIRA_LOGGING_ENABLED }}
+        JIRA_WAIT_BEFORE_PERFORM: ${{ vars.JIRA_WAIT_BEFORE_PERFORM }}
 
         # Confluence Configuration
         CONFLUENCE_EMAIL: ${{ secrets.JIRA_EMAIL }}
@@ -90,6 +95,7 @@ jobs:
         # AI Service Configuration
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL }}
+        PROMPT_CHUNK_TOKEN_LIMIT: ${{ vars.PROMPT_CHUNK_TOKEN_LIMIT }}
         
         # Figma Configuration
         FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
