@@ -205,7 +205,7 @@ public abstract class AbstractRestClient implements RestClient {
                 return new IOException(RestClientException.NO_SUCH_PARENT_EPICS);
             }
         } else if (body.contains("rate")) {
-            logger.error(body);
+            logger.error("Rate limit response body:\n{}", body);
             return new RateLimitException("rate limit", body, response, code);
         }
         String sanitizedUrl = sanitizeUrl(request.url().toString());
