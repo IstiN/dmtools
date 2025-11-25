@@ -1,0 +1,15 @@
+{
+  "name": "TestCasesGenerator",
+  "params" : {
+    "testCasesPriorities" : "Highest, High, Medium, Lowest, Low",
+    "outputType" : "creation",
+    "existingTestCasesJql" : "filter=10066 and status not in (archived)",
+    "confluencePages" : ["https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665495/Template+Test+Case"],
+    "relatedTestCasesRules": "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/55443457/Template+Test+Case+Related+Rules",
+    "isOverridePromptExamples": true,
+    "isFindRelated" : true,
+    "isConvertToJiraMarkdown": false,
+    "includeOtherTicketReferences": true,
+    "examples": "ql(project = DMC and issuetype in (\"test case\") and labels = \"ai_example\")"
+  }
+}
