@@ -14,7 +14,7 @@ Example:
 Notes:
   - Provide the prompt as the final argument
   - All other arguments are passed through to cursor-agent
-  - Default options: --force --print --model sonnet-4.5 --output-format=text
+  - Default options: --force --print --model auto --output-format=text
   - Output is visible in real-time when run directly in terminal
   - Final response is written to outputs/response.md by cursor-agent
   - Note: When called from Java/dmtools, output may be buffered until completion
@@ -48,7 +48,7 @@ fi
 
 # Build command with defaults if no options provided
 if [ ${#PASS_ARGS[@]} -eq 0 ]; then
-  CMD=(cursor-agent --force --print --model sonnet-4.5 --output-format=text "$PROMPT")
+  CMD=(cursor-agent --force --print --model auto --output-format=text "$PROMPT")
 else
   CMD=(cursor-agent "${PASS_ARGS[@]}" --output-format=text "$PROMPT")
 fi
