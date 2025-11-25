@@ -89,6 +89,7 @@ jobs:
 
         # AI Service Configuration
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL }}
         
         # Figma Configuration
         FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
