@@ -10,6 +10,7 @@
     "isFindRelated" : true,
     "isConvertToJiraMarkdown": false,
     "includeOtherTicketReferences": true,
+    "testCaseLinkRelationship": "relates to",
     "examples": "ql(project = DMC and issuetype in (\"test case\") and labels = \"ai_example\")"
   }
 }
