@@ -1,0 +1,156 @@
+You are tasked with writing comprehensive unit tests for a Java class in the DMTools project.
+
+## Context
+- Project: DMTools (multi-module Gradle project)
+- Module: dmtools-core
+- Testing Framework: JUnit 5 (JUnit Jupiter) preferred, JUnit 4 supported
+- Mocking: Mockito 5.x
+- Coverage Target: Minimum 80% line coverage
+
+## Requirements
+
+1. **Follow Testing Rules**: Strictly adhere to all rules in `.cursor/temp_rules/unit-testing.mdc`
+
+2. **Test File Location**: 
+   - Source file: `dmtools-core/src/main/java/<package>/<ClassName>.java`
+   - Test file: `dmtools-core/src/test/java/<package>/<ClassName>Test.java`
+   - Use the same package structure in test directory
+
+3. **Test Class Naming**:
+   - Test class: `ClassNameTest.java`
+   - Test methods: `testMethodName_scenario_expectedResult()`
+
+4. **Test Structure (AAA Pattern)**:
+   ```java
+   @Test
+   public void testMethodName_scenario_expectedResult() {
+       // Arrange
+       // Setup test objects and mocks
+       
+       // Act
+       // Execute the method under test
+       
+       // Assert
+       // Verify results
+   }
+   ```
+
+5. **Coverage Requirements**:
+   - Test all public methods
+   - Test all constructors
+   - Test edge cases and error conditions
+   - Test null handling where applicable
+   - Test boundary conditions
+   - Aim for 80%+ line coverage
+
+6. **Mocking Guidelines**:
+   - Use `@Mock` for dependencies
+   - Use `@InjectMocks` for class under test
+   - Use `@ExtendWith(MockitoExtension.class)` for JUnit 5
+   - Avoid unnecessary stubbings (set up only what each test needs)
+   - Use `lenient()` if stubbing might not be used in all tests
+
+7. **Test Independence**:
+   - Each test must be independent
+   - No shared mutable state between tests
+   - Setup only what each test needs in the test method itself
+
+8. **Code Style**:
+   - Follow project coding standards
+   - Use meaningful test method names
+   - Add comments only when necessary for clarity
+   - Use proper imports (package imports, not fully qualified names)
+
+9. **If Test File Exists**:
+   - Read existing test file
+   - Extend with missing test cases
+   - Don't duplicate existing tests
+   - Improve coverage for untested methods
+   - Maintain existing test structure and style
+
+10. **If Test File Doesn't Exist**:
+    - Create new test file with proper package declaration
+    - Include all necessary imports
+    - Create comprehensive test suite
+    - Follow project testing patterns
+
+## Analysis Steps
+
+1. Read and understand the source file
+2. Identify all public methods and constructors
+3. Identify dependencies that need mocking
+4. Check if test file exists and review existing tests
+5. Identify gaps in test coverage
+6. Write/extend tests to achieve comprehensive coverage
+
+## Output
+
+Generate or update the test file with:
+- Proper package declaration
+- All necessary imports
+- Test class with `@ExtendWith(MockitoExtension.class)` for JUnit 5
+- Comprehensive test methods covering all scenarios
+- Proper assertions using JUnit assertions
+- Mock verification where appropriate
+
+## Verification and Testing
+
+### Compile and Run Tests
+
+After writing the tests, you MUST verify they compile and pass by running ONLY the test class you just wrote:
+
+1. **Compile the test class**:
+   ```bash
+   cd /path/to/dmtools-core
+   ./gradlew :dmtools-core:compileTestJava
+   ```
+
+2. **Run ONLY the specific test class you just wrote**:
+   ```bash
+   ./gradlew :dmtools-core:test --tests "<package>.<ClassName>Test"
+   ```
+
+   Example:
+   ```bash
+   ./gradlew :dmtools-core:test --tests "com.github.istin.dmtools.microsoft.ado.model.WorkItemCommentTest"
+   ```
+
+   **IMPORTANT**: Only run the test class you just wrote/updated. Do NOT run all tests in the package.
+
+3. **Check test results**:
+   - Review the test output for any failures
+   - Check for compilation errors
+   - Verify all tests in this specific class pass
+   - If any test methods fail and cannot be easily fixed, remove them
+
+### Test Failure Handling
+
+**CRITICAL RULE**: If a test method fails and cannot be easily fixed:
+- **Remove the failing test method** rather than leaving broken tests
+- Only keep tests that compile and pass
+- Document in comments why certain test cases were skipped if they require complex setup
+- It's better to have fewer passing tests than many failing tests
+
+**Easy fixes** include:
+- Correcting assertion values
+- Fixing mock setup
+- Adjusting test data
+- Fixing import statements
+
+**Not easy fixes** (remove test if these occur):
+- Complex dependency injection issues that require significant refactoring
+- Integration dependencies that can't be mocked
+- Architecture issues that prevent proper testing
+- Tests that require extensive environment setup
+
+### Test Quality Checklist
+
+Before finalizing the test file:
+- [ ] All tests compile without errors
+- [ ] All tests pass when run
+- [ ] No failing or skipped tests remain (unless intentionally skipped with @Disabled)
+- [ ] Test methods follow naming convention: `testMethodName_scenario_expectedResult()`
+- [ ] Tests are independent (no shared state)
+- [ ] Proper mocking is used for dependencies
+- [ ] Edge cases and error conditions are tested
+
