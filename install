@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # DMTools CLI Cross-Platform Installation Wrapper
 # Usage: curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
+# For specific version: DMTOOLS_VERSION=v1.7.97 curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.97/install | bash
+# Or use install.sh directly: curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.97/install.sh | bash
 # This script auto-detects the platform and runs the appropriate installer
 # Works even if this file doesn't exist in older releases - falls back to install.sh
 
@@ -13,8 +15,16 @@ get_asset_url() {
     local tag="$1"
     local asset_name="$2"
     
-    # Try latest release API
-    local api_url="https://api.github.com/repos/${REPO}/releases/latest"
+    # Construct API URL based on tag
+    local api_url
+    if [ "$tag" = "latest" ]; then
+        api_url="https://api.github.com/repos/${REPO}/releases/latest"
+    else
+        # Remove 'v' prefix if present for API call
+        local tag_clean="${tag#v}"
+        api_url="https://api.github.com/repos/${REPO}/releases/tags/v${tag_clean}"
+    fi
+    
     local release_info=$(curl -s --connect-timeout 10 --max-time 30 "${api_url}" 2>/dev/null)
     
     if [ -n "$release_info" ] && ! echo "$release_info" | grep -q '"message":"Not Found"'; then
@@ -37,14 +47,26 @@ download_and_run() {
     
     # Download to temp file
     if command -v curl >/dev/null 2>&1; then
-        if ! curl -fsSL "$url" -o "$temp_file" 2>&1; then
+        local curl_output
+        curl_output=$(curl -fSL "$url" -o "$temp_file" 2>&1)
+        local curl_exit=$?
+        if [ $curl_exit -ne 0 ]; then
             echo "Failed to download from $url" >&2
+            if [ -n "$curl_output" ]; then
+                echo "curl error: $curl_output" >&2
+            fi
             rm -f "$temp_file" 2>/dev/null
             return 1
         fi
     elif command -v wget >/dev/null 2>&1; then
-        if ! wget -qO "$temp_file" "$url" 2>&1; then
+        local wget_output
+        wget_output=$(wget -O "$temp_file" "$url" 2>&1)
+        local wget_exit=$?
+        if [ $wget_exit -ne 0 ]; then
             echo "Failed to download from $url" >&2
+            if [ -n "$wget_output" ]; then
+                echo "wget error: $wget_output" >&2
+            fi
             rm -f "$temp_file" 2>/dev/null
             return 1
         fi
@@ -135,12 +157,30 @@ detect_unix_platform() {
     fi
 }
 
+# Get version from environment variable or use "latest"
+get_version() {
+    if [ -n "${DMTOOLS_VERSION:-}" ]; then
+        # Remove 'v' prefix if present
+        local version="${DMTOOLS_VERSION#v}"
+        echo "v${version}"
+    else
+        echo "latest"
+    fi
+}
+
 # Download and run installer
 run_installer() {
     if is_windows; then
         echo "Detected windows environment - downloading PowerShell installer..."
 
-        local install_ps_url="https://github.com/${REPO}/releases/latest/download/install.ps1"
+        local version
+        version=$(get_version)
+        local install_ps_url
+        if [ "$version" = "latest" ]; then
+            install_ps_url="https://github.com/${REPO}/releases/latest/download/install.ps1"
+        else
+            install_ps_url="https://github.com/${REPO}/releases/download/${version}/install.ps1"
+        fi
         local pwsh_exe=""
 
         if command -v pwsh >/dev/null 2>&1; then
@@ -165,25 +205,37 @@ run_installer() {
         macos|linux)
             echo "Detected ${platform} - downloading installer..."
 
-            local install_url
-            install_url=$(get_asset_url "latest" "install.sh")
+            local version
+            version=$(get_version)
+            local install_url=""
 
+            # Try to get URL from GitHub API first
+            install_url=$(get_asset_url "$version" "install.sh")
+
+            # Fallback to direct URL pattern
             if [ -z "$install_url" ]; then
+                if [ "$version" = "latest" ]; then
+                    install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
+                else
+                    install_url="https://github.com/${REPO}/releases/download/${version}/install.sh"
+                fi
+            fi
+
+            if download_and_run "$install_url"; then
+                return 0
+            else
+                echo "Failed to download from: $install_url" >&2
+            fi
+
+            # Final fallback: try latest if we were using a specific version
+            if [ "$version" != "latest" ]; then
+                echo "Trying latest version as fallback..." >&2
                 install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
-            fi
-
-            if download_and_run "$install_url"; then
-                return 0
-            else
-                echo "Failed to download from: $install_url" >&2
-            fi
-
-            echo "Trying alternative download method..."
-            install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
-            if download_and_run "$install_url"; then
-                return 0
-            else
-                echo "Failed to download from: $install_url" >&2
+                if download_and_run "$install_url"; then
+                    return 0
+                else
+                    echo "Failed to download from: $install_url" >&2
+                fi
             fi
 
             echo ""
@@ -191,11 +243,16 @@ run_installer() {
             echo ""
             echo "Please try one of these methods:"
             echo ""
+            if [ "$version" != "latest" ]; then
+                echo "1. Try with specific version:"
+                echo "   curl -fsSL https://github.com/${REPO}/releases/download/${version}/install.sh | bash"
+                echo ""
+            fi
             echo "1. Direct download (recommended):"
             echo "   curl -fsSL https://github.com/${REPO}/releases/latest/download/install.sh | bash"
             echo ""
             echo "2. Or download manually from:"
-            echo "   https://github.com/${REPO}/releases/latest"
+            echo "   https://github.com/${REPO}/releases/${version}"
             exit 1
             ;;
         *)
