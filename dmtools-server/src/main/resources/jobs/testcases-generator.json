@@ -145,6 +145,44 @@
       ]
     },
     {
+      "key": "testCaseLinkRelationshipForNew",
+      "displayNameKey": "testcases.testCaseLinkRelationshipForNew.displayName",
+      "descriptionKey": "testcases.testCaseLinkRelationshipForNew.description",
+      "instructionsKey": "testcases.testCaseLinkRelationshipForNew.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": "is tested by",
+      "validation": {
+        "pattern": "^[a-zA-Z0-9\\s]+$"
+      },
+      "examples": [
+        "is tested by",
+        "tests",
+        "verifies",
+        "relates to"
+      ]
+    },
+    {
+      "key": "testCaseLinkRelationshipForExisting",
+      "displayNameKey": "testcases.testCaseLinkRelationshipForExisting.displayName",
+      "descriptionKey": "testcases.testCaseLinkRelationshipForExisting.description",
+      "instructionsKey": "testcases.testCaseLinkRelationshipForExisting.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": "relates to",
+      "validation": {
+        "pattern": "^[a-zA-Z0-9\\s]+$"
+      },
+      "examples": [
+        "relates to",
+        "is tested by",
+        "tests",
+        "verifies"
+      ]
+    },
+    {
       "key": "confluencePages",
       "displayNameKey": "testcases.confluencePages.displayName",
       "descriptionKey": "testcases.confluencePages.description",
