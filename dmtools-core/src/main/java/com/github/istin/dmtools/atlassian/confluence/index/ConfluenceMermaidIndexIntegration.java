@@ -10,7 +10,10 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -250,6 +253,7 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
     
     /**
      * Processes a single content item.
+     * Downloads attachments and includes their file references in metadata.
      */
     private void processContent(Content content, String spaceKey, String contentName, String contentId, 
                                ContentProcessor processor) {
@@ -264,16 +268,44 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
         metadata.add("spaceKey:" + spaceKey);
         metadata.add("contentId:" + contentId);
         
-        // Get attachments
+        // Get and download attachments
+        Path tempDirPath = null;
         try {
             List<Attachment> attachments = confluence.getContentAttachments(contentId);
             if (attachments != null && !attachments.isEmpty()) {
+                // Create temp directory for attachments
+                tempDirPath = Files.createTempDirectory("confluence-attachments-" + contentId);
+                java.io.File tempDir = tempDirPath.toFile();
+                
                 for (Attachment attachment : attachments) {
-                    metadata.add("attachment:" + attachment.getTitle());
+                    String title = attachment.getTitle();
+                    String downloadLink = attachment.getDownloadLink();
+                    
+                    if (downloadLink != null && !downloadLink.isEmpty()) {
+                        try {
+                            // Download attachment
+                            java.io.File downloadedFile = confluence.downloadAttachment(attachment, tempDir);
+                            if (downloadedFile != null && downloadedFile.exists()) {
+                                metadata.add("attachment:" + title + ":file:" + downloadedFile.getAbsolutePath());
+                            } else {
+                                metadata.add("attachment:" + title);
+                            }
+                        } catch (Exception e) {
+                            logger.warn("Failed to download attachment {} for content {}: {}", title, contentId, e.getMessage());
+                            metadata.add("attachment:" + title);
+                        }
+                    } else {
+                        metadata.add("attachment:" + title);
+                    }
                 }
             }
         } catch (Exception e) {
             logger.warn("Failed to get attachments for content {}: {}", contentId, e.getMessage());
+        } finally {
+            // Clean up temp directory and its contents
+            if (tempDirPath != null) {
+                cleanupTempDirectory(tempDirPath);
+            }
         }
         
         // Get last modified date
@@ -285,6 +317,28 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
         // Call processor
         String pathOrId = spaceKey + "/" + contentId;
         processor.process(pathOrId, contentName, contentBody, metadata, lastModified);
+    }
+    
+    /**
+     * Cleans up a temporary directory and its contents.
+     * Walks the directory tree in reverse order to delete files before directories.
+     *
+     * @param tempDirPath the path to the temporary directory
+     */
+    private void cleanupTempDirectory(Path tempDirPath) {
+        try {
+            Files.walk(tempDirPath)
+                .sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        logger.debug("Failed to delete temp file: {}", path, e);
+                    }
+                });
+        } catch (IOException e) {
+            logger.warn("Failed to clean up temp directory: {}", tempDirPath, e);
+        }
     }
     
     /**

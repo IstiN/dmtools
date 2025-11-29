@@ -3,10 +3,12 @@ package com.github.istin.dmtools.index.mermaid;
 import com.github.istin.dmtools.ai.agent.MermaidDiagramGeneratorAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.confluence.index.ConfluenceMermaidIndexIntegration;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -38,10 +40,18 @@ public class MermaidIndex {
      * @param excludePatterns List of patterns to exclude
      * @param confluence Confluence instance (required for confluence integration)
      * @param diagramGenerator Diagram generator agent
+     * @throws IllegalArgumentException if required parameters are null
      */
     public MermaidIndex(String integrationName, String storagePath, 
                        List<String> includePatterns, List<String> excludePatterns,
                        Confluence confluence, MermaidDiagramGeneratorAgent diagramGenerator) {
+        if (storagePath == null || storagePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("Storage path is required");
+        }
+        if (diagramGenerator == null) {
+            throw new IllegalArgumentException("Diagram generator is required");
+        }
+        
         this.integrationName = integrationName;
         this.storagePath = storagePath;
         this.includePatterns = includePatterns;
@@ -123,7 +133,7 @@ public class MermaidIndex {
         Files.createDirectories(baseDir);
         
         // Write diagram to file
-        Files.write(diagramPath, diagram.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        Files.write(diagramPath, diagram.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         
         // Set file modification time to match content last modified date
         try {
@@ -150,17 +160,9 @@ public class MermaidIndex {
     
     /**
      * Sanitizes a filename to be filesystem-safe.
+     * Uses shared utility with 200 character limit.
      */
     private String sanitizeFileName(String fileName) {
-        if (fileName == null) {
-            return "untitled";
-        }
-        // Replace invalid filesystem characters, limit length
-        String sanitized = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
-        // Limit to 200 characters to avoid filesystem issues
-        if (sanitized.length() > 200) {
-            sanitized = sanitized.substring(0, 200);
-        }
-        return sanitized;
+        return StringUtils.sanitizeFileName(fileName, "untitled", 200);
     }
 }
