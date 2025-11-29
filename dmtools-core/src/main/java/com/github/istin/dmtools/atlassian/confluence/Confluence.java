@@ -11,6 +11,7 @@ import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import com.github.istin.dmtools.common.utils.MarkdownToJiraConverter;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import com.github.istin.dmtools.mcp.MCPTool;
@@ -587,38 +588,14 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         }
         
         // Sanitize filename to prevent directory traversal attacks
-        String safeFileName = sanitizeFileName(attachment.getTitle());
+        // Uses shared utility with 200 character limit
+        String safeFileName = StringUtils.sanitizeFileName(attachment.getTitle(), "unnamed_attachment", 200);
         
         // Create target file
         File targetFile = new File(targetDir, safeFileName);
         
         // Download the file
         return RestClient.Impl.downloadFile(this, new GenericRequest(this, fullUrl), targetFile);
-    }
-    
-    /**
-     * Sanitizes a filename to be safe for filesystem use.
-     * Prevents directory traversal attacks and invalid characters.
-     * @param fileName the original filename
-     * @return sanitized filename
-     */
-    private String sanitizeFileName(String fileName) {
-        if (fileName == null || fileName.isEmpty()) {
-            return "unnamed_attachment";
-        }
-        // Remove any path separators to prevent directory traversal
-        String sanitized = fileName.replace("/", "_").replace("\\", "_");
-        // Remove any other potentially dangerous characters
-        sanitized = sanitized.replaceAll("[^a-zA-Z0-9._-]", "_");
-        // Collapse consecutive underscores
-        sanitized = sanitized.replaceAll("_+", "_");
-        // Remove leading/trailing underscores
-        sanitized = sanitized.replaceAll("^_+|_+$", "");
-        // Handle empty result
-        if (sanitized.isEmpty()) {
-            return "unnamed_attachment";
-        }
-        return sanitized;
     }
 
     protected void setGraphQLPath(String graphQLPath) {

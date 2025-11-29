@@ -10,7 +10,10 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -266,12 +269,13 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
         metadata.add("contentId:" + contentId);
         
         // Get and download attachments
+        Path tempDirPath = null;
         try {
             List<Attachment> attachments = confluence.getContentAttachments(contentId);
             if (attachments != null && !attachments.isEmpty()) {
                 // Create temp directory for attachments
-                java.io.File tempDir = java.nio.file.Files.createTempDirectory("confluence-attachments-" + contentId).toFile();
-                tempDir.deleteOnExit();
+                tempDirPath = Files.createTempDirectory("confluence-attachments-" + contentId);
+                java.io.File tempDir = tempDirPath.toFile();
                 
                 for (Attachment attachment : attachments) {
                     String title = attachment.getTitle();
@@ -297,6 +301,11 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
             }
         } catch (Exception e) {
             logger.warn("Failed to get attachments for content {}: {}", contentId, e.getMessage());
+        } finally {
+            // Clean up temp directory and its contents
+            if (tempDirPath != null) {
+                cleanupTempDirectory(tempDirPath);
+            }
         }
         
         // Get last modified date
@@ -308,6 +317,27 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
         // Call processor
         String pathOrId = spaceKey + "/" + contentId;
         processor.process(pathOrId, contentName, contentBody, metadata, lastModified);
+    }
+    
+    /**
+     * Cleans up a temporary directory and its contents.
+     * Walks the directory tree in reverse order to delete files before directories.
+     *
+     * @param tempDirPath the path to the temporary directory
+     */
+    private void cleanupTempDirectory(Path tempDirPath) {
+        try {
+            Files.walk(tempDirPath)
+                .sorted(Comparator.reverseOrder())
+                .map(Path::toFile)
+                .forEach(file -> {
+                    if (!file.delete()) {
+                        logger.debug("Failed to delete temp file: {}", file.getAbsolutePath());
+                    }
+                });
+        } catch (IOException e) {
+            logger.warn("Failed to clean up temp directory: {}", tempDirPath, e);
+        }
     }
     
     /**

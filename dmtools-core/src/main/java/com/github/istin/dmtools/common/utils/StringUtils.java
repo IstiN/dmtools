@@ -762,4 +762,47 @@ public class StringUtils {
         summary.append("]");
         return summary.toString();
     }
+
+    /**
+     * Sanitizes a filename to be safe for filesystem use.
+     * Prevents directory traversal attacks, removes invalid characters, and limits length.
+     * 
+     * @param fileName the original filename
+     * @param defaultName the default name to use if result is empty
+     * @param maxLength maximum allowed length for the filename (0 for no limit)
+     * @return sanitized filename
+     */
+    public static String sanitizeFileName(String fileName, String defaultName, int maxLength) {
+        if (fileName == null || fileName.isEmpty()) {
+            return defaultName;
+        }
+        // Remove any path separators to prevent directory traversal
+        String sanitized = fileName.replace("/", "_").replace("\\", "_");
+        // Remove any other potentially dangerous characters
+        sanitized = sanitized.replaceAll("[^a-zA-Z0-9._-]", "_");
+        // Collapse consecutive underscores to a single underscore
+        sanitized = sanitized.replaceAll("_+", "_");
+        // Remove leading/trailing underscores
+        sanitized = sanitized.replaceAll("^_+|_+$", "");
+        // Apply length limit if specified
+        if (maxLength > 0 && sanitized.length() > maxLength) {
+            sanitized = sanitized.substring(0, maxLength);
+        }
+        // Handle empty result
+        if (sanitized.isEmpty()) {
+            return defaultName;
+        }
+        return sanitized;
+    }
+
+    /**
+     * Sanitizes a filename with a 200 character limit.
+     * Convenience method with default values.
+     * 
+     * @param fileName the original filename
+     * @return sanitized filename
+     */
+    public static String sanitizeFileName(String fileName) {
+        return sanitizeFileName(fileName, "unnamed_file", 200);
+    }
 }

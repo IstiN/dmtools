@@ -3,6 +3,7 @@ package com.github.istin.dmtools.index.mermaid;
 import com.github.istin.dmtools.ai.agent.MermaidDiagramGeneratorAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.confluence.index.ConfluenceMermaidIndexIntegration;
+import com.github.istin.dmtools.common.utils.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -159,26 +160,9 @@ public class MermaidIndex {
     
     /**
      * Sanitizes a filename to be filesystem-safe.
-     * Collapses consecutive underscores to improve readability.
+     * Uses shared utility with 200 character limit.
      */
     private String sanitizeFileName(String fileName) {
-        if (fileName == null) {
-            return "untitled";
-        }
-        // Replace invalid filesystem characters with underscores
-        String sanitized = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
-        // Collapse consecutive underscores to a single underscore
-        sanitized = sanitized.replaceAll("_+", "_");
-        // Remove leading/trailing underscores
-        sanitized = sanitized.replaceAll("^_+|_+$", "");
-        // Limit to 200 characters to avoid filesystem issues
-        if (sanitized.length() > 200) {
-            sanitized = sanitized.substring(0, 200);
-        }
-        // Handle empty result
-        if (sanitized.isEmpty()) {
-            return "untitled";
-        }
-        return sanitized;
+        return StringUtils.sanitizeFileName(fileName, "untitled", 200);
     }
 }
