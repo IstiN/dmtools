@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -90,7 +91,7 @@ class MermaidIndexTest {
 
         // Create mock Content with old modification date
         Content content = createMockContent("456", "UpToDatePage", "TEST", "<p>Content</p>");
-        Date oldDate = new Date(System.currentTimeMillis() - 86400000); // 1 day ago
+        Date oldDate = createDateDaysOffset(-1); // 1 day ago
         when(content.getLastModifiedDate()).thenReturn(oldDate);
         
         when(mockConfluence.contentById(eq("456"))).thenReturn(content);
@@ -127,7 +128,7 @@ class MermaidIndexTest {
 
         // Create mock Content
         Content content = createMockContent("789", "OutdatedPage", "TEST", "<p>Content</p>");
-        Date oldDate = new Date(System.currentTimeMillis() - 86400000); // 1 day ago
+        Date oldDate = createDateDaysOffset(-1); // 1 day ago
         when(content.getLastModifiedDate()).thenReturn(oldDate);
         
         when(mockConfluence.contentById(eq("789"))).thenReturn(content);
@@ -146,7 +147,7 @@ class MermaidIndexTest {
         reset(mockConfluence);
         
         Content updatedContent = createMockContent("789", "OutdatedPage", "TEST", "<p>Updated Content</p>");
-        Date newDate = new Date(System.currentTimeMillis() + 86400000); // 1 day in future
+        Date newDate = createDateDaysOffset(1); // 1 day in future
         when(updatedContent.getLastModifiedDate()).thenReturn(newDate);
         
         when(mockConfluence.contentById(eq("789"))).thenReturn(updatedContent);
@@ -267,5 +268,14 @@ class MermaidIndexTest {
         when(content.getStorage()).thenReturn(storageObj);
         
         return content;
+    }
+
+    /**
+     * Helper method to create a Date with offset in days from current time.
+     * @param days positive for future, negative for past
+     * @return Date offset by specified days
+     */
+    private Date createDateDaysOffset(int days) {
+        return new Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(days));
     }
 }

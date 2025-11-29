@@ -572,22 +572,53 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
             return null;
         }
         
-        // Ensure the target directory exists
-        if (!targetDir.exists()) {
-            boolean created = targetDir.mkdirs();
-            if (!created && !targetDir.exists()) {
-                throw new IOException("Failed to create directory: " + targetDir.getAbsolutePath());
-            }
+        // Ensure the target directory exists using atomic method
+        java.nio.file.Files.createDirectories(targetDir.toPath());
+        
+        // Build the full download URL - ensure proper path joining
+        String basePath = getBasePath();
+        String fullUrl;
+        if (basePath.endsWith("/") && downloadLink.startsWith("/")) {
+            fullUrl = basePath + downloadLink.substring(1);
+        } else if (!basePath.endsWith("/") && !downloadLink.startsWith("/")) {
+            fullUrl = basePath + "/" + downloadLink;
+        } else {
+            fullUrl = basePath + downloadLink;
         }
         
-        // Build the full download URL
-        String fullUrl = getBasePath() + downloadLink;
+        // Sanitize filename to prevent directory traversal attacks
+        String safeFileName = sanitizeFileName(attachment.getTitle());
         
         // Create target file
-        File targetFile = new File(targetDir, attachment.getTitle());
+        File targetFile = new File(targetDir, safeFileName);
         
         // Download the file
         return RestClient.Impl.downloadFile(this, new GenericRequest(this, fullUrl), targetFile);
+    }
+    
+    /**
+     * Sanitizes a filename to be safe for filesystem use.
+     * Prevents directory traversal attacks and invalid characters.
+     * @param fileName the original filename
+     * @return sanitized filename
+     */
+    private String sanitizeFileName(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "unnamed_attachment";
+        }
+        // Remove any path separators to prevent directory traversal
+        String sanitized = fileName.replace("/", "_").replace("\\", "_");
+        // Remove any other potentially dangerous characters
+        sanitized = sanitized.replaceAll("[^a-zA-Z0-9._-]", "_");
+        // Collapse consecutive underscores
+        sanitized = sanitized.replaceAll("_+", "_");
+        // Remove leading/trailing underscores
+        sanitized = sanitized.replaceAll("^_+|_+$", "");
+        // Handle empty result
+        if (sanitized.isEmpty()) {
+            return "unnamed_attachment";
+        }
+        return sanitized;
     }
 
     protected void setGraphQLPath(String graphQLPath) {
