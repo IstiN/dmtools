@@ -69,17 +69,18 @@ function action(params) {
             // Create diagram generator agent
             const diagramGenerator = new MermaidDiagramGeneratorAgent();
             
-            // Get Confluence - this should be available in the bridge context
-            // If not directly available, we may need to inject it differently
+            // Get Confluence - this should be available in the bridge context or parameters
+            // Note: Confluence instance should be provided via bridge context or jobParams
+            // The bridge should inject it, or it should be passed as a parameter
             let confluence = null;
             try {
-                // Try to get from global context if available
-                if (confluence !== null) {
-                    // Use existing confluence instance
+                // Try to get from jobParams if provided
+                if (jobParams.confluence) {
+                    confluence = jobParams.confluence;
                 } else {
-                    // Try to get from Java bridge
-                    // This approach may need adjustment based on actual bridge implementation
-                    console.warn('Confluence instance not directly available, may need bridge configuration');
+                    // Try to get from Java bridge context
+                    // This may need adjustment based on actual bridge implementation
+                    console.warn('Confluence instance not found in parameters, may need bridge configuration');
                 }
             } catch (e) {
                 console.warn('Could not get Confluence instance:', e.message);
