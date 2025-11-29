@@ -10,13 +10,24 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Confluence implementation of MermaidIndexIntegration.
- * Retrieves content from Confluence spaces and pages, applies include/exclude pattern matching,
- * and calls the processor for each matching content item.
+ * Retrieves content from Confluence spaces and pages using path-based patterns.
+ * <p>
+ * Supported path formats:
+ * <ul>
+ *   <li>{@code [SPACE]/pages/[pageId]/[PageName]} - direct page only</li>
+ *   <li>{@code [SPACE]/pages/[pageId]/[PageName]/*} - direct page + immediate children</li>
+ *   <li>{@code [SPACE]/pages/[pageId]/[PageName]/**} - direct page + all descendants</li>
+ *   <li>{@code [SPACE]/**} - all pages in space</li>
+ *   <li>Full URL: {@code https://company.atlassian.net/wiki/spaces/[space]/pages/[pageId]/[page]}</li>
+ * </ul>
+ * Page names can contain '+' characters (URL-encoded or as spaces).
  */
 public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegration {
     
@@ -31,21 +42,16 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
     @Override
     public void getContentForIndex(List<String> includePatterns, List<String> excludePatterns, ContentProcessor processor) {
         try {
-            // Get all spaces or search for content based on include patterns
+            // Collect all content based on include patterns
             List<Content> allContent = new ArrayList<>();
             
-            // If include patterns are provided, search for matching content
             if (includePatterns != null && !includePatterns.isEmpty()) {
                 for (String pattern : includePatterns) {
-                    List<Content> matchingContent = searchContentByPattern(pattern);
+                    List<Content> matchingContent = getContentByPattern(pattern);
                     allContent.addAll(matchingContent);
                 }
             } else {
-                // If no include patterns, we need to search broadly
-                // For now, we'll use a generic search - this could be enhanced
-                logger.warn("No include patterns provided, searching all content");
-                List<Content> searchResults = searchContentByPattern("*");
-                allContent.addAll(searchResults);
+                logger.warn("No include patterns provided, no content will be retrieved");
             }
             
             // Remove duplicates based on content ID
@@ -61,49 +67,13 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
                 String contentName = content.getTitle();
                 String contentId = content.getId();
                 
-                // Content already matched include patterns during search; no need to filter again.
-                
-                
-                
-                
                 // Check if content matches exclude patterns
-                if (matchesPattern(contentName, spaceKey, excludePatterns)) {
+                if (matchesExcludePattern(contentName, spaceKey, contentId, excludePatterns)) {
                     logger.debug("Skipping content {} due to exclude pattern", contentId);
                     continue;
                 }
                 
-                // Extract content body
-                String contentBody = "";
-                if (content.getStorage() != null && content.getStorage().getValue() != null) {
-                    contentBody = content.getStorage().getValue();
-                }
-                
-                // Get metadata
-                List<String> metadata = new ArrayList<>();
-                metadata.add("spaceKey:" + spaceKey);
-                metadata.add("contentId:" + contentId);
-                
-                // Get attachments
-                try {
-                    List<Attachment> attachments = confluence.getContentAttachments(contentId);
-                    if (attachments != null && !attachments.isEmpty()) {
-                        for (Attachment attachment : attachments) {
-                            metadata.add("attachment:" + attachment.getTitle());
-                        }
-                    }
-                } catch (Exception e) {
-                    logger.warn("Failed to get attachments for content {}: {}", contentId, e.getMessage());
-                }
-                
-                // Get last modified date
-                Date lastModified = content.getLastModifiedDate();
-                if (lastModified == null) {
-                    lastModified = new Date();
-                }
-                
-                // Call processor
-                String pathOrId = spaceKey + "/" + contentId;
-                processor.process(pathOrId, contentName, contentBody, metadata, lastModified);
+                processContent(content, spaceKey, contentName, contentId, processor);
             }
             
         } catch (Exception e) {
@@ -113,60 +83,196 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
     }
     
     /**
-     * Searches for content matching a pattern.
-     * Supports exact match and prefix wildcard (e.g., "JAI*").
+     * Retrieves content matching the given path pattern.
+     * Uses direct API calls instead of search.
+     *
+     * @param pattern the path pattern to match
+     * @return list of matching content
+     * @throws IOException if an API error occurs
      */
-    private List<Content> searchContentByPattern(String pattern) throws IOException {
+    private List<Content> getContentByPattern(String pattern) throws IOException {
         List<Content> results = new ArrayList<>();
         
-        // If pattern ends with *, treat as prefix match
-        if (pattern.endsWith("*")) {
-            String prefix = pattern.substring(0, pattern.length() - 1);
-            // Search for content with title or space starting with prefix
-            List<com.github.istin.dmtools.atlassian.confluence.model.SearchResult> searchResults = 
-                    confluence.searchContentByText(prefix, 100);
-            
-            for (com.github.istin.dmtools.atlassian.confluence.model.SearchResult result : searchResults) {
-                try {
-                    String contentId = result.getId();
-                    if (contentId == null) {
-                        contentId = result.getEntityId();
-                    }
-                    if (contentId != null) {
-                        Content content = confluence.contentById(contentId);
-                        if (content != null) {
-                            results.add(content);
-                        }
-                    }
-                } catch (Exception e) {
-                    logger.warn("Failed to get content by ID {}: {}", result.getId(), e.getMessage());
+        // Try to parse as a structured path pattern
+        if (ConfluencePagePathParser.isValidPattern(pattern)) {
+            ConfluencePagePathParser.ParsedPath parsedPath = ConfluencePagePathParser.parse(pattern);
+            return getContentByParsedPath(parsedPath);
+        }
+        
+        // Fallback: treat as a legacy simple pattern (space key or page title)
+        logger.debug("Pattern '{}' not recognized as structured path, treating as legacy pattern", pattern);
+        return getContentByLegacyPattern(pattern);
+    }
+    
+    /**
+     * Retrieves content based on a parsed path structure.
+     *
+     * @param parsedPath the parsed path information
+     * @return list of matching content
+     * @throws IOException if an API error occurs
+     */
+    private List<Content> getContentByParsedPath(ConfluencePagePathParser.ParsedPath parsedPath) throws IOException {
+        List<Content> results = new ArrayList<>();
+        
+        switch (parsedPath.getDepth()) {
+            case PAGE_ONLY:
+                // Get only the specified page
+                Content page = confluence.contentById(parsedPath.getPageId());
+                if (page != null) {
+                    results.add(page);
+                }
+                break;
+                
+            case IMMEDIATE_CHILDREN:
+                // Get page and its immediate children
+                Content parentPage = confluence.contentById(parsedPath.getPageId());
+                if (parentPage != null) {
+                    results.add(parentPage);
+                    List<Content> children = confluence.getChildrenOfContentById(parsedPath.getPageId());
+                    results.addAll(children);
+                }
+                break;
+                
+            case ALL_DESCENDANTS:
+                // Get page and all descendants recursively
+                Content rootPage = confluence.contentById(parsedPath.getPageId());
+                if (rootPage != null) {
+                    results.add(rootPage);
+                    collectDescendants(parsedPath.getPageId(), results, new HashSet<>());
+                }
+                break;
+                
+            case ALL_SPACE_PAGES:
+                // Get all pages in the space
+                results.addAll(getAllPagesInSpace(parsedPath.getSpaceKey()));
+                break;
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Recursively collects all descendant pages.
+     *
+     * @param parentId the parent page ID
+     * @param results the list to add results to
+     * @param visited set of already visited page IDs to prevent cycles
+     * @throws IOException if an API error occurs
+     */
+    private void collectDescendants(String parentId, List<Content> results, Set<String> visited) throws IOException {
+        if (visited.contains(parentId)) {
+            return;
+        }
+        visited.add(parentId);
+        
+        try {
+            List<Content> children = confluence.getChildrenOfContentById(parentId);
+            for (Content child : children) {
+                if (!visited.contains(child.getId())) {
+                    results.add(child);
+                    collectDescendants(child.getId(), results, visited);
                 }
             }
-        } else {
-            // Exact match - search for content with exact title or space key
-            List<com.github.istin.dmtools.atlassian.confluence.model.SearchResult> searchResults = 
-                    confluence.searchContentByText(pattern, 100);
+        } catch (Exception e) {
+            logger.warn("Failed to get children for page {}: {}", parentId, e.getMessage());
+        }
+    }
+    
+    /**
+     * Gets all pages in a space by starting from root pages.
+     * This method retrieves pages without using search.
+     *
+     * @param spaceKey the space key
+     * @return list of all pages in the space
+     * @throws IOException if an API error occurs
+     */
+    private List<Content> getAllPagesInSpace(String spaceKey) throws IOException {
+        List<Content> results = new ArrayList<>();
+        Set<String> visited = new HashSet<>();
+        
+        try {
+            // Get root pages in the space using content API
+            List<Content> rootPages = getSpaceRootPages(spaceKey);
             
-            for (com.github.istin.dmtools.atlassian.confluence.model.SearchResult result : searchResults) {
-                try {
-                    String contentId = result.getId();
-                    if (contentId == null) {
-                        contentId = result.getEntityId();
-                    }
-                    if (contentId != null) {
-                        Content content = confluence.contentById(contentId);
-                        if (content != null) {
-                            String spaceKey = getSpaceKey(content);
-                            String title = content.getTitle();
-                            // Check for exact match on space key or title
-                            if (pattern.equals(spaceKey) || pattern.equals(title)) {
-                                results.add(content);
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    logger.warn("Failed to get content by ID {}: {}", result.getId(), e.getMessage());
+            for (Content rootPage : rootPages) {
+                if (!visited.contains(rootPage.getId())) {
+                    results.add(rootPage);
+                    visited.add(rootPage.getId());
+                    collectDescendants(rootPage.getId(), results, visited);
                 }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to get pages for space {}: {}", spaceKey, e.getMessage());
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Gets root pages in a space (pages with no parent).
+     *
+     * @param spaceKey the space key
+     * @return list of root pages
+     * @throws IOException if an API error occurs
+     */
+    private List<Content> getSpaceRootPages(String spaceKey) throws IOException {
+        // Use the content API to get pages in the space
+        // The Confluence API path is: /rest/api/content?spaceKey={spaceKey}&type=page
+        com.github.istin.dmtools.atlassian.confluence.model.ContentResult contentResult = 
+                confluence.content("", spaceKey);
+        
+        List<Content> contents = contentResult.getContents();
+        if (contents == null) {
+            return new ArrayList<>();
+        }
+        
+        // Filter to get only root pages (no ancestors or empty ancestors)
+        return contents.stream()
+                .filter(c -> {
+                    String parentId = c.getParentId();
+                    return parentId == null || parentId.isEmpty();
+                })
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Handles legacy patterns that are not structured paths.
+     * Falls back to search-based retrieval for backward compatibility.
+     *
+     * @param pattern the legacy pattern
+     * @return list of matching content
+     * @throws IOException if an API error occurs
+     */
+    private List<Content> getContentByLegacyPattern(String pattern) throws IOException {
+        List<Content> results = new ArrayList<>();
+        
+        // Try to treat as space key with /** suffix
+        if (pattern.endsWith("**")) {
+            String spaceKey = pattern.substring(0, pattern.length() - 2);
+            if (spaceKey.endsWith("/")) {
+                spaceKey = spaceKey.substring(0, spaceKey.length() - 1);
+            }
+            return getAllPagesInSpace(spaceKey);
+        }
+        
+        // For other patterns, use search as fallback
+        List<com.github.istin.dmtools.atlassian.confluence.model.SearchResult> searchResults = 
+                confluence.searchContentByText(pattern, 100);
+        
+        for (com.github.istin.dmtools.atlassian.confluence.model.SearchResult result : searchResults) {
+            try {
+                String contentId = result.getId();
+                if (contentId == null) {
+                    contentId = result.getEntityId();
+                }
+                if (contentId != null) {
+                    Content content = confluence.contentById(contentId);
+                    if (content != null) {
+                        results.add(content);
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to get content by ID {}: {}", result.getId(), e.getMessage());
             }
         }
         
@@ -174,21 +280,83 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
     }
     
     /**
-     * Checks if content matches any of the patterns.
+     * Processes a single content item.
      */
-    private boolean matchesPattern(String contentName, String spaceKey, List<String> patterns) {
+    private void processContent(Content content, String spaceKey, String contentName, String contentId, 
+                               ContentProcessor processor) {
+        // Extract content body
+        String contentBody = "";
+        if (content.getStorage() != null && content.getStorage().getValue() != null) {
+            contentBody = content.getStorage().getValue();
+        }
+        
+        // Get metadata
+        List<String> metadata = new ArrayList<>();
+        metadata.add("spaceKey:" + spaceKey);
+        metadata.add("contentId:" + contentId);
+        
+        // Get attachments
+        try {
+            List<Attachment> attachments = confluence.getContentAttachments(contentId);
+            if (attachments != null && !attachments.isEmpty()) {
+                for (Attachment attachment : attachments) {
+                    metadata.add("attachment:" + attachment.getTitle());
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to get attachments for content {}: {}", contentId, e.getMessage());
+        }
+        
+        // Get last modified date
+        Date lastModified = content.getLastModifiedDate();
+        if (lastModified == null) {
+            lastModified = new Date();
+        }
+        
+        // Call processor
+        String pathOrId = spaceKey + "/" + contentId;
+        processor.process(pathOrId, contentName, contentBody, metadata, lastModified);
+    }
+    
+    /**
+     * Checks if content matches any of the exclude patterns.
+     *
+     * @param contentName the content title
+     * @param spaceKey the space key
+     * @param contentId the content ID
+     * @param patterns the list of exclude patterns
+     * @return true if content should be excluded
+     */
+    private boolean matchesExcludePattern(String contentName, String spaceKey, String contentId, List<String> patterns) {
         if (patterns == null || patterns.isEmpty()) {
             return false;
         }
         
         for (String pattern : patterns) {
+            // Try to parse as structured path pattern
+            if (ConfluencePagePathParser.isValidPattern(pattern)) {
+                ConfluencePagePathParser.ParsedPath parsedPath = ConfluencePagePathParser.parse(pattern);
+                
+                // Check if this content matches the exclude pattern
+                if (parsedPath.getPageId() != null && parsedPath.getPageId().equals(contentId)) {
+                    return true;
+                }
+                if (parsedPath.isSpaceWide() && parsedPath.getSpaceKey().equals(spaceKey)) {
+                    return true;
+                }
+            }
+            
+            // Legacy pattern matching
             if (pattern.endsWith("*")) {
                 String prefix = pattern.substring(0, pattern.length() - 1);
-                if (contentName.startsWith(prefix) || spaceKey.startsWith(prefix)) {
+                if (contentName != null && contentName.startsWith(prefix)) {
+                    return true;
+                }
+                if (spaceKey != null && spaceKey.startsWith(prefix)) {
                     return true;
                 }
             } else {
-                if (pattern.equals(contentName) || pattern.equals(spaceKey)) {
+                if (pattern.equals(contentName) || pattern.equals(spaceKey) || pattern.equals(contentId)) {
                     return true;
                 }
             }
@@ -199,6 +367,9 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
     
     /**
      * Extracts space key from Content object.
+     *
+     * @param content the content object
+     * @return the space key or "UNKNOWN" if not found
      */
     private String getSpaceKey(Content content) {
         try {
