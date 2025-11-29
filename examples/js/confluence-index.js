@@ -73,7 +73,7 @@ function action(params) {
             let confluence = null;
             try {
                 // Try to get from global context if available
-                if (typeof confluence !== 'undefined' && confluence !== null) {
+                if (confluence !== null) {
                     // Use existing confluence instance
                 } else {
                     // Try to get from Java bridge
