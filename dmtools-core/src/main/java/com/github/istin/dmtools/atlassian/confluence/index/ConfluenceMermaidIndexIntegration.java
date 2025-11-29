@@ -250,6 +250,7 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
     
     /**
      * Processes a single content item.
+     * Downloads attachments and includes their file references in metadata.
      */
     private void processContent(Content content, String spaceKey, String contentName, String contentId, 
                                ContentProcessor processor) {
@@ -264,12 +265,34 @@ public class ConfluenceMermaidIndexIntegration implements MermaidIndexIntegratio
         metadata.add("spaceKey:" + spaceKey);
         metadata.add("contentId:" + contentId);
         
-        // Get attachments
+        // Get and download attachments
         try {
             List<Attachment> attachments = confluence.getContentAttachments(contentId);
             if (attachments != null && !attachments.isEmpty()) {
+                // Create temp directory for attachments
+                java.io.File tempDir = java.nio.file.Files.createTempDirectory("confluence-attachments-" + contentId).toFile();
+                tempDir.deleteOnExit();
+                
                 for (Attachment attachment : attachments) {
-                    metadata.add("attachment:" + attachment.getTitle());
+                    String title = attachment.getTitle();
+                    String downloadLink = attachment.getDownloadLink();
+                    
+                    if (downloadLink != null && !downloadLink.isEmpty()) {
+                        try {
+                            // Download attachment
+                            java.io.File downloadedFile = confluence.downloadAttachment(attachment, tempDir);
+                            if (downloadedFile != null && downloadedFile.exists()) {
+                                metadata.add("attachment:" + title + ":file:" + downloadedFile.getAbsolutePath());
+                            } else {
+                                metadata.add("attachment:" + title);
+                            }
+                        } catch (Exception e) {
+                            logger.warn("Failed to download attachment {} for content {}: {}", title, contentId, e.getMessage());
+                            metadata.add("attachment:" + title);
+                        }
+                    } else {
+                        metadata.add("attachment:" + title);
+                    }
                 }
             }
         } catch (Exception e) {

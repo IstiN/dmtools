@@ -8,6 +8,7 @@ import com.github.istin.dmtools.atlassian.confluence.model.SearchResult;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
 import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.networking.RestClient;
 import com.github.istin.dmtools.common.utils.HtmlCleaner;
 import com.github.istin.dmtools.common.utils.MarkdownToJiraConverter;
 import com.github.istin.dmtools.context.UriToObject;
@@ -544,6 +545,49 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         String contentId
     ) throws IOException {
         return new ContentResult(execute(new GenericRequest(this, path("content/" + contentId + "/child/page?limit=100")))).getContents();
+    }
+
+    /**
+     * Downloads an attachment file to the specified target directory.
+     * @param attachment the attachment to download
+     * @param targetDir the target directory to save the file
+     * @return the downloaded file, or null if download failed
+     * @throws IOException if an error occurs during download
+     */
+    @MCPTool(
+        name = "confluence_download_attachment",
+        description = "Download an attachment file from Confluence to a specified directory.",
+        integration = "confluence",
+        category = "content_management"
+    )
+    public File downloadAttachment(
+        @MCPParam(name = "attachment", description = "The attachment object to download", required = true)
+        Attachment attachment,
+        @MCPParam(name = "targetDir", description = "The target directory to save the file", required = true, example = "/path/to/directory")
+        File targetDir
+    ) throws IOException {
+        String downloadLink = attachment.getDownloadLink();
+        if (downloadLink == null || downloadLink.isEmpty()) {
+            logger.warn("No download link available for attachment: {}", attachment.getTitle());
+            return null;
+        }
+        
+        // Ensure the target directory exists
+        if (!targetDir.exists()) {
+            boolean created = targetDir.mkdirs();
+            if (!created && !targetDir.exists()) {
+                throw new IOException("Failed to create directory: " + targetDir.getAbsolutePath());
+            }
+        }
+        
+        // Build the full download URL
+        String fullUrl = getBasePath() + downloadLink;
+        
+        // Create target file
+        File targetFile = new File(targetDir, attachment.getTitle());
+        
+        // Download the file
+        return RestClient.Impl.downloadFile(this, new GenericRequest(this, fullUrl), targetFile);
     }
 
     protected void setGraphQLPath(String graphQLPath) {
