@@ -47,13 +47,6 @@ function action(params) {
             };
         }
         
-        if (!integration) {
-            return {
-                success: false,
-                error: 'integration parameter is required'
-            };
-        }
-        
         console.log('Integration:', integration);
         console.log('Storage path:', storagePath);
         console.log('Include patterns:', include);
