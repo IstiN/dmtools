@@ -145,12 +145,14 @@ public class TestCasesGeneratorTest {
 
     @Test
     public void postJSActionInvokedWithExpectedContextPerTicket() throws Exception {
-        // Custom generator that lets us intercept JavaScriptExecutor usage
+        // Custom generator that lets us intercept JavaScriptExecutor usage and capture jsCode
         class TestableGenerator extends TestCasesGenerator {
             JavaScriptExecutor capturedExecutor;
+            String capturedJsCode;
 
             @Override
             protected JavaScriptExecutor js(String jsCode) {
+                capturedJsCode = jsCode;
                 capturedExecutor = mock(JavaScriptExecutor.class, RETURNS_SELF);
                 try {
                     when(capturedExecutor.execute()).thenReturn(null);
@@ -176,11 +178,13 @@ public class TestCasesGeneratorTest {
         testableGenerator.ai = ai;
 
         // Params with postJSAction and initiator
+        String expectedJsCode = "console.log('test');";
         TestCasesGeneratorParams params = new TestCasesGeneratorParams();
         params.setFindRelated(false);
         params.setExamples(null);
         params.setOutputType(TrackerParams.OutputType.comment);
         params.setInitiator("qa@example.com");
+        params.setPostJSAction(expectedJsCode);
 
         // Ticket and context
         ITicket ticket = mock(ITicket.class);
@@ -209,6 +213,9 @@ public class TestCasesGeneratorTest {
         assertNotNull(result);
         assertEquals("DMC-123", result.getKey());
         assertNotNull(testableGenerator.capturedExecutor);
+
+        // Verify the correct JavaScript code was passed to js()
+        assertEquals(expectedJsCode, testableGenerator.capturedJsCode);
 
         // Verify JS executor was configured with expected context
         verify(testableGenerator.capturedExecutor).mcp(trackerClient, ai, confluence, null);
