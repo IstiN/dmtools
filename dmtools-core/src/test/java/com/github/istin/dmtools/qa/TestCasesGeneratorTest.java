@@ -184,6 +184,7 @@ public class TestCasesGeneratorTest {
         params.setExamples(null);
         params.setOutputType(TrackerParams.OutputType.comment);
         params.setInitiator("qa@example.com");
+        params.setPostJSAction("console.log('test')");
         params.setPostJSAction(expectedJsCode);
 
         // Ticket and context
