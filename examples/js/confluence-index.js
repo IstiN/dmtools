@@ -53,8 +53,9 @@ function action(params) {
         console.log('Exclude patterns:', exclude);
         
         // Access Java classes via bridge
-        // Note: This assumes MermaidIndex and related classes are exposed via the JS bridge
-        // If not available, they need to be added to the bridge configuration
+        // Note: This assumes MermaidIndex and related classes are exposed via the JS bridge.
+        // If not available, register them in the bridge configuration (see 'src/main/resources/bridge-config.json' or the BridgeModule in 'com.github.istin.dmtools.bridge.BridgeModule').
+        // For example, refer to the documentation in 'docs/bridge-setup.md' for instructions.
         
         try {
             // Try to access Java classes
@@ -77,7 +78,6 @@ function action(params) {
                     // Use existing confluence instance
                 } else {
                     // Try to get from Java bridge
-                    const ConfluenceModule = Java.type('com.github.istin.dmtools.di.ConfluenceModule');
                     // This approach may need adjustment based on actual bridge implementation
                     console.warn('Confluence instance not directly available, may need bridge configuration');
                 }
