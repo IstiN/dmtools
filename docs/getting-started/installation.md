@@ -8,6 +8,8 @@ Get DMTools CLI installed and ready to use in minutes.
 curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
 ```
 
+If you use Windows - install GitBash and run command curl.exe -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+
 This will:
 - ✅ Download the latest DMTools JAR (~50MB)
 - ✅ Install the `dmtools` command to `~/.dmtools/bin/`
