@@ -135,7 +135,9 @@ class ConfluenceMermaidIndexIntegrationTest {
         
         Content rootContent = createMockContent("200", "Root", "MYSPACE", "<p>Root content</p>");
         Content childContent = createMockContent("201", "Child", "MYSPACE", "<p>Child content</p>");
+        when(childContent.getParentId()).thenReturn("200");
         Content grandchildContent = createMockContent("202", "Grandchild", "MYSPACE", "<p>Grandchild content</p>");
+        when(grandchildContent.getParentId()).thenReturn("201");
         
         when(mockConfluence.contentById(eq("200"))).thenReturn(rootContent);
         when(mockConfluence.getChildrenOfContentById(eq("200"))).thenReturn(List.of(childContent));
@@ -408,6 +410,7 @@ class ConfluenceMermaidIndexIntegrationTest {
         when(content.getTitle()).thenReturn(title);
         when(content.getLastModifiedDate()).thenReturn(new Date());
         when(content.getParentId()).thenReturn(null);
+        when(content.getModels(any(), any())).thenReturn(new ArrayList<>());
         
         JSONObject jsonObject = new JSONObject();
         JSONObject expandable = new JSONObject();
