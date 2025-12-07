@@ -7,6 +7,7 @@
  * 
  * Usage:
  * - Via JSRunner job with integration, storagePath, include, and exclude parameters
+ * - Uses MCP tool mermaid_index_generate for diagram generation
  * 
  * @param {Object} params - Job parameters
  * @param {Object} params.jobParams - Job configuration
@@ -20,8 +21,8 @@
  * Main action function
  * Orchestrates the Mermaid indexing workflow:
  * 1. Extract job parameters
- * 2. Create MermaidIndex instance
- * 3. Execute indexing
+ * 2. Call MCP tool mermaid_index_generate
+ * 3. Return result
  * 
  * @param {Object} params - Job parameters
  * @returns {Object} Result with success status and details
@@ -52,70 +53,51 @@ function action(params) {
         console.log('Include patterns:', include);
         console.log('Exclude patterns:', exclude);
         
-        // Access Java classes via bridge
-        // Note: This assumes MermaidIndex and related classes are exposed via the JS bridge.
-        // If not available, register them in the bridge configuration (see 'src/main/resources/bridge-config.json' or the BridgeModule in 'com.github.istin.dmtools.bridge.BridgeModule').
-        // For example, refer to the documentation in 'docs/bridge-setup.md' for instructions.
-        
+        // Use MCP tool for Mermaid index generation
+        // This uses the MCP architecture similar to confluence, jira, kb tools
         try {
-            // Try to access Java classes
-            const MermaidIndex = Java.type('com.github.istin.dmtools.index.mermaid.MermaidIndex');
-            const MermaidDiagramGeneratorAgent = Java.type('com.github.istin.dmtools.ai.agent.MermaidDiagramGeneratorAgent');
+            console.log('Using MCP tool: mermaid_index_generate');
             
-            // Get Confluence instance from bridge (should be available via mcpWithKB)
-            // For now, we'll need to get it from the bridge context
-            // This may need to be adjusted based on how the bridge exposes Confluence
+            // Call MCP tool
+            const result = mermaid_index_generate({
+                integration: integration,
+                storage_path: storagePath,
+                include_patterns: include,
+                exclude_patterns: exclude
+            });
             
-            // Create diagram generator agent
-            const diagramGenerator = new MermaidDiagramGeneratorAgent();
-            
-            // Get Confluence - this should be available in the bridge context or parameters
-            // Note: Confluence instance should be provided via bridge context or jobParams
-            // The bridge should inject it, or it should be passed as a parameter
-            let confluence = null;
+            // Parse result (MCP tool returns JSON string)
+            let resultObj;
             try {
-                // Try to get from jobParams if provided
-                if (jobParams.confluence) {
-                    confluence = jobParams.confluence;
-                } else {
-                    // Try to get from Java bridge context
-                    // This may need adjustment based on actual bridge implementation
-                    console.warn('Confluence instance not found in parameters, may need bridge configuration');
-                }
+                resultObj = typeof result === 'string' ? JSON.parse(result) : result;
             } catch (e) {
-                console.warn('Could not get Confluence instance:', e.message);
+                // If result is not JSON, treat as success message
+                resultObj = { success: true, message: result };
             }
             
-            // Create MermaidIndex instance
-            // Note: If Confluence is not available here, we may need to pass it differently
-            // For now, we'll create the index and let it handle the Confluence requirement
-            const mermaidIndex = new MermaidIndex(
-                integration,
-                storagePath,
-                include,
-                exclude,
-                confluence,
-                diagramGenerator
-            );
+            if (resultObj.success) {
+                console.log('✅ Mermaid indexing completed successfully');
+                return {
+                    success: true,
+                    message: resultObj.message || 'Mermaid indexing completed successfully',
+                    integration: integration,
+                    storagePath: storagePath,
+                    includePatterns: include.length,
+                    excludePatterns: exclude.length
+                };
+            } else {
+                console.error('❌ Mermaid indexing failed:', resultObj.error);
+                return {
+                    success: false,
+                    error: resultObj.error || 'Unknown error'
+                };
+            }
             
-            // Execute indexing
-            console.log('Starting Mermaid indexing...');
-            mermaidIndex.index();
-            
-            console.log('✅ Mermaid indexing completed successfully');
-            
-            return {
-                success: true,
-                message: 'Mermaid indexing completed successfully',
-                integration: integration,
-                storagePath: storagePath
-            };
-            
-        } catch (javaError) {
-            console.error('Java bridge error:', javaError);
+        } catch (mcpError) {
+            console.error('MCP tool error:', mcpError);
             return {
                 success: false,
-                error: 'Failed to access Java classes: ' + javaError.toString()
+                error: 'Failed to execute MCP tool: ' + mcpError.toString()
             };
         }
         

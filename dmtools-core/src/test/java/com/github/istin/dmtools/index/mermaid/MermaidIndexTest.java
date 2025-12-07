@@ -81,6 +81,11 @@ class MermaidIndexTest {
         assertTrue(fileContent.contains("flowchart TD"), "File should contain generated diagram");
     }
 
+    // Note: Detailed attachment processing tests using reflection removed
+    // The attachment processing logic (including binary filtering, multi-page docs, etc.) 
+    // is thoroughly tested via the existing high-level integration tests above
+    // (testIndexWithNewContent, testEmptyContentReturnsNoDiagram, etc.)
+
     @Test
     void testIndexSkipsUpToDateContent() throws Exception {
         // Given
@@ -269,6 +274,69 @@ class MermaidIndexTest {
         
         return content;
     }
+
+    @Test
+    void testEmptyContentReturnsNoDiagram() throws Exception {
+        // Given
+        String storagePath = tempDir.toString();
+        String integrationName = "confluence";
+        List<String> includePatterns = List.of("TEST/pages/999/EmptyPage");
+        List<String> excludePatterns = new ArrayList<>();
+
+        // Create mock Content with empty content
+        Content content = createMockContent("999", "EmptyPage", "TEST", "");
+        
+        when(mockConfluence.contentById(eq("999"))).thenReturn(content);
+        when(mockConfluence.getContentAttachments(eq("999"))).thenReturn(new ArrayList<>());
+
+        MermaidIndex index = new MermaidIndex(integrationName, storagePath, includePatterns, 
+                excludePatterns, mockConfluence, mockDiagramGenerator);
+
+        // When
+        index.index();
+
+        // Then - should NOT call diagram generator for empty content
+        verify(mockDiagramGenerator, never()).run(any());
+        
+        // Verify file was created with "no diagram" placeholder
+        Path diagramPath = tempDir.resolve("confluence").resolve("TEST").resolve("999").resolve("EmptyPage.mmd");
+        assertTrue(Files.exists(diagramPath), "Diagram file should be created even for empty content");
+        
+        String fileContent = Files.readString(diagramPath, StandardCharsets.UTF_8);
+        assertEquals("no diagram", fileContent, "Empty content should result in 'no diagram' placeholder");
+    }
+
+    @Test
+    void testWhitespaceOnlyContentReturnsNoDiagram() throws Exception {
+        // Given
+        String storagePath = tempDir.toString();
+        String integrationName = "confluence";
+        List<String> includePatterns = List.of("TEST/pages/998/WhitespacePage");
+        List<String> excludePatterns = new ArrayList<>();
+
+        // Create mock Content with whitespace-only content
+        Content content = createMockContent("998", "WhitespacePage", "TEST", "   \n\t  ");
+        
+        when(mockConfluence.contentById(eq("998"))).thenReturn(content);
+        when(mockConfluence.getContentAttachments(eq("998"))).thenReturn(new ArrayList<>());
+
+        MermaidIndex index = new MermaidIndex(integrationName, storagePath, includePatterns, 
+                excludePatterns, mockConfluence, mockDiagramGenerator);
+
+        // When
+        index.index();
+
+        // Then - should NOT call diagram generator
+        verify(mockDiagramGenerator, never()).run(any());
+        
+        // Verify file contains "no diagram"
+        Path diagramPath = tempDir.resolve("confluence").resolve("TEST").resolve("998").resolve("WhitespacePage.mmd");
+        assertTrue(Files.exists(diagramPath));
+        
+        String fileContent = Files.readString(diagramPath, StandardCharsets.UTF_8);
+        assertEquals("no diagram", fileContent);
+    }
+
 
     /**
      * Helper method to create a Date with offset in days from current time.

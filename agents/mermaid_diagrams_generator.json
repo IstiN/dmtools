@@ -1,33 +1,14 @@
 {
-  "name" : "Teammate",
-  "params" : {
-    "metadata" : {
-      "contextId" : "mermaid_diagrams_generator"
-    },
-    "agentParams" : {
-      "aiRole" : "Mermaid Diagram Generator",
-      "instructions" : [
-        "Generate Mermaid diagrams for Confluence pages and their children recursively.",
-        "The agent processes the specified Confluence page and all its child pages to create visual Mermaid diagrams.",
-        "Diagrams are stored in a hierarchical file structure matching the page hierarchy."
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "examples/js/confluence-index.js",
+    "jobParams": {
+      "integration": "confluence",
+      "storagePath": "./mermaid-diagrams",
+      "include": [
+        "AINA/pages/11665522/Templates/**"
       ],
-      "knownInfo" : "",
-      "formattingRules" : "",
-      "fewShots" : ""
-    },
-    "cliCommands" : [],
-    "outputType" : "none",
-    "operationType" : "None",
-    "ticketContextDepth" : 0,
-    "attachResponseAsFile" : false,
-    "skipAIProcessing" : true,
-    "inputJql" : "",
-    "initiator" : "",
-    "preJSAction" : "agents/js/checkWipLabel.js",
-    "postJSAction" : "agents/js/generateMermaidDiagrams.js",
-    "jobParams" : {
-      "confluenceUrl" : "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665522/Templates",
-      "storagePath" : "./mermaid-diagrams"
+      "exclude": []
     }
   }
 }

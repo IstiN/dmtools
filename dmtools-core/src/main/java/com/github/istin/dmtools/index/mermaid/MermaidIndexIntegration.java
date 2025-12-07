@@ -31,9 +31,10 @@ public interface MermaidIndexIntegration {
          * @param pathOrId Integration-specific path or ID for the content
          * @param contentName Name/title of the content
          * @param content The actual content text
-         * @param metadata Additional metadata (e.g., space key, attachments)
+         * @param metadata Additional metadata (e.g., space key)
+         * @param attachments List of attachment files to process
          * @param lastModified Last modification date of the content
          */
-        void process(String pathOrId, String contentName, String content, List<String> metadata, Date lastModified);
+        void process(String pathOrId, String contentName, String content, List<String> metadata, List<java.io.File> attachments, Date lastModified);
     }
 }

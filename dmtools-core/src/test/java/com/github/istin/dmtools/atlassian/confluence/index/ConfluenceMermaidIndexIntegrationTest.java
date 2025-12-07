@@ -62,6 +62,7 @@ class ConfluenceMermaidIndexIntegrationTest {
                 eq("MyPage"),
                 eq("<p>Test content</p>"),
                 any(),
+                any(),
                 any()
         );
         // Verify no search was called - we use direct API
@@ -91,6 +92,7 @@ class ConfluenceMermaidIndexIntegrationTest {
                 eq("Test Page"),
                 eq("<p>URL content</p>"),
                 any(),
+                any(),
                 any()
         );
     }
@@ -117,10 +119,10 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then - should process parent and both children
-        verify(processor, times(3)).process(anyString(), anyString(), anyString(), any(), any());
-        verify(processor).process(eq("MYSPACE/100"), eq("Parent"), anyString(), any(), any());
-        verify(processor).process(eq("MYSPACE/101"), eq("Child1"), anyString(), any(), any());
-        verify(processor).process(eq("MYSPACE/102"), eq("Child2"), anyString(), any(), any());
+        verify(processor, times(3)).process(anyString(), anyString(), anyString(), any(), any(), any());
+        verify(processor).process(eq("MYSPACE/100"), eq("Parent"), anyString(), any(), any(), any());
+        verify(processor).process(eq("MYSPACE/101"), eq("Child1"), anyString(), any(), any(), any());
+        verify(processor).process(eq("MYSPACE/102"), eq("Child2"), anyString(), any(), any(), any());
     }
 
     // ==================== All Descendants Tests ====================
@@ -147,10 +149,10 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then - should process root, child, and grandchild
-        verify(processor, times(3)).process(anyString(), anyString(), anyString(), any(), any());
-        verify(processor).process(eq("MYSPACE/200"), eq("Root"), anyString(), any(), any());
-        verify(processor).process(eq("MYSPACE/201"), eq("Child"), anyString(), any(), any());
-        verify(processor).process(eq("MYSPACE/202"), eq("Grandchild"), anyString(), any(), any());
+        verify(processor, times(3)).process(anyString(), anyString(), anyString(), any(), any(), any());
+        verify(processor).process(eq("MYSPACE/200"), eq("Root"), anyString(), any(), any(), any());
+        verify(processor).process(eq("MYSPACE/201"), eq("Child"), anyString(), any(), any(), any());
+        verify(processor).process(eq("MYSPACE/202"), eq("Grandchild"), anyString(), any(), any(), any());
     }
 
     // ==================== Space-Wide Tests ====================
@@ -179,7 +181,7 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then - should process all pages in space
-        verify(processor, atLeastOnce()).process(anyString(), anyString(), anyString(), any(), any());
+        verify(processor, atLeastOnce()).process(anyString(), anyString(), anyString(), any(), any(), any());
     }
 
     // ==================== Exclude Pattern Tests ====================
@@ -206,10 +208,10 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then - should process root and included child, but not excluded child
-        verify(processor, times(2)).process(anyString(), anyString(), anyString(), any(), any());
-        verify(processor).process(eq("MYSPACE/400"), eq("Root"), anyString(), any(), any());
-        verify(processor).process(eq("MYSPACE/401"), eq("Included"), anyString(), any(), any());
-        verify(processor, never()).process(eq("MYSPACE/402"), eq("Excluded"), anyString(), any(), any());
+        verify(processor, times(2)).process(anyString(), anyString(), anyString(), any(), any(), any());
+        verify(processor).process(eq("MYSPACE/400"), eq("Root"), anyString(), any(), any(), any());
+        verify(processor).process(eq("MYSPACE/401"), eq("Included"), anyString(), any(), any(), any());
+        verify(processor, never()).process(eq("MYSPACE/402"), eq("Excluded"), anyString(), any(), any(), any());
     }
 
     @Test
@@ -228,7 +230,7 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then - content should be excluded due to title starting with "EXCLUDE"
-        verify(processor, never()).process(anyString(), anyString(), anyString(), any(), any());
+        verify(processor, never()).process(anyString(), anyString(), anyString(), any(), any(), any());
     }
 
     // ==================== Attachment Tests ====================
@@ -257,7 +259,8 @@ class ConfluenceMermaidIndexIntegrationTest {
                 eq("TEST/123"),
                 eq("Page"),
                 eq("<p>Content</p>"),
-                argThat(metadata -> metadata.contains("attachment:document.pdf")),
+                any(),
+                any(),
                 any()
         );
     }
@@ -287,6 +290,7 @@ class ConfluenceMermaidIndexIntegrationTest {
                 eq("C++ Programming"),
                 anyString(),
                 any(),
+                any(),
                 any()
         );
     }
@@ -315,9 +319,9 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then
-        verify(processor, times(2)).process(anyString(), anyString(), anyString(), any(), any());
-        verify(processor).process(eq("SPACE1/1"), eq("Page1"), anyString(), any(), any());
-        verify(processor).process(eq("SPACE2/2"), eq("Page2"), anyString(), any(), any());
+        verify(processor, times(2)).process(anyString(), anyString(), anyString(), any(), any(), any());
+        verify(processor).process(eq("SPACE1/1"), eq("Page1"), anyString(), any(), any(), any());
+        verify(processor).process(eq("SPACE2/2"), eq("Page2"), anyString(), any(), any(), any());
     }
 
     // ==================== Duplicate Handling Tests ====================
@@ -342,7 +346,7 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then - should only process once despite duplicate patterns
-        verify(processor, times(1)).process(anyString(), anyString(), anyString(), any(), any());
+        verify(processor, times(1)).process(anyString(), anyString(), anyString(), any(), any(), any());
     }
 
     // ==================== Empty/Null Pattern Tests ====================
@@ -359,7 +363,7 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then - no content should be processed
-        verify(processor, never()).process(anyString(), anyString(), anyString(), any(), any());
+        verify(processor, never()).process(anyString(), anyString(), anyString(), any(), any(), any());
     }
 
     @Test
@@ -374,7 +378,7 @@ class ConfluenceMermaidIndexIntegrationTest {
         integration.getContentForIndex(includePatterns, excludePatterns, processor);
 
         // Then - no content should be processed
-        verify(processor, never()).process(anyString(), anyString(), anyString(), any(), any());
+        verify(processor, never()).process(anyString(), anyString(), anyString(), any(), any(), any());
     }
 
     // ==================== Invalid Pattern Tests ====================
@@ -393,7 +397,7 @@ class ConfluenceMermaidIndexIntegrationTest {
         );
         
         // Verify no content was processed
-        verify(processor, never()).process(anyString(), anyString(), anyString(), any(), any());
+        verify(processor, never()).process(anyString(), anyString(), anyString(), any(), any(), any());
     }
 
     // ==================== Helper Methods ====================

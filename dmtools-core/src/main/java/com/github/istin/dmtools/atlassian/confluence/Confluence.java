@@ -545,7 +545,7 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         @MCPParam(name = "contentId", description = "The content ID of the parent page", required = true, example = "123456")
         String contentId
     ) throws IOException {
-        return new ContentResult(execute(new GenericRequest(this, path("content/" + contentId + "/child/page?limit=100")))).getContents();
+        return new ContentResult(execute(new GenericRequest(this, path("content/" + contentId + "/child/page?limit=100&expand=body.storage,ancestors,version")))).getContents();
     }
 
     /**
@@ -591,6 +591,18 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         // Uses shared utility with 200 character limit
         String safeFileName = StringUtils.sanitizeFileName(attachment.getTitle(), "unnamed_attachment", 200);
         
+        // Check if filename has extension, if not, try to get it from mediaType
+        if (!safeFileName.contains(".")) {
+            String mediaType = attachment.getMediaType();
+            if (mediaType != null && !mediaType.isEmpty()) {
+                String extension = getExtensionFromMediaType(mediaType);
+                if (extension != null && !extension.isEmpty()) {
+                    safeFileName = safeFileName + "." + extension;
+                    logger.debug("Added extension '{}' from mediaType '{}' to filename '{}'", extension, mediaType, safeFileName);
+                }
+            }
+        }
+        
         // Create target file
         File targetFile = new File(targetDir, safeFileName);
         
@@ -602,6 +614,89 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         this.graphQLPath = graphQLPath;
     }
     
+    /**
+     * Converts a MIME media type to a file extension.
+     * @param mediaType the MIME type (e.g., "image/jpeg", "image/png")
+     * @return the file extension (e.g., "jpg", "png") or null if not recognized
+     */
+    private String getExtensionFromMediaType(String mediaType) {
+        if (mediaType == null || mediaType.isEmpty()) {
+            return null;
+        }
+        
+        // Normalize media type (remove parameters, convert to lowercase)
+        String normalized = mediaType.toLowerCase().split(";")[0].trim();
+        
+        // Map common MIME types to extensions
+        switch (normalized) {
+            // Images (only supported formats: gif, jpeg, png, webp)
+            case "image/jpeg":
+            case "image/jpg":
+                return "jpeg";  // Use "jpeg" instead of "jpg" to match supported format
+            case "image/png":
+                return "png";
+            case "image/gif":
+                return "gif";
+            case "image/webp":
+                return "webp";
+            
+            // Documents
+            case "application/pdf":
+                return "pdf";
+            case "application/msword":
+                return "doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                return "docx";
+            case "application/vnd.ms-excel":
+                return "xls";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                return "xlsx";
+            case "application/vnd.ms-powerpoint":
+                return "ppt";
+            case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                return "pptx";
+            
+            // Text
+            case "text/plain":
+                return "txt";
+            case "text/html":
+                return "html";
+            case "text/css":
+                return "css";
+            case "text/javascript":
+            case "application/javascript":
+                return "js";
+            case "application/json":
+                return "json";
+            case "text/xml":
+            case "application/xml":
+                return "xml";
+            
+            // Archives
+            case "application/zip":
+                return "zip";
+            case "application/x-tar":
+                return "tar";
+            case "application/gzip":
+                return "gz";
+            
+            default:
+                // Try to extract extension from media type if it follows pattern like "image/x-png"
+                if (normalized.contains("/")) {
+                    String subtype = normalized.substring(normalized.indexOf('/') + 1);
+                    // Remove "x-" prefix if present
+                    if (subtype.startsWith("x-")) {
+                        subtype = subtype.substring(2);
+                    }
+                    // If subtype looks like an extension (short, no special chars), use it
+                    if (subtype.length() <= 5 && subtype.matches("^[a-z0-9]+$")) {
+                        return subtype;
+                    }
+                }
+                logger.debug("Unknown media type: {}, cannot determine extension", mediaType);
+                return null;
+        }
+    }
 
     /**
      * Find content by title in the default space.

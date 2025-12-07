@@ -38,4 +38,16 @@ public class Attachment extends JSONModel {
         return null;
     }
 
+    /**
+     * Gets the media type (MIME type) from metadata.
+     * @return the media type (e.g., "image/jpeg", "image/png") or null if not available
+     */
+    public String getMediaType() {
+        JSONObject metadata = getJSONObject().optJSONObject("metadata");
+        if (metadata != null) {
+            return metadata.optString("mediaType", null);
+        }
+        return null;
+    }
+
 }
