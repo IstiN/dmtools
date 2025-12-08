@@ -1,0 +1,14 @@
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "examples/js/confluence-index.js",
+    "jobParams": {
+      "integration": "confluence",
+      "storagePath": "./mermaid-diagrams",
+      "include": [
+        "AINA/pages/11665522/Templates/**"
+      ],
+      "exclude": []
+    }
+  }
+}
