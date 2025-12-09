@@ -26,6 +26,11 @@
         <important_rules>
             ${global.extraRules}
         </important_rules>
+        <#if global.customFieldsRules?? && global.customFieldsRules?has_content>
+        <custom_fields_rules>
+            ${global.customFieldsRules}
+        </custom_fields_rules>
+        </#if>
     </input_data>
     <#if !global.overridePromptExamples?? || global.overridePromptExamples == false>
     <description_formatting>
@@ -40,6 +45,11 @@
         <rules>
             Return results as a JSON array with JSON objects inside.
             Each JSON object must include 'priority', 'summary', and 'description'.
+            <#if global.customFieldsRules?? && global.customFieldsRules?has_content>
+            Each JSON object may include optional 'customFields' object with custom field values.
+            The 'customFields' object should contain field names as keys and their values as strings.
+            Format: "customFields": { "fieldName1": "value1", "fieldName2": "value2" }
+            </#if>
             The output must be in plain JSON format without any additional text, formatting, or markdown.
             If there are no new test cases, return an empty JSON array.
             No other responses are possible.

@@ -1,0 +1,38 @@
+{
+  "name" : "Teammate",
+  "params" : {
+    "metadata" : {
+      "contextId" : "ado_story_questions"
+    },
+    "agentParams" : {
+      "aiRole" : "Experienced Business Analyst",
+      "instructions" : [
+        "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665581/Template+Q",
+        "./agents/instructions/common/response_output.md",
+        "./agents/instructions/common/no_development.md",
+        "./agents/instructions/common/media_handling.md",
+        "./agents/instructions/common/json_validation.md",
+        "Question description needs to be in HTML format suitable for Azure DevOps work items",
+        "Content from the response.md file will be parsed via JSON Parser, it must be valid JSONArray. Based on that will be created ADO work items by script. You must follow format from formattingRules and fewShots.",
+        "Allowed priorities: 1 (highest), 2 (high), 3 (medium), 4 (low)",
+        "If you don't have questions, or all needed questions are created already and everything is crystal clear just write empty array [] to the outputs/response.md",
+        "You must investigate codebase to understand current functionality regarding the topic to avoid stupid questions."
+      ],
+      "knownInfo" : "",
+      "formattingRules" : "Response must be a valid JSON array. Each item must be a JSON object with keys: \"summary\" (string, <=120 chars), \"priority\" (integer: 1=highest, 2=high, 3=medium, 4=low), and \"description\" (string in HTML format). Keep descriptions concise, use HTML lists when helpful, and avoid trailing commas.",
+      "fewShots" : "[\n  {\n    \"summary\": \"Clarify requirements\",\n    \"priority\": 2,\n    \"description\": \"<p>Follow template from instructions.</p>\"\n  },\n  {\n    \"summary\": \"Validate dependencies\",\n    \"priority\": 3,\n    \"description\": \"<p>Follow template from instructions.</p>\"\n  }\n]"
+    },
+    "cliCommands" : [
+      "./cicd/scripts/run-cursor-agent.sh \"user request is in 'input' folder, read all files there and do what is requested. **IMPORTANT** Your task is not development, only questions detection is required. Follow instructions from input. Request.md file contains json with all detail. 'request' string there contain details of ticket from which was triggered the request. **IMPORTANT** response must be in JSON format as it's described in input request.md, you must validate that JSON is correct before finish.\""
+    ],
+    "outputType" : "none",
+    "ticketContextDepth" : 0,
+    "attachResponseAsFile" : false,
+    "skipAIProcessing" : true,
+    "inputJql" : "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 755",
+    "initiator" : "Uladzimir_Klyshevich@epam.com",
+    "preJSAction" : "agents/js/checkWipTagAdo.js",
+    "postJSAction" : "agents/js/createQuestionsAndAssignForReviewAdo.js"
+  }
+}
+

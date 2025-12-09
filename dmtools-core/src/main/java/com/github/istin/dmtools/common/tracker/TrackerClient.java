@@ -67,6 +67,47 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
     String[] getExtendedQueryFields();
 
     String getDefaultStatusField();
+    
+    /**
+     * Resolves a field name to its tracker-specific field code.
+     * 
+     * <p>This method provides a default implementation that returns the field name as-is.
+     * Implementations should override this method when field name resolution is required
+     * for proper tracker functionality.</p>
+     * 
+     * <p><strong>When to override:</strong></p>
+     * <ul>
+     *   <li><strong>Jira:</strong> Override to convert human-friendly names to custom field IDs
+     *       (e.g., "Story Points" -> "customfield_10016"). This requires project context
+     *       to look up custom field mappings.</li>
+     *   <li><strong>ADO:</strong> Override to add namespace prefixes for standard fields
+     *       (e.g., "Description" -> "System.Description", "summary" -> "System.Title").</li>
+     *   <li><strong>Other trackers:</strong> Override if field names need transformation
+     *       or validation before use.</li>
+     * </ul>
+     * 
+     * <p><strong>When default is appropriate:</strong></p>
+     * <ul>
+     *   <li>When field names are already in the correct format for the tracker</li>
+     *   <li>When field resolution is not required (e.g., using field IDs directly)</li>
+     *   <li>For simple trackers that don't require field name transformation</li>
+     * </ul>
+     * 
+     * <p><strong>Note:</strong> The default implementation does not validate that the returned
+     * field name is actually valid for the tracker. Implementations that override this method
+     * should ensure the returned field name is valid, or document the validation behavior.</p>
+     * 
+     * @param ticketKey The ticket key for context (used to extract project in Jira)
+     * @param fieldName The human-friendly field name or field identifier
+     * @return The resolved field code/ID for the tracker, or the original fieldName if no resolution is needed
+     * @throws IOException if field resolution fails
+     */
+    default String resolveFieldName(String ticketKey, String fieldName) throws IOException {
+        // Default implementation: return field name as-is
+        // This is appropriate when field names are already in the correct format
+        // or when field resolution is not required for the tracker
+        return fieldName;
+    }
 
     List<? extends ITicket> getTestCases(ITicket ticket) throws IOException;
 

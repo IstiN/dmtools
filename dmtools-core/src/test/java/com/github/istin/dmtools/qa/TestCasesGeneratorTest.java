@@ -228,4 +228,194 @@ public class TestCasesGeneratorTest {
         verify(testableGenerator.capturedExecutor).with(TrackerParams.INITIATOR, "qa@example.com");
         verify(testableGenerator.capturedExecutor).execute();
     }
+
+    @Test
+    public void testCombineFieldsWithCustomFields_BackwardCompatibility_NoCustomFields() throws Exception {
+        // Test backward compatibility: when customFields is null or empty, should return baseFields as-is
+        Method combineMethod = TestCasesGenerator.class.getDeclaredMethod(
+            "combineFieldsWithCustomFields", String[].class, String[].class
+        );
+        combineMethod.setAccessible(true);
+
+        String[] baseFields = new String[]{"System.Title", "System.Description"};
+        
+        // Test with null customFields
+        String[] result1 = (String[]) combineMethod.invoke(generator, baseFields, (String[]) null);
+        assertArrayEquals(baseFields, result1);
+        
+        // Test with empty customFields
+        String[] result2 = (String[]) combineMethod.invoke(generator, baseFields, new String[0]);
+        assertArrayEquals(baseFields, result2);
+    }
+
+    @Test
+    public void testCombineFieldsWithCustomFields_WithCustomFields() throws Exception {
+        Method combineMethod = TestCasesGenerator.class.getDeclaredMethod(
+            "combineFieldsWithCustomFields", String[].class, String[].class
+        );
+        combineMethod.setAccessible(true);
+
+        String[] baseFields = new String[]{"System.Title", "System.Description"};
+        String[] customFields = new String[]{"Microsoft.VSTS.TCM.Steps"};
+        
+        String[] result = (String[]) combineMethod.invoke(generator, baseFields, customFields);
+        
+        assertEquals(3, result.length);
+        assertEquals("System.Title", result[0]);
+        assertEquals("System.Description", result[1]);
+        assertEquals("Microsoft.VSTS.TCM.Steps", result[2]);
+    }
+
+    @Test
+    public void testCombineFieldsWithCustomFields_NoDuplicates() throws Exception {
+        Method combineMethod = TestCasesGenerator.class.getDeclaredMethod(
+            "combineFieldsWithCustomFields", String[].class, String[].class
+        );
+        combineMethod.setAccessible(true);
+
+        // Base fields already contain a field that's also in customFields
+        String[] baseFields = new String[]{"System.Title", "System.Description", "Microsoft.VSTS.TCM.Steps"};
+        String[] customFields = new String[]{"Microsoft.VSTS.TCM.Steps", "Microsoft.VSTS.Common.Priority"};
+        
+        String[] result = (String[]) combineMethod.invoke(generator, baseFields, customFields);
+        
+        // Should not have duplicates
+        assertEquals(4, result.length);
+        assertEquals("System.Title", result[0]);
+        assertEquals("System.Description", result[1]);
+        assertEquals("Microsoft.VSTS.TCM.Steps", result[2]);
+        assertEquals("Microsoft.VSTS.Common.Priority", result[3]);
+    }
+
+    @Test
+    public void testCombineFieldsWithCustomFields_NullBaseFields() throws Exception {
+        Method combineMethod = TestCasesGenerator.class.getDeclaredMethod(
+            "combineFieldsWithCustomFields", String[].class, String[].class
+        );
+        combineMethod.setAccessible(true);
+
+        String[] customFields = new String[]{"Microsoft.VSTS.TCM.Steps"};
+        
+        // Test with null baseFields
+        String[] result = (String[]) combineMethod.invoke(generator, null, customFields);
+        assertArrayEquals(customFields, result);
+    }
+
+    @Test
+    public void testTestCaseWithNullCustomFields() {
+        // Test that TestCase works with null customFields (backward compatibility)
+        TestCaseGeneratorAgent.TestCase testCase = new TestCaseGeneratorAgent.TestCase(
+            "High",
+            "Test summary",
+            "Test description"
+        );
+
+        assertNotNull(testCase.getCustomFields());
+        assertEquals(0, testCase.getCustomFields().length());
+        assertTrue(testCase.toText().contains("Priority: High"));
+        assertTrue(testCase.toText().contains("Summary: Test summary"));
+    }
+
+    @Test
+    public void testTestCaseWithCustomFields() {
+        // Test that TestCase works with customFields
+        org.json.JSONObject customFields = new org.json.JSONObject();
+        customFields.put("Microsoft.VSTS.TCM.Steps", "<steps>...</steps>");
+        
+        TestCaseGeneratorAgent.TestCase testCase = new TestCaseGeneratorAgent.TestCase(
+            "High",
+            "Test summary",
+            "Test description",
+            customFields
+        );
+
+        assertNotNull(testCase.getCustomFields());
+        assertEquals(1, testCase.getCustomFields().length());
+        assertTrue(testCase.getCustomFields().has("Microsoft.VSTS.TCM.Steps"));
+        assertTrue(testCase.toText().contains("Custom Fields:"));
+    }
+
+    @Test
+    public void testTestCaseGeneratorAgentParams_BackwardCompatibility_NoCustomFieldsRules() {
+        // Test backward compatibility: when customFieldsRules not provided, should use empty string
+        TestCaseGeneratorAgent.Params params = new TestCaseGeneratorAgent.Params(
+            "High, Medium",
+            "existing test cases",
+            "story description",
+            "extra rules"
+        );
+
+        assertEquals("High, Medium", params.getPriorities());
+        assertEquals("existing test cases", params.getExistingTestCases());
+        assertEquals("story description", params.getStoryDescription());
+        assertEquals("extra rules", params.getExtraRules());
+        assertEquals("", params.getCustomFieldsRules()); // Should default to empty string
+    }
+
+    @Test
+    public void testTestCaseGeneratorAgentParams_WithCustomFieldsRules() {
+        // Test with customFieldsRules provided
+        TestCaseGeneratorAgent.Params params = new TestCaseGeneratorAgent.Params(
+            "High, Medium",
+            "existing test cases",
+            "story description",
+            "extra rules",
+            false,
+            "examples",
+            "custom fields rules"
+        );
+
+        assertEquals("custom fields rules", params.getCustomFieldsRules());
+    }
+
+    @Test
+    public void testCreateTestCase_BackwardCompatibility_NoCustomFields() {
+        // Test backward compatibility: createTestCase without customFields
+        org.json.JSONObject testCase = TestCaseGeneratorAgent.createTestCase(
+            "High",
+            "Test summary",
+            "Test description"
+        );
+
+        assertEquals("High", testCase.getString("priority"));
+        assertEquals("Test summary", testCase.getString("summary"));
+        assertEquals("Test description", testCase.getString("description"));
+        assertFalse(testCase.has("customFields")); // Should not have customFields when not provided
+    }
+
+    @Test
+    public void testCreateTestCase_WithCustomFields() {
+        // Test createTestCase with customFields
+        org.json.JSONObject customFields = new org.json.JSONObject();
+        customFields.put("Microsoft.VSTS.TCM.Steps", "<steps>...</steps>");
+        
+        org.json.JSONObject testCase = TestCaseGeneratorAgent.createTestCase(
+            "High",
+            "Test summary",
+            "Test description",
+            customFields
+        );
+
+        assertEquals("High", testCase.getString("priority"));
+        assertEquals("Test summary", testCase.getString("summary"));
+        assertEquals("Test description", testCase.getString("description"));
+        assertTrue(testCase.has("customFields"));
+        assertEquals("<steps>...</steps>", testCase.getJSONObject("customFields").getString("Microsoft.VSTS.TCM.Steps"));
+    }
+
+    @Test
+    public void testCreateTestCase_WithEmptyCustomFields() {
+        // Test createTestCase with empty customFields (should not include in JSON)
+        org.json.JSONObject customFields = new org.json.JSONObject();
+        
+        org.json.JSONObject testCase = TestCaseGeneratorAgent.createTestCase(
+            "High",
+            "Test summary",
+            "Test description",
+            customFields
+        );
+
+        assertEquals("High", testCase.getString("priority"));
+        assertFalse(testCase.has("customFields")); // Should not include empty customFields
+    }
 }

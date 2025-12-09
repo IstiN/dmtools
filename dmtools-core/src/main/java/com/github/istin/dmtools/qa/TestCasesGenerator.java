@@ -12,6 +12,8 @@ import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.model.Relationship;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
+import com.github.istin.dmtools.microsoft.ado.model.WorkItem;
+import com.github.istin.dmtools.microsoft.ado.AzureDevOpsClient;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.di.DaggerTestCasesGeneratorComponent;
@@ -111,7 +113,9 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         final List<TestCasesResult> result = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
             try {
-                List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), params.getTestCasesRelatedFields());
+                // Combine related fields with custom fields
+                String[] relatedFields = combineFieldsWithCustomFields(params.getTestCasesRelatedFields(), params.getTestCasesCustomFields());
+                List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(params.getExistingTestCasesJql(), relatedFields);
                 TicketContext ticketContext = new TicketContext(trackerClient, ticket);
                 ticketContext.prepareContext(false, params.isIncludeOtherTicketReferences());
                 String additionalRules = extractFromConfluence(params.getConfluencePages());
@@ -167,7 +171,16 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         int tokenLimit = (systemTokenLimits - storyTokens)/2;
         System.out.println("GENERATION TOKEN LIMIT: " + tokenLimit);
         List<TestCaseGeneratorAgent.TestCase> newTestCases;
-        String examples = unpackExamples(params.getExamples(), params.getTestCasesExampleFields());
+        
+        // Extract customFieldsRules (may be Confluence URL)
+        String customFieldsRules = params.getCustomFieldsRules();
+        if (customFieldsRules != null && customFieldsRules.startsWith("https://")) {
+            customFieldsRules = extractFromConfluence(customFieldsRules);
+        }
+        
+        // Combine example fields with custom fields
+        String[] exampleFields = combineFieldsWithCustomFields(params.getTestCasesExampleFields(), params.getTestCasesCustomFields());
+        String examples = unpackExamples(params.getExamples(), exampleFields, params.getTestCasesCustomFields());
 
         if (!finaResults.isEmpty()) {
             // Chunk existing test cases for generation
@@ -183,7 +196,8 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                                 ticketText,
                                 extraRules,
                                 params.isOverridePromptExamples(),
-                                examples
+                                examples,
+                                customFieldsRules != null ? customFieldsRules : ""
                         )
                 );
                 allGeneratedTestCases.addAll(chunkTestCases);
@@ -208,7 +222,8 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                             ticketContext.toText(),
                             extraRules,
                             params.isOverridePromptExamples(),
-                            examples
+                            examples,
+                            customFieldsRules != null ? customFieldsRules : ""
                     )
             );
         }
@@ -225,18 +240,55 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         } else {
             String newTestCaseRelationship = resolveRelationshipForNew(params);
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
-                String projectCode = key.split("-")[0];
+                // Get project code: for ADO use getProject(), for Jira use key.split("-")[0]
+                String projectCode;
+                if (mainTicket instanceof WorkItem) {
+                    projectCode = ((WorkItem) mainTicket).getProject();
+                    if (projectCode == null || projectCode.isEmpty()) {
+                        throw new IOException("Unable to determine project from ADO work item " + key);
+                    }
+                } else {
+                    // Jira format: PROJ-123 -> PROJ
+                    projectCode = key.split("-")[0];
+                }
                 String description = testCase.getDescription();
                 if (params.isConvertToJiraMarkdown()) {
                     description = StringUtils.convertToMarkdown(description);
                 }
+                
+                // Create FieldsInitializer with tracker-specific field formats
+                final boolean isAdo = trackerClient instanceof AzureDevOpsClient;
+                final JSONObject customFields = testCase.getCustomFields() != null ? testCase.getCustomFields() : new JSONObject();
                 ITicket createdTestCase = trackerClient.createTicket(trackerClient.createTicketInProject(projectCode, params.getTestCaseIssueType(), testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
                     @Override
                     public void init(TrackerClient.TrackerTicketFields fields) {
-                        fields.set("priority",
-                                new JSONObject().put("name", testCase.getPriority())
-                        );
-                        fields.set("labels", new JSONArray().put("ai_generated"));
+                        if (isAdo) {
+                            // ADO: priority is numeric (1, 2, 3, 4), tags are semicolon-separated string
+                            try {
+                                int priority = Integer.parseInt(testCase.getPriority());
+                                fields.set("Microsoft.VSTS.Common.Priority", priority);
+                            } catch (NumberFormatException e) {
+                                // If priority is not a number, default to 2 (Medium)
+                                fields.set("Microsoft.VSTS.Common.Priority", 2);
+                            }
+                            fields.set("System.Tags", "ai_generated");
+                        } else {
+                            // Jira: priority is object with "name", labels are array
+                            fields.set("priority",
+                                    new JSONObject().put("name", testCase.getPriority())
+                            );
+                            fields.set("labels", new JSONArray().put("ai_generated"));
+                        }
+                        
+                        // Set custom fields from customFields object
+                        if (customFields != null && customFields.length() > 0) {
+                            for (String fieldKey : customFields.keySet()) {
+                                Object fieldValue = customFields.get(fieldKey);
+                                if (fieldValue != null) {
+                                    fields.set(fieldKey, fieldValue);
+                                }
+                            }
+                        }
                     }
                 }));
 
@@ -252,7 +304,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         return testCasesResult;
     }
 
-    public String unpackExamples(String examples, String[] testCasesExamplesFields) throws Exception {
+    public String unpackExamples(String examples, String[] testCasesExamplesFields, String[] testCasesCustomFields) throws Exception {
         if (examples == null) {
             return "";
         }
@@ -261,11 +313,32 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             unpackedExamples = extractFromConfluence(examples);
         } else if (examples.startsWith("ql(")) {
             String ql = examples.substring(3, examples.length() - 1);
+            
+            // testCasesExamplesFields already includes custom fields (combined in generateTestCases)
+            // So we can use it directly
             List<? extends ITicket> tickets = trackerClient.searchAndPerform(ql, testCasesExamplesFields);
 
             JSONArray examplesArray = new JSONArray();
             for (ITicket ticket : tickets) {
-                examplesArray.put(TestCaseGeneratorAgent.createTestCase(ticket.getPriority(), ticket.getTicketTitle(), ticket.getTicketDescription()));
+                // Extract custom fields if specified
+                JSONObject customFields = new JSONObject();
+                if (testCasesCustomFields != null && testCasesCustomFields.length > 0) {
+                    for (String customFieldName : testCasesCustomFields) {
+                        String fieldValue = ticket.getFieldValueAsString(customFieldName);
+                        if (fieldValue != null && !fieldValue.trim().isEmpty()) {
+                            customFields.put(customFieldName, fieldValue);
+                        }
+                    }
+                }
+                
+                // Create test case with custom fields (if any)
+                JSONObject testCaseJson = TestCaseGeneratorAgent.createTestCase(
+                    ticket.getPriority(), 
+                    ticket.getTicketTitle(), 
+                    ticket.getTicketDescription(),
+                    customFields.length() > 0 ? customFields : null
+                );
+                examplesArray.put(testCaseJson);
             }
             unpackedExamples = examplesArray.toString();
         } else {
@@ -393,6 +466,44 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
     private boolean isNotBlank(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    /**
+     * Combines base fields with custom fields, ensuring no duplicates.
+     * If customFields is null or empty, returns only baseFields.
+     * 
+     * @param baseFields Base fields array (e.g., testCasesRelatedFields or testCasesExampleFields)
+     * @param customFields Custom fields array (testCasesCustomFields)
+     * @return Combined array with unique fields
+     */
+    private String[] combineFieldsWithCustomFields(String[] baseFields, String[] customFields) {
+        if (customFields == null || customFields.length == 0) {
+            // Backward compatibility: if customFields not specified, return baseFields as-is
+            return baseFields != null ? baseFields : new String[0];
+        }
+        
+        if (baseFields == null || baseFields.length == 0) {
+            return customFields;
+        }
+        
+        // Combine fields, avoiding duplicates
+        List<String> combinedList = new ArrayList<>();
+        
+        // Add base fields first
+        for (String field : baseFields) {
+            if (field != null && !field.trim().isEmpty() && !combinedList.contains(field)) {
+                combinedList.add(field);
+            }
+        }
+        
+        // Add custom fields
+        for (String customField : customFields) {
+            if (customField != null && !customField.trim().isEmpty() && !combinedList.contains(customField)) {
+                combinedList.add(customField);
+            }
+        }
+        
+        return combinedList.toArray(new String[0]);
     }
 
     @NotNull
