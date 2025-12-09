@@ -52,10 +52,10 @@ public class AnalyticsCommentsRule extends CommentsWrittenRule {
                     .computeIfAbsent(patternRegex, k -> new HashMap<>())
                     .merge(notifierId, 1, Integer::sum);
 
-            analyticsData.getUserInteractionDates()
+            analyticsData.getUserInteractions()
                     .computeIfAbsent(patternRegex, k -> new HashMap<>())
                     .computeIfAbsent(notifierId, k -> new ArrayList<>())
-                    .add(comment.getCreated());
+                    .add(new InteractionInfo(comment.getCreated(), ticket.getTicketKey()));
 
             if (collectRequests && requestExtractionPattern != null && !requestExtractionPattern.isEmpty()) {
                 String extractedRequest = extractRequest(body, requestExtractionPattern);

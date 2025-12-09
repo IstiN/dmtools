@@ -71,6 +71,9 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         @SerializedName("indexes")
         private IndexConfig[] indexes;
 
+        @SerializedName("systemRequestCommentAlias")
+        private String systemRequestCommentAlias;
+
     }
 
     /**
@@ -223,6 +226,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         String initiator = expertParams.getInitiator();
         String inputJQL = expertParams.getInputJql();
         String fieldName = expertParams.getFieldName();
+        String systemRequestCommentAlias = expertParams.getSystemRequestCommentAlias();
 
         // Use injected UriToObjectFactory to create URI processing sources
         List<? extends UriToObject> uriProcessingSources;
@@ -432,10 +436,24 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                     }
                     
                     if (initiator != null && !initiator.isEmpty()) {
-                        trackerClient.postComment(ticket.getTicketKey(), trackerClient.tag(initiator) + ", \n\n AI response in '" + fieldName + "' on your request.");
+                        String request = inputParams.getRequest();
+                        String comment = trackerClient.tag(initiator) + ", there is AI response in '" + fieldName + "' on your request: \n";
+                        if (systemRequestCommentAlias != null && !systemRequestCommentAlias.isEmpty()) {
+                            comment += "System Request: " + systemRequestCommentAlias + "\n" + request;
+                        } else {
+                            comment += request;
+                        }
+                        trackerClient.postComment(ticket.getTicketKey(), comment);
                     }
                 } else {
-                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(initiator) + ", \n\nAI Response is: \n" + response);
+                    String request = inputParams.getRequest();
+                    String comment;
+                    if (systemRequestCommentAlias != null && !systemRequestCommentAlias.isEmpty()) {
+                        comment = trackerClient.tag(initiator) + ", there is response on your request: \nSystem Request: " + systemRequestCommentAlias + "\n" + request + "\n\nAI Response is: \n" + response;
+                    } else {
+                        comment = trackerClient.tag(initiator) + ", \n\nAI Response is: \n" + response;
+                    }
+                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), comment);
                 }
             } else {
                 logger.info("Output type is 'none', skipping publishing results for ticket {}", ticket.getKey());
