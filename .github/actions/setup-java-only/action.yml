@@ -5,7 +5,7 @@ inputs:
   java-version:
     description: 'Java version to use'
     required: false
-    default: '23'
+    default: '21'
   cache-key-suffix:
     description: 'Additional suffix for cache keys to avoid conflicts'
     required: false

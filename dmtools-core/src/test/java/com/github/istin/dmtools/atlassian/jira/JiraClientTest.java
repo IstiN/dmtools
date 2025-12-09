@@ -93,6 +93,7 @@ public class JiraClientTest {
 
         JiraClient<Ticket> spyClient = spy(jiraClient);
         doNothing().when(spyClient).log(anyString());
+        doReturn("Success").when(spyClient).updateField(anyString(), anyString(), any());
 
         spyClient.addLabelIfNotExists(mockTicket, "new-label");
         // Verify label addition logic

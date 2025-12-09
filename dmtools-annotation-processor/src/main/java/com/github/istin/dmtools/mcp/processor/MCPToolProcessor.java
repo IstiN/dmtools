@@ -38,7 +38,7 @@ import java.util.Set;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("com.github.istin.dmtools.mcp.MCPTool")
-@SupportedSourceVersion(SourceVersion.RELEASE_23)
+@SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class MCPToolProcessor extends AbstractProcessor {
 
     private Types typeUtils;
