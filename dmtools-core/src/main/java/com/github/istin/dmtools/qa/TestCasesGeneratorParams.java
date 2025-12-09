@@ -27,6 +27,8 @@ public class TestCasesGeneratorParams extends Params {
     public static final String INCLUDE_OTHER_TICKET_REFERENCES = "includeOtherTicketReferences";
     public static final String TEST_CASE_LINK_RELATIONSHIP_FOR_NEW = "testCaseLinkRelationshipForNew";
     public static final String TEST_CASE_LINK_RELATIONSHIP_FOR_EXISTING = "testCaseLinkRelationshipForExisting";
+    public static final String TEST_CASES_CUSTOM_FIELDS = "testCasesCustomFields";
+    public static final String CUSTOM_FIELDS_RULES = "customFieldsRules";
 
     @SerializedName(EXISTING_TEST_CASES_JQL)
     private String existingTestCasesJql;
@@ -54,5 +56,9 @@ public class TestCasesGeneratorParams extends Params {
     private String testCaseLinkRelationshipForNew;
     @SerializedName(TEST_CASE_LINK_RELATIONSHIP_FOR_EXISTING)
     private String testCaseLinkRelationshipForExisting;
+    @SerializedName(TEST_CASES_CUSTOM_FIELDS)
+    private String[] testCasesCustomFields;
+    @SerializedName(CUSTOM_FIELDS_RULES)
+    private String customFieldsRules;
 
 }

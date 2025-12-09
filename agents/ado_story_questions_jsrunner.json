@@ -1,0 +1,24 @@
+{
+  "name": "JSRunner",
+  "params": {
+    "jsPath": "agents/js/createQuestionsAndAssignForReviewAdo.js",
+    "jobParams": {
+      "metadata": {
+        "contextId": "ado_story_questions"
+      }
+    },
+    "ticket": {
+      "id": "755",
+      "key": "755",
+      "fields": {
+        "System.Id": 755,
+        "System.TeamProject": "ai-native-sdlc-blueprint",
+        "System.AreaPath": "ai-native-sdlc-blueprint",
+        "System.Title": "New Auth And Login Flow"
+      }
+    },
+    "response": [],
+    "initiator": "Uladzimir_Klyshevich@epam.com"
+  }
+}
+

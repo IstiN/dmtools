@@ -1,0 +1,26 @@
+{
+  "name": "TestCasesGenerator",
+  "params": {
+    "inputJql": "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 755",
+    "initiator": "Uladzimir_Klyshevich@epam.com",
+    "testCasesPriorities": "\"1\", \"2\", \"3\", \"4\"",
+    "outputType": "creation",
+    "existingTestCasesJql": "SELECT [System.Id], [System.Title], [System.Description] FROM WorkItems WHERE [System.WorkItemType] = 'Test Case' AND [System.State] <> 'Closed'",
+    "testCasesRelatedFields": ["System.Title", "System.Description"],
+    "testCasesExampleFields": ["System.Title", "System.Description", "Microsoft.VSTS.Common.Priority"],
+    "testCasesCustomFields": ["Microsoft.VSTS.TCM.Steps"],
+    "customFieldsRules": "Test steps must be generated in Azure DevOps XML format with HTML-encoded content. Format: <steps id=\"0\" last=\"N\"><step id=\"1\" type=\"ActionStep\"><parameterizedString isformatted=\"true\">&lt;DIV&gt;&lt;P&gt;&lt;BR/&gt;&lt;/P&gt;&lt;P&gt;Step description&lt;/P&gt;&lt;P&gt;&lt;BR/&gt;&lt;/P&gt;&lt;/DIV&gt;</parameterizedString><parameterizedString isformatted=\"true\">&lt;DIV&gt;&lt;P&gt;&lt;BR/&gt;&lt;/P&gt;&lt;/DIV&gt;</parameterizedString><description/></step><step id=\"2\" type=\"ValidationStep\"><parameterizedString isformatted=\"true\">&lt;DIV&gt;&lt;P&gt;&lt;BR/&gt;&lt;/P&gt;&lt;P&gt;Expected result&lt;/P&gt;&lt;P&gt;&lt;BR/&gt;&lt;/P&gt;&lt;/DIV&gt;</parameterizedString><parameterizedString isformatted=\"true\">&lt;DIV&gt;&lt;P&gt;&lt;BR/&gt;&lt;/P&gt;&lt;/DIV&gt;</parameterizedString><description/></step></steps>. Important: All HTML tags must be encoded (&lt; for <, &gt; for >, &amp; for &). Each step must have two parameterizedString elements (first with content wrapped in DIV/P tags, second empty) and a description element. Use ActionStep for test actions and ValidationStep for expected results. Each step should have a unique id starting from 1, and the 'last' attribute should equal the number of steps.",
+    "confluencePages": ["https://dmtools.atlassian.net/wiki/spaces/AINA/pages/63045633/Template+Test+Case+ADO"],
+    "relatedTestCasesRules": "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/55443457/Template+Test+Case+Related+Rules",
+    "isOverridePromptExamples": true,
+    "isFindRelated": true,
+    "isConvertToJiraMarkdown": false,
+    "includeOtherTicketReferences": true,
+    "testCaseLinkRelationship": "related",
+    "testCaseLinkRelationshipForNew": "is tested by",
+    "testCaseLinkRelationshipForExisting": "related",
+    "testCaseIssueType": "Test Case",
+    "examples": "ql(SELECT [System.Id], [System.Title], [System.Description] FROM WorkItems WHERE [System.WorkItemType] = 'Test Case' AND [System.Tags] CONTAINS 'ai_example')"
+  }
+}
+

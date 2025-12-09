@@ -1,199 +1,233 @@
-# Agent Scripts
+# JavaScript Actions for Teammate Agents
 
-This directory contains JavaScript agent scripts for automating Jira workflow tasks.
+This directory contains JavaScript actions that can be executed before (`preJSAction`) and after (`postJSAction`) agent processing.
 
 ## Directory Structure
 
 ```
-agents/js/
-├── config.js                                      # Centralized configuration constants
-├── common/                                        # Shared utility functions
-│   ├── aiResponseParser.js                       # AI response parsing utilities
-│   └── jiraHelpers.js                            # Jira operation helpers
-├── assignForReview.js                            # Assign ticket to initiator and move to "In Review"
-├── createQuestionsAndAssignForReview.js          # Create question subtasks and assign for review
-├── createSolutionDesignTicketsAndAssignForReview.js  # Create SD subtasks (Core/API/UI)
-├── developTicketAndCreatePR.js                   # Git operations and PR creation workflow
-├── enhanceSDAPIDescriptionAndAssess.js           # Enhance SD API ticket descriptions
-└── enhanceSDCoreDescriptionAndAssess.js          # Enhance SD CORE ticket descriptions
+js/
+├── common/
+│   ├── jiraHelpers.js      # Jira-specific helper functions
+│   └── adoHelpers.js        # ADO-specific helper functions
+├── config.js                # Shared configuration (statuses, labels)
+├── checkWipLabel.js         # Jira: Check for WIP label (pre-action)
+├── checkWipTagAdo.js        # ADO: Check for WIP tag (pre-action)
+├── assignForReview.js       # Jira: Assign & move to review (post-action)
+└── assignForReviewAdo.js    # ADO: Assign & move to review (post-action)
 ```
 
-## Work-In-Progress (WIP) Label System
+## Jira vs ADO Actions
 
-All agent jobs now support a WIP label system to prevent automated processing of tickets being manually worked on:
+### Key Differences
 
-### How It Works
+| Feature | Jira | ADO |
+|---------|------|-----|
+| **Identifier** | `key` (e.g., "DMC-532") | `id` (numeric, e.g., 755) |
+| **User Identifier** | `accountId` (e.g., "712020:2a24...") | `email` (e.g., "user@example.com") |
+| **Labels/Tags** | Array: `["label1", "label2"]` | Semicolon-separated string: `"tag1;tag2"` |
+| **Comments** | Jira Markdown | HTML |
+| **Field Names** | `fields.labels` | `fields['System.Tags']` |
 
-1. **Pre-Action Check**: `checkWipLabel.js` runs before any processing
-2. **Dynamic Label Generation**: WIP label is generated from `contextId` (e.g., `api_development` → `api_development_wip`)
-3. **Label Detection**: Checks if ticket has the generated WIP label
-4. **Skip Processing**: If WIP label found, posts comment and returns `false` to skip
-5. **Label Removal**: WIP label is automatically removed when processing completes successfully
+### Pre-Actions (Check WIP)
 
-### WIP Labels by Job
+**Jira** (`checkWipLabel.js`):
+```javascript
+const wipLabel = metadata.contextId + '_wip';
+const labels = ticket.fields.labels || [];
+if (labels.includes(wipLabel)) {
+    jira_post_comment({
+        key: ticketKey,
+        comment: 'h3. *Processing Skipped*\n\n...'
+    });
+    return false; // Stop processing
+}
+```
 
-Each job has a unique WIP label dynamically generated from `metadata.contextId`:
+**ADO** (`checkWipTagAdo.js`):
+```javascript
+const wipTag = metadata.contextId + '_wip';
+const tagsString = workItem.fields['System.Tags'] || '';
+const tags = tagsString.split(';').map(t => t.trim());
+if (tags.includes(wipTag)) {
+    ado_post_comment({
+        id: workItemId,
+        comment: '<h3><strong>Processing Skipped</strong></h3>...'
+    });
+    return false; // Stop processing
+}
+```
 
-| Job Configuration | Context ID | Generated WIP Label |
-|-------------------|------------|---------------------|
-| `api_development.json` | `api_development` | `api_development_wip` |
-| `story_development.json` | `story_development` | `story_development_wip` |
-| `sd_api_description.json` | `sd_api_description` | `sd_api_description_wip` |
-| `sd_core_description.json` | `sd_core_description` | `sd_core_description_wip` |
-| `core_description.json` | `core_description` | `core_description_wip` |
-| `story_solution_design.json` | `story_solution_design` | `story_solution_design_wip` |
-| `story_questions.json` | `story_questions` | `story_questions_wip` |
-| `story_description.json` | `story_description` | `story_description_wip` |
+### Post-Actions (Assign for Review)
 
-### Usage Example
+**Jira** (`assignForReview.js`):
+```javascript
+const { assignForReview } = require('./common/jiraHelpers.js');
 
-To prevent automated processing of a ticket:
-1. Add the appropriate WIP label to the ticket (e.g., `api_development_wip`)
-2. Automated job will detect the label and skip processing
-3. Comment will be posted explaining why processing was skipped
-4. Remove the label when ready for automated processing
+function action(params) {
+    const ticketKey = params.ticket.key;
+    const initiatorId = params.initiator; // accountId
+    const wipLabel = params.metadata.contextId + '_wip';
+    
+    return assignForReview(ticketKey, initiatorId, wipLabel);
+}
+```
 
-## Configuration (`config.js`)
+**ADO** (`assignForReviewAdo.js`):
+```javascript
+const { assignForReview } = require('./common/adoHelpers.js');
 
-Centralized configuration for all agent scripts. Contains:
+function action(params) {
+    const workItemId = params.ticket.id;
+    const initiatorEmail = params.initiatorEmail; // email, not accountId
+    const wipTag = params.metadata.contextId + '_wip';
+    
+    // Assigns to initiator and moves to "Resolved" state
+    return assignForReview(workItemId, initiatorEmail, wipTag);
+}
+```
 
-### Issue Types
-- `ISSUE_TYPES.SUBTASK`: 'Subtask'
-- `ISSUE_TYPES.TASK`: 'Task'
-- `ISSUE_TYPES.STORY`: 'Story'
-- `ISSUE_TYPES.BUG`: 'Bug'
+## Helper Functions
 
-### Statuses
-- `STATUSES.IN_REVIEW`: 'In Review'
-- `STATUSES.IN_PROGRESS`: 'In Progress'
-- `STATUSES.TODO`: 'To Do'
-- `STATUSES.DONE`: 'Done'
+### Jira Helpers (`jiraHelpers.js`)
 
-### Priorities
-- `PRIORITIES.LOW`, `MEDIUM`, `HIGH`, `HIGHEST`, `LOWEST`
+- `assignForReview(ticketKey, initiatorId, wipLabel)` - Assign ticket, move to review, update labels
+- `extractTicketKey(result)` - Extract ticket key from API response
+- `setTicketPriority(ticketKey, priority)` - Set ticket priority
 
-### Labels
-- `LABELS.AI_GENERATED`: 'ai_generated'
-- `LABELS.AI_QUESTIONS_ASKED`: 'ai_questions_asked'
-- `LABELS.AI_SOLUTION_DESIGN_CREATED`: 'ai_solution_design_created'
-- `LABELS.AI_DEVELOPED`: 'ai_developed'
-- `LABELS.SD_CORE`: 'sd_core'
-- `LABELS.SD_API`: 'sd_api'
-- `LABELS.SD_UI`: 'sd_ui'
-- `LABELS.NEEDS_API_IMPLEMENTATION`: 'needs_api_implementation'
-- `LABELS.NEEDS_CORE_IMPLEMENTATION`: 'needs_core_implementation'
+**MCP Tools Used:**
+- `jira_assign_ticket_to`
+- `jira_move_to_status`
+- `jira_add_label`
+- `jira_remove_label`
+- `jira_set_priority`
 
-### Git Configuration
-- `GIT_CONFIG.AUTHOR_NAME`: 'AI Teammate'
-- `GIT_CONFIG.AUTHOR_EMAIL`: 'agent.ai.native@gmail.com'
-- `GIT_CONFIG.DEFAULT_BASE_BRANCH`: 'main'
-- `GIT_CONFIG.DEFAULT_ISSUE_TYPE_PREFIX`: 'feature'
+### ADO Helpers (`adoHelpers.js`)
 
-### Solution Design Modules
-- `SOLUTION_DESIGN_MODULES`: Array of module configurations (core, api, ui)
+- `assignForReview(workItemId, initiatorEmail, wipTag)` - Assign work item, move to review, update tags
+- `extractWorkItemId(result)` - Extract work item ID from API response
+- `setWorkItemPriority(workItemId, priority)` - Set work item priority (1-4)
+- `addTag(workItemId, tag)` - Add a tag to work item
+- `removeTag(workItemId, tag)` - Remove a tag from work item
 
-### Diagram Defaults & Formatting
-- `DIAGRAM_DEFAULTS`: Default Mermaid diagrams for API and Core
-- `DIAGRAM_FORMAT`: Wrapper formats for Jira code blocks
+**MCP Tools Used:**
+- `ado_assign_work_item`
+- `ado_move_to_state`
+- `ado_get_work_item`
+- `ado_update_work_item`
 
-## Common Utilities
+## Configuration
 
-### `jiraHelpers.js`
-- `assignForReview(ticketKey, initiatorId)`: Assign ticket and move to "In Review" status
-- `extractTicketKey(result)`: Extract ticket key from Jira API response
-- `setTicketPriority(ticketKey, priority)`: Set ticket priority
+### Agent JSON Configuration
 
-### `aiResponseParser.js`
-- `parseQuestionsResponse(response)`: Parse AI-generated questions array
-- `buildSummary(summary, index)`: Build ticket summary with length constraints
-- `buildDescription(question)`: Build ticket description
+**Jira Example:**
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "metadata": {
+      "contextId": "story_description"
+    },
+    "inputJql": "key = DMC-532",
+    "initiator": "712020:2a248756-40e8-49d6-8ddc-6852e518451f",
+    "preJSAction": "agents/js/checkWipLabel.js",
+    "postJSAction": "agents/js/assignForReview.js"
+  }
+}
+```
 
-## Agent Scripts
+**ADO Example:**
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "metadata": {
+      "contextId": "ado_story_description"
+    },
+    "inputJql": "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 755",
+    "initiatorEmail": "user@example.com",
+    "preJSAction": "agents/js/checkWipTagAdo.js",
+    "postJSAction": "agents/js/assignForReviewAdo.js"
+  }
+}
+```
 
-### `checkWipLabel.js` (Pre-Action)
-Pre-action script that checks for Work-In-Progress (WIP) labels on tickets before processing.
+## Creating New Actions
 
-**Functionality:**
-- Dynamically generates WIP label from `metadata.contextId` (e.g., `api_development` → `api_development_wip`)
-- Checks if ticket has the generated WIP label
-- Returns `false` to stop processing if WIP label is found
-- Posts a comment to the ticket explaining why processing was skipped
-- Returns `true` to continue processing if no WIP label exists
-
-**Usage:** Configured as `preJSAction` in all job configs to prevent automated processing of tickets that are being manually worked on.
-
-### `assignForReview.js`
-Simple action to assign a ticket to the initiator and move it to "In Review" status. Also removes the WIP label if configured.
-
-### `createQuestionsAndAssignForReview.js`
-Creates subtasks based on AI-generated questions, then assigns the parent ticket for review.
-- Uses `ISSUE_TYPES.SUBTASK` for creating question tickets
-- Adds `LABELS.AI_QUESTIONS_ASKED` label
-- Moves to `STATUSES.IN_REVIEW`
-
-### `createSolutionDesignTicketsAndAssignForReview.js`
-Creates solution design subtasks (SD CORE, SD API, SD UI) based on AI module analysis.
-- Creates subtasks with `PRIORITIES.MEDIUM`
-- Adds module-specific labels (`LABELS.SD_CORE`, etc.)
-- Posts summary comment with analysis results
-
-### `developTicketAndCreatePR.js`
-Handles complete git workflow: branch creation, commit, push, and PR creation.
-- Configures git author as `GIT_CONFIG.AUTHOR_NAME`
-- Creates unique branch names (e.g., `feature/DMC-123`)
-- Creates PR using GitHub CLI with outputs/response.md as body
-- Moves ticket to `STATUSES.IN_REVIEW`
-- Adds `LABELS.AI_DEVELOPED` label
-
-### `enhanceSDAPIDescriptionAndAssess.js`
-Enhances SD API ticket descriptions with technical details and diagrams.
-- Updates description and Diagrams field with Mermaid sequence diagrams
-- Adds `LABELS.NEEDS_API_IMPLEMENTATION` if needed
-- Moves to `STATUSES.IN_REVIEW`
-
-### `enhanceSDCoreDescriptionAndAssess.js`
-Enhances SD CORE ticket descriptions with technical details and diagrams.
-- Updates description and Diagrams field with Mermaid graphs
-- Adds `LABELS.NEEDS_CORE_IMPLEMENTATION` if needed
-- Moves to `STATUSES.IN_REVIEW`
-
-## Usage
-
-Each agent script exports an `action(params)` function that expects:
+### Template for New Pre-Action
 
 ```javascript
-params = {
-    ticket: {
-        key: 'DMC-123',
-        fields: {
-            summary: 'Ticket summary',
-            description: 'Ticket description',
-            labels: ['label1', 'label2', ...] // Ticket labels
-        }
-    },
-    response: '...', // AI-generated response (format varies by agent)
-    initiator: 'accountId123', // Jira account ID of initiator
-    metadata: {
-        contextId: 'api_development' // Context ID (WIP label generated as contextId + '_wip')
+/**
+ * My Custom Pre-Action
+ * Description of what this action does
+ */
+
+function action(params) {
+    try {
+        const ticket = params.ticket;
+        const metadata = params.metadata;
+        
+        // Your logic here
+        
+        // Return true to continue processing, false to stop
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Error:', error);
+        // On error, decide whether to continue or stop
+        return true;
     }
 }
 ```
 
-Returns:
+### Template for New Post-Action
+
 ```javascript
-{
-    success: true/false,
-    message: '...',
-    error: '...' // if success is false
+/**
+ * My Custom Post-Action
+ * Description of what this action does
+ */
+
+function action(params) {
+    try {
+        const ticketKey = params.ticket.key; // or params.ticket.id for ADO
+        
+        // Your logic here
+        
+        return {
+            success: true,
+            message: 'Action completed successfully'
+        };
+        
+    } catch (error) {
+        console.error('❌ Error:', error);
+        return {
+            success: false,
+            error: error.toString()
+        };
+    }
 }
 ```
 
-## Migration Notes
+## Testing
 
-All scripts have been refactored to use centralized configuration from `config.js`. This makes it easy to:
-- Update hardcoded values like statuses, priorities, and labels in one place
-- Maintain consistency across all agent scripts
-- Easily modify git configuration or diagram defaults
+To test your actions:
 
-When adding new constants, add them to `config.js` and export them in the module.exports object.
+1. Create a test ticket/work item
+2. Add the WIP label/tag to test pre-actions
+3. Run the agent with your JSON configuration
+4. Check logs for action execution results
+5. Verify ticket/work item state changes
 
+## Debugging
+
+Enable verbose logging in your actions:
+
+```javascript
+console.log('🔍 Debug info:', {
+    ticketKey: ticket.key,
+    metadata: metadata,
+    labels: ticket.fields.labels
+});
+```
+
+Check Teammate logs for action execution details and any errors.

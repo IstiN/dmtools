@@ -28,7 +28,7 @@ const PRIORITIES = {
     LOWEST: 'Lowest'
 };
 
-// Labels
+// Jira Labels
 const LABELS = {
     AI_GENERATED: 'ai_generated',
     AI_QUESTIONS_ASKED: 'ai_questions_asked',
@@ -39,6 +39,28 @@ const LABELS = {
     SD_UI: 'sd_ui',
     NEEDS_API_IMPLEMENTATION: 'needs_api_implementation',
     NEEDS_CORE_IMPLEMENTATION: 'needs_core_implementation'
+};
+
+// ADO Labels (Tags) - same values as Jira for consistency
+const ADO_LABELS = {
+    AI_GENERATED: 'ai_generated',
+    AI_QUESTIONS_ASKED: 'ai_questions_asked',
+    AI_SOLUTION_DESIGN_CREATED: 'ai_solution_design_created',
+    AI_DEVELOPED: 'ai_developed',
+    SD_CORE: 'sd_core',
+    SD_API: 'sd_api',
+    SD_UI: 'sd_ui',
+    NEEDS_API_IMPLEMENTATION: 'needs_api_implementation',
+    NEEDS_CORE_IMPLEMENTATION: 'needs_core_implementation'
+};
+
+// ADO Statuses - specific statuses for Azure DevOps
+const ADO_STATUSES = {
+    NEW: 'New',
+    ACTIVE: 'Active',
+    RESOLVED: 'Resolved',
+    CLOSED: 'Closed',
+    IN_REVIEW: 'Active' // Mapping 'In Review' to 'Active' for ADO User Story
 };
 
 // Git Configuration
@@ -95,6 +117,8 @@ module.exports = {
     DIAGRAM_DEFAULTS,
     DIAGRAM_FORMAT,
     JIRA_FIELDS,
-    SUMMARY_MAX_LENGTH
+    SUMMARY_MAX_LENGTH,
+    ADO_STATUSES,
+    ADO_LABELS
 };
 

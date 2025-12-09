@@ -214,7 +214,8 @@ class TestCaseGeneratorAgentTest {
             "story",
             "rules",
             true,
-            customExamples
+            customExamples,
+            ""
         );
 
         assertEquals("P1, P2", params.getPriorities());
@@ -237,7 +238,8 @@ class TestCaseGeneratorAgentTest {
             "API feature story",
             "focus on security",
             true,
-            customExamples
+            customExamples,
+            ""
         );
 
         String renderedPrompt = "Generated prompt with custom examples";
