@@ -1,6 +1,7 @@
 {
   "name": "TestCasesGenerator",
   "params" : {
+    "inputJql": "key in (DMC-800)",
     "testCasesPriorities" : "Highest, High, Medium, Lowest, Low",
     "outputType" : "creation",
     "existingTestCasesJql" : "filter=10066 and status not in (archived)",

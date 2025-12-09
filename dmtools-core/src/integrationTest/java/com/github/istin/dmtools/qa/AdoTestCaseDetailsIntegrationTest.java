@@ -27,7 +27,7 @@ public class AdoTestCaseDetailsIntegrationTest {
     private static final Logger logger = LogManager.getLogger(AdoTestCaseDetailsIntegrationTest.class);
 
     private static BasicAzureDevOpsClient adoClient;
-    private static final String TEST_CASE_ID = "792";
+    private static final String TEST_CASE_ID = "803";
 
     @BeforeAll
     static void setUp() throws IOException {
@@ -258,6 +258,115 @@ public class AdoTestCaseDetailsIntegrationTest {
         }
 
         logger.info("\n=== Test Case Inspection Complete ===");
+    }
+
+    @Test
+    @Order(2)
+    void testUpdateTestSteps() throws IOException {
+        logger.info("=== Testing Test Steps Update for Work Item {} ===", TEST_CASE_ID);
+
+        // Create properly formatted test steps XML
+        // Format should match ADO's expected structure with HTML encoding
+        String testStepsXml = buildTestStepsXml(
+            new TestStep("ActionStep", "Navigate to login page URL"),
+            new TestStep("ActionStep", "Verify page loads completely"),
+            new TestStep("ValidationStep", "Login form with username, password fields, login button and all UI elements are displayed correctly")
+        );
+
+        logger.info("Generated test steps XML:");
+        logger.info("{}", testStepsXml);
+
+        // Update the work item with test steps
+        adoClient.updateTicket(TEST_CASE_ID, fields -> {
+            fields.set("Microsoft.VSTS.TCM.Steps", testStepsXml);
+        });
+
+        logger.info("Test steps updated successfully");
+
+        // Verify the update by fetching the work item again
+        WorkItem updatedWorkItem = adoClient.performTicket(TEST_CASE_ID, new String[]{"Microsoft.VSTS.TCM.Steps"});
+        assertNotNull(updatedWorkItem, "Updated work item should be found");
+
+        String updatedSteps = updatedWorkItem.getFieldValueAsString("Microsoft.VSTS.TCM.Steps");
+        logger.info("\n=== Updated Test Steps ===");
+        logger.info("{}", updatedSteps);
+
+        assertNotNull(updatedSteps, "Test steps should not be null after update");
+        assertFalse(updatedSteps.isEmpty(), "Test steps should not be empty after update");
+        assertTrue(updatedSteps.contains("<steps"), "Test steps should contain <steps> tag");
+        assertTrue(updatedSteps.contains("<step"), "Test steps should contain <step> tags");
+    }
+
+    /**
+     * Build test steps XML in the format expected by ADO.
+     * Each step should have:
+     * - Two parameterizedString elements (one with content, one empty)
+     * - A description element
+     * - HTML content should be properly encoded
+     */
+    private String buildTestStepsXml(TestStep... steps) {
+        StringBuilder xml = new StringBuilder();
+        xml.append("<steps id=\"0\" last=\"").append(steps.length).append("\">");
+
+        for (int i = 0; i < steps.length; i++) {
+            TestStep step = steps[i];
+            int stepId = i + 1;
+            
+            xml.append("<step id=\"").append(stepId).append("\" type=\"").append(step.type).append("\">");
+            
+            // First parameterizedString with HTML-encoded content
+            // Wrap content in DIV/P tags and encode HTML entities
+            String encodedContent = encodeHtmlContent(step.content);
+            xml.append("<parameterizedString isformatted=\"true\">").append(encodedContent).append("</parameterizedString>");
+            
+            // Second parameterizedString (empty, as per ADO format)
+            xml.append("<parameterizedString isformatted=\"true\">&lt;DIV&gt;&lt;P&gt;&lt;BR/&gt;&lt;/P&gt;&lt;/DIV&gt;</parameterizedString>");
+            
+            // Description element (empty)
+            xml.append("<description/>");
+            
+            xml.append("</step>");
+        }
+
+        xml.append("</steps>");
+        return xml.toString();
+    }
+
+    /**
+     * Encode HTML content for ADO test steps.
+     * Wraps content in DIV/P tags and encodes HTML entities.
+     * Format should match ADO's expected structure.
+     */
+    private String encodeHtmlContent(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            return "&lt;DIV&gt;&lt;P&gt;&lt;BR/&gt;&lt;/P&gt;&lt;/DIV&gt;";
+        }
+
+        // Simple format: wrap content in DIV/P structure
+        // For simple text, we can use a basic structure
+        // For more complex content, ADO expects HTML with encoded entities
+        String wrapped = "<DIV><P><BR/></P><P>" + content + "</P><P><BR/></P></DIV>";
+        
+        // Encode HTML entities (must encode & first to avoid double encoding)
+        return wrapped
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;");
+    }
+
+    /**
+     * Helper class to represent a test step.
+     */
+    private static class TestStep {
+        final String type;
+        final String content;
+
+        TestStep(String type, String content) {
+            this.type = type;
+            this.content = content;
+        }
     }
 
     /**
