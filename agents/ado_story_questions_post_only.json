@@ -1,0 +1,27 @@
+{
+  "name" : "Teammate",
+  "params" : {
+    "metadata" : {
+      "contextId" : "ado_story_questions"
+    },
+    "agentParams" : {
+      "aiRole" : "Experienced Business Analyst",
+      "instructions" : [],
+      "knownInfo" : "",
+      "formattingRules" : "",
+      "fewShots" : ""
+    },
+    "cliCommands" : [
+      "./cicd/scripts/read-existing-response.sh"
+    ],
+    "outputType" : "none",
+    "ticketContextDepth" : 0,
+    "attachResponseAsFile" : false,
+    "skipAIProcessing" : true,
+    "inputJql" : "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 755",
+    "initiator" : "Uladzimir_Klyshevich@epam.com",
+    "preJSAction" : "",
+    "postJSAction" : "agents/js/createQuestionsAndAssignForReviewAdo.js"
+  }
+}
+

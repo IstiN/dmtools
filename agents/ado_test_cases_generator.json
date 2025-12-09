@@ -1,0 +1,24 @@
+{
+  "name": "TestCasesGenerator",
+  "params": {
+    "inputJql": "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 755",
+    "initiator": "Uladzimir_Klyshevich@epam.com",
+    "testCasesPriorities": "\"1\", \"2\", \"3\", \"4\"",
+    "outputType": "creation",
+    "existingTestCasesJql": "SELECT [System.Id], [System.Title], [System.Description] FROM WorkItems WHERE [System.WorkItemType] = 'Test Case' AND [System.State] <> 'Closed'",
+    "testCasesRelatedFields": ["System.Title", "System.Description"],
+    "testCasesExampleFields": ["System.Title", "System.Description", "Microsoft.VSTS.Common.Priority"],
+    "confluencePages": ["https://dmtools.atlassian.net/wiki/spaces/AINA/pages/63045633/Template+Test+Case+ADO"],
+    "relatedTestCasesRules": "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/55443457/Template+Test+Case+Related+Rules",
+    "isOverridePromptExamples": true,
+    "isFindRelated": true,
+    "isConvertToJiraMarkdown": false,
+    "includeOtherTicketReferences": true,
+    "testCaseLinkRelationship": "related",
+    "testCaseLinkRelationshipForNew": "is tested by",
+    "testCaseLinkRelationshipForExisting": "related",
+    "testCaseIssueType": "Test Case",
+    "examples": "ql(SELECT [System.Id], [System.Title], [System.Description] FROM WorkItems WHERE [System.WorkItemType] = 'Test Case' AND [System.Tags] CONTAINS 'ai_example')"
+  }
+}
+
