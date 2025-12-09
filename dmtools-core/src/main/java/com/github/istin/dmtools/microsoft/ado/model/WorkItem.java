@@ -7,6 +7,8 @@ import com.github.istin.dmtools.common.timeline.ReportIteration;
 import com.github.istin.dmtools.common.tracker.model.Status;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.common.utils.LLMOptimizedJson;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,6 +25,7 @@ import java.util.Set;
  */
 public class WorkItem extends JSONModel implements ITicket {
 
+    private static final Logger logger = LogManager.getLogger(WorkItem.class);
     private static final Set<String> BLACKLISTED_FIELDS = Set.of("url", "id", "self", "_links", "rev", "commentVersionRef");
 
     public WorkItem() {
@@ -310,53 +313,53 @@ public class WorkItem extends JSONModel implements ITicket {
         List<Attachment> attachments = new ArrayList<>();
         String ticketKey = getTicketKey();
 
-        System.out.println("🔍 [WorkItem " + ticketKey + "] Extracting attachments...");
+        logger.debug("Extracting attachments for work item: {}", ticketKey);
 
         // 1. Get attachments from relations array
         JSONArray relations = getJSONArray("relations");
         if (relations != null && relations.length() > 0) {
-            System.out.println("📎 [WorkItem " + ticketKey + "] Found " + relations.length() + " relations");
+            logger.debug("Found {} relations for work item: {}", relations.length(), ticketKey);
             int attachmentCount = 0;
             for (int i = 0; i < relations.length(); i++) {
                 JSONObject relation = relations.optJSONObject(i);
                 if (relation != null) {
                     String rel = relation.optString("rel");
-                    System.out.println("  - Relation " + i + ": rel=" + rel);
+                    logger.trace("Relation {}: rel={}", i, rel);
                     
                     if ("AttachedFile".equals(rel)) {
                         Attachment attachment = Attachment.fromRelation(relation);
                         if (attachment != null) {
                             attachments.add(attachment);
                             attachmentCount++;
-                            System.out.println("    ✅ Extracted attachment: " + attachment.getName() + " (URL: " + attachment.getUrl() + ")");
+                            logger.debug("Extracted attachment: {} (URL: {})", attachment.getName(), attachment.getUrl());
                         }
                     }
                 }
             }
-            System.out.println("📎 [WorkItem " + ticketKey + "] Extracted " + attachmentCount + " attachments from relations");
+            logger.debug("Extracted {} attachments from relations for work item: {}", attachmentCount, ticketKey);
         } else {
-            System.out.println("⚠️ [WorkItem " + ticketKey + "] No relations array found (may need $expand=relations in API call)");
+            logger.debug("No relations array found for work item: {} (may need $expand=relations in API call)", ticketKey);
         }
 
         // 2. Extract embedded images from description HTML
         String description = getFieldAsString("System.Description");
         if (description != null && !description.isEmpty()) {
-            System.out.println("🔍 [WorkItem " + ticketKey + "] Scanning description HTML for embedded images (" + description.length() + " chars)");
+            logger.debug("Scanning description HTML for embedded images ({} chars) for work item: {}", description.length(), ticketKey);
             List<Attachment> embeddedImages = extractEmbeddedImages(description);
             if (!embeddedImages.isEmpty()) {
-                System.out.println("🖼️ [WorkItem " + ticketKey + "] Found " + embeddedImages.size() + " embedded images in description");
+                logger.debug("Found {} embedded images in description for work item: {}", embeddedImages.size(), ticketKey);
                 for (Attachment img : embeddedImages) {
-                    System.out.println("  - " + img.getName() + " (URL: " + img.getUrl() + ")");
+                    logger.trace("Embedded image: {} (URL: {})", img.getName(), img.getUrl());
                 }
                 attachments.addAll(embeddedImages);
             } else {
-                System.out.println("  No embedded images found in description");
+                logger.trace("No embedded images found in description for work item: {}", ticketKey);
             }
         } else {
-            System.out.println("⚠️ [WorkItem " + ticketKey + "] No description field found");
+            logger.debug("No description field found for work item: {}", ticketKey);
         }
 
-        System.out.println("✅ [WorkItem " + ticketKey + "] Total attachments: " + attachments.size());
+        logger.info("Total attachments extracted for work item {}: {}", ticketKey, attachments.size());
         return attachments;
     }
 
