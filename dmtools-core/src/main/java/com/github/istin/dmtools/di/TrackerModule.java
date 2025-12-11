@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.di;
 
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
+import com.github.istin.dmtools.atlassian.jira.xray.XrayClient;
 import com.github.istin.dmtools.broadcom.rally.BasicRallyClient;
 import com.github.istin.dmtools.common.config.ApplicationConfiguration;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -74,8 +75,20 @@ public class TrackerModule {
                     logger.error("Failed to initialize BasicRallyClient (DEFAULT_TRACKER=rally): " + e.getMessage());
                 }
                 rallyAttempted = true;
+            } else if ("jira_xray".equalsIgnoreCase(defaultTracker.trim())) {
+                try {
+                    logger.debug("Attempting to initialize TrackerClient via XrayClient as DEFAULT_TRACKER=jira_xray...");
+                    TrackerClient<? extends ITicket> xrayClient = XrayClient.getInstance();
+                    if (xrayClient != null) {
+                        logger.debug("XrayClient initialized successfully.");
+                        return xrayClient;
+                    }
+                } catch (Exception e) {
+                    logger.error("Failed to initialize XrayClient (DEFAULT_TRACKER=jira_xray): " + e.getMessage());
+                }
+                jiraAttempted = true; // X-ray uses Jira config, so mark Jira as attempted
             } else {
-                logger.warn("Unknown DEFAULT_TRACKER value: '{}'. Valid values: 'jira', 'ado', 'rally'", defaultTracker);
+                logger.warn("Unknown DEFAULT_TRACKER value: '{}'. Valid values: 'jira', 'ado', 'rally', 'jira_xray'", defaultTracker);
             }
         }
         
@@ -134,11 +147,12 @@ public class TrackerModule {
             return null;
         }
         
-        logger.error("No tracker configuration found. Please configure one of: JIRA, ADO, or Rally");
+        logger.error("No tracker configuration found. Please configure one of: JIRA, ADO, Rally, or X-ray");
         throw new RuntimeException("Failed to create TrackerClient instance. " +
                 "Please configure JIRA (JIRA_BASE_PATH, JIRA_API_TOKEN), " +
-                "ADO (ADO_ORGANIZATION, ADO_PROJECT, ADO_PAT_TOKEN), or " +
-                "Rally (RALLY_PATH, RALLY_TOKEN)");
+                "ADO (ADO_ORGANIZATION, ADO_PROJECT, ADO_PAT_TOKEN), " +
+                "Rally (RALLY_PATH, RALLY_TOKEN), or " +
+                "X-ray (JIRA_BASE_PATH, JIRA_API_TOKEN, XRAY_CLIENT_ID, XRAY_CLIENT_SECRET, XRAY_BASE_PATH)");
     }
     
     /**
