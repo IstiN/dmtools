@@ -57,20 +57,84 @@ function Get-LatestVersion {
     Write-Error-Message "Failed to get latest version from GitHub. Please check your network connection."
 }
 
-# Download file
+# Validate downloaded file is not HTML (404 error page)
+function Test-NotHtml {
+    param(
+        [string]$FilePath,
+        [string]$Description
+    )
+    
+    if (-not (Test-Path $FilePath)) {
+        return $false
+    }
+    
+    try {
+        $content = Get-Content -Path $FilePath -TotalCount 1 -ErrorAction SilentlyContinue
+        if ($content -match '<!DOCTYPE|<html|<body') {
+            return $false
+        }
+        
+        # Check if file is empty
+        $fileInfo = Get-Item -Path $FilePath -ErrorAction SilentlyContinue
+        if ($fileInfo.Length -eq 0) {
+            return $false
+        }
+        
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+# Download file with validation
 function Download-File {
     param(
         [string]$Url,
         [string]$Output,
-        [string]$Description
+        [string]$Description,
+        [switch]$Validate
     )
     
     Write-Progress-Message "Downloading $Description..."
     try {
         Invoke-WebRequest -Uri $Url -OutFile $Output -UseBasicParsing
+        
+        if ($Validate) {
+            if (-not (Test-NotHtml -FilePath $Output -Description $Description)) {
+                Write-Warn "Downloaded file appears to be HTML (likely 404 error page). Removing invalid file."
+                Remove-Item -Path $Output -Force -ErrorAction SilentlyContinue
+                return $false
+            }
+        }
+        
+        return $true
     } catch {
-        Write-Error-Message "Failed to download $Description : $_"
+        Write-Error-Message "Failed to download $Description from $Url : $_"
     }
+}
+
+# Download dmtools.sh from repository if release asset is missing
+function Download-ScriptFromRepo {
+    param([string]$Version)
+    
+    Write-Progress-Message "dmtools.sh not found in release assets, downloading from repository..."
+    
+    $scriptUrl = "https://raw.githubusercontent.com/$REPO/main/dmtools.sh"
+    $tempScript = "$env:TEMP\dmtools.sh"
+    
+    if (Download-File -Url $scriptUrl -Output $tempScript -Description "DMTools shell script (from repository)" -Validate) {
+        # Validate it's actually a shell script
+        $firstLine = Get-Content -Path $tempScript -TotalCount 1 -ErrorAction SilentlyContinue
+        if ($firstLine -match '^#!/bin/bash') {
+            return $true
+        } else {
+            Write-Warn "Downloaded file doesn't appear to be a valid shell script."
+            Remove-Item -Path $tempScript -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+    }
+    
+    return $false
 }
 
 # Create installation directory
@@ -148,7 +212,17 @@ function Download-DMTools {
     
     # Download shell script and create Windows wrapper
     $tempScript = "$env:TEMP\dmtools.sh"
-    Download-File -Url $scriptUrl -Output $tempScript -Description "DMTools shell script"
+    
+    # Try release asset first, fallback to repository
+    if (-not (Download-File -Url $scriptUrl -Output $tempScript -Description "DMTools shell script" -Validate)) {
+        Write-Warn "dmtools.sh not found in release assets (this is normal if not included in release)."
+        if (-not (Download-ScriptFromRepo -Version $Version)) {
+            Write-Error-Message "Failed to download dmtools.sh from both release assets and repository.
+
+Please ensure dmtools.sh is included in the GitHub release, or download it manually from:
+  https://raw.githubusercontent.com/$REPO/main/dmtools.sh"
+        }
+    }
     
     # Create Windows batch wrapper that mimics dmtools.sh behavior
     $batchContent = @"

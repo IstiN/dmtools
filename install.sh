@@ -117,21 +117,146 @@ If the issue persists, you can manually download from:
 https://github.com/${REPO}/releases/latest"
 }
 
-# Download file with progress
+# Validate downloaded file is not HTML (404 error page) and is valid
+validate_not_html() {
+    local file="$1"
+    local desc="$2"
+    local require_shell="${3:-false}"
+    
+    # Check if file exists and is readable
+    if [ ! -f "$file" ] || [ ! -r "$file" ]; then
+        return 1
+    fi
+    
+    # Check if file is empty
+    if [ ! -s "$file" ]; then
+        return 1
+    fi
+    
+    # Get first line for validation
+    local first_line
+    first_line=$(head -n 1 "$file" 2>/dev/null || echo "")
+    
+    # Check if file starts with HTML doctype or common HTML tags
+    if echo "$first_line" | grep -qiE "<!DOCTYPE|<html|<body"; then
+        return 1
+    fi
+    
+    # If shell script is required, check for shebang
+    if [ "$require_shell" = "true" ]; then
+        if ! echo "$first_line" | grep -qE "^#!/bin/(bash|sh)"; then
+            # Also check for common error messages that might be returned
+            if echo "$first_line" | grep -qiE "not found|404|error|page not found"; then
+                return 1
+            fi
+            # Check if file contains shell script indicators
+            if ! head -n 5 "$file" 2>/dev/null | grep -qE "^#!/|^#.*bash|^#.*sh|set -|function |\(\)"; then
+                return 1
+            fi
+        fi
+    fi
+    
+    return 0
+}
+
+# Download file with progress and validation
 download_file() {
     local url="$1"
     local output="$2"
     local desc="$3"
+    local validate="${4:-true}"
+    local max_retries=3
+    local retry_count=0
     
     progress "Downloading $desc..."
     
-    if command -v curl >/dev/null 2>&1; then
-        curl -L --progress-bar "$url" -o "$output" || error "Failed to download $desc"
-    elif command -v wget >/dev/null 2>&1; then
-        wget --progress=bar "$url" -O "$output" || error "Failed to download $desc"
-    else
-        error "Neither curl nor wget is available. Please install one of them."
+    while [ $retry_count -lt $max_retries ]; do
+        local http_code=0
+        local download_success=false
+        
+        if command -v curl >/dev/null 2>&1; then
+            # Use curl with better error handling
+            # First get HTTP status code
+            http_code=$(curl -L -s -o /dev/null -w "%{http_code}" --max-time 30 "$url" 2>/dev/null || echo "000")
+            
+            # Validate http_code is numeric
+            if ! echo "$http_code" | grep -qE '^[0-9]+$'; then
+                http_code="000"
+            fi
+            
+            # Check HTTP status code
+            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 400 ] 2>/dev/null; then
+                # HTTP status is OK, proceed with download
+                if curl -L --progress-bar --max-time 60 --fail "$url" -o "$output" 2>/dev/null; then
+                    download_success=true
+                else
+                    warn "Download failed despite OK HTTP status. Retrying..."
+                fi
+            else
+                # Handle HTTP error codes
+                if [ "$http_code" -ge 500 ] 2>/dev/null; then
+                    warn "Server error ($http_code) when downloading $desc. Retrying..."
+                elif [ "$http_code" -eq 404 ] 2>/dev/null; then
+                    warn "File not found (404) when downloading $desc."
+                    rm -f "$output"
+                    return 1
+                elif [ "$http_code" = "000" ] || [ -z "$http_code" ]; then
+                    warn "Network error or timeout when downloading $desc. Retrying..."
+                else
+                    warn "HTTP error ($http_code) when downloading $desc. Retrying..."
+                fi
+            fi
+        elif command -v wget >/dev/null 2>&1; then
+            # Use wget with better error handling
+            if wget --progress=bar --tries=1 --timeout=30 "$url" -O "$output" 2>&1; then
+                download_success=true
+            else
+                warn "Download failed. Retrying..."
+            fi
+        else
+            error "Neither curl nor wget is available. Please install one of them."
+        fi
+        
+        if [ "$download_success" = true ]; then
+            break
+        fi
+        
+        retry_count=$((retry_count + 1))
+        if [ $retry_count -lt $max_retries ]; then
+            local wait_time=$((retry_count * 2))
+            warn "Waiting ${wait_time}s before retry ($retry_count/$max_retries)..."
+            sleep $wait_time
+        fi
+    done
+    
+    # Check if download was successful
+    if [ ! -f "$output" ] || [ ! -s "$output" ]; then
+        error "Failed to download $desc from $url after $max_retries attempts.
+        
+Possible causes:
+  - Network connectivity issues
+  - GitHub service temporarily unavailable (503 error)
+  - File not found in release (404 error)
+  
+Please try again later or check: https://github.com/${REPO}/releases/latest"
     fi
+    
+    # Validate the downloaded file if requested
+    if [ "$validate" = "true" ]; then
+        local require_shell="false"
+        # Check if this is a shell script download
+        if [[ "$desc" == *"shell script"* ]] || [[ "$url" == *.sh ]]; then
+            require_shell="true"
+        fi
+        
+        if ! validate_not_html "$output" "$desc" "$require_shell"; then
+            warn "Downloaded file appears to be invalid (HTML error page or not a valid shell script). Removing invalid file."
+            rm -f "$output"
+            return 1
+        fi
+    fi
+    
+    return 0
 }
 
 # Create installation directory
@@ -246,6 +371,58 @@ steps:
     fi
 }
 
+# Get asset download URL from GitHub API (more reliable than redirect URLs)
+get_asset_url_from_api() {
+    local version="$1"
+    local asset_name="$2"
+    
+    # Ensure version has 'v' prefix for API call
+    local tag_for_api="$version"
+    if [[ ! "$tag_for_api" =~ ^v ]]; then
+        tag_for_api="v${version}"
+    fi
+    
+    local api_url="https://api.github.com/repos/${REPO}/releases/tags/${tag_for_api}"
+    
+    progress "Getting asset URL from GitHub API..." >&2
+    
+    local release_info
+    release_info=$(curl -s --connect-timeout 10 --max-time 30 "$api_url" 2>/dev/null)
+    
+    if [ -n "$release_info" ] && ! echo "$release_info" | grep -q '"message":"Not Found"'; then
+        # Extract browser_download_url for the asset (works without jq)
+        local download_url
+        download_url=$(echo "$release_info" | grep -o "\"browser_download_url\":\"[^\"]*${asset_name}[^\"]*\"" | head -1 | sed 's/.*"browser_download_url":"\([^"]*\)".*/\1/')
+        
+        if [ -n "$download_url" ] && [ "$download_url" != "null" ]; then
+            echo "$download_url"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+# Download dmtools.sh from repository if release asset is missing
+download_script_from_repo() {
+    local version="$1"
+    local script_url="https://raw.githubusercontent.com/${REPO}/main/dmtools.sh"
+    
+    progress "dmtools.sh not found in release assets, downloading from repository..."
+    
+    if download_file "$script_url" "$SCRIPT_PATH" "DMTools shell script (from repository)" "true"; then
+        # Validate it's actually a shell script
+        if ! head -n 1 "$SCRIPT_PATH" 2>/dev/null | grep -q "^#!/bin/bash"; then
+            warn "Downloaded file doesn't appear to be a valid shell script. Trying alternative source..."
+            rm -f "$SCRIPT_PATH"
+            return 1
+        fi
+        return 0
+    fi
+    
+    return 1
+}
+
 # Download DMTools JAR and script
 download_dmtools() {
     local version="$1"
@@ -255,11 +432,48 @@ download_dmtools() {
     # Download JAR
     download_file "$jar_url" "$JAR_PATH" "DMTools JAR"
     
-    # Download shell script
-    download_file "$script_url" "$SCRIPT_PATH" "DMTools shell script"
+    # Download shell script - try multiple methods
+    # Method 1: Try redirect-based URL (standard GitHub release URL)
+    if download_file "$script_url" "$SCRIPT_PATH" "DMTools shell script" "true"; then
+        # Success with redirect URL
+        chmod +x "$SCRIPT_PATH"
+        return 0
+    fi
     
-    # Make script executable
-    chmod +x "$SCRIPT_PATH"
+    # Method 2: Try GitHub API to get direct asset URL (avoids expired blob URLs)
+    warn "Redirect-based download failed, trying GitHub API for direct asset URL..."
+    local api_asset_url
+    api_asset_url=$(get_asset_url_from_api "$version" "dmtools.sh")
+    
+    if [ -n "$api_asset_url" ]; then
+        if download_file "$api_asset_url" "$SCRIPT_PATH" "DMTools shell script (from API)" "true"; then
+            chmod +x "$SCRIPT_PATH"
+            return 0
+        fi
+    fi
+    
+    # Method 3: Fallback to repository main branch
+    warn "Release asset download failed, trying repository main branch..."
+    if download_script_from_repo "$version"; then
+        chmod +x "$SCRIPT_PATH"
+        return 0
+    fi
+    
+    # All methods failed
+    error "Failed to download dmtools.sh from all available sources:
+  1. GitHub release redirect URL: $script_url
+  2. GitHub API asset URL: ${api_asset_url:-'(not available)'}
+  3. Repository main branch: https://raw.githubusercontent.com/${REPO}/main/dmtools.sh
+  
+Possible causes:
+  - Network connectivity issues
+  - GitHub service temporarily unavailable (503 error)
+  - File not found in release (404 error)
+  
+Please try again later or download manually from:
+  https://raw.githubusercontent.com/${REPO}/main/dmtools.sh
+  
+And place it at: $SCRIPT_PATH"
 }
 
 # Update shell configuration
