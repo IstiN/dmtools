@@ -49,9 +49,9 @@ public class XrayClient extends JiraClient<Ticket> {
     private final String instanceXrayClientSecret;
 
     // Jira configuration (inherited from BasicJiraClient pattern)
-    public static final String JIRA_BASE_PATH;
-    public static final String JIRA_TOKEN;
-    public static final String JIRA_AUTH_TYPE;
+    private static final String JIRA_BASE_PATH;
+    private static final String JIRA_TOKEN;
+    private static final String JIRA_AUTH_TYPE;
 
     private static final boolean IS_JIRA_LOGGING_ENABLED;
     private static final boolean IS_JIRA_CLEAR_CACHE;
