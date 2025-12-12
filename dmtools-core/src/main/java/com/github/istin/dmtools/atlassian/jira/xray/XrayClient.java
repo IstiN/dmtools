@@ -62,7 +62,7 @@ public class XrayClient extends JiraClient<Ticket> {
     private static final int JIRA_SEARCH_MAX_RESULTS;
 
     // X-ray OAuth2 token management
-    private String xrayAccessToken;
+    private volatile String xrayAccessToken;
     private long xrayTokenExpiryTime;
     private static final long TOKEN_REFRESH_BUFFER_MS = 60000; // Refresh 1 minute before expiry
 
