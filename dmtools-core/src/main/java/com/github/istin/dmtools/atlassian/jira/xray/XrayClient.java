@@ -25,6 +25,14 @@ import java.util.concurrent.TimeUnit;
  * This client uses dual configuration:
  * - Jira configuration (JIRA_BASE_PATH, JIRA_API_TOKEN) for Jira API calls
  * - X-ray configuration (XRAY_CLIENT_ID, XRAY_CLIENT_SECRET, XRAY_BASE_PATH) for X-ray API calls
+ * 
+ * <p>
+ * <b>Note on X-ray Cloud authentication:</b>
+ * X-ray Cloud does <em>not</em> use standard OAuth2 client credentials flow.
+ * Instead, it uses a proprietary authentication mechanism where you POST the client credentials
+ * (client ID and client secret) to the <code>/authenticate</code> endpoint and receive a bearer token in response.
+ * This bearer token is then used to authorize subsequent API requests.
+ * </p>
  */
 public class XrayClient extends JiraClient<Ticket> {
 
