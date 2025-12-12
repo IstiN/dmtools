@@ -409,25 +409,41 @@ public class ServerManagedIntegrationsModule {
      */
     private static class CustomServerManagedXrayClient extends XrayClient {
 
-        public CustomServerManagedXrayClient(String jiraBasePath, String jiraToken, String jiraAuthType, 
-                String extraFields, int maxSearchResults, String xrayBasePath, String xrayClientId, 
-                String xrayClientSecret) throws IOException {
+        public CustomServerManagedXrayClient(
+                String jiraBasePath,
+                String jiraToken,
+                String jiraAuthType,
+                String extraFields,
+                int maxSearchResults,
+                String xrayBasePath,
+                String xrayClientId,
+                String xrayClientSecret,
+                boolean isLoggingEnabled,
+                boolean isClearCache,
+                boolean isWaitBeforePerform,
+                long sleepTimeRequest,
+                boolean cacheEnabled
+        ) throws IOException {
             // Use protected constructor with resolved credentials
             super(jiraBasePath, jiraToken, jiraAuthType, maxSearchResults,
                     xrayBasePath, xrayClientId, xrayClientSecret,
-                    true, // isLoggingEnabled
-                    true, // isClearCache
-                    true, // isWaitBeforePerform
-                    100L, // sleepTimeRequest
+                    isLoggingEnabled,
+                    isClearCache,
+                    isWaitBeforePerform,
+                    sleepTimeRequest,
                     extraFields, // extraFieldsProject
                     extraFields != null && !extraFields.trim().isEmpty() ? extraFields.split(",") : null // extraFields
             );
-            
-            // Performance optimization: Enable caching after clearing
-            setCacheGetRequestsEnabled(true);
-            System.out.println("✅ [CustomServerManagedXrayClient] Cache cleaned and enabled for performance optimization");
-            System.out.println("✅ [CustomServerManagedXrayClient] Max search results configured: " + 
-                (maxSearchResults == -1 ? "unlimited" : String.valueOf(maxSearchResults)));
+
+            // Performance optimization: Enable caching if configured
+            setCacheGetRequestsEnabled(cacheEnabled);
+            if (cacheEnabled) {
+                System.out.println("✅ [CustomServerManagedXrayClient] Cache cleaned and enabled for performance optimization");
+            } else {
+                System.out.println("ℹ️ [CustomServerManagedXrayClient] Cache is disabled as per configuration");
+            }
+            System.out.println("✅ [CustomServerManagedXrayClient] Max search results configured: " +
+                    (maxSearchResults == -1 ? "unlimited" : String.valueOf(maxSearchResults)));
         }
     }
     
