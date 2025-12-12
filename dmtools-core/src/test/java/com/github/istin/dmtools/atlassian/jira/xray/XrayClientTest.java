@@ -45,16 +45,9 @@ public class XrayClientTest {
         } catch (Exception e) {
             // If configuration is missing, skip tests
             // This allows tests to run even without full X-ray configuration
-            assumeTrue("XrayClient configuration not available for testing", false);
+            org.junit.Assume.assumeTrue("XrayClient configuration not available for testing", false);
         }
     }
-
-    private void assumeTrue(String message, boolean condition) {
-        if (!condition) {
-            org.junit.Assume.assumeTrue(message, condition);
-        }
-    }
-
     @Test
     public void testGetDefaultQueryFields() {
         if (xrayClient == null) {
