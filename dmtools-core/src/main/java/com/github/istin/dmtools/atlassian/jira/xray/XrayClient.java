@@ -40,8 +40,8 @@ public class XrayClient extends JiraClient<Ticket> {
 
     // X-ray configuration (static for property-based, instance for server-managed)
     public static final String XRAY_BASE_PATH;
-    public static final String XRAY_CLIENT_ID;
-    public static final String XRAY_CLIENT_SECRET;
+    private static final String XRAY_CLIENT_ID;
+    private static final String XRAY_CLIENT_SECRET;
 
     // Instance fields for server-managed mode (override static fields)
     private final String instanceXrayBasePath;
