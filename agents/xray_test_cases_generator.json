@@ -1,0 +1,24 @@
+{
+  "name": "TestCasesGenerator",
+  "params": {
+    "inputJql": "key in (TP-1309)",
+    "testCasesPriorities": "Highest, High, Medium, Lowest, Low",
+    "outputType": "creation",
+    "existingTestCasesJql": "project = TP and issueType in ('Test', 'Precondition') and status not in (archived)",
+    "testCasesRelatedFields": ["issuetype","summary", "description", "priority"],
+    "testCasesExampleFields": ["issuetype", "summary", "description", "priority"],
+    "testCasesCustomFields": ["xrayTestSteps", "xrayPreconditions"],
+    "customFieldsRules": "Test steps must be generated in Xray JSON format for the 'steps' custom field. Format: [{\"action\": \"Step action description\", \"data\": \"Test data or input\", \"result\": \"Expected result\"}, {\"action\": \"Next step action\", \"data\": \"Next step data\", \"result\": \"Next expected result\"}]. Important: Each step must be a JSON object with exactly three fields: 'action' (string, describes what to do in this step), 'data' (string, test data, input values, or test conditions), and 'result' (string, expected outcome or validation criteria). The steps array should contain all test steps in sequential order. All values must be strings. Do not include any additional fields or nested objects. Example: [{\"action\": \"Navigate to login page\", \"data\": \"URL: https://example.com/login\", \"result\": \"Login page is displayed\"}, {\"action\": \"Enter credentials\", \"data\": \"Username: testuser, Password: testpass\", \"result\": \"Credentials are accepted\"}]. Preconditions must be generated in the 'preconditions' custom field. Format: Array of precondition references. Each element can be: (1) String with existing precondition key: \"TP-910\", (2) Object with temporary ID for new precondition: {\"key\": \"@precondition-1\", \"summary\": \"Precondition summary\", \"description\": \"Precondition description\", \"steps\": [{\"action\": \"...\", \"data\": \"...\", \"result\": \"...\"}]}. Important: For new preconditions (with temporary IDs), include 'summary', 'description', and 'steps' fields. The 'steps' field should follow the same format as test steps (array of objects with 'action', 'data', 'result'). The system will automatically convert the 'steps' array into a 'definition' field for Precondition issues in Xray (format: \"Step 1: action -> data -> result\\nStep 2: ...\"). Preconditions with the same temporary ID (e.g., @precondition-1) will be created once and reused across all test cases that reference it. Use temporary IDs when the same precondition is needed by multiple test cases.",
+    "confluencePages": ["https://dmtools.atlassian.net/wiki/spaces/AINA/pages/11665495/Template+Test+Case"],
+    "relatedTestCasesRules": "https://dmtools.atlassian.net/wiki/spaces/AINA/pages/55443457/Template+Test+Case+Related+Rules",
+    "isOverridePromptExamples": true,
+    "isFindRelated": true,
+    "isConvertToJiraMarkdown": false,
+    "includeOtherTicketReferences": true,
+    "testCaseLinkRelationship": "relates to",
+    "testCaseIssueType": "Test",
+    "preprocessJSAction": "agents/js/preprocessXrayTestCases.js",
+    "examples": "ql(project = TP and issuetype in (\"Test\") and labels = \"ai_example\")"
+  }
+}
+

@@ -65,6 +65,10 @@ public class JobJavaScriptBridge {
         // Note: The MCP system expects specific integration keys regardless of actual implementation
         this.clientInstances = new HashMap<>();
         this.clientInstances.put("jira", trackerClient);  // MCP expects "jira" key for any tracker implementation
+        // Also register as "jira_xray" if it's an XrayClient
+        if (trackerClient instanceof com.github.istin.dmtools.atlassian.jira.xray.XrayClient) {
+            this.clientInstances.put("jira_xray", trackerClient);
+        }
         this.clientInstances.put("ai", ai);
         this.clientInstances.put("confluence", confluence);
         this.clientInstances.put("file", new FileTools());  // File operations for reading files from working directory
@@ -360,7 +364,11 @@ public class JobJavaScriptBridge {
      */
     private void exposeMCPToolsUsingGenerated() {
         // Get all available integrations dynamically based on what's actually configured
-        Set<String> integrations = Set.of("jira", "ado", "ai", "confluence", "figma", "file", "cli", "teams", "sharepoint", "kb", "mermaid");
+        Set<String> integrations = new java.util.HashSet<>(Set.of("jira", "ado", "ai", "confluence", "figma", "file", "cli", "teams", "sharepoint", "kb", "mermaid"));
+        // Add jira_xray if XrayClient is available
+        if (trackerClient instanceof com.github.istin.dmtools.atlassian.jira.xray.XrayClient) {
+            integrations.add("jira_xray");
+        }
         
         // Generate tool schemas using MCP infrastructure
         Map<String, Object> toolsResponse = MCPSchemaGenerator.generateToolsListResponse(integrations);
@@ -534,7 +542,25 @@ public class JobJavaScriptBridge {
             Value result = actionFunction.execute(jsCompatibleParams);
             
             // Convert result back to Java object
-            return convertJSResultToJava(result);
+            // First check if it's a Polyglot array/list and convert directly
+            Object javaResult = null;
+            try {
+                // Check if result is a Polyglot array/list
+                if (result.hasArrayElements()) {
+                    // Convert PolyglotList directly to JSONArray
+                    javaResult = convertPolyglotValueToJSON(result.as(Object.class));
+                } else if (result.hasMembers()) {
+                    // Convert PolyglotMap directly to JSONObject
+                    javaResult = convertPolyglotValueToJSON(result.as(Object.class));
+                } else {
+                    // Use basic conversion for primitives
+                    javaResult = convertJSResultToJava(result);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to convert Polyglot value, using basic conversion: {}", e.getMessage());
+                javaResult = convertJSResultToJava(result);
+            }
+            return javaResult;
             
         } catch (Exception e) {
             logger.error("JavaScript execution failed for source: {}", 
