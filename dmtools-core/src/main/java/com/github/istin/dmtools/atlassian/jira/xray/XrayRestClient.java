@@ -574,6 +574,71 @@ public class XrayRestClient extends AbstractRestClient {
         }
         return new JSONArray();
     }
+    
+    /**
+     * Gets Precondition details including definition using X-ray GraphQL API.
+     * This method is specifically for Precondition issue types which have a definition field.
+     * 
+     * @param preconditionKey Jira ticket key (e.g., "TP-910")
+     * @return JSONObject with precondition details including definition, or null if not found
+     * @throws IOException if API call fails
+     */
+    public JSONObject getPreconditionDetailsGraphQL(String preconditionKey) throws IOException {
+        // GraphQL query for Precondition issues with definition
+        // Use getTests with inline fragment to get definition for Precondition type
+        String query = String.format(
+            "query { " +
+            "  getTests(jql: \"key=%s AND issueType = Precondition\", limit: 1) { " +
+            "    results { " +
+            "      issueId " +
+            "      projectId " +
+            "      jira(fields: [\"key\", \"summary\", \"description\"]) " +
+            "      testType { name } " +
+            "      ... on Precondition { " +
+            "        definition " +
+            "      } " +
+            "    } " +
+            "  } " +
+            "}",
+            preconditionKey
+        );
+
+        try {
+            String response = executeGraphQL(query);
+            if (response == null || response.trim().isEmpty()) {
+                return null;
+            }
+
+            JSONObject responseJson = new JSONObject(response);
+            
+            // Check for GraphQL errors
+            if (responseJson.has("errors")) {
+                JSONArray errors = responseJson.getJSONArray("errors");
+                String errorMessage = errors.length() > 0 ? errors.getJSONObject(0).optString("message", "Unknown GraphQL error") : "GraphQL error";
+                logger.warn("GraphQL query returned errors for precondition {}: {}", preconditionKey, errorMessage);
+                return null;
+            }
+
+            // Extract data
+            if (responseJson.has("data")) {
+                JSONObject data = responseJson.getJSONObject("data");
+                if (data.has("getTests")) {
+                    JSONObject getTests = data.getJSONObject("getTests");
+                    if (getTests.has("results")) {
+                        JSONArray results = getTests.getJSONArray("results");
+                        if (results.length() > 0) {
+                            return results.getJSONObject(0);
+                        }
+                    }
+                }
+            }
+
+            return null;
+        } catch (Exception e) {
+            logger.error("Error executing GraphQL query for precondition {}", preconditionKey, e);
+            throw new IOException("Failed to get precondition details via GraphQL: " + e.getMessage(), e);
+        }
+    }
 
     /**
      * Adds a test step to a test issue using X-ray GraphQL API.

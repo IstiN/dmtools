@@ -7,6 +7,8 @@ import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.PropertyReader;
+import com.github.istin.dmtools.mcp.MCPParam;
+import com.github.istin.dmtools.mcp.MCPTool;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
@@ -447,9 +449,17 @@ public class XrayClient extends JiraClient<Ticket> {
         
         logger.debug("Setting definition for precondition {} (issue ID: {}) using GraphQL", 
                 preconditionKey, issueIdToUse);
+        logger.debug("Definition content (first 200 chars): {}", 
+                definition.length() > 200 ? definition.substring(0, 200) + "..." : definition);
         
-        xrayRestClient.setPreconditionDefinitionGraphQL(issueIdToUse, definition);
-        logger.info("Successfully set definition for precondition {} using GraphQL (with issue ID)", preconditionKey);
+        JSONObject result = xrayRestClient.setPreconditionDefinitionGraphQL(issueIdToUse, definition);
+        if (result != null && result.has("definition")) {
+            String returnedDefinition = result.optString("definition", "");
+            logger.info("Successfully set definition for precondition {} using GraphQL. Returned definition length: {}", 
+                    preconditionKey, returnedDefinition.length());
+        } else {
+            logger.info("Successfully set definition for precondition {} using GraphQL (with issue ID)", preconditionKey);
+        }
     }
 
     /**
@@ -638,6 +648,83 @@ public class XrayClient extends JiraClient<Ticket> {
         return ticketResponse;
     }
 
+    /**
+     * Creates a Precondition issue in Xray with optional steps (converted to definition).
+     * This method is exposed as an MCP tool for JavaScript preprocessing.
+     * 
+     * @param project Project key (e.g., "TP")
+     * @param summary Precondition summary
+     * @param description Precondition description
+     * @param steps Optional JSON array of steps (will be converted to definition format)
+     * @return Created ticket key (e.g., "TP-1301")
+     * @throws IOException if creation fails
+     */
+    @MCPTool(
+            name = "jira_xray_create_precondition",
+            description = "Create a Precondition issue in Xray with optional steps (converted to definition). Returns the created ticket key.",
+            integration = "jira_xray",
+            category = "xray_management"
+    )
+    public String createPrecondition(
+            @MCPParam(name = "project", description = "Project key (e.g., 'TP')", required = true, example = "TP") String project,
+            @MCPParam(name = "summary", description = "Precondition summary", required = true, example = "System is ready for testing") String summary,
+            @MCPParam(name = "description", description = "Precondition description", required = false, example = "All system components are initialized") String description,
+            @MCPParam(name = "steps", description = "Optional JSON array of steps in format [{\"action\": \"...\", \"data\": \"...\", \"result\": \"...\"}]. Will be converted to definition format.", required = false) String steps
+    ) throws IOException {
+        if (description == null) {
+            description = "";
+        }
+        
+        // Create FieldsInitializer with steps if provided
+        TrackerClient.FieldsInitializer fieldsInitializer = null;
+        if (steps != null && !steps.trim().isEmpty()) {
+            try {
+                // Handle steps that might be a PolyglotList string representation
+                String stepsStr = steps;
+                if (stepsStr.startsWith("(") && stepsStr.contains(")[")) {
+                    // Extract array part from PolyglotList string like "(1)[{...}]"
+                    int arrayStart = stepsStr.indexOf(")[") + 2;
+                    stepsStr = stepsStr.substring(arrayStart);
+                }
+                JSONArray stepsArray = new JSONArray(stepsStr);
+                final JSONArray finalSteps = stepsArray;
+                fieldsInitializer = new TrackerClient.FieldsInitializer() {
+                    @Override
+                    public void init(TrackerClient.TrackerTicketFields fields) {
+                        fields.set("steps", finalSteps);
+                    }
+                };
+            } catch (Exception e) {
+                logger.warn("Failed to parse steps JSON for precondition: {}", e.getMessage());
+                // Try using Gson as fallback
+                try {
+                    com.google.gson.Gson gson = new com.google.gson.Gson();
+                    Object parsed = gson.fromJson(steps, Object.class);
+                    if (parsed instanceof java.util.List) {
+                        JSONArray stepsArray = new JSONArray();
+                        for (Object item : (java.util.List<?>) parsed) {
+                            String itemJson = gson.toJson(item);
+                            stepsArray.put(new JSONObject(itemJson));
+                        }
+                        final JSONArray finalSteps = stepsArray;
+                        fieldsInitializer = new TrackerClient.FieldsInitializer() {
+                            @Override
+                            public void init(TrackerClient.TrackerTicketFields fields) {
+                                fields.set("steps", finalSteps);
+                            }
+                        };
+                    }
+                } catch (Exception e2) {
+                    logger.warn("Failed to parse steps with Gson fallback: {}", e2.getMessage());
+                }
+            }
+        }
+        
+        String response = createTicketInProject(project, "Precondition", summary, description, fieldsInitializer);
+        JSONObject responseJson = new JSONObject(response);
+        return responseJson.getString("key");
+    }
+
     @Override
     public String getTextFieldsOnly(ITicket ticket) {
         StringBuilder ticketDescription = null;
@@ -711,13 +798,19 @@ public class XrayClient extends JiraClient<Ticket> {
         List<Ticket> testTickets = new ArrayList<>();
         Map<String, Ticket> ticketMap = new HashMap<>();
         for (Ticket ticket : tickets) {
-            String issueType = ticket.getIssueType();
-            if (issueType != null && (issueType.equalsIgnoreCase("Test") || issueType.equalsIgnoreCase("Precondition"))) {
-                String ticketKey = ticket.getKey();
-                if (ticketKey != null && !ticketKey.isEmpty()) {
-                    testTickets.add(ticket);
-                    ticketMap.put(ticketKey, ticket);
+            try {
+                String issueType = ticket.getIssueType();
+                if (issueType != null && (issueType.equalsIgnoreCase("Test") || issueType.equalsIgnoreCase("Precondition"))) {
+                    String ticketKey = ticket.getKey();
+                    if (ticketKey != null && !ticketKey.isEmpty()) {
+                        testTickets.add(ticket);
+                        ticketMap.put(ticketKey, ticket);
+                    }
                 }
+            } catch (NullPointerException e) {
+                // Skip tickets without issue type (may happen if fields are not fully loaded)
+                String ticketKey = ticket != null ? ticket.getKey() : "unknown";
+                logger.debug("Skipping ticket {} - issue type is not available", ticketKey);
             }
         }
         
@@ -894,6 +987,18 @@ public class XrayClient extends JiraClient<Ticket> {
      */
     public JSONArray getPreconditionsGraphQL(String testKey) throws IOException {
         return xrayRestClient.getPreconditionsGraphQL(testKey);
+    }
+    
+    /**
+     * Gets Precondition details including definition using X-ray GraphQL API.
+     * Delegates to XrayRestClient.
+     * 
+     * @param preconditionKey Jira ticket key (e.g., "TP-910")
+     * @return JSONObject with precondition details including definition, or null if not found
+     * @throws IOException if API call fails
+     */
+    public JSONObject getPreconditionDetailsGraphQL(String preconditionKey) throws IOException {
+        return xrayRestClient.getPreconditionDetailsGraphQL(preconditionKey);
     }
 
     /**
