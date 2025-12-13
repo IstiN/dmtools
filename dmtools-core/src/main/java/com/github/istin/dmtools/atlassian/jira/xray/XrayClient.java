@@ -7,7 +7,6 @@ import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.PropertyReader;
-import okhttp3.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
@@ -15,7 +14,6 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * X-ray client that extends JiraClient to provide X-ray-specific functionality.
@@ -42,10 +40,6 @@ public class XrayClient extends JiraClient<Ticket> {
     private static final String XRAY_CLIENT_ID;
     private static final String XRAY_CLIENT_SECRET;
 
-    // Instance fields for server-managed mode (override static fields)
-    private final String instanceXrayBasePath;
-    private final String instanceXrayClientId;
-    private final String instanceXrayClientSecret;
 
     // Jira configuration (inherited from BasicJiraClient pattern)
     private static final String JIRA_BASE_PATH;
@@ -60,13 +54,8 @@ public class XrayClient extends JiraClient<Ticket> {
     private static final String JIRA_EXTRA_FIELDS_PROJECT;
     private static final int JIRA_SEARCH_MAX_RESULTS;
 
-    // X-ray bearer token management
-    private volatile String xrayAccessToken;
-    private volatile long xrayTokenExpiryTime;
-    private static final long TOKEN_REFRESH_BUFFER_MS = 60000; // Refresh 1 minute before expiry
-
-    // HTTP client for X-ray API calls (separate from Jira client)
-    private final OkHttpClient xrayHttpClient;
+    // X-ray REST client for API communication
+    private final XrayRestClient xrayRestClient;
 
     // Field names for steps and preconditions extraction
     private static final String[] STEPS_FIELD_NAMES = {"steps", "testSteps", "xraySteps", "test_steps"};
@@ -155,11 +144,6 @@ public class XrayClient extends JiraClient<Ticket> {
         // Initialize with Jira configuration (for Jira API calls)
         super(jiraBasePath, jiraToken, LogManager.getLogger(XrayClient.class), maxSearchResults);
         
-        // Store X-ray configuration for instance use
-        this.instanceXrayBasePath = xrayBasePath;
-        this.instanceXrayClientId = xrayClientId;
-        this.instanceXrayClientSecret = xrayClientSecret;
-        
         if (jiraAuthType != null) {
             setAuthType(jiraAuthType);
         }
@@ -170,12 +154,8 @@ public class XrayClient extends JiraClient<Ticket> {
         }
         setClearCache(isClearCache);
 
-        // Initialize X-ray HTTP client (for X-ray API calls)
-        OkHttpClient.Builder builder = new OkHttpClient.Builder();
-        builder.connectTimeout(60, TimeUnit.SECONDS);
-        builder.writeTimeout(60, TimeUnit.SECONDS);
-        builder.readTimeout(60, TimeUnit.SECONDS);
-        this.xrayHttpClient = builder.build();
+        // Initialize X-ray REST client (for X-ray API calls)
+        this.xrayRestClient = new XrayRestClient(xrayBasePath, xrayClientId, xrayClientSecret);
 
         // Initialize field arrays like BasicJiraClient
         List<String> defaultFields = new ArrayList<>(Arrays.asList(BasicJiraClient.DEFAULT_QUERY_FIELDS));
@@ -202,150 +182,16 @@ public class XrayClient extends JiraClient<Ticket> {
     }
 
     /**
-     * Gets the X-ray base path (instance field for server-managed, static for property-based)
-     */
-    private String getXrayBasePath() {
-        return instanceXrayBasePath != null ? instanceXrayBasePath : XRAY_BASE_PATH;
-    }
-
-    /**
-     * Gets the X-ray client ID (instance field for server-managed, static for property-based)
-     */
-    private String getXrayClientId() {
-        return instanceXrayClientId != null ? instanceXrayClientId : XRAY_CLIENT_ID;
-    }
-
-    /**
-     * Gets the X-ray client secret (instance field for server-managed, static for property-based)
-     */
-    private String getXrayClientSecret() {
-        return instanceXrayClientSecret != null ? instanceXrayClientSecret : XRAY_CLIENT_SECRET;
-    }
-
-    /**
-     * Obtains or refreshes the X-ray bearer access token using Xray's proprietary authentication mechanism.
-     * <p>
-     * Sends the client ID and client secret to the Xray /authenticate endpoint to receive a bearer token.
+     * Makes an authenticated request to X-ray API using XrayRestClient.
      * 
-     * @return Access token for X-ray API calls
-     * @throws IOException if token acquisition fails
-     */
-    private synchronized String getXrayAccessToken() throws IOException {
-        // Check if we have a valid token
-        if (xrayAccessToken != null && System.currentTimeMillis() < xrayTokenExpiryTime - TOKEN_REFRESH_BUFFER_MS) {
-            return xrayAccessToken;
-        }
-
-        // Request new token
-        String tokenUrl = getXrayBasePath();
-        if (tokenUrl == null || tokenUrl.isEmpty()) {
-            throw new IOException("XRAY_BASE_PATH is not configured");
-        }
-        if (!tokenUrl.endsWith("/")) {
-            tokenUrl += "/";
-        }
-        tokenUrl += "authenticate";
-
-        try {
-            // Prepare request body as JSON (X-ray API expects JSON, not form-encoded)
-            JSONObject json = new JSONObject();
-            json.put("client_id", getXrayClientId());
-            json.put("client_secret", getXrayClientSecret());
-            RequestBody requestBody = RequestBody.create(json.toString(), MediaType.parse("application/json"));
-
-            Request request = new Request.Builder()
-                    .url(tokenUrl)
-                    .post(requestBody)
-                    .header("Content-Type", "application/json")
-                    .build();
-
-            // Use try-with-resources to ensure response is closed
-            try (Response response = xrayHttpClient.newCall(request).execute()) {
-                // Store response body first - can only be consumed once
-                String responseBody = response.body() != null ? response.body().string() : "";
-                
-                if (!response.isSuccessful()) {
-                    throw new IOException("Failed to obtain X-ray access token. HTTP " + response.code() + ": " + 
-                            (responseBody.isEmpty() ? "No error body" : responseBody));
-                }
-
-                // X-ray returns the token as a plain string; expiry is assumed to be 1 hour (3600 seconds)
-                xrayAccessToken = responseBody.trim();
-                long expiresIn = 3600; // Default to 1 hour
-                xrayTokenExpiryTime = System.currentTimeMillis() + (expiresIn * 1000);
-
-                logger.debug("Successfully obtained X-ray access token, expires in {} seconds", expiresIn);
-                return xrayAccessToken;
-            }
-
-        } catch (Exception e) {
-            logger.error("Error obtaining X-ray access token", e);
-            throw new IOException("Failed to obtain X-ray access token: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Makes an authenticated request to X-ray API.
-     * 
-     * @param endpoint X-ray API endpoint (relative to XRAY_BASE_PATH)
+     * @param endpoint X-ray API endpoint (relative to basePath, e.g., "test/TP-123/steps")
      * @param method HTTP method (GET, POST, PUT, PATCH, DELETE)
-     * @param body Request body (can be null)
+     * @param body Request body (can be null for GET/DELETE)
      * @return Response body as string
      * @throws IOException if request fails
      */
     private String xrayApiRequest(String endpoint, String method, String body) throws IOException {
-        String accessToken = getXrayAccessToken();
-        
-        String url = getXrayBasePath();
-        if (url == null || url.isEmpty()) {
-            throw new IOException("XRAY_BASE_PATH is not configured");
-        }
-        if (!url.endsWith("/")) {
-            url += "/";
-        }
-        url += endpoint;
-
-        Request.Builder requestBuilder = new Request.Builder()
-                .url(url)
-                .header("Authorization", "Bearer " + accessToken)
-                .header("Content-Type", "application/json");
-
-        if (body != null) {
-            RequestBody requestBody = RequestBody.create(body, MediaType.parse("application/json"));
-            switch (method.toUpperCase()) {
-                case "POST":
-                    requestBuilder.post(requestBody);
-                    break;
-                case "PUT":
-                    requestBuilder.put(requestBody);
-                    break;
-                case "PATCH":
-                    requestBuilder.patch(requestBody);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported HTTP method: " + method);
-            }
-        } else {
-            if ("GET".equalsIgnoreCase(method)) {
-                requestBuilder.get();
-            } else if ("DELETE".equalsIgnoreCase(method)) {
-                requestBuilder.delete();
-            } else {
-                throw new IllegalArgumentException("Method " + method + " requires a body");
-            }
-        }
-
-        Request request = requestBuilder.build();
-
-        try (Response response = xrayHttpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "No error body";
-                throw new IOException("X-ray API request failed. HTTP " + response.code() + ": " + errorBody);
-            }
-
-            ResponseBody responseBody = response.body();
-            return responseBody != null ? responseBody.string() : "";
-        }
+        return xrayRestClient.xrayRequest(endpoint, method, body);
     }
 
     /**
@@ -409,40 +255,220 @@ public class XrayClient extends JiraClient<Ticket> {
     }
 
     /**
-     * Sets test steps on a Jira ticket via X-ray API.
+     * Sets test steps on a Jira ticket via X-ray GraphQL API.
+     * Migrated from REST API to GraphQL for better reliability.
      * 
      * @param testKey Jira ticket key (e.g., "PROJ-123")
      * @param steps Array of step objects with action, data, expectedResult fields
      * @throws IOException if API call fails
      */
-    private void setTestSteps(String testKey, JSONArray steps) throws IOException {
-        if (steps == null || steps.length() == 0) {
+    /**
+     * Waits for X-ray to sync a newly created ticket.
+     * Checks if the ticket is available in Xray by querying it via GraphQL.
+     * 
+     * @param ticketKey Jira ticket key (e.g., "TP-123")
+     * @return The Xray issue ID if available, or null if not synced yet
+     */
+    private String waitForXraySync(String ticketKey) {
+        int maxAttempts = 10; // Maximum 10 attempts
+        long waitTimeMs = 2000; // Wait 2 seconds between attempts
+        
+        logger.debug("Waiting for X-ray to sync ticket {}", ticketKey);
+        
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                // Check if ticket is available in Xray by querying it
+                JSONObject testDetails = xrayRestClient.getTestDetailsGraphQL(ticketKey);
+                if (testDetails != null) {
+                    // Extract issueId from Xray response - this is the ID Xray uses
+                    String xrayIssueId = testDetails.optString("issueId", null);
+                    if (xrayIssueId != null && !xrayIssueId.isEmpty()) {
+                        logger.debug("Ticket {} is now available in X-ray (attempt {}), Xray issue ID: {}", 
+                                ticketKey, attempt, xrayIssueId);
+                        return xrayIssueId; // Return Xray issue ID
+                    } else {
+                        logger.debug("Ticket {} is available in X-ray but issueId not found (attempt {})", 
+                                ticketKey, attempt);
+                        return null; // Ticket is synced but no issueId, proceed anyway
+                    }
+                }
+            } catch (IOException e) {
+                // Ticket not yet synced, continue waiting
+                logger.debug("Ticket {} not yet available in X-ray (attempt {}/{}): {}", 
+                        ticketKey, attempt, maxAttempts, e.getMessage());
+            }
+            
+            // Wait before next attempt (except on last attempt)
+            if (attempt < maxAttempts) {
+                try {
+                    Thread.sleep(waitTimeMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.warn("Thread interrupted while waiting for X-ray sync");
+                    return null;
+                }
+            }
+        }
+        
+        logger.warn("Ticket {} may not be fully synced in X-ray after {} attempts, proceeding anyway", 
+                ticketKey, maxAttempts);
+        return null;
+    }
+
+    private void setTestSteps(String testKey, JSONArray steps, String xrayIssueId) throws IOException {
+        if (steps == null || steps.isEmpty()) {
             logger.debug("No steps to set for test {}", testKey);
             return;
         }
 
-        // X-ray API expects the steps array directly, not wrapped in an object
-        String endpoint = "api/v2/test/" + testKey + "/steps";
-        xrayApiRequest(endpoint, "PUT", steps.toString());
-        logger.info("Successfully set {} steps for test {}", steps.length(), testKey);
+        logger.debug("Setting {} steps for test {} using GraphQL", steps.length(), testKey);
+        
+        // Convert steps array to format expected by GraphQL
+        JSONArray graphqlSteps = new JSONArray();
+        for (int i = 0; i < steps.length(); i++) {
+            JSONObject step = steps.getJSONObject(i);
+            // Handle different field names: action, data, result, expectedResult
+            String action = step.optString("action", step.optString("step", ""));
+            String data = step.optString("data", "");
+            String result = step.optString("result", step.optString("expectedResult", ""));
+            
+            graphqlSteps.put(new JSONObject()
+                    .put("action", action)
+                    .put("data", data)
+                    .put("result", result));
+        }
+        
+        // Use Xray issue ID if available (preferred), otherwise try ticket key, then fallback to Jira issue ID
+        String issueIdToUse = null;
+        
+        if (xrayIssueId != null && !xrayIssueId.isEmpty()) {
+            issueIdToUse = xrayIssueId;
+            logger.debug("Using Xray issue ID {} for test {}", issueIdToUse, testKey);
+        } else {
+            // Try using ticket key first
+            IOException keyException = null;
+            try {
+                addTestStepsGraphQL(testKey, graphqlSteps);
+                logger.info("Successfully set {} steps for test {} using GraphQL (with ticket key)", steps.length(), testKey);
+                return;
+            } catch (IOException e) {
+                keyException = e;
+                String errorMsg = e.getMessage() != null ? e.getMessage() : "";
+                // If key is not valid, fallback to issue ID
+                if (errorMsg.contains("not valid") || errorMsg.contains("Invalid") || errorMsg.contains("Cannot")) {
+                    logger.debug("Ticket key not accepted by GraphQL API, falling back to Jira issue ID");
+                } else {
+                    // For other errors, rethrow immediately
+                    throw e;
+                }
+            }
+            
+            // Fallback: Get issue ID from Jira
+            logger.debug("Getting issue ID from Jira for test {} to use with GraphQL API", testKey);
+            Ticket ticket = performTicket(testKey, new String[]{"id"});
+            if (ticket == null || ticket.getId() == null || ticket.getId().isEmpty()) {
+                throw new IOException("Cannot get issue ID for test " + testKey + (keyException != null ? ": " + keyException.getMessage() : ""));
+            }
+            issueIdToUse = ticket.getId();
+            logger.debug("Using Jira issue ID {} for test {}", issueIdToUse, testKey);
+        }
+        
+        logger.debug("Setting {} steps for test {} (issue ID: {}) using GraphQL", steps.length(), testKey, issueIdToUse);
+        
+        addTestStepsGraphQL(issueIdToUse, graphqlSteps);
+        logger.info("Successfully set {} steps for test {} using GraphQL (with issue ID)", steps.length(), testKey);
+    }
+
+    /**
+     * Sets definition for a Precondition issue using X-ray GraphQL API.
+     * Converts steps array to a definition string format.
+     * 
+     * @param preconditionKey Jira ticket key (e.g., "TP-123")
+     * @param steps Array of step objects with action, data, expectedResult fields
+     * @param xrayIssueId Xray issue ID if available (from waitForXraySync), or null
+     * @throws IOException if API call fails
+     */
+    private void setPreconditionDefinition(String preconditionKey, JSONArray steps, String xrayIssueId) throws IOException {
+        if (steps == null || steps.isEmpty()) {
+            logger.debug("No steps to convert to definition for precondition {}", preconditionKey);
+            return;
+        }
+
+        logger.debug("Setting definition for precondition {} using GraphQL", preconditionKey);
+        
+        // Convert steps array to definition string
+        // Format: "Step 1: action -> data -> result\nStep 2: ..."
+        StringBuilder definitionBuilder = new StringBuilder();
+        for (int i = 0; i < steps.length(); i++) {
+            JSONObject step = steps.getJSONObject(i);
+            String action = step.optString("action", step.optString("step", ""));
+            String data = step.optString("data", "");
+            String result = step.optString("result", step.optString("expectedResult", ""));
+            
+            if (i > 0) {
+                definitionBuilder.append("\n");
+            }
+            definitionBuilder.append("Step ").append(i + 1).append(": ");
+            if (!action.isEmpty()) {
+                definitionBuilder.append(action);
+            }
+            if (!data.isEmpty()) {
+                if (!action.isEmpty()) {
+                    definitionBuilder.append(" -> ");
+                }
+                definitionBuilder.append(data);
+            }
+            if (!result.isEmpty()) {
+                if (!action.isEmpty() || !data.isEmpty()) {
+                    definitionBuilder.append(" -> ");
+                }
+                definitionBuilder.append(result);
+            }
+        }
+        
+        String definition = definitionBuilder.toString();
+        
+        // Use Xray issue ID if available (preferred), otherwise try to get it
+        String issueIdToUse = null;
+        
+        if (xrayIssueId != null && !xrayIssueId.isEmpty()) {
+            issueIdToUse = xrayIssueId;
+            logger.debug("Using Xray issue ID {} for precondition {}", issueIdToUse, preconditionKey);
+        } else {
+            // Get issue ID from Jira
+            logger.debug("Getting issue ID from Jira for precondition {} to use with GraphQL API", preconditionKey);
+            Ticket ticket = performTicket(preconditionKey, new String[]{"id"});
+            if (ticket == null || ticket.getId() == null || ticket.getId().isEmpty()) {
+                throw new IOException("Cannot get issue ID for precondition " + preconditionKey);
+            }
+            issueIdToUse = ticket.getId();
+            logger.debug("Using Jira issue ID {} for precondition {}", issueIdToUse, preconditionKey);
+        }
+        
+        logger.debug("Setting definition for precondition {} (issue ID: {}) using GraphQL", 
+                preconditionKey, issueIdToUse);
+        
+        xrayRestClient.setPreconditionDefinitionGraphQL(issueIdToUse, definition);
+        logger.info("Successfully set definition for precondition {} using GraphQL (with issue ID)", preconditionKey);
     }
 
     /**
      * Sets preconditions on a Jira ticket via X-ray API.
-     * Preconditions are separate Jira tickets linked to the test.
+     * Note: GraphQL API requires Precondition type issues, but REST API may accept Test issues.
+     * We try GraphQL first, and fall back to REST API if GraphQL fails with "not found" error.
      * 
      * @param testKey Jira ticket key (e.g., "PROJ-123")
      * @param preconditions Array of precondition ticket keys or objects
+     * @param xrayIssueId Xray issue ID if available (from waitForXraySync), or null
      * @throws IOException if API call fails
      */
-    private void setPreconditions(String testKey, JSONArray preconditions) throws IOException {
+    private void setPreconditions(String testKey, JSONArray preconditions, String xrayIssueId) throws IOException {
         if (preconditions == null || preconditions.length() == 0) {
             logger.debug("No preconditions to set for test {}", testKey);
             return;
         }
 
-        // Format preconditions for X-ray API
-        // X-ray expects an array of precondition issue keys
+        // Format preconditions - extract ticket keys
         JSONArray preconditionKeys = new JSONArray();
         for (int i = 0; i < preconditions.length(); i++) {
             Object item = preconditions.get(i);
@@ -463,10 +489,71 @@ public class XrayClient extends JiraClient<Ticket> {
             return;
         }
 
-        // X-ray API expects the request body to be the array directly, not wrapped in an object
-        String endpoint = "api/v2/test/" + testKey + "/preconditions";
+        // Try GraphQL API first (requires Precondition type issues)
+        try {
+            // Use Xray issue ID if available (preferred), otherwise get from Jira
+            String issueId = xrayIssueId;
+            if (issueId == null || issueId.isEmpty()) {
+                // Get the issue ID from Jira (GraphQL requires issue ID, not key)
+                Ticket ticket = performTicket(testKey, new String[]{"id"});
+                if (ticket == null || ticket.getId() == null || ticket.getId().isEmpty()) {
+                    throw new IOException("Cannot get issue ID for test " + testKey);
+                }
+                issueId = ticket.getId();
+                logger.debug("Using Jira issue ID {} for test {}", issueId, testKey);
+            } else {
+                logger.debug("Using Xray issue ID {} for test {}", issueId, testKey);
+            }
+            
+            // Convert precondition keys to issue IDs
+            JSONArray preconditionIssueIds = new JSONArray();
+            for (int i = 0; i < preconditionKeys.length(); i++) {
+                String preconditionKey = preconditionKeys.getString(i);
+                try {
+                    Ticket preconditionTicket = performTicket(preconditionKey, new String[]{"id"});
+                    if (preconditionTicket != null && preconditionTicket.getId() != null) {
+                        preconditionIssueIds.put(preconditionTicket.getId());
+                    }
+                } catch (IOException e) {
+                    logger.warn("Error getting issue ID for precondition ticket {}: {}", preconditionKey, e.getMessage());
+                }
+            }
+
+            if (preconditionIssueIds.length() > 0) {
+                logger.debug("Attempting to set {} preconditions for test {} using GraphQL", 
+                        preconditionIssueIds.length(), testKey);
+                JSONArray results = addPreconditionsToTestGraphQL(issueId, preconditionIssueIds);
+                // Check if GraphQL succeeded (added at least one precondition)
+                if (results != null && results.length() > 0) {
+                    logger.info("Successfully set {} preconditions for test {} using GraphQL", 
+                            results.length(), testKey);
+                    return;
+                } else {
+                    // GraphQL returned empty results - preconditions may not be Precondition type issues
+                    logger.debug("GraphQL returned no results (preconditions may not be Precondition type), falling back to REST API");
+                }
+            }
+        } catch (IOException e) {
+            String errorMsg = e.getMessage() != null ? e.getMessage() : "";
+            // If GraphQL fails with "not found" error, it means preconditions are not Precondition type issues
+            // Fall back to REST API which may accept Test issues as preconditions
+            if (errorMsg.contains("not found") || errorMsg.contains("preconditions with the following ids")) {
+                logger.debug("GraphQL failed (preconditions may not be Precondition type), falling back to REST API: {}", errorMsg);
+            } else {
+                // For other errors, log and fall back to REST API
+                logger.warn("GraphQL failed, falling back to REST API: {}", errorMsg);
+            }
+        }
+
+        // Fall back to REST API (may work with Test issues as preconditions)
+        logger.debug("Using REST API to set {} preconditions for test {}", preconditionKeys.length(), testKey);
+        // X-ray API v2 expects: PUT /api/v2/tests/{testKey}/preconditions
+        // Note: "tests" (plural) not "test", and body is array directly
+        String endpoint = "api/v2/tests/" + testKey + "/preconditions";
+        
         xrayApiRequest(endpoint, "PUT", preconditionKeys.toString());
-        logger.info("Successfully set {} preconditions for test {}", preconditionKeys.length(), testKey);
+        logger.info("Successfully set {} preconditions for test {} using REST API", 
+                preconditionKeys.length(), testKey);
     }
 
     @Override
@@ -514,22 +601,34 @@ public class XrayClient extends JiraClient<Ticket> {
         JSONObject responseJson = new JSONObject(ticketResponse);
         String ticketKey = responseJson.getString("key");
 
-        // Set steps and preconditions via X-ray API
+        // Wait for X-ray to sync the newly created ticket and get Xray issue ID
+        // X-ray needs time to recognize the ticket before we can set steps/preconditions
+        String xrayIssueId = waitForXraySync(ticketKey);
+
+        // Set steps/definition and preconditions via X-ray API
+        // For Precondition issues, set definition instead of steps
         if (steps != null) {
             try {
-                setTestSteps(ticketKey, steps);
+                if ("Precondition".equalsIgnoreCase(issueType)) {
+                    // For Precondition issues, convert steps to definition string
+                    setPreconditionDefinition(ticketKey, steps, xrayIssueId);
+                } else {
+                    // For Test issues, set steps normally
+                    setTestSteps(ticketKey, steps, xrayIssueId);
+                }
             } catch (IOException e) {
-                logger.error("Failed to set X-ray steps for ticket {} with {} steps: {}", 
-                        ticketKey, steps.length(), e.getMessage());
+                logger.error("Failed to set X-ray {} for ticket {}: {}",
+                        "Precondition".equalsIgnoreCase(issueType) ? "definition" : "steps",
+                        ticketKey, e.getMessage());
                 // Don't fail the entire operation if X-ray API calls fail
                 // The ticket was already created in Jira
             }
         }
         if (preconditions != null) {
             try {
-                setPreconditions(ticketKey, preconditions);
+                setPreconditions(ticketKey, preconditions, xrayIssueId);
             } catch (IOException e) {
-                logger.error("Failed to set X-ray preconditions for ticket {} with {} preconditions: {}", 
+                logger.error("Failed to set X-ray preconditions for ticket {} with {} preconditions: {}",
                         ticketKey, preconditions.length(), e.getMessage());
                 // Don't fail the entire operation if X-ray API calls fail
                 // The ticket was already created in Jira
@@ -584,5 +683,270 @@ public class XrayClient extends JiraClient<Ticket> {
     @Override
     public TextType getTextType() {
         return TextType.MARKDOWN;
+    }
+
+    /**
+     * Overrides searchAndPerform to enrich test tickets with X-ray test steps and preconditions.
+     * First calls the parent method to get tickets from Jira, then for each Test issue,
+     * retrieves test steps and preconditions from X-ray GraphQL API and adds them to the ticket.
+     * 
+     * @param searchQueryJQL JQL search query
+     * @param fields Array of field names to retrieve
+     * @return List of tickets with X-ray test steps and preconditions added for Test issues
+     * @throws Exception if search or X-ray API calls fail
+     */
+    @Override
+    public List<Ticket> searchAndPerform(String searchQueryJQL, String[] fields) throws Exception {
+        // First, call parent method to get tickets from Jira
+        List<Ticket> tickets = super.searchAndPerform(searchQueryJQL, fields);
+        
+        if (tickets == null || tickets.isEmpty()) {
+            logger.debug("No tickets found for query: {}", searchQueryJQL);
+            return tickets;
+        }
+        
+        logger.debug("Found {} tickets, enriching with X-ray test steps and preconditions", tickets.size());
+        
+        // Filter Test and Precondition issues
+        List<Ticket> testTickets = new ArrayList<>();
+        Map<String, Ticket> ticketMap = new HashMap<>();
+        for (Ticket ticket : tickets) {
+            String issueType = ticket.getIssueType();
+            if (issueType != null && (issueType.equalsIgnoreCase("Test") || issueType.equalsIgnoreCase("Precondition"))) {
+                String ticketKey = ticket.getKey();
+                if (ticketKey != null && !ticketKey.isEmpty()) {
+                    testTickets.add(ticket);
+                    ticketMap.put(ticketKey, ticket);
+                }
+            }
+        }
+        
+        if (testTickets.isEmpty()) {
+            logger.debug("No Test or Precondition issues found in results");
+            return tickets;
+        }
+        
+        // Use the same JQL query to get all X-ray data in one GraphQL call
+        // Limit to 100 (GraphQL API limit) or number of test tickets, whichever is smaller
+        int limit = Math.min(100, testTickets.size());
+        logger.debug("Fetching X-ray data for {} test tickets using JQL query: {}", testTickets.size(), searchQueryJQL);
+        
+        try {
+            JSONArray xrayTests = xrayRestClient.getTestsByJQLGraphQL(searchQueryJQL, limit);
+            
+            // Create a map of X-ray test data by ticket key for fast lookup
+            Map<String, JSONObject> xrayDataMap = new HashMap<>();
+            Set<String> preconditionKeys = new HashSet<>();
+            
+            for (int i = 0; i < xrayTests.length(); i++) {
+                JSONObject xrayTest = xrayTests.getJSONObject(i);
+                if (xrayTest.has("jira")) {
+                    JSONObject jira = xrayTest.getJSONObject("jira");
+                    String key = jira.optString("key", null);
+                    if (key != null && !key.isEmpty()) {
+                        xrayDataMap.put(key, xrayTest);
+                        
+                        // Collect all precondition keys for batch fetching from Jira
+                        if (xrayTest.has("preconditions")) {
+                            JSONObject preconditionsObj = xrayTest.getJSONObject("preconditions");
+                            if (preconditionsObj.has("results")) {
+                                JSONArray preconditions = preconditionsObj.getJSONArray("results");
+                                for (int j = 0; j < preconditions.length(); j++) {
+                                    JSONObject precondition = preconditions.getJSONObject(j);
+                                    if (precondition.has("jira")) {
+                                        JSONObject precJira = precondition.getJSONObject("jira");
+                                        String precKey = precJira.optString("key", null);
+                                        if (precKey != null && !precKey.isEmpty()) {
+                                            preconditionKeys.add(precKey);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            logger.debug("Retrieved {} tests from X-ray GraphQL API", xrayDataMap.size());
+            
+            // Batch fetch precondition summary/description from Jira
+            Map<String, Ticket> preconditionTicketsMap = new HashMap<>();
+            for (String preconditionKey : preconditionKeys) {
+                try {
+                    Ticket preconditionTicket = performTicket(preconditionKey, new String[]{"summary", "description"});
+                    if (preconditionTicket != null) {
+                        preconditionTicketsMap.put(preconditionKey, preconditionTicket);
+                    }
+                } catch (IOException e) {
+                    logger.debug("Failed to get Jira data for precondition {}: {}", preconditionKey, e.getMessage());
+                }
+            }
+            
+            // Enrich tickets with X-ray data
+            for (Ticket ticket : testTickets) {
+                try {
+                    String ticketKey = ticket.getKey();
+                    JSONObject xrayData = xrayDataMap.get(ticketKey);
+                    
+                    if (xrayData == null) {
+                        logger.debug("No X-ray data found for ticket {}", ticketKey);
+                        continue;
+                    }
+                    
+                    Fields fieldsObj = ticket.getFields();
+                    if (fieldsObj == null) {
+                        continue;
+                    }
+                    
+                    // Add test steps
+                    if (xrayData.has("steps")) {
+                        JSONArray steps = xrayData.getJSONArray("steps");
+                        if (steps != null && steps.length() > 0) {
+                            fieldsObj.getJSONObject().put("xrayTestSteps", steps);
+                            logger.debug("Added {} test steps to ticket {}", steps.length(), ticketKey);
+                        }
+                    }
+                    
+                    // Add preconditions with definition from Xray and summary/description from Jira
+                    if (xrayData.has("preconditions")) {
+                        JSONObject preconditionsObj = xrayData.getJSONObject("preconditions");
+                        if (preconditionsObj.has("results")) {
+                            JSONArray preconditions = preconditionsObj.getJSONArray("results");
+                            
+                            // Enrich each precondition with Jira data
+                            for (int i = 0; i < preconditions.length(); i++) {
+                                JSONObject precondition = preconditions.getJSONObject(i);
+                                
+                                String preconditionKey = null;
+                                if (precondition.has("jira")) {
+                                    JSONObject jira = precondition.getJSONObject("jira");
+                                    preconditionKey = jira.optString("key", null);
+                                }
+                                
+                                if (preconditionKey != null && !preconditionKey.isEmpty()) {
+                                    Ticket preconditionTicket = preconditionTicketsMap.get(preconditionKey);
+                                    if (preconditionTicket != null) {
+                                        Fields preconditionFields = preconditionTicket.getFields();
+                                        if (preconditionFields != null) {
+                                            if (preconditionFields.getSummary() != null) {
+                                                precondition.put("summary", preconditionFields.getSummary());
+                                            }
+                                            if (preconditionFields.getDescription() != null) {
+                                                precondition.put("description", preconditionFields.getDescription());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            fieldsObj.getJSONObject().put("xrayPreconditions", preconditions);
+                            logger.debug("Added {} preconditions to ticket {} (with definition from Xray and summary/description from Jira)", 
+                                    preconditions.length(), ticketKey);
+                        }
+                    }
+                    
+                } catch (Exception e) {
+                    logger.warn("Error enriching ticket {} with X-ray data: {}", ticket.getKey(), e.getMessage());
+                    // Continue processing other tickets even if one fails
+                }
+            }
+            
+        } catch (IOException e) {
+            logger.warn("Failed to get X-ray data for JQL query {}: {}", searchQueryJQL, e.getMessage());
+            // Continue - tickets will be returned without X-ray enrichment
+        }
+        
+        logger.debug("Finished enriching {} tickets with X-ray data", tickets.size());
+        return tickets;
+    }
+
+    /**
+     * Gets test details and steps using X-ray GraphQL API.
+     * Delegates to XrayRestClient.
+     * 
+     * @param testKey Jira ticket key (e.g., "TP-909")
+     * @return JSONObject with test details including steps and preconditions, or null if not found
+     * @throws IOException if API call fails
+     */
+    public JSONObject getTestDetailsGraphQL(String testKey) throws IOException {
+        return xrayRestClient.getTestDetailsGraphQL(testKey);
+    }
+
+    /**
+     * Gets test steps using X-ray GraphQL API.
+     * Delegates to XrayRestClient.
+     * 
+     * @param testKey Jira ticket key (e.g., "TP-909")
+     * @return JSONArray of test steps, or empty array if none found
+     * @throws IOException if API call fails
+     */
+    public JSONArray getTestStepsGraphQL(String testKey) throws IOException {
+        return xrayRestClient.getTestStepsGraphQL(testKey);
+    }
+
+    /**
+     * Gets preconditions using X-ray GraphQL API.
+     * Delegates to XrayRestClient.
+     * 
+     * @param testKey Jira ticket key (e.g., "TP-909")
+     * @return JSONArray of precondition objects with jira fields, or empty array if none found
+     * @throws IOException if API call fails
+     */
+    public JSONArray getPreconditionsGraphQL(String testKey) throws IOException {
+        return xrayRestClient.getPreconditionsGraphQL(testKey);
+    }
+
+    /**
+     * Adds a test step to a test issue using X-ray GraphQL API.
+     * Delegates to XrayRestClient.
+     * 
+     * @param issueId Jira issue ID (e.g., "12345")
+     * @param action Step action (e.g., "Enter username")
+     * @param data Step data (e.g., "test_user")
+     * @param result Step expected result (e.g., "Username accepted")
+     * @return JSONObject with created step details (id, action, data, result), or null if failed
+     * @throws IOException if API call fails
+     */
+    public JSONObject addTestStepGraphQL(String issueId, String action, String data, String result) throws IOException {
+        return xrayRestClient.addTestStepGraphQL(issueId, action, data, result);
+    }
+
+    /**
+     * Adds multiple test steps to a test issue using X-ray GraphQL API.
+     * Delegates to XrayRestClient.
+     * 
+     * @param issueId Jira issue ID (e.g., "12345")
+     * @param steps JSONArray of step objects, each with "action", "data", and "result" fields
+     * @return JSONArray of created step objects, or empty array if failed
+     * @throws IOException if API call fails
+     */
+    public JSONArray addTestStepsGraphQL(String issueId, JSONArray steps) throws IOException {
+        return xrayRestClient.addTestStepsGraphQL(issueId, steps);
+    }
+
+    /**
+     * Adds a single precondition to a test issue using X-ray GraphQL API.
+     * Delegates to XrayRestClient.
+     * 
+     * @param testIssueId Jira issue ID of the test (e.g., "12345")
+     * @param preconditionIssueId Jira issue ID of the precondition (e.g., "12346")
+     * @return JSONObject with result, or null if failed
+     * @throws IOException if API call fails
+     */
+    public JSONObject addPreconditionToTestGraphQL(String testIssueId, String preconditionIssueId) throws IOException {
+        return xrayRestClient.addPreconditionToTestGraphQL(testIssueId, preconditionIssueId);
+    }
+
+    /**
+     * Adds multiple preconditions to a test issue using X-ray GraphQL API.
+     * Delegates to XrayRestClient.
+     * 
+     * @param testIssueId Jira issue ID of the test (e.g., "12345")
+     * @param preconditionIssueIds JSONArray of precondition issue IDs (e.g., ["12346", "12347"])
+     * @return JSONArray of results, or empty array if failed
+     * @throws IOException if API call fails
+     */
+    public JSONArray addPreconditionsToTestGraphQL(String testIssueId, JSONArray preconditionIssueIds) throws IOException {
+        return xrayRestClient.addPreconditionsToTestGraphQL(testIssueId, preconditionIssueIds);
     }
 }
