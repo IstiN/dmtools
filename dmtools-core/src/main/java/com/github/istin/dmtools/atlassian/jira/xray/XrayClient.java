@@ -105,21 +105,21 @@ public class XrayClient extends JiraClient<Ticket> {
         // Double-checked locking for thread-safe singleton
         if (instance == null) {
             synchronized (XrayClient.class) {
-                if (instance == null) {
-                    if (JIRA_BASE_PATH == null || JIRA_BASE_PATH.isEmpty()) {
-                        logger.warn("JIRA_BASE_PATH is not configured, cannot create XrayClient");
-                        return null;
-                    }
-                    if (XRAY_BASE_PATH == null || XRAY_BASE_PATH.isEmpty()) {
-                        logger.warn("XRAY_BASE_PATH is not configured, cannot create XrayClient");
-                        return null;
-                    }
-                    if (XRAY_CLIENT_ID == null || XRAY_CLIENT_ID.isEmpty() || 
-                        XRAY_CLIENT_SECRET == null || XRAY_CLIENT_SECRET.isEmpty()) {
-                        logger.warn("XRAY_CLIENT_ID or XRAY_CLIENT_SECRET is not configured, cannot create XrayClient");
-                        return null;
-                    }
-                    instance = new XrayClient();
+        if (instance == null) {
+            if (JIRA_BASE_PATH == null || JIRA_BASE_PATH.isEmpty()) {
+                logger.warn("JIRA_BASE_PATH is not configured, cannot create XrayClient");
+                return null;
+            }
+            if (XRAY_BASE_PATH == null || XRAY_BASE_PATH.isEmpty()) {
+                logger.warn("XRAY_BASE_PATH is not configured, cannot create XrayClient");
+                return null;
+            }
+            if (XRAY_CLIENT_ID == null || XRAY_CLIENT_ID.isEmpty() || 
+                XRAY_CLIENT_SECRET == null || XRAY_CLIENT_SECRET.isEmpty()) {
+                logger.warn("XRAY_CLIENT_ID or XRAY_CLIENT_SECRET is not configured, cannot create XrayClient");
+                return null;
+            }
+            instance = new XrayClient();
                 }
             }
         }
@@ -633,15 +633,15 @@ public class XrayClient extends JiraClient<Ticket> {
                 // Don't fail the entire operation if X-ray API calls fail
                 // The ticket was already created in Jira
             }
-        }
-        if (preconditions != null) {
+            }
+            if (preconditions != null) {
             try {
                 setPreconditions(ticketKey, preconditions, xrayIssueId);
-            } catch (IOException e) {
+        } catch (IOException e) {
                 logger.error("Failed to set X-ray preconditions for ticket {} with {} preconditions: {}",
                         ticketKey, preconditions.length(), e.getMessage());
-                // Don't fail the entire operation if X-ray API calls fail
-                // The ticket was already created in Jira
+            // Don't fail the entire operation if X-ray API calls fail
+            // The ticket was already created in Jira
             }
         }
 
@@ -683,7 +683,8 @@ public class XrayClient extends JiraClient<Ticket> {
                 String stepsStr = steps;
                 if (stepsStr.startsWith("(") && stepsStr.contains(")[")) {
                     // Extract array part from PolyglotList string like "(1)[{...}]"
-                    int arrayStart = stepsStr.indexOf(")[") + 2;
+                    // indexOf(")[") returns position of ')', we need position of '[' which is +1
+                    int arrayStart = stepsStr.indexOf(")[") + 1;
                     stepsStr = stepsStr.substring(arrayStart);
                 }
                 JSONArray stepsArray = new JSONArray(stepsStr);
@@ -819,13 +820,14 @@ public class XrayClient extends JiraClient<Ticket> {
             return tickets;
         }
         
-        // Use the same JQL query to get all X-ray data in one GraphQL call
-        // Limit to 100 (GraphQL API limit) or number of test tickets, whichever is smaller
-        int limit = Math.min(100, testTickets.size());
-        logger.debug("Fetching X-ray data for {} test tickets using JQL query: {}", testTickets.size(), searchQueryJQL);
+        // Use the same JQL query to get all X-ray data via GraphQL with pagination
+        // This will fetch all tests matching the JQL query, not just the first 100
+        logger.debug("Fetching X-ray data for {} test tickets using JQL query: {} (will fetch all matching tests via pagination)", 
+                testTickets.size(), searchQueryJQL);
         
         try {
-            JSONArray xrayTests = xrayRestClient.getTestsByJQLGraphQL(searchQueryJQL, limit);
+            // Fetch all tests with pagination (uses paginationLimit from xrayRestClient, but will fetch all pages)
+            JSONArray xrayTests = xrayRestClient.getTestsByJQLGraphQL(searchQueryJQL);
             
             // Create a map of X-ray test data by ticket key for fast lookup
             Map<String, JSONObject> xrayDataMap = new HashMap<>();
@@ -1053,5 +1055,15 @@ public class XrayClient extends JiraClient<Ticket> {
      */
     public JSONArray addPreconditionsToTestGraphQL(String testIssueId, JSONArray preconditionIssueIds) throws IOException {
         return xrayRestClient.addPreconditionsToTestGraphQL(testIssueId, preconditionIssueIds);
+    }
+    
+    /**
+     * Gets the underlying XrayRestClient instance.
+     * Useful for setting pagination limits in tests.
+     * 
+     * @return XrayRestClient instance
+     */
+    public XrayRestClient getXrayRestClient() {
+        return xrayRestClient;
     }
 }

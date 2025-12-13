@@ -32,6 +32,9 @@ public class XrayRestClient extends AbstractRestClient {
     private volatile String accessToken;
     private volatile long tokenExpiryTime;
     private static final long TOKEN_REFRESH_BUFFER_MS = 60000; // Refresh 1 minute before expiry
+    
+    // Pagination limit override (default 100, can be set for testing)
+    private volatile int paginationLimit = 100;
 
     /**
      * Creates a new XrayRestClient instance.
@@ -340,6 +343,39 @@ public class XrayRestClient extends AbstractRestClient {
     }
 
     /**
+     * Sets the pagination limit for GraphQL queries.
+     * This allows overriding the default limit of 100 for testing purposes.
+     * 
+     * @param limit Maximum number of results per page (1-100)
+     */
+    public void setPaginationLimit(int limit) {
+        this.paginationLimit = Math.min(100, Math.max(1, limit));
+        logger.debug("Pagination limit set to: {}", this.paginationLimit);
+    }
+    
+    /**
+     * Gets the current pagination limit.
+     * 
+     * @return Current pagination limit (1-100)
+     */
+    public int getPaginationLimit() {
+        return paginationLimit;
+    }
+    
+    /**
+     * Gets all test details with steps and preconditions using X-ray GraphQL API by JQL query.
+     * This is more efficient than calling getTestDetailsGraphQL for each ticket individually.
+     * Uses the default pagination limit if not specified.
+     * 
+     * @param jqlQuery JQL query string (e.g., "project = TP AND issuetype = Test")
+     * @return JSONArray of test details including steps and preconditions, or empty array if none found
+     * @throws IOException if API call fails
+     */
+    public JSONArray getTestsByJQLGraphQL(String jqlQuery) throws IOException {
+        return getTestsByJQLGraphQL(jqlQuery, paginationLimit, null);
+    }
+    
+    /**
      * Gets all test details with steps and preconditions using X-ray GraphQL API by JQL query.
      * This is more efficient than calling getTestDetailsGraphQL for each ticket individually.
      * 
@@ -349,12 +385,27 @@ public class XrayRestClient extends AbstractRestClient {
      * @throws IOException if API call fails
      */
     public JSONArray getTestsByJQLGraphQL(String jqlQuery, int limit) throws IOException {
+        return getTestsByJQLGraphQL(jqlQuery, limit, null);
+    }
+    
+    /**
+     * Gets test details with steps and preconditions using X-ray GraphQL API by JQL query with pagination support.
+     * 
+     * @param jqlQuery JQL query string (e.g., "project = TP AND issuetype = Test")
+     * @param limit Maximum number of results per page (1-100)
+     * @param after Cursor for pagination (null for first page)
+     * @return JSONObject with results array and pageInfo, or null if error
+     * @throws IOException if API call fails
+     */
+    private JSONObject getTestsByJQLGraphQLWithPagination(String jqlQuery, int limit, String after) throws IOException {
         // GraphQL query to get all tests matching JQL with steps and preconditions
         // Escape quotes in JQL query for GraphQL
         String escapedJQL = jqlQuery.replace("\"", "\\\"");
+        
+        String afterParam = after != null ? String.format(", after: \"%s\"", after.replace("\"", "\\\"")) : "";
         String query = String.format(
             "query { " +
-            "  getTests(jql: \"%s\", limit: %d) { " +
+            "  getTests(jql: \"%s\", limit: %d%s) { " +
             "    results { " +
             "      issueId " +
             "      projectId " +
@@ -389,15 +440,19 @@ public class XrayRestClient extends AbstractRestClient {
             "        } " +
             "      } " +
             "    } " +
+            "    pageInfo { " +
+            "      hasNextPage " +
+            "      endCursor " +
+            "    } " +
             "  } " +
             "}",
-            escapedJQL, limit
+            escapedJQL, limit, afterParam
         );
 
         try {
             String response = executeGraphQL(query);
             if (response == null || response.trim().isEmpty()) {
-                return new JSONArray();
+                return null;
             }
 
             JSONObject responseJson = new JSONObject(response);
@@ -407,27 +462,72 @@ public class XrayRestClient extends AbstractRestClient {
                 JSONArray errors = responseJson.getJSONArray("errors");
                 String errorMessage = errors.length() > 0 ? errors.getJSONObject(0).optString("message", "Unknown GraphQL error") : "GraphQL error";
                 logger.warn("GraphQL query returned errors for JQL {}: {}", jqlQuery, errorMessage);
-                return new JSONArray();
+                return null;
             }
 
             // Extract data
             if (responseJson.has("data")) {
                 JSONObject data = responseJson.getJSONObject("data");
                 if (data.has("getTests")) {
-                    JSONObject getTests = data.getJSONObject("getTests");
-                    if (getTests.has("results")) {
-                        JSONArray results = getTests.getJSONArray("results");
-                        logger.debug("GraphQL returned {} tests for JQL query: {}", results.length(), jqlQuery);
-                        return results;
-                    }
+                    return data.getJSONObject("getTests");
                 }
             }
 
-            return new JSONArray();
+            return null;
         } catch (Exception e) {
             logger.error("Error executing GraphQL query for JQL {}", jqlQuery, e);
             throw new IOException("Failed to get tests via GraphQL: " + e.getMessage(), e);
         }
+    }
+    
+    /**
+     * Gets all test details with steps and preconditions using X-ray GraphQL API by JQL query.
+     * Automatically handles pagination to fetch all results.
+     * 
+     * @param jqlQuery JQL query string (e.g., "project = TP AND issuetype = Test")
+     * @param limit Maximum number of results per page (1-100, default 100)
+     * @param after Cursor for pagination (null for first page)
+     * @return JSONArray of test details including steps and preconditions, or empty array if none found
+     * @throws IOException if API call fails
+     */
+    public JSONArray getTestsByJQLGraphQL(String jqlQuery, int limit, String after) throws IOException {
+        JSONArray allResults = new JSONArray();
+        String currentCursor = after;
+        int pageLimit = Math.min(100, Math.max(1, limit)); // Ensure limit is between 1 and 100
+        
+        do {
+            JSONObject pageData = getTestsByJQLGraphQLWithPagination(jqlQuery, pageLimit, currentCursor);
+            if (pageData == null) {
+                break;
+            }
+            
+            // Extract results from this page
+            if (pageData.has("results")) {
+                JSONArray pageResults = pageData.getJSONArray("results");
+                for (int i = 0; i < pageResults.length(); i++) {
+                    allResults.put(pageResults.getJSONObject(i));
+                }
+                logger.debug("Fetched {} tests from Xray (total so far: {})", pageResults.length(), allResults.length());
+            }
+            
+            // Check if there are more pages
+            boolean hasNextPage = false;
+            if (pageData.has("pageInfo")) {
+                JSONObject pageInfo = pageData.getJSONObject("pageInfo");
+                hasNextPage = pageInfo.optBoolean("hasNextPage", false);
+                if (hasNextPage) {
+                    currentCursor = pageInfo.optString("endCursor", null);
+                }
+            }
+            
+            if (!hasNextPage) {
+                break;
+            }
+            
+        } while (currentCursor != null && !currentCursor.isEmpty());
+        
+        logger.debug("GraphQL returned total {} tests for JQL query: {}", allResults.length(), jqlQuery);
+        return allResults;
     }
 
     /**

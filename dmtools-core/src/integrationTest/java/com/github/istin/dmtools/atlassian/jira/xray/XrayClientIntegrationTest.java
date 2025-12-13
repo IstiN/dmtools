@@ -1511,5 +1511,101 @@ public class XrayClientIntegrationTest {
         
         logger.info("✅ Verified that TP-909 has precondition TP-910");
     }
+    
+    @Test
+    @Order(13)
+    @DisplayName("Test pagination with limit 2 - verify all 6 tests are fetched")
+    void testPaginationWithLimit2() throws Exception {
+        Assumptions.assumeTrue(xrayClient != null, "XrayClient not initialized");
+        
+        logger.info("=== Testing pagination with limit 2 ===");
+        
+        // Step 1: Create 6 test tickets
+        List<String> testKeys = new ArrayList<>();
+        for (int i = 1; i <= 6; i++) {
+            String summary = "Pagination Test " + i + " - " + System.currentTimeMillis();
+            String description = "This test is used to verify pagination works correctly.";
+            
+            JSONArray steps = new JSONArray();
+            JSONObject step = new JSONObject();
+            step.put("action", "Pagination test step " + i);
+            step.put("data", "Test data " + i);
+            step.put("result", "Expected result " + i);
+            steps.put(step);
+            
+            String response = xrayClient.createTicketInProject(
+                testProjectKey,
+                "Test",
+                summary,
+                description,
+                new TrackerClient.FieldsInitializer() {
+                    @Override
+                    public void init(TrackerClient.TrackerTicketFields fields) {
+                        fields.set("steps", steps);
+                    }
+                }
+            );
+            
+            assertNotNull(response);
+            JSONObject ticketJson = new JSONObject(response);
+            String ticketKey = ticketJson.getString("key");
+            testKeys.add(ticketKey);
+            createdTicketKeys.add(ticketKey);
+            
+            logger.info("Created test ticket {}: {}", i, ticketKey);
+        }
+        
+        // Wait for X-ray to sync
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Step 2: Set pagination limit to 2
+        XrayRestClient restClient = xrayClient.getXrayRestClient();
+        int originalLimit = restClient.getPaginationLimit();
+        restClient.setPaginationLimit(2);
+        logger.info("Set pagination limit to 2 (original was: {})", originalLimit);
+        
+        try {
+            // Step 3: Search for all created tests using JQL
+            String jql = "project = " + testProjectKey + " AND key in (" + String.join(", ", testKeys) + ")";
+            logger.info("Executing JQL query: {}", jql);
+            
+            // Use searchAndPerform which will use pagination internally
+            List<Ticket> foundTickets = xrayClient.searchAndPerform(jql, new String[]{"key", "summary", "issuetype"});
+            
+            assertNotNull(foundTickets, "Search results should not be null");
+            assertEquals(6, foundTickets.size(), "Should find all 6 test tickets");
+            
+            logger.info("✅ Found all {} test tickets", foundTickets.size());
+            
+            // Step 4: Verify that all tickets have test steps (enriched via pagination)
+            for (Ticket ticket : foundTickets) {
+                String key = ticket.getKey();
+                assertTrue(testKeys.contains(key), "Ticket " + key + " should be in created test keys");
+                
+                Fields fields = ticket.getFields();
+                assertNotNull(fields, "Ticket fields should not be null");
+                JSONObject fieldsJson = fields.getJSONObject();
+                
+                if (fieldsJson.has("xrayTestSteps")) {
+                    JSONArray steps = fieldsJson.getJSONArray("xrayTestSteps");
+                    assertTrue(steps.length() > 0, "Ticket " + key + " should have test steps");
+                    logger.info("✅ Ticket {} has {} test steps", key, steps.length());
+                } else {
+                    logger.warn("⚠️ Ticket {} has no test steps in enriched data", key);
+                }
+            }
+            
+            logger.info("✅ Pagination test passed - all 6 tests were fetched with limit 2");
+            
+        } finally {
+            // Restore original pagination limit
+            restClient.setPaginationLimit(originalLimit);
+            logger.info("Restored pagination limit to: {}", originalLimit);
+        }
+    }
 }
 
