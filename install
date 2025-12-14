@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # DMTools CLI Cross-Platform Installation Wrapper
-# Usage: curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install | bash
-# For specific version: DMTOOLS_VERSION=v1.7.97 curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.97/install | bash
-# Or use install.sh directly: curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.97/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
+# For specific version: DMTOOLS_VERSION=v1.7.97 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.97/install | bash
+# Or use install.sh directly: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.97/install.sh | bash
 # This script auto-detects the platform and runs the appropriate installer
 # Works even if this file doesn't exist in older releases - falls back to install.sh
 
@@ -245,11 +245,11 @@ run_installer() {
             echo ""
             if [ "$version" != "latest" ]; then
                 echo "1. Try with specific version:"
-                echo "   curl -fsSL https://github.com/${REPO}/releases/download/${version}/install.sh | bash"
+                echo "   curl -fsSL https://raw.githubusercontent.com/${REPO}/${version}/install.sh | bash"
                 echo ""
             fi
             echo "1. Direct download (recommended):"
-            echo "   curl -fsSL https://github.com/${REPO}/releases/latest/download/install.sh | bash"
+            echo "   curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash"
             echo ""
             echo "2. Or download manually from:"
             echo "   https://github.com/${REPO}/releases/${version}"
@@ -258,8 +258,8 @@ run_installer() {
         *)
             echo "Error: Unsupported platform detected."
             echo "Please use the platform-specific installer:"
-            echo "  macOS/Linux: curl -fsSL https://github.com/${REPO}/releases/latest/download/install.sh | bash"
-            echo "  Windows PowerShell: Invoke-RestMethod -Uri 'https://github.com/${REPO}/releases/latest/download/install.ps1' | Invoke-Expression"
+            echo "  macOS/Linux: curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash"
+            echo "  Windows PowerShell: Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/${REPO}/main/install.ps1' | Invoke-Expression"
             exit 1
             ;;
     esac

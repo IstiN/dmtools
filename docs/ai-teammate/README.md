@@ -111,7 +111,7 @@ jobs:
 
     - name: Install DMTools CLI
       run: |
-        curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+        curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
         echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
 
     - name: Run AI Teammate

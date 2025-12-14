@@ -5,10 +5,10 @@ Get DMTools CLI installed and ready to use in minutes.
 ## Quick Install (Recommended)
 
 ```bash
-curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 ```
 
-If you use Windows - install GitBash and run command curl.exe -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+If you use Windows - install GitBash and run command curl.exe -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 
 This will:
 - ✅ Download the latest DMTools JAR (~50MB)
@@ -138,7 +138,7 @@ source ~/.zshrc
 - name: Install DMTools CLI
   if: steps.cache-dmtools.outputs.cache-hit != 'true'
   run: |
-    curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+    curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 
 - name: Add DMTools to PATH
   run: echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
@@ -163,7 +163,7 @@ dmtools-job:
     - apt-get update -qq && apt-get install -y curl
     - |
       if [ ! -f "$HOME/.dmtools/dmtools.jar" ]; then
-        curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+        curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
       fi
     - export PATH="$HOME/.dmtools/bin:$PATH"
   
@@ -222,7 +222,7 @@ Install Java 23 or later. See [Prerequisites](#java-23-or-later-required) above.
 
 Reinstall DMTools:
 ```bash
-curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 ```
 
 Or manually download the JAR:
@@ -249,7 +249,7 @@ Ensure Java is set up **before** installing DMTools:
     java-version: '23'
 
 - name: Install DMTools CLI
-  run: curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+  run: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 ```
 
 ---

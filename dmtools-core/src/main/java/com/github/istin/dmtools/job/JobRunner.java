@@ -253,7 +253,7 @@ public class JobRunner {
         System.out.println();
         System.out.println("Installation:");
         System.out.println("  If you don't have DMTools installed, run:");
-        System.out.println("  curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash");
+        System.out.println("  curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash");
         System.out.println();
         System.out.println("DM.ai uses DMTools. Do you?");
     }

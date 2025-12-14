@@ -155,7 +155,7 @@ usage() {
     # Check if JAR file exists before calling JobRunner
     if [ -z "$JAR_FILE" ] || [ ! -f "$JAR_FILE" ]; then
         error "DMTools JAR file not found. Please install DMTools first:
-  curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+  curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 
 Or if you're developing locally, build the project first:
   ./gradlew build
@@ -272,7 +272,7 @@ esac
 # Check if JAR file exists
 if [ -z "$JAR_FILE" ] || [ ! -f "$JAR_FILE" ]; then
     error "DMTools JAR file not found. Please install DMTools first:
-  curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+  curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 
 Or if you're developing locally, build the project first:
   ./gradlew build

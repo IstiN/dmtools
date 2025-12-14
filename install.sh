@@ -1,6 +1,6 @@
 #!/bin/bash
 # DMTools CLI Installation Script
-# Usage: curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 # Requirements: Java 23 (will attempt automatic installation on macOS/Linux)
 
 set -e
