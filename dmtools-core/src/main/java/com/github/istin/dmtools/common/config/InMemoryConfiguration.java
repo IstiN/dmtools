@@ -380,9 +380,7 @@ public class InMemoryConfiguration implements ApplicationConfiguration {
             if (maxTokens < 1) {
                 return 4096;
             }
-            if (maxTokens > 4096) {
-                return 4096;
-            }
+
             return maxTokens;
         } catch (NumberFormatException e) {
             return 4096;

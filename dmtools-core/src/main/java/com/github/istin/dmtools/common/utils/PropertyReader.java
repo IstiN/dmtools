@@ -857,13 +857,9 @@ public class PropertyReader {
 		}
 		try {
 			int maxTokens = Integer.parseInt(value.trim());
-			// Validate range 1-4096
+			// Validate minimum value
 			if (maxTokens < 1) {
 				logger.warn("Invalid BEDROCK_MAX_TOKENS value: {}, using default 4096", value);
-				return 4096;
-			}
-			if (maxTokens > 4096) {
-				logger.warn("BEDROCK_MAX_TOKENS value {} exceeds maximum 4096, using 4096", value);
 				return 4096;
 			}
 			return maxTokens;

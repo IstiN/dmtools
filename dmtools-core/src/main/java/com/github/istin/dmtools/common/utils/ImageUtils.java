@@ -62,16 +62,5 @@ public class ImageUtils {
         }
     }
 
-    /**
-     * Converts an image file to base64 string without any prefix (for AWS Bedrock format).
-     * This is the same as convertToBase64 but with explicit naming for clarity.
-     * @param imageFile The image file to convert
-     * @param formatName The format name (e.g., "png", "jpeg")
-     * @return Base64 encoded string without data URI prefix
-     * @throws IOException If an I/O error occurs
-     */
-    public static String convertToBase64WithoutPrefix(File imageFile, String formatName) throws IOException {
-        return convertToBase64(imageFile, formatName);
-    }
 
 }

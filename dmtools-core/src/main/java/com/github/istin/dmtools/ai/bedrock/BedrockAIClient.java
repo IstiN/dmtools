@@ -45,6 +45,7 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
     @Getter
     private final double temperature;
 
+    @Override
     @Setter
     private Metadata metadata;
 
@@ -165,17 +166,9 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
                     .put("content", contentArray));
         } else {
             // Text only
-            if (modelType == ModelType.CLAUDE || modelType == ModelType.NOVA) {
-                // Claude and Nova support both string and array format
-                messagesArray.put(new JSONObject()
-                        .put("role", "user")
-                        .put("content", message));
-            } else {
-                // Qwen only supports text
-                messagesArray.put(new JSONObject()
-                        .put("role", "user")
-                        .put("content", message));
-            }
+            messagesArray.put(new JSONObject()
+                    .put("role", "user")
+                    .put("content", message));
         }
 
         return performChatCompletion(model, messagesArray, modelType);
@@ -408,13 +401,7 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
                 messageJson.put("content", contentArray);
             } else {
                 // Text only
-                if (modelType == ModelType.CLAUDE || modelType == ModelType.NOVA) {
-                    // Claude and Nova support both string and array format
-                    messageJson.put("content", message.getText());
-                } else {
-                    // Qwen only supports text
-                    messageJson.put("content", message.getText());
-                }
+                messageJson.put("content", message.getText());
             }
             messagesArray.put(messageJson);
         }
@@ -439,6 +426,7 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
         return chat(model, userMessage);
     }
 
+    @Override
     public String chat(String model, String message) throws Exception {
         return chat(model, message, (File) null);
     }
