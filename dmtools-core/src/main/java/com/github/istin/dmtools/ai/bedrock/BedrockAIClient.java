@@ -182,14 +182,32 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
             return ModelType.CLAUDE;
         }
         String lowerModelId = modelId.toLowerCase();
+        
+        // Check for Claude models (Anthropic)
         if (lowerModelId.contains("claude") || lowerModelId.contains("anthropic")) {
             return ModelType.CLAUDE;
-        } else if (lowerModelId.contains("qwen")) {
+        }
+        
+        // Check for Qwen models
+        if (lowerModelId.contains("qwen")) {
             return ModelType.QWEN;
-        } else if (lowerModelId.contains("nova") || lowerModelId.contains("amazon")) {
+        }
+        
+        // Check for Nova models specifically (not all Amazon models are Nova)
+        // Nova models have format: eu.amazon.nova-* or amazon.nova-*
+        // Examples: eu.amazon.nova-lite-v1:0, amazon.nova-pro-v1:0
+        if (lowerModelId.contains("nova")) {
             return ModelType.NOVA;
         }
-        // Default to Claude for unknown models
+        
+        // Check for Mistral models
+        // Mistral models have format: mistral.*
+        // Examples: mistral.mistral-large-2407-v1:0, mistral.pixtral-large-2502-v1:0
+        if (lowerModelId.contains("mistral")) {
+            return ModelType.MISTRAL;
+        }
+        
+        // Default to Claude for unknown models (most Bedrock models use Claude-like format)
         return ModelType.CLAUDE;
     }
 
@@ -304,10 +322,10 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
             
             // Add image part for Nova invoke format
             String extension = ImageUtils.getExtension(imageFile);
-            String imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
             String mimeType = ImageUtils.getMimeType(imageFile);
             
             // Convert MIME type to format (jpeg, png, gif, webp)
+            // Note: WebP may not be supported by default Java ImageIO
             String format = "jpeg";
             if (mimeType.contains("png")) {
                 format = "png";
@@ -315,6 +333,23 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
                 format = "gif";
             } else if (mimeType.contains("webp")) {
                 format = "webp";
+                // Warn about potential WebP issues
+                logger.warn("WebP format detected. Java ImageIO may not support WebP by default. " +
+                           "If conversion fails, consider converting to PNG/JPEG first.");
+            }
+            
+            // Convert image to base64 with error handling for WebP
+            String imageBase64;
+            try {
+                imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
+            } catch (Exception e) {
+                if (format.equals("webp")) {
+                    logger.error("Failed to convert WebP image. Java ImageIO typically doesn't support WebP. " +
+                               "Error: {}. Consider converting the image to PNG or JPEG first.", e.getMessage());
+                    throw new IOException("WebP image conversion failed. Java ImageIO doesn't support WebP by default. " +
+                                         "Please convert the image to PNG or JPEG format.", e);
+                }
+                throw e;
             }
             
             // Validate image size (approximately 5MB limit)
@@ -346,8 +381,21 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
             
             // Add image part
             String extension = ImageUtils.getExtension(imageFile);
-            String imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
             String mimeType = ImageUtils.getMimeType(imageFile);
+            
+            // Convert image to base64 with error handling for WebP
+            String imageBase64;
+            try {
+                imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
+            } catch (Exception e) {
+                if (mimeType.contains("webp")) {
+                    logger.error("Failed to convert WebP image. Java ImageIO typically doesn't support WebP. " +
+                               "Error: {}. Consider converting the image to PNG or JPEG first.", e.getMessage());
+                    throw new IOException("WebP image conversion failed. Java ImageIO doesn't support WebP by default. " +
+                                         "Please convert the image to PNG or JPEG format.", e);
+                }
+                throw e;
+            }
             
             // Validate image size (approximately 5MB limit)
             long fileSize = imageFile.length();
@@ -370,15 +418,22 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
 
     private String performChatCompletion(String model, JSONArray messagesArray, ModelType modelType) throws Exception {
         // Always use invoke endpoint (Nova models support images via invoke)
-        // For inference profile ARN, extract the model ID (part after last '/')
+        // For inference profile ARN, use the full ARN (Bedrock InvokeModel accepts full ARN in path)
         // Inference profile ARN format: arn:aws:bedrock:region:account:inference-profile/model-id
+        // Direct model ID format: model-id (e.g., eu.amazon.nova-lite-v1:0)
+        // Note: Bedrock API expects the full ARN or model ID in the path, not just the last segment
         String modelIdForPath = model;
         if (model != null && model.contains("inference-profile/")) {
-            // Extract model ID from inference profile ARN
-            int lastSlashIndex = model.lastIndexOf('/');
-            if (lastSlashIndex >= 0 && lastSlashIndex < model.length() - 1) {
-                modelIdForPath = model.substring(lastSlashIndex + 1);
-                logger.debug("Extracted model ID '{}' from inference profile ARN '{}'", modelIdForPath, model);
+            // Use full inference profile ARN - Bedrock InvokeModel accepts it in the path
+            // URL encode special characters (like ':') but keep the ARN structure
+            try {
+                // URL encode the ARN, but replace spaces with %20 and keep other encoding
+                modelIdForPath = java.net.URLEncoder.encode(model, "UTF-8")
+                    .replace("+", "%20"); // Replace + with %20 for proper URL encoding
+                logger.debug("Using full inference profile ARN '{}' (URL encoded) for path", model);
+            } catch (java.io.UnsupportedEncodingException e) {
+                logger.warn("Failed to URL encode inference profile ARN, using as-is: {}", e.getMessage());
+                // Fallback: use as-is (may cause issues with special characters)
             }
         }
         String path = path("/model/" + modelIdForPath + "/invoke");
@@ -473,30 +528,23 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
             jsonObject.put("temperature", temperature);
             // Qwen-specific parameters can be added here if needed
         } else if (modelType == ModelType.NOVA) {
-            // Amazon Nova format - when using messages format with invoke endpoint
-            // Check if model is an inference profile ARN (contains "inference-profile")
-            boolean isInferenceProfile = model != null && model.contains("inference-profile");
-            boolean hasImages = hasImagesInMessages(messagesArray);
+            // Amazon Nova format - always use schemaVersion and inferenceConfig for invoke endpoint
+            // Nova's Invoke API requires the messages schema structure
+            jsonObject.put("schemaVersion", "messages-v1");
+            jsonObject.put("messages", messagesArray);
             
-            if (isInferenceProfile || hasImages) {
-                // For inference profile ARN or when images are present, use schemaVersion and inferenceConfig
-                jsonObject.put("schemaVersion", "messages-v1");
-                jsonObject.put("messages", messagesArray);
-                
-                JSONObject inferenceConfig = new JSONObject();
-                inferenceConfig.put("maxTokens", maxTokens);
-                inferenceConfig.put("temperature", temperature);
-                inferenceConfig.put("topP", 0.9); // Default topP for Nova
-                inferenceConfig.put("stopSequences", new JSONArray());
-                jsonObject.put("inferenceConfig", inferenceConfig);
-            } else {
-                // For regular model ID without images, use simple format
-                jsonObject.put("messages", messagesArray);
-                // Only include temperature if it's not the default (1.0)
-                if (temperature != 1.0) {
-                    jsonObject.put("temperature", temperature);
-                }
-            }
+            JSONObject inferenceConfig = new JSONObject();
+            inferenceConfig.put("maxTokens", maxTokens);
+            inferenceConfig.put("temperature", temperature);
+            inferenceConfig.put("topP", 0.9); // Default topP for Nova
+            inferenceConfig.put("stopSequences", new JSONArray());
+            jsonObject.put("inferenceConfig", inferenceConfig);
+        } else if (modelType == ModelType.MISTRAL) {
+            // Mistral format - similar to Qwen but may have different response structure
+            jsonObject.put("messages", messagesArray);
+            jsonObject.put("max_tokens", maxTokens);
+            jsonObject.put("temperature", temperature);
+            // Mistral-specific parameters can be added here if needed
         }
         
         return jsonObject;
@@ -631,6 +679,38 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
                                 usage.optInt("outputTokens", 0),
                                 usage.optInt("totalTokens", 0));
                     }
+                } else if (modelType == ModelType.MISTRAL) {
+                    // Mistral response format: similar to Qwen - choices[0].message.content
+                    JSONArray choices = null;
+                    if (jsonResponse.has("choices")) {
+                        choices = jsonResponse.optJSONArray("choices");
+                    } else {
+                        JSONObject output = jsonResponse.optJSONObject("output");
+                        if (output != null) {
+                            choices = output.optJSONArray("choices");
+                        }
+                    }
+                    
+                    if (choices != null && choices.length() > 0) {
+                        JSONObject firstChoice = choices.getJSONObject(0);
+                        JSONObject message = firstChoice.optJSONObject("message");
+                        if (message != null) {
+                            content = message.optString("content", "");
+                        } else {
+                            content = "";
+                        }
+                    } else {
+                        content = "";
+                    }
+                    
+                    // Log token usage if available
+                    JSONObject usage = jsonResponse.optJSONObject("usage");
+                    if (usage != null) {
+                        logger.debug("Token usage - prompt: {}, completion: {}, total: {}", 
+                                usage.optInt("prompt_tokens", 0), 
+                                usage.optInt("completion_tokens", 0),
+                                usage.optInt("total_tokens", 0));
+                    }
                 } else {
                     // Default format (similar to Claude)
                     JSONArray contentArray = jsonResponse.optJSONArray("content");
@@ -720,7 +800,6 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
                         for (File imageFile : message.getFiles()) {
                             try {
                                 String extension = ImageUtils.getExtension(imageFile);
-                                String imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
                                 String mimeType = ImageUtils.getMimeType(imageFile);
                                 
                                 // Nova invoke API format: {"image": {"format": "jpeg", "source": {"bytes": "..."}}}
@@ -732,13 +811,30 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
                                     format = "gif";
                                 } else if (mimeType.contains("webp")) {
                                     format = "webp";
+                                    // Warn about potential WebP issues
+                                    logger.warn("WebP format detected. Java ImageIO may not support WebP by default. " +
+                                               "If conversion fails, consider converting to PNG/JPEG first.");
+                                }
+                                
+                                // Convert image to base64 with error handling for WebP
+                                String imageBase64Converted;
+                                try {
+                                    imageBase64Converted = ImageUtils.convertToBase64(imageFile, extension);
+                                } catch (Exception e) {
+                                    if (format.equals("webp")) {
+                                        logger.error("Failed to convert WebP image. Java ImageIO typically doesn't support WebP. " +
+                                                   "Error: {}. Consider converting the image to PNG or JPEG first.", e.getMessage());
+                                        throw new IOException("WebP image conversion failed. Java ImageIO doesn't support WebP by default. " +
+                                                             "Please convert the image to PNG or JPEG format.", e);
+                                    }
+                                    throw e;
                                 }
                                 
                                 contentArray.put(new JSONObject()
                                         .put("image", new JSONObject()
                                                 .put("format", format)
                                                 .put("source", new JSONObject()
-                                                        .put("bytes", imageBase64))));
+                                                        .put("bytes", imageBase64Converted))));
                             } catch (IOException e) {
                                 logger.warn("Failed to process image file {}: {}", imageFile.getName(), e.getMessage());
                             }
@@ -759,8 +855,21 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
                         for (File imageFile : message.getFiles()) {
                             try {
                                 String extension = ImageUtils.getExtension(imageFile);
-                                String imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
                                 String mimeType = ImageUtils.getMimeType(imageFile);
+                                
+                                // Convert image to base64 with error handling for WebP
+                                String imageBase64;
+                                try {
+                                    imageBase64 = ImageUtils.convertToBase64(imageFile, extension);
+                                } catch (Exception e) {
+                                    if (mimeType.contains("webp")) {
+                                        logger.error("Failed to convert WebP image. Java ImageIO typically doesn't support WebP. " +
+                                                   "Error: {}. Consider converting the image to PNG or JPEG first.", e.getMessage());
+                                        throw new IOException("WebP image conversion failed. Java ImageIO doesn't support WebP by default. " +
+                                                             "Please convert the image to PNG or JPEG format.", e);
+                                    }
+                                    throw e;
+                                }
                                 
                                 JSONObject imageSource = new JSONObject()
                                         .put("type", "base64")
@@ -827,7 +936,8 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
 
     @Override
     protected @NotNull String buildHashForPostRequest(GenericRequest genericRequest, String url) {
-        return url + genericRequest.getBody();
+        String body = genericRequest.getBody();
+        return url + (body != null ? body : "");
     }
 
     /**
@@ -861,7 +971,13 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
 
         // Use MediaType without charset for Bedrock API compatibility
         // Create RequestBody with bytes to have full control over Content-Type
-        byte[] bodyBytes = genericRequest.getBody().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String requestBody = genericRequest.getBody();
+        if (requestBody == null) {
+            logger.error("Request body is null for URL: {}. Bedrock API requires a request body.", url);
+            throw new IllegalArgumentException("Request body cannot be null for Bedrock API calls");
+        }
+        
+        byte[] bodyBytes = requestBody.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         MediaType jsonMediaType = MediaType.parse("application/json");
         RequestBody body = RequestBody.create(bodyBytes, jsonMediaType);
         
@@ -886,7 +1002,7 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
         // For IAM Keys/Default Credentials, this signs with AWS Signature V4
         String authType = authenticationStrategy.getAuthenticationType();
         logger.info("Signing request with authentication type: {}", authType);
-        Request request = authenticationStrategy.signRequest(requestBuilder, url, genericRequest.getBody(), region, customHeaders);
+        Request request = authenticationStrategy.signRequest(requestBuilder, url, requestBody, region, customHeaders);
         
         long startTime = System.currentTimeMillis();
         logger.debug("POST request starting for URL: {} (attempt: {}, auth: {})", url, 1, authType);
@@ -923,6 +1039,7 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
     private enum ModelType {
         CLAUDE,  // Claude Sonnet (Anthropic)
         QWEN,    // Qwen3 Coder
-        NOVA     // Amazon Nova
+        NOVA,    // Amazon Nova
+        MISTRAL  // Mistral models
     }
 }

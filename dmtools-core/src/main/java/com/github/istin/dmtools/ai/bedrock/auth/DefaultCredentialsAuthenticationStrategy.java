@@ -71,11 +71,17 @@ public class DefaultCredentialsAuthenticationStrategy implements BedrockAuthenti
             SdkHttpFullRequest signedRequest = signer.sign(sdkRequest, signerParams);
             
             // Transfer signed headers to OkHttp Request.Builder
+            // Use header() instead of addHeader() to replace existing headers and avoid duplicates
+            // This ensures the headers match exactly what was signed by AWS SDK
             signedRequest.headers().forEach((name, values) -> {
-                values.forEach(value -> requestBuilder.addHeader(name, value));
+                // AWS SDK may return multiple values, but for Bedrock we typically have one value per header
+                // Use the first value and replace any existing header with the same name
+                if (!values.isEmpty()) {
+                    requestBuilder.header(name, values.get(0));
+                }
             });
             
-            // Add custom headers
+            // Add custom headers (these are not part of AWS signature, so add them after)
             sign(requestBuilder, customHeaders);
             
             return requestBuilder.build();

@@ -109,12 +109,7 @@ public class AIComponentsModule {
                 }
                 anthropicAttempted = true;
             } else if ("aws_bedrock".equalsIgnoreCase(defaultLLM.trim()) || "bedrock".equalsIgnoreCase(defaultLLM.trim())) {
-                String bedrockModelId = configuration.getBedrockModelId();
-                String bedrockBearerToken = configuration.getBedrockBearerToken();
-                String bedrockBasePath = configuration.getBedrockBasePath();
-                if (bedrockModelId != null && !bedrockModelId.trim().isEmpty() && !bedrockModelId.startsWith("$") &&
-                    bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$") &&
-                    bedrockBasePath != null && !bedrockBasePath.trim().isEmpty()) {
+                if (isBedrockConfigured(configuration)) {
                     try {
                         logger.debug("Attempting to initialize AI via BasicBedrockAI as DEFAULT_LLM=aws_bedrock...");
                         AI bedrock = new BasicBedrockAI(observer, configuration);
@@ -124,7 +119,9 @@ public class AIComponentsModule {
                         logger.error("Failed to initialize BasicBedrockAI (DEFAULT_LLM=aws_bedrock): " + e.getMessage());
                     }
                 } else {
-                    logger.warn("DEFAULT_LLM is set to 'aws_bedrock' but BEDROCK_MODEL_ID, BEDROCK_BEARER_TOKEN, or BEDROCK_BASE_PATH/BEDROCK_REGION is not configured. Skipping Bedrock initialization.");
+                    logger.warn("DEFAULT_LLM is set to 'aws_bedrock' but Bedrock is not properly configured. " +
+                            "Required: BEDROCK_MODEL_ID and (BEDROCK_BASE_PATH or BEDROCK_REGION). " +
+                            "Authentication: BEDROCK_BEARER_TOKEN, or (BEDROCK_ACCESS_KEY_ID and BEDROCK_SECRET_ACCESS_KEY), or Default Credentials with BEDROCK_REGION.");
                 }
                 bedrockAttempted = true;
             }
@@ -163,14 +160,9 @@ public class AIComponentsModule {
         
         // Check for Bedrock configuration (skip if already attempted)
         if (!bedrockAttempted) {
-            String bedrockModelId = configuration.getBedrockModelId();
-            String bedrockBearerToken = configuration.getBedrockBearerToken();
-            String bedrockBasePath = configuration.getBedrockBasePath();
-            if (bedrockModelId != null && !bedrockModelId.trim().isEmpty() && !bedrockModelId.startsWith("$") &&
-                bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$") &&
-                bedrockBasePath != null && !bedrockBasePath.trim().isEmpty()) {
+            if (isBedrockConfigured(configuration)) {
                 try {
-                    logger.debug("Attempting to initialize AI via BasicBedrockAI as BEDROCK_MODEL_ID is set...");
+                    logger.debug("Attempting to initialize AI via BasicBedrockAI as Bedrock is configured...");
                     AI bedrock = new BasicBedrockAI(observer, configuration);
                     logger.debug("BasicBedrockAI initialized successfully.");
                     return bedrock;
@@ -358,18 +350,60 @@ public class AIComponentsModule {
     }
     
     /**
+     * Checks if Bedrock is configured with any supported authentication method.
+     * Supports: Bearer Token, IAM Keys, or Default Credentials.
+     * 
+     * @param configuration The application configuration
+     * @return true if Bedrock is properly configured, false otherwise
+     */
+    private static boolean isBedrockConfigured(ApplicationConfiguration configuration) {
+        String bedrockModelId = configuration.getBedrockModelId();
+        String bedrockBasePath = configuration.getBedrockBasePath();
+        String bedrockRegion = configuration.getBedrockRegion();
+        
+        // Check required fields: model ID and either base path or region
+        if (bedrockModelId == null || bedrockModelId.trim().isEmpty() || bedrockModelId.startsWith("$")) {
+            return false;
+        }
+        
+        if ((bedrockBasePath == null || bedrockBasePath.trim().isEmpty()) &&
+            (bedrockRegion == null || bedrockRegion.trim().isEmpty())) {
+            return false;
+        }
+        
+        // Check if at least one authentication method is configured
+        String bedrockBearerToken = configuration.getBedrockBearerToken();
+        String accessKeyId = configuration.getBedrockAccessKeyId();
+        String secretAccessKey = configuration.getBedrockSecretAccessKey();
+        
+        // Priority 1: Bearer Token
+        boolean hasBearerToken = bedrockBearerToken != null && 
+                                 !bedrockBearerToken.trim().isEmpty() && 
+                                 !bedrockBearerToken.startsWith("$");
+        
+        // Priority 2: IAM Keys
+        boolean hasIAMKeys = accessKeyId != null && 
+                            !accessKeyId.trim().isEmpty() && 
+                            !accessKeyId.startsWith("$") &&
+                            secretAccessKey != null && 
+                            !secretAccessKey.trim().isEmpty() && 
+                            !secretAccessKey.startsWith("$");
+        
+        // Priority 3: Default Credentials (requires region, credentials read from ~/.aws/credentials)
+        boolean hasDefaultCredentials = bedrockRegion != null && !bedrockRegion.trim().isEmpty();
+        
+        return hasBearerToken || hasIAMKeys || hasDefaultCredentials;
+    }
+    
+    /**
      * Creates a Bedrock AI client if configuration is available.
+     * Supports all authentication methods: Bearer Token, IAM Keys, or Default Credentials.
      * @param observer The conversation observer
      * @param configuration The application configuration
      * @return Bedrock AI instance or null if not configured
      */
     public static AI createBedrockAI(ConversationObserver observer, ApplicationConfiguration configuration) {
-        String bedrockModelId = configuration.getBedrockModelId();
-        String bedrockBearerToken = configuration.getBedrockBearerToken();
-        String bedrockBasePath = configuration.getBedrockBasePath();
-        if (bedrockModelId != null && !bedrockModelId.trim().isEmpty() && !bedrockModelId.startsWith("$") &&
-            bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$") &&
-            bedrockBasePath != null && !bedrockBasePath.trim().isEmpty()) {
+        if (isBedrockConfigured(configuration)) {
             try {
                 return new BasicBedrockAI(observer, configuration);
             } catch (Exception e) {
