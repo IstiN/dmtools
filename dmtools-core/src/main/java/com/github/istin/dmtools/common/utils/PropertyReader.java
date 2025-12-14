@@ -267,6 +267,18 @@ public class PropertyReader {
 		return value.split(",");
 	}
 
+	public String getXrayClientId() {
+		return getValue("XRAY_CLIENT_ID");
+	}
+
+	public String getXrayClientSecret() {
+		return getValue("XRAY_CLIENT_SECRET");
+	}
+
+	public String getXrayBasePath() {
+		return getValue("XRAY_BASE_PATH");
+	}
+
 	public Long getSleepTimeRequest() {
 		String value = getValue("SLEEP_TIME_REQUEST");
 		if (value == null || value.isEmpty()) {

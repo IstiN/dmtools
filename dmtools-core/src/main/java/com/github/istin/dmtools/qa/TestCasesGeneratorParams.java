@@ -29,6 +29,7 @@ public class TestCasesGeneratorParams extends Params {
     public static final String TEST_CASE_LINK_RELATIONSHIP_FOR_EXISTING = "testCaseLinkRelationshipForExisting";
     public static final String TEST_CASES_CUSTOM_FIELDS = "testCasesCustomFields";
     public static final String CUSTOM_FIELDS_RULES = "customFieldsRules";
+    public static final String PREPROCESS_JS_ACTION = "preprocessJSAction";
 
     @SerializedName(EXISTING_TEST_CASES_JQL)
     private String existingTestCasesJql;
@@ -60,5 +61,7 @@ public class TestCasesGeneratorParams extends Params {
     private String[] testCasesCustomFields;
     @SerializedName(CUSTOM_FIELDS_RULES)
     private String customFieldsRules;
+    @SerializedName(PREPROCESS_JS_ACTION)
+    private String preprocessJSAction;
 
 }
