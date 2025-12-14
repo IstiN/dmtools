@@ -166,8 +166,61 @@ js(expertParams.getPostJSAction())
 - Content creation permissions
 
 ### AI Configuration
-- Gemini AI: API key and model configuration
-- Dial AI: Service endpoint and authentication
+- **Gemini AI**: API key and model configuration
+- **Dial AI**: Service endpoint and authentication
+- **AWS Bedrock**: Region, model ID, bearer token, and optional parameters
+
+#### AWS Bedrock Model Configuration
+
+Bedrock supports multiple model families with different capabilities:
+
+**1. Amazon Nova Models** (supports images via `/invoke` endpoint)
+- **Inference Profile ARN Format**: `arn:aws:bedrock:region:account:inference-profile/eu.amazon.nova-lite-v1:0`
+- **Direct Model ID**: `eu.amazon.nova-lite-v1:0`
+- **Supports**: Text and images (PNG, JPEG, GIF, WebP)
+- **Configuration**:
+  ```env
+  BEDROCK_REGION=eu-north-1
+  BEDROCK_MODEL_ID=arn:aws:bedrock:eu-north-1:713881790201:inference-profile/eu.amazon.nova-lite-v1:0
+  BEDROCK_BEARER_TOKEN=your-token
+  # Or use direct model ID:
+  # BEDROCK_MODEL_ID=eu.amazon.nova-lite-v1:0
+  ```
+
+**2. Qwen Models** (text only, no images)
+- **Models**: `qwen.qwen3-coder-480b-a35b-v1:0`, `qwen.qwen-max-2401:0`
+- **Supports**: Text only
+- **Configuration**:
+  ```env
+  BEDROCK_MODEL_ID=qwen.qwen3-coder-480b-a35b-v1:0
+  BEDROCK_BEARER_TOKEN=your-token
+  ```
+
+**3. Claude Models** (supports images)
+- **Models**: `anthropic.claude-3-5-sonnet-20241022-v2:0`, `anthropic.claude-3-opus-20240229-v1:0`
+- **Supports**: Text and images
+- **Configuration**:
+  ```env
+  BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
+  BEDROCK_BEARER_TOKEN=your-token
+  ```
+
+**4. Mistral Models** (some support images)
+- **Models**: `mistral.mistral-large-2407-v1:0`, `mistral.pixtral-large-2502-v1:0` (supports images)
+- **Supports**: Text (and images for pixtral models)
+- **Configuration**:
+  ```env
+  BEDROCK_MODEL_ID=mistral.pixtral-large-2502-v1:0
+  BEDROCK_BEARER_TOKEN=your-token
+  ```
+
+**Optional Parameters**:
+- `BEDROCK_MAX_TOKENS`: Maximum tokens in response (default: 4096)
+- `BEDROCK_TEMPERATURE`: Temperature for response randomness (default: 1.0)
+- `BEDROCK_BASE_PATH`: Custom base path (auto-constructed from region if not provided)
+- `AWS_BEARER_TOKEN_BEDROCK`: Alternative token name (checked first, then falls back to `BEDROCK_BEARER_TOKEN`)
+
+**Note**: For inference profile ARN, the system automatically extracts the model ID for the `/invoke` endpoint path while using the full ARN for configuration.
 
 ### Figma Configuration
 - Figma API token

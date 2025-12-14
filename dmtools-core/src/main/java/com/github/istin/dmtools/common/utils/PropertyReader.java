@@ -679,6 +679,16 @@ public class PropertyReader {
 	public static final String ANTHROPIC_BASE_PATH = "ANTHROPIC_BASE_PATH";
 	public static final String ANTHROPIC_MODEL = "ANTHROPIC_MODEL";
 	public static final String ANTHROPIC_MAX_TOKENS = "ANTHROPIC_MAX_TOKENS";
+	public static final String BEDROCK_BASE_PATH = "BEDROCK_BASE_PATH";
+	public static final String BEDROCK_REGION = "BEDROCK_REGION";
+	public static final String BEDROCK_MODEL_ID = "BEDROCK_MODEL_ID";
+	public static final String BEDROCK_BEARER_TOKEN = "BEDROCK_BEARER_TOKEN";
+	public static final String AWS_BEARER_TOKEN_BEDROCK = "AWS_BEARER_TOKEN_BEDROCK";
+	public static final String BEDROCK_ACCESS_KEY_ID = "BEDROCK_ACCESS_KEY_ID";
+	public static final String BEDROCK_SECRET_ACCESS_KEY = "BEDROCK_SECRET_ACCESS_KEY";
+	public static final String BEDROCK_SESSION_TOKEN = "BEDROCK_SESSION_TOKEN";
+	public static final String BEDROCK_MAX_TOKENS = "BEDROCK_MAX_TOKENS";
+	public static final String BEDROCK_TEMPERATURE = "BEDROCK_TEMPERATURE";
 	public static final String DEFAULT_LLM = "DEFAULT_LLM";
 	public static final String DEFAULT_TRACKER = "DEFAULT_TRACKER";
 	public static final String IMAGE_MAX_DIMENSION = "IMAGE_MAX_DIMENSION";
@@ -817,6 +827,90 @@ public class PropertyReader {
 
 	public String getAnthropicCustomHeaderValues() {
 		return getValue("ANTHROPIC_CUSTOM_HEADER_VALUES");
+	}
+
+	// Bedrock configuration
+	public String getBedrockBasePath() {
+		String basePath = getValue(BEDROCK_BASE_PATH);
+		String region = getBedrockRegion();
+		if (basePath != null && !basePath.trim().isEmpty()) {
+			return basePath;
+		}
+		if (region != null && !region.trim().isEmpty()) {
+			return "https://bedrock-runtime." + region + ".amazonaws.com";
+		}
+		return null;
+	}
+
+	public String getBedrockRegion() {
+		return getValue(BEDROCK_REGION);
+	}
+
+	public String getBedrockModelId() {
+		return getValue(BEDROCK_MODEL_ID);
+	}
+
+	public String getBedrockBearerToken() {
+		// Check AWS_BEARER_TOKEN_BEDROCK first (alternative name), then fall back to BEDROCK_BEARER_TOKEN
+		String token = getValue(AWS_BEARER_TOKEN_BEDROCK);
+		if (token != null && !token.trim().isEmpty() && !token.startsWith("$")) {
+			return token;
+		}
+		return getValue(BEDROCK_BEARER_TOKEN);
+	}
+
+	public String getBedrockAccessKeyId() {
+		return getValue(BEDROCK_ACCESS_KEY_ID);
+	}
+
+	public String getBedrockSecretAccessKey() {
+		return getValue(BEDROCK_SECRET_ACCESS_KEY);
+	}
+
+	public String getBedrockSessionToken() {
+		return getValue(BEDROCK_SESSION_TOKEN);
+	}
+
+	public int getBedrockMaxTokens() {
+		String value = getValue(BEDROCK_MAX_TOKENS);
+		if (value == null || value.trim().isEmpty()) {
+			return 4096;
+		}
+		try {
+			int maxTokens = Integer.parseInt(value.trim());
+			// Validate minimum value
+			if (maxTokens < 1) {
+				logger.warn("Invalid BEDROCK_MAX_TOKENS value: {}, using default 4096", value);
+				return 4096;
+			}
+			return maxTokens;
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid BEDROCK_MAX_TOKENS value: {}, using default 4096", value);
+			return 4096;
+		}
+	}
+
+	public double getBedrockTemperature() {
+		String value = getValue(BEDROCK_TEMPERATURE);
+		if (value == null || value.trim().isEmpty()) {
+			return 1.0;
+		}
+		try {
+			double temperature = Double.parseDouble(value.trim());
+			// Validate range 0.0-1.0
+			if (temperature < 0.0) {
+				logger.warn("Invalid BEDROCK_TEMPERATURE value: {}, using default 1.0", value);
+				return 1.0;
+			}
+			if (temperature > 1.0) {
+				logger.warn("BEDROCK_TEMPERATURE value {} exceeds maximum 1.0, using 1.0", value);
+				return 1.0;
+			}
+			return temperature;
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid BEDROCK_TEMPERATURE value: {}, using default 1.0", value);
+			return 1.0;
+		}
 	}
 
 	public String getDefaultLLM() {
