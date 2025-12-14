@@ -56,13 +56,6 @@ public class BedrockAIClientTest {
     }
 
     @Test
-    public void testSign() {
-        Request.Builder builder = new Request.Builder();
-        Request.Builder signedBuilder = bedrockAIClient.sign(builder);
-        assertNotNull(signedBuilder);
-    }
-
-    @Test
     public void testSignWithBearerToken() {
         Request.Builder builder = new Request.Builder();
         Request.Builder signedBuilder = bedrockAIClient.sign(builder);

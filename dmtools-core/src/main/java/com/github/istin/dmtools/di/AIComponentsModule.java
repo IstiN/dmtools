@@ -111,8 +111,10 @@ public class AIComponentsModule {
             } else if ("aws_bedrock".equalsIgnoreCase(defaultLLM.trim()) || "bedrock".equalsIgnoreCase(defaultLLM.trim())) {
                 String bedrockModelId = configuration.getBedrockModelId();
                 String bedrockBearerToken = configuration.getBedrockBearerToken();
+                String bedrockBasePath = configuration.getBedrockBasePath();
                 if (bedrockModelId != null && !bedrockModelId.trim().isEmpty() && !bedrockModelId.startsWith("$") &&
-                    bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$")) {
+                    bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$") &&
+                    bedrockBasePath != null && !bedrockBasePath.trim().isEmpty()) {
                     try {
                         logger.debug("Attempting to initialize AI via BasicBedrockAI as DEFAULT_LLM=aws_bedrock...");
                         AI bedrock = new BasicBedrockAI(observer, configuration);
@@ -122,7 +124,7 @@ public class AIComponentsModule {
                         logger.error("Failed to initialize BasicBedrockAI (DEFAULT_LLM=aws_bedrock): " + e.getMessage());
                     }
                 } else {
-                    logger.warn("DEFAULT_LLM is set to 'aws_bedrock' but BEDROCK_MODEL_ID or BEDROCK_BEARER_TOKEN is not configured. Skipping Bedrock initialization.");
+                    logger.warn("DEFAULT_LLM is set to 'aws_bedrock' but BEDROCK_MODEL_ID, BEDROCK_BEARER_TOKEN, or BEDROCK_BASE_PATH/BEDROCK_REGION is not configured. Skipping Bedrock initialization.");
                 }
                 bedrockAttempted = true;
             }
@@ -163,8 +165,10 @@ public class AIComponentsModule {
         if (!bedrockAttempted) {
             String bedrockModelId = configuration.getBedrockModelId();
             String bedrockBearerToken = configuration.getBedrockBearerToken();
+            String bedrockBasePath = configuration.getBedrockBasePath();
             if (bedrockModelId != null && !bedrockModelId.trim().isEmpty() && !bedrockModelId.startsWith("$") &&
-                bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$")) {
+                bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$") &&
+                bedrockBasePath != null && !bedrockBasePath.trim().isEmpty()) {
                 try {
                     logger.debug("Attempting to initialize AI via BasicBedrockAI as BEDROCK_MODEL_ID is set...");
                     AI bedrock = new BasicBedrockAI(observer, configuration);
@@ -362,8 +366,10 @@ public class AIComponentsModule {
     public static AI createBedrockAI(ConversationObserver observer, ApplicationConfiguration configuration) {
         String bedrockModelId = configuration.getBedrockModelId();
         String bedrockBearerToken = configuration.getBedrockBearerToken();
+        String bedrockBasePath = configuration.getBedrockBasePath();
         if (bedrockModelId != null && !bedrockModelId.trim().isEmpty() && !bedrockModelId.startsWith("$") &&
-            bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$")) {
+            bedrockBearerToken != null && !bedrockBearerToken.trim().isEmpty() && !bedrockBearerToken.startsWith("$") &&
+            bedrockBasePath != null && !bedrockBasePath.trim().isEmpty()) {
             try {
                 return new BasicBedrockAI(observer, configuration);
             } catch (Exception e) {

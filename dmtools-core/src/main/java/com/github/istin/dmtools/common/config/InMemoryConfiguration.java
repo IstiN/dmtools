@@ -366,6 +366,11 @@ public class InMemoryConfiguration implements ApplicationConfiguration {
     
     @Override
     public String getBedrockBearerToken() {
+        // Check AWS_BEARER_TOKEN_BEDROCK first (alternative name), then fall back to BEDROCK_BEARER_TOKEN
+        String token = getValue("AWS_BEARER_TOKEN_BEDROCK");
+        if (token != null && !token.trim().isEmpty() && !token.startsWith("$")) {
+            return token;
+        }
         return getValue("BEDROCK_BEARER_TOKEN");
     }
     

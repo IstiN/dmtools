@@ -683,6 +683,7 @@ public class PropertyReader {
 	public static final String BEDROCK_REGION = "BEDROCK_REGION";
 	public static final String BEDROCK_MODEL_ID = "BEDROCK_MODEL_ID";
 	public static final String BEDROCK_BEARER_TOKEN = "BEDROCK_BEARER_TOKEN";
+	public static final String AWS_BEARER_TOKEN_BEDROCK = "AWS_BEARER_TOKEN_BEDROCK";
 	public static final String BEDROCK_MAX_TOKENS = "BEDROCK_MAX_TOKENS";
 	public static final String BEDROCK_TEMPERATURE = "BEDROCK_TEMPERATURE";
 	public static final String DEFAULT_LLM = "DEFAULT_LLM";
@@ -847,6 +848,11 @@ public class PropertyReader {
 	}
 
 	public String getBedrockBearerToken() {
+		// Check AWS_BEARER_TOKEN_BEDROCK first (alternative name), then fall back to BEDROCK_BEARER_TOKEN
+		String token = getValue(AWS_BEARER_TOKEN_BEDROCK);
+		if (token != null && !token.trim().isEmpty() && !token.startsWith("$")) {
+			return token;
+		}
 		return getValue(BEDROCK_BEARER_TOKEN);
 	}
 
