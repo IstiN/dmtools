@@ -51,6 +51,9 @@ public class DevChart {
 
         @Getter
         public List<Metric> customMetricsHeaders;
+        
+        @Setter
+        private String score;
 
         public ReportIterationData(int reportIterationId, String reportIterationName, int defaultCurrentIteration, String formula) {
             this.reportIterationName = reportIterationName;
@@ -68,46 +71,66 @@ public class DevChart {
         }
 
         public String getScore() throws ScriptException {
-            ScriptEngineManager mgr = new ScriptEngineManager();
-            javax.script.ScriptEngine engine = mgr.getEngineByName("graal.js");
-            //
-            if (formula.endsWith(".js")) {
-                HashMap<String, String> params = new HashMap<>();
-                for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
-                    Metric metric = getCustomMetricsHeaders().get(i);
-                    params.put(metric.getName(), getCustomMetrics().get(i));
-                }
-                try {
-                    formula = readFormula(params, formula);
-                } catch (IOException | TemplateException e) {
-                    throw new RuntimeException(e);
-                }
-            } else {
-                for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
-                    Metric metric = getCustomMetricsHeaders().get(i);
-                    formula = formula.replaceAll("\\$\\{" + metric.getName() + "}", ""+getCustomMetrics().get(i));
-                }
+            // If score is already calculated, return it
+            if (score != null) {
+                return score;
             }
-
+            // Otherwise calculate it
+            calculateScore();
+            return score;
+        }
+        
+        public void calculateScore() {
             try {
-                if (reportIterationId > defaultCurrentIteration) {
-                    return "NaN";
-                }
-                Object eval = engine.eval(formula);
-                if (eval instanceof Integer) {
-                    if ((Integer)eval < 0) {
-                        eval = 0;
+                ScriptEngineManager mgr = new ScriptEngineManager();
+                javax.script.ScriptEngine engine = mgr.getEngineByName("graal.js");
+                String formulaToEvaluate = formula;
+                
+                if (formulaToEvaluate.endsWith(".js")) {
+                    HashMap<String, String> params = new HashMap<>();
+                    for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
+                        Metric metric = getCustomMetricsHeaders().get(i);
+                        params.put(metric.getName(), getCustomMetrics().get(i));
                     }
-                    return new DecimalFormat("#.##").format(eval);
+                    try {
+                        formulaToEvaluate = readFormula(params, formulaToEvaluate);
+                    } catch (IOException | TemplateException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    for (int i = 0; i < getCustomMetricsHeaders().size(); i++) {
+                        Metric metric = getCustomMetricsHeaders().get(i);
+                        formulaToEvaluate = formulaToEvaluate.replaceAll("\\$\\{" + metric.getName() + "}", ""+getCustomMetrics().get(i));
+                    }
                 }
-                if ((Double)eval < 0) {
-                    eval = 0;
+
+                try {
+                    if (reportIterationId > defaultCurrentIteration) {
+                        this.score = "NaN";
+                        return;
+                    }
+                    Object eval = engine.eval(formulaToEvaluate);
+                    if (eval instanceof Integer) {
+                        if ((Integer)eval < 0) {
+                            eval = 0;
+                        }
+                        this.score = new DecimalFormat("#.##").format(eval);
+                    } else if (eval instanceof Double) {
+                        if ((Double)eval < 0) {
+                            eval = 0;
+                        }
+                        this.score = new DecimalFormat("#.##").format(((Double)eval));
+                    } else {
+                        this.score = new DecimalFormat("#.##").format(eval);
+                    }
+                } catch (Exception e) {
+                    logger.error(formulaToEvaluate);
+                    logger.error(e);
+                    this.score = "NaN";
                 }
-                return new DecimalFormat("#.##").format(((Double)eval));
             } catch (Exception e) {
-                logger.error(formula);
-                logger.error(e);
-                return "NaN";
+                logger.error("Error calculating score", e);
+                this.score = "NaN";
             }
         }
 
@@ -163,30 +186,72 @@ public class DevChart {
         return ""+level;
     }
 
+    @Setter
+    private String avgScore;
+    
     public String getAvgScore() throws ScriptException {
-        List<ReportIterationData> reportIterationDataList = getReportIterationDataList();
-        int iterCount = 0;
-        double avgScore = 0;
-        for (int i = reportIterationDataList.size()-1; i >= 0; i--) {
-            if (iterCount >= 12) {
-                break;
-            }
-            ReportIterationData reportIterationData = reportIterationDataList.get(i);
-            int defaultCurrentIteration = reportIterationData.getDefaultCurrentIteration();
-            try {
-                int reportIterationNameIntvalue = reportIterationData.getReportIterationId();
-                if (reportIterationNameIntvalue < defaultCurrentIteration) {
-                    double result = Double.parseDouble(reportIterationData.getScore());
-                    if (!Double.isNaN(result)) {
-                        avgScore = avgScore + result;
-                    }
-                    iterCount++;
+        // If avgScore is already calculated, return it
+        if (avgScore != null) {
+            return avgScore;
+        }
+        // Otherwise calculate it
+        calculateAvgScore();
+        return avgScore;
+    }
+    
+    public void calculateAvgScore() {
+        try {
+            List<ReportIterationData> reportIterationDataList = getReportIterationDataList();
+            int iterCount = 0;
+            double avgScoreValue = 0;
+            for (int i = reportIterationDataList.size()-1; i >= 0; i--) {
+                if (iterCount >= 12) {
+                    break;
                 }
-            } catch (NumberFormatException e) {}
+                ReportIterationData reportIterationData = reportIterationDataList.get(i);
+                int defaultCurrentIteration = reportIterationData.getDefaultCurrentIteration();
+                try {
+                    int reportIterationNameIntvalue = reportIterationData.getReportIterationId();
+                    if (reportIterationNameIntvalue < defaultCurrentIteration) {
+                        // Ensure score is calculated
+                        if (reportIterationData.getScore() == null) {
+                            reportIterationData.calculateScore();
+                        }
+                        double result = Double.parseDouble(reportIterationData.getScore());
+                        if (!Double.isNaN(result)) {
+                            avgScoreValue = avgScoreValue + result;
+                        }
+                        iterCount++;
+                    }
+                } catch (NumberFormatException | ScriptException e) {
+                    // Skip invalid scores
+                }
+            }
+            if (iterCount == 0) {
+                this.avgScore = new DecimalFormat("#.##").format(0d);
+            } else {
+                this.avgScore = new DecimalFormat("#.##").format((double)(avgScoreValue/iterCount));
+            }
+        } catch (Exception e) {
+            logger.error("Error calculating avg score", e);
+            this.avgScore = "0";
         }
-        if (iterCount == 0) {
-            return new DecimalFormat("#.##").format(0d);
+    }
+    
+    public void calculateAllScores() {
+        try {
+            // Calculate all iteration scores
+            for (ReportIterationData reportIterationData : reportIterationDataList) {
+                if (reportIterationData.getScore() == null) {
+                    reportIterationData.calculateScore();
+                }
+            }
+            // Calculate average score
+            if (avgScore == null) {
+                calculateAvgScore();
+            }
+        } catch (Exception e) {
+            logger.error("Error calculating all scores", e);
         }
-        return new DecimalFormat("#.##").format((double)(avgScore/iterCount));
     }
 }
