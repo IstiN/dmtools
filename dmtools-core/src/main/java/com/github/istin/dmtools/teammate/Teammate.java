@@ -13,20 +13,14 @@ import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.config.ApplicationConfiguration;
 import com.github.istin.dmtools.common.model.IAttachment;
 import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.common.tracker.TrackerClient;
-import com.github.istin.dmtools.common.utils.FileConfig;
-import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.context.ContextOrchestrator;
 import com.github.istin.dmtools.context.UriToObject;
 import com.github.istin.dmtools.context.UriToObjectFactory;
-import com.github.istin.dmtools.di.AIAgentsModule;
-import com.github.istin.dmtools.di.DaggerTeammateComponent;
-import com.github.istin.dmtools.di.MermaidIndexModule;
-import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
-import com.github.istin.dmtools.di.TeammateComponent;
-import com.github.istin.dmtools.index.mermaid.tool.MermaidIndexTools;
-import com.github.istin.dmtools.common.model.ToText;
+import com.github.istin.dmtools.di.*;
 import com.github.istin.dmtools.expert.ExpertParams;
+import com.github.istin.dmtools.index.mermaid.tool.MermaidIndexTools;
 import com.github.istin.dmtools.job.*;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.search.CodebaseSearchOrchestrator;
@@ -270,23 +264,28 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
             // Create and prepare ticket context
             TicketContext ticketContext = new TicketContext(trackerClient, ticket);
             ticketContext.prepareContext(true, false);
-            
             // Get attachments and convert to text
             List<? extends IAttachment> attachments = ticket.getAttachments();
-            String ticketText = ticketContext.toText();
             // Process content with ContextOrchestrator
             //contextOrchestrator.processFullContent(ticket.getKey(), ticketText, (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
             
             String textFieldsOnly = trackerClient.getTextFieldsOnly(ticket);
+
+            //inputParams.setKnownInfo(inputParams.getKnownInfo());
+
+            inputParams.setRequest(textFieldsOnly);
+            ChunkPreparation contextChunkPreparation = new ChunkPreparation();
+            int requestTokens = new Claude35TokenCounter().countTokens(inputParams.toString());
+            int systemTokenLimits = contextChunkPreparation.getTokenLimit();
+            int tokenLimit = (systemTokenLimits - requestTokens)/2;
+            System.out.println("GENERATION TOKEN LIMIT: " + tokenLimit);
+            contextOrchestrator.setTokenLimit(tokenLimit);
             contextOrchestrator.processUrisInContent(textFieldsOnly, uriProcessingSources, 1);
             contextOrchestrator.processUrisInContent(attachments, uriProcessingSources, 1);
-            
             List<ChunkPreparation.Chunk> chunksContext = contextOrchestrator.summarize();
-
-            inputParams.setKnownInfo(inputParams.getKnownInfo() + "\n" + chunksContext.toString());
             contextOrchestrator.clear();
-            
-            inputParams.setRequest(ticketText);
+            chunksContext.addAll(contextChunkPreparation.prepareChunks(ticketContext.getComments(), tokenLimit));
+            chunksContext.addAll(contextChunkPreparation.prepareChunks(ticketContext.getExtraTickets(), tokenLimit));
 
             // Process hooks as context first
             String[] hooksAsContext = expertParams.getHooksAsContext();
@@ -370,15 +369,10 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                             } else {
                                 // Prepare chunks for AI processing with reduced token limit
                                 // Account for story tokens (same pattern as TestCasesGenerator)
-                                ChunkPreparation chunkPreparation = new ChunkPreparation();
-                                String storyText = inputParams.getRequest();
-                                int storyTokens = new Claude35TokenCounter().countTokens(storyText != null ? storyText : "");
-                                int systemTokenLimits = chunkPreparation.getTokenLimit();
-                                int tokenLimit = (systemTokenLimits - storyTokens) / 2;
-                                logger.info("Index chunking for {}: story tokens={}, system limit={}, chunk limit={}", 
-                                    indexName, storyTokens, systemTokenLimits, tokenLimit);
+                                logger.info("Index chunking for {}: story tokens={}, system limit={}, chunk limit={}",
+                                    indexName, systemTokenLimits, systemTokenLimits, tokenLimit);
                                 
-                                List<ChunkPreparation.Chunk> chunks = chunkPreparation.prepareChunks(indexData, tokenLimit);
+                                List<ChunkPreparation.Chunk> chunks = contextChunkPreparation.prepareChunks(indexData, tokenLimit);
                                 indexChunks.addAll(chunks);
                                 logger.info("Prepared {} chunks from index {} for ticket {}", chunks.size(), indexName, ticket.getKey());
                             }
@@ -405,8 +399,10 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                 }
             } else {
                 // Standard AI processing workflow with index chunks
-                List<ChunkPreparation.Chunk> allChunks = indexChunks.isEmpty() ? null : indexChunks;
-                GenericRequestAgent.Params genericRequesAgentParams = new GenericRequestAgent.Params(inputParams, null, allChunks, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
+                if (!indexChunks.isEmpty()) {
+                    chunksContext.addAll(indexChunks);
+                }
+                GenericRequestAgent.Params genericRequesAgentParams = new GenericRequestAgent.Params(inputParams, null, chunksContext, expertParams.getChunkProcessingTimeoutInMinutes() * 60 * 1000);
                 response = genericRequestAgent.run(genericRequesAgentParams);
             }
             js(expertParams.getPostJSAction())
