@@ -17,6 +17,9 @@ public class JwtUtils {
     @Value("${jwt.expiration}")
     private int jwtExpirationMs;
 
+    @Value("${jwt.refresh.expiration:2592000000}")
+    private int jwtRefreshExpirationMs;
+
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
@@ -38,6 +41,15 @@ public class JwtUtils {
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
+    }
+
+    public String getUserIdFromJwtToken(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("userId", String.class);
     }
 
     public boolean validateJwtToken(String authToken) {
@@ -88,5 +100,107 @@ public class JwtUtils {
     public String getUserIdFromJwtTokenCustom(String token, String secret) {
         Key key = Keys.hmacShaKeyFor(secret.getBytes());
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().get("userId", String.class);
+    }
+
+    /**
+     * Generates a refresh token JWT with longer expiration time.
+     *
+     * @param email User email
+     * @param userId User ID
+     * @return Refresh token JWT string
+     */
+    public String generateRefreshToken(String email, String userId) {
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("userId", userId)
+                .claim("type", "refresh")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + jwtRefreshExpirationMs))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /**
+     * Validates a refresh token. Refresh tokens must be valid and not expired.
+     *
+     * @param token Refresh token to validate
+     * @return true if token is valid and not expired, false otherwise
+     */
+    public boolean validateRefreshToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            // Verify it's a refresh token
+            String type = claims.get("type", String.class);
+            if (type == null || !"refresh".equals(type)) {
+                return false;
+            }
+            
+            return true;
+        } catch (ExpiredJwtException e) {
+            System.err.println("Refresh token is expired: " + e.getMessage());
+            return false;
+        } catch (MalformedJwtException e) {
+            System.err.println("Invalid refresh token: " + e.getMessage());
+            return false;
+        } catch (UnsupportedJwtException e) {
+            System.err.println("Unsupported refresh token: " + e.getMessage());
+            return false;
+        } catch (IllegalArgumentException e) {
+            System.err.println("Refresh token claims string is empty: " + e.getMessage());
+            return false;
+        } catch (Exception e) {
+            System.err.println("Error validating refresh token: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Extracts claims from a refresh token, even if it's expired.
+     * This is useful for extracting user information from expired tokens.
+     *
+     * @param token Refresh token
+     * @return Claims object containing token information
+     * @throws JwtException if token is invalid or cannot be parsed
+     */
+    public Claims getClaimsFromRefreshToken(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            // Even if expired, we can still extract claims
+            return e.getClaims();
+        } catch (Exception e) {
+            throw new JwtException("Failed to extract claims from refresh token: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Extracts user email from a refresh token.
+     *
+     * @param token Refresh token
+     * @return User email
+     */
+    public String getEmailFromRefreshToken(String token) {
+        Claims claims = getClaimsFromRefreshToken(token);
+        return claims.getSubject();
+    }
+
+    /**
+     * Extracts user ID from a refresh token.
+     *
+     * @param token Refresh token
+     * @return User ID
+     */
+    public String getUserIdFromRefreshToken(String token) {
+        Claims claims = getClaimsFromRefreshToken(token);
+        return claims.get("userId", String.class);
     }
 } 

@@ -41,6 +41,9 @@ public class AuthController {
     @Value("${auth.local.jwtExpirationMs:86400000}")
     private int jwtExpirationMs;
 
+    @Value("${jwt.refresh.expiration:2592000000}")
+    private int jwtRefreshExpirationMs;
+
     public AuthController(UserService userService, JwtUtils jwtUtils, AuthConfigProperties authConfigProperties) {
         this.userService = userService;
         this.jwtUtils = jwtUtils;
@@ -216,8 +219,96 @@ public class AuthController {
         return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
     }
 
+    @PostMapping("/refresh")
+    @Operation(
+        summary = "Refresh access token", 
+        description = "Exchanges a refresh token for a new access token and a new refresh token. " +
+                     "Refresh tokens are rotated on each use - a new refresh token is always generated. " +
+                     "Active users will remain logged in indefinitely as long as they use the application regularly."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Tokens refreshed successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = RefreshTokenResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token, or user not found",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+        description = "Refresh token request",
+        required = true,
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = RefreshTokenRequest.class),
+            examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                name = "Refresh Token Request",
+                value = "{\"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"}"
+            )
+        )
+    )
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
+        logger.info("🔄 REFRESH - Refresh token request received");
+        
+        if (request.getRefreshToken() == null || request.getRefreshToken().trim().isEmpty()) {
+            logger.warn("❌ REFRESH - Refresh token is missing");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("Refresh token is required"));
+        }
+        
+        try {
+            // Validate refresh token
+            if (!jwtUtils.validateRefreshToken(request.getRefreshToken())) {
+                logger.warn("❌ REFRESH - Invalid or expired refresh token");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Invalid or expired refresh token"));
+            }
+            
+            // Extract user info from refresh token
+            String email = jwtUtils.getEmailFromRefreshToken(request.getRefreshToken());
+            String userId = jwtUtils.getUserIdFromRefreshToken(request.getRefreshToken());
+            
+            logger.info("🔄 REFRESH - Extracted user info: email={}, userId={}", email, userId);
+            
+            // Verify user still exists in database
+            java.util.Optional<User> userOpt = userService.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                logger.warn("❌ REFRESH - User not found: {}", email);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("User not found"));
+            }
+            
+            User user = userOpt.get();
+            logger.info("✅ REFRESH - User found: {}", user.getEmail());
+            
+            // Generate new access token
+            String newAccessToken = jwtUtils.generateJwtToken(email, userId);
+            
+            // Generate new refresh token (mandatory rotation)
+            String newRefreshToken = jwtUtils.generateRefreshToken(email, userId);
+            
+            logger.info("✅ REFRESH - New tokens generated successfully");
+            
+            // Return both tokens with expiration times in seconds
+            RefreshTokenResponse response = new RefreshTokenResponse(
+                    newAccessToken,
+                    newRefreshToken,
+                    jwtExpirationMs / 1000,
+                    jwtRefreshExpirationMs / 1000
+            );
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("❌ REFRESH - Error refreshing token: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("Failed to refresh token: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/local-login")
-    @Operation(summary = "Local login", description = "Authenticate user with local credentials (standalone mode only)")
+    @Operation(
+        summary = "Local login", 
+        description = "Authenticate user with local credentials (standalone mode only). " +
+                     "Returns both access token and refresh token. The refresh token can be used to obtain new access tokens without re-authentication."
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Login successful",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = LocalLoginResponse.class))),
@@ -261,8 +352,11 @@ public class AuthController {
             
             logger.info("✅ LOCAL AUTH - User created/updated: {}", user.getId());
             
-            // Generate JWT
+            // Generate JWT access token
             String jwt = jwtUtils.generateJwtTokenCustom(email, user.getId(), jwtSecret, jwtExpirationMs);
+            
+            // Generate refresh token
+            String refreshToken = jwtUtils.generateRefreshToken(email, user.getId());
             
             // Set JWT as cookie
             Cookie jwtCookie = new Cookie("jwt", jwt);
@@ -285,7 +379,7 @@ public class AuthController {
                 true
             );
             
-            return ResponseEntity.ok(new LocalLoginResponse(jwt, userInfo));
+            return ResponseEntity.ok(new LocalLoginResponse(jwt, refreshToken, userInfo));
         } catch (Exception e) {
             logger.error("❌ LOCAL AUTH - Error during login: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(new ErrorResponse("Login failed: " + e.getMessage()));
