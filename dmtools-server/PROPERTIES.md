@@ -32,6 +32,7 @@ spring.security.oauth2.client.registration.github.redirect-uri=http://localhost:
 # JWT Configuration
 jwt.secret=${JWT_SECRET}
 jwt.expiration=86400000
+jwt.refresh.expiration=2592000000
 jwt.header=Authorization
 jwt.prefix=Bearer 
 
@@ -101,6 +102,7 @@ spring.security.oauth2.client.registration.github.redirect-uri=${GITHUB_REDIRECT
 # JWT Configuration
 jwt.secret=${JWT_SECRET}
 jwt.expiration=${JWT_EXPIRATION}
+jwt.refresh.expiration=${JWT_REFRESH_EXPIRATION:2592000000}
 jwt.header=Authorization
 jwt.prefix=Bearer 
 
@@ -167,6 +169,7 @@ export GITHUB_REDIRECT_URI="https://your-domain.com/login/oauth2/code/github"
 # JWT Configuration
 export JWT_SECRET="your-jwt-secret"
 export JWT_EXPIRATION="86400000"
+export JWT_REFRESH_EXPIRATION="2592000000"
 
 # Logging
 export LOG_FILE_PATH="/var/log/dmtools/app.log"
@@ -213,7 +216,8 @@ export RATE_LIMIT_BURST="20"
 ### JWT Configuration
 - `jwt.secret`: JWT signing key
   - How to generate: Use a secure random generator to create a base64-encoded key
-- `jwt.expiration`: Token expiration time in milliseconds
+- `jwt.expiration`: Access token expiration time in milliseconds (default: 86400000 = 24 hours)
+- `jwt.refresh.expiration`: Refresh token expiration time in milliseconds (default: 2592000000 = 30 days)
 - `jwt.header`: HTTP header name for JWT (default: "Authorization")
 - `jwt.prefix`: JWT prefix in header (default: "Bearer ")
 

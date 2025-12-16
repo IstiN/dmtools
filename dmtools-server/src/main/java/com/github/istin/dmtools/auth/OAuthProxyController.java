@@ -6,10 +6,8 @@ import com.github.istin.dmtools.auth.service.OAuthProxyService;
 import com.github.istin.dmtools.auth.JwtUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -123,13 +121,23 @@ public class OAuthProxyController {
             
             logger.info("✅ OAUTH PROXY - Successfully exchanged code for JWT token");
             
+            // Extract user info from JWT to generate refresh token
+            String email = jwtUtils.getUserEmailFromJwtToken(jwtToken);
+            String userId = jwtUtils.getUserIdFromJwtToken(jwtToken);
+            
+            // Generate refresh token
+            String refreshToken = jwtUtils.generateRefreshToken(email, userId);
+            logger.info("✅ OAUTH PROXY - Generated refresh token");
+            
             Map<String, Object> response = Map.of(
                 "access_token", jwtToken,
+                "refresh_token", refreshToken,
                 "token_type", "Bearer",
-                "expires_in", 3600 // 1 hour default
+                "expires_in", 86400, // 24 hours in seconds
+                "refresh_expires_in", 2592000 // 30 days in seconds
             );
             
-            logger.info("📤 OAUTH PROXY - Returning successful token response");
+            logger.info("📤 OAUTH PROXY - Returning successful token response with refresh token");
             return ResponseEntity.ok(response);
         } catch (IllegalStateException e) {
             logger.error("❌ OAUTH PROXY - Invalid code exchange request", e);

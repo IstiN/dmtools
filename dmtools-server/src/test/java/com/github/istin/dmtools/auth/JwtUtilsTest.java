@@ -25,6 +25,7 @@ public class JwtUtilsTest {
     void setUp() {
         ReflectionTestUtils.setField(jwtUtils, "jwtSecret", testSecret);
         ReflectionTestUtils.setField(jwtUtils, "jwtExpirationMs", testExpirationMs);
+        ReflectionTestUtils.setField(jwtUtils, "jwtRefreshExpirationMs", 2592000000L); // 30 days
     }
 
     @Test
@@ -137,5 +138,108 @@ public class JwtUtilsTest {
         
         // Act & Assert
         assertFalse(jwtUtils.validateJwtToken(token));
+    }
+
+    @Test
+    void generateRefreshToken_ShouldCreateValidRefreshToken() {
+        // Act
+        String refreshToken = jwtUtils.generateRefreshToken(testEmail, testUserId);
+
+        // Assert
+        assertNotNull(refreshToken);
+        assertTrue(jwtUtils.validateRefreshToken(refreshToken));
+        assertEquals(testEmail, jwtUtils.getEmailFromRefreshToken(refreshToken));
+        assertEquals(testUserId, jwtUtils.getUserIdFromRefreshToken(refreshToken));
+    }
+
+    @Test
+    void validateRefreshToken_WithValidRefreshToken_ShouldReturnTrue() {
+        // Arrange
+        String refreshToken = jwtUtils.generateRefreshToken(testEmail, testUserId);
+
+        // Act & Assert
+        assertTrue(jwtUtils.validateRefreshToken(refreshToken));
+    }
+
+    @Test
+    void validateRefreshToken_WithInvalidToken_ShouldReturnFalse() {
+        // Act & Assert
+        assertFalse(jwtUtils.validateRefreshToken("invalid.token.string"));
+    }
+
+    @Test
+    void validateRefreshToken_WithAccessToken_ShouldReturnFalse() {
+        // Arrange - access tokens don't have "type": "refresh" claim
+        String accessToken = jwtUtils.generateJwtToken(testEmail, testUserId);
+
+        // Act & Assert
+        assertFalse(jwtUtils.validateRefreshToken(accessToken));
+    }
+
+    @Test
+    void validateRefreshToken_WithExpiredRefreshToken_ShouldReturnFalse() throws InterruptedException {
+        // Arrange
+        ReflectionTestUtils.setField(jwtUtils, "jwtRefreshExpirationMs", 1); // 1ms expiration
+        String refreshToken = jwtUtils.generateRefreshToken(testEmail, testUserId);
+        
+        // Wait for token to expire
+        Thread.sleep(10);
+        
+        // Act & Assert
+        assertFalse(jwtUtils.validateRefreshToken(refreshToken));
+    }
+
+    @Test
+    void getEmailFromRefreshToken_ShouldReturnCorrectEmail() {
+        // Arrange
+        String refreshToken = jwtUtils.generateRefreshToken(testEmail, testUserId);
+
+        // Act
+        String email = jwtUtils.getEmailFromRefreshToken(refreshToken);
+
+        // Assert
+        assertEquals(testEmail, email);
+    }
+
+    @Test
+    void getUserIdFromRefreshToken_ShouldReturnCorrectUserId() {
+        // Arrange
+        String refreshToken = jwtUtils.generateRefreshToken(testEmail, testUserId);
+
+        // Act
+        String userId = jwtUtils.getUserIdFromRefreshToken(refreshToken);
+
+        // Assert
+        assertEquals(testUserId, userId);
+    }
+
+    @Test
+    void getClaimsFromRefreshToken_WithExpiredToken_ShouldStillReturnClaims() throws InterruptedException {
+        // Arrange
+        ReflectionTestUtils.setField(jwtUtils, "jwtRefreshExpirationMs", 1); // 1ms expiration
+        String refreshToken = jwtUtils.generateRefreshToken(testEmail, testUserId);
+        
+        // Wait for token to expire
+        Thread.sleep(10);
+        
+        // Act - should still be able to extract claims even if expired
+        String email = jwtUtils.getEmailFromRefreshToken(refreshToken);
+        String userId = jwtUtils.getUserIdFromRefreshToken(refreshToken);
+
+        // Assert
+        assertEquals(testEmail, email);
+        assertEquals(testUserId, userId);
+    }
+
+    @Test
+    void getUserIdFromJwtToken_ShouldReturnCorrectUserId() {
+        // Arrange
+        String token = jwtUtils.generateJwtToken(testEmail, testUserId);
+
+        // Act
+        String userId = jwtUtils.getUserIdFromJwtToken(token);
+
+        // Assert
+        assertEquals(testUserId, userId);
     }
 } 

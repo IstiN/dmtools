@@ -8,6 +8,9 @@ public class LocalLoginResponse {
     @Schema(description = "JWT authentication token", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String token;
     
+    @Schema(description = "Refresh token for obtaining new access tokens", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+    private String refreshToken;
+    
     @Schema(description = "User information")
     private UserInfo user;
 
@@ -18,12 +21,26 @@ public class LocalLoginResponse {
         this.user = user;
     }
 
+    public LocalLoginResponse(String token, String refreshToken, UserInfo user) {
+        this.token = token;
+        this.refreshToken = refreshToken;
+        this.user = user;
+    }
+
     public String getToken() {
         return token;
     }
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 
     public UserInfo getUser() {

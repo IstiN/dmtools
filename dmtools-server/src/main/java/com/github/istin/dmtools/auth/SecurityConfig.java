@@ -229,8 +229,9 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> {
                 if (authConfigProperties.isLocalStandaloneMode()) {
-                    logger.info("🔒 Local standalone mode enabled. Permitting /api/auth/local-login and /api/auth/config");
+                    logger.info("🔒 Local standalone mode enabled. Permitting /api/auth/local-login, /api/auth/refresh and /api/auth/config");
                     auth.requestMatchers(new AntPathRequestMatcher("/api/auth/local-login", "POST")).permitAll();
+                    auth.requestMatchers(new AntPathRequestMatcher("/api/auth/refresh", "POST")).permitAll();
                     auth.requestMatchers("/api/auth/config").permitAll();
                     // Allow OAuth proxy endpoints (controller won't be present in standalone, so calls may 404, but not 403)
                     auth.requestMatchers("/api/oauth-proxy/**").permitAll();
@@ -243,6 +244,7 @@ public class SecurityConfig {
                     ).denyAll();
                 } else {
                     auth.requestMatchers(new AntPathRequestMatcher("/api/auth/local-login", "POST")).denyAll(); // Deny local login if not in standalone mode
+                    auth.requestMatchers(new AntPathRequestMatcher("/api/auth/refresh", "POST")).permitAll(); // Allow refresh endpoint
                     // Allow OAuth2 endpoints only in non-standalone mode
                     auth.requestMatchers(
                             new AntPathRequestMatcher("/oauth2/authorization/**"),

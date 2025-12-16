@@ -175,16 +175,23 @@ public class OAuthProxyControllerTest {
     // ========== POST /api/oauth-proxy/exchange Tests ==========
 
     @Test
-    void exchangeCode_WithValidRequest_ShouldReturnJwtToken() throws Exception {
+    void exchangeCode_WithValidRequest_ShouldReturnJwtTokenAndRefreshToken() throws Exception {
         // Given
         OAuthExchangeRequest request = new OAuthExchangeRequest();
         request.setCode("auth_code_12345");
         request.setState("oauth_proxy_test_state");
 
         String expectedJwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.token";
+        String expectedRefreshToken = "refresh.token.12345";
 
         when(oAuthProxyService.exchangeCodeForToken("auth_code_12345", "oauth_proxy_test_state"))
                 .thenReturn(expectedJwtToken);
+        when(jwtUtils.getUserEmailFromJwtToken(expectedJwtToken))
+                .thenReturn("test@example.com");
+        when(jwtUtils.getUserIdFromJwtToken(expectedJwtToken))
+                .thenReturn("user-id");
+        when(jwtUtils.generateRefreshToken("test@example.com", "user-id"))
+                .thenReturn(expectedRefreshToken);
 
         // When & Then
         mockMvc.perform(post("/api/oauth-proxy/exchange")
@@ -192,8 +199,10 @@ public class OAuthProxyControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.access_token").value(expectedJwtToken))
+                .andExpect(jsonPath("$.refresh_token").value(expectedRefreshToken))
                 .andExpect(jsonPath("$.token_type").value("Bearer"))
-                .andExpect(jsonPath("$.expires_in").value(3600));
+                .andExpect(jsonPath("$.expires_in").value(86400))
+                .andExpect(jsonPath("$.refresh_expires_in").value(2592000));
     }
 
     @Test

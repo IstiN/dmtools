@@ -180,22 +180,32 @@ class OAuthHandler {
      */
     storeToken(tokenData) {
         const expirationTime = Date.now() + (tokenData.expires_in * 1000);
+        const refreshExpirationTime = tokenData.refresh_expires_in 
+            ? Date.now() + (tokenData.refresh_expires_in * 1000)
+            : null;
+        
         const tokenInfo = {
             access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token || null,
             token_type: tokenData.token_type || 'Bearer',
             expires_at: expirationTime,
             expires_in: tokenData.expires_in,
+            refresh_expires_at: refreshExpirationTime,
+            refresh_expires_in: tokenData.refresh_expires_in || null,
             stored_at: Date.now()
         };
         
         localStorage.setItem(this.options.tokenStorageKey, JSON.stringify(tokenInfo));
         this.log('Token stored with expiration:', new Date(expirationTime));
+        if (refreshExpirationTime) {
+            this.log('Refresh token stored with expiration:', new Date(refreshExpirationTime));
+        }
     }
     
     /**
-     * Get stored token if valid
+     * Get stored token if valid, or attempt to refresh if expired
      */
-    getStoredToken() {
+    async getStoredToken() {
         try {
             const tokenStr = localStorage.getItem(this.options.tokenStorageKey);
             if (!tokenStr) {
@@ -204,12 +214,36 @@ class OAuthHandler {
             
             const tokenInfo = JSON.parse(tokenStr);
             
-            // Check if token is expired (with 5 minute buffer)
+            // Check if access token is expired (with 5 minute buffer)
             const now = Date.now();
             const bufferTime = 5 * 60 * 1000; // 5 minutes
             
             if (tokenInfo.expires_at && now > (tokenInfo.expires_at - bufferTime)) {
-                this.log('Token expired, removing...');
+                this.log('Access token expired, attempting refresh...');
+                
+                // Try to refresh if refresh token is available and not expired
+                if (tokenInfo.refresh_token) {
+                    const refreshExpired = tokenInfo.refresh_expires_at && now > tokenInfo.refresh_expires_at;
+                    if (!refreshExpired) {
+                        try {
+                            const refreshed = await this.refreshAccessToken(tokenInfo.refresh_token);
+                            if (refreshed) {
+                                this.log('Token refreshed successfully');
+                                // Return the newly stored token by reading from localStorage
+                                const refreshedTokenStr = localStorage.getItem(this.options.tokenStorageKey);
+                                if (refreshedTokenStr) {
+                                    return JSON.parse(refreshedTokenStr);
+                                }
+                            }
+                        } catch (error) {
+                            this.log('Token refresh failed:', error);
+                        }
+                    } else {
+                        this.log('Refresh token expired');
+                    }
+                }
+                
+                // If refresh failed or no refresh token, clear and return null
                 this.clearToken();
                 return null;
             }
@@ -224,10 +258,79 @@ class OAuthHandler {
     }
     
     /**
-     * Get authorization header value
+     * Synchronous version of getStoredToken (does not attempt refresh)
      */
-    getAuthHeader() {
-        const token = this.getStoredToken();
+    getStoredTokenSync() {
+        try {
+            const tokenStr = localStorage.getItem(this.options.tokenStorageKey);
+            if (!tokenStr) {
+                return null;
+            }
+            
+            const tokenInfo = JSON.parse(tokenStr);
+            
+            // Check if token is expired (with 5 minute buffer)
+            const now = Date.now();
+            const bufferTime = 5 * 60 * 1000; // 5 minutes
+            
+            if (tokenInfo.expires_at && now > (tokenInfo.expires_at - bufferTime)) {
+                return null;
+            }
+            
+            return tokenInfo;
+            
+        } catch (error) {
+            this.log('Error getting stored token:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Refresh access token using refresh token
+     */
+    async refreshAccessToken(refreshToken) {
+        this.log('Refreshing access token...');
+        
+        try {
+            const response = await fetch('/api/auth/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    refreshToken: refreshToken
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.log('Token refresh successful');
+                
+                // Store new tokens (with rotation - new refresh token included)
+                this.storeToken(data);
+                
+                // Notify success if callback is set
+                if (this.options.onTokenReceived) {
+                    this.options.onTokenReceived(data);
+                }
+                
+                return data;
+            } else {
+                throw new Error(`Token refresh failed: ${data.error || data.message || 'Unknown error'}`);
+            }
+            
+        } catch (error) {
+            this.log('Token refresh error:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Get authorization header value (async - may trigger token refresh)
+     */
+    async getAuthHeader() {
+        const token = await this.getStoredToken();
         if (!token) {
             return null;
         }
@@ -235,10 +338,21 @@ class OAuthHandler {
     }
     
     /**
-     * Check if user is authenticated
+     * Get authorization header value (synchronous - does not refresh)
+     */
+    getAuthHeaderSync() {
+        const token = this.getStoredTokenSync();
+        if (!token) {
+            return null;
+        }
+        return `${token.token_type} ${token.access_token}`;
+    }
+    
+    /**
+     * Check if user is authenticated (synchronous check)
      */
     isAuthenticated() {
-        return !!this.getStoredToken();
+        return !!this.getStoredTokenSync();
     }
     
     /**
@@ -254,7 +368,7 @@ class OAuthHandler {
      * Test authentication by calling user info endpoint
      */
     async testAuthentication() {
-        const authHeader = this.getAuthHeader();
+        const authHeader = await this.getAuthHeader();
         if (!authHeader) {
             throw new Error('No authentication token available');
         }
@@ -286,10 +400,10 @@ class OAuthHandler {
     }
     
     /**
-     * Make authenticated API request
+     * Make authenticated API request (automatically refreshes token if needed)
      */
     async authenticatedFetch(url, options = {}) {
-        const authHeader = this.getAuthHeader();
+        const authHeader = await this.getAuthHeader();
         if (!authHeader) {
             throw new Error('No authentication token available');
         }
@@ -356,23 +470,31 @@ class OAuthHandler {
      * Get authentication status summary
      */
     getAuthStatus() {
-        const token = this.getStoredToken();
+        const token = this.getStoredTokenSync();
         if (!token) {
             return {
                 authenticated: false,
                 token: null,
                 expiresAt: null,
-                timeRemaining: null
+                timeRemaining: null,
+                hasRefreshToken: false
             };
         }
         
         const timeRemaining = token.expires_at - Date.now();
+        const refreshTimeRemaining = token.refresh_expires_at 
+            ? token.refresh_expires_at - Date.now()
+            : null;
+        
         return {
             authenticated: true,
             token: token.access_token.substring(0, 10) + '...',
             expiresAt: new Date(token.expires_at),
             timeRemaining: Math.max(0, Math.floor(timeRemaining / 1000)), // seconds
-            timeRemainingFormatted: this.formatTimeRemaining(timeRemaining)
+            timeRemainingFormatted: this.formatTimeRemaining(timeRemaining),
+            hasRefreshToken: !!token.refresh_token,
+            refreshExpiresAt: token.refresh_expires_at ? new Date(token.refresh_expires_at) : null,
+            refreshTimeRemaining: refreshTimeRemaining ? Math.max(0, Math.floor(refreshTimeRemaining / 1000)) : null
         };
     }
     
