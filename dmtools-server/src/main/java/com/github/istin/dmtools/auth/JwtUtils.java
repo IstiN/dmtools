@@ -2,6 +2,8 @@ package com.github.istin.dmtools.auth;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +13,8 @@ import java.util.Date;
 @Component
 public class JwtUtils {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
@@ -18,7 +22,7 @@ public class JwtUtils {
     private int jwtExpirationMs;
 
     @Value("${jwt.refresh.expiration:2592000000}")
-    private int jwtRefreshExpirationMs;
+    private long jwtRefreshExpirationMs;
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
@@ -60,13 +64,13 @@ public class JwtUtils {
                 .parseClaimsJws(authToken);
             return true;
         } catch (MalformedJwtException e) {
-            System.err.println("Invalid JWT token: " + e.getMessage());
+            logger.debug("Invalid JWT token: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
-            System.err.println("JWT token is expired: " + e.getMessage());
+            logger.debug("JWT token is expired: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            System.err.println("JWT token is unsupported: " + e.getMessage());
+            logger.debug("JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            System.err.println("JWT claims string is empty: " + e.getMessage());
+            logger.debug("JWT claims string is empty: {}", e.getMessage());
         }
         return false;
     }
@@ -137,24 +141,25 @@ public class JwtUtils {
             // Verify it's a refresh token
             String type = claims.get("type", String.class);
             if (type == null || !"refresh".equals(type)) {
+                logger.debug("Token is not a refresh token (missing or invalid type claim)");
                 return false;
             }
             
             return true;
         } catch (ExpiredJwtException e) {
-            System.err.println("Refresh token is expired: " + e.getMessage());
+            logger.debug("Refresh token is expired: {}", e.getMessage());
             return false;
         } catch (MalformedJwtException e) {
-            System.err.println("Invalid refresh token: " + e.getMessage());
+            logger.debug("Invalid refresh token: {}", e.getMessage());
             return false;
         } catch (UnsupportedJwtException e) {
-            System.err.println("Unsupported refresh token: " + e.getMessage());
+            logger.debug("Unsupported refresh token: {}", e.getMessage());
             return false;
         } catch (IllegalArgumentException e) {
-            System.err.println("Refresh token claims string is empty: " + e.getMessage());
+            logger.debug("Refresh token claims string is empty: {}", e.getMessage());
             return false;
         } catch (Exception e) {
-            System.err.println("Error validating refresh token: " + e.getMessage());
+            logger.error("Error validating refresh token: {}", e.getMessage(), e);
             return false;
         }
     }

@@ -42,7 +42,7 @@ public class AuthController {
     private int jwtExpirationMs;
 
     @Value("${jwt.refresh.expiration:2592000000}")
-    private int jwtRefreshExpirationMs;
+    private long jwtRefreshExpirationMs;
 
     public AuthController(UserService userService, JwtUtils jwtUtils, AuthConfigProperties authConfigProperties) {
         this.userService = userService;
@@ -290,8 +290,8 @@ public class AuthController {
             RefreshTokenResponse response = new RefreshTokenResponse(
                     newAccessToken,
                     newRefreshToken,
-                    jwtExpirationMs / 1000,
-                    jwtRefreshExpirationMs / 1000
+                    (int)(jwtExpirationMs / 1000),
+                    (int)(jwtRefreshExpirationMs / 1000)
             );
             
             return ResponseEntity.ok(response);
