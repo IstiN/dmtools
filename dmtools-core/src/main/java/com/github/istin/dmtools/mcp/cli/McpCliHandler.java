@@ -423,6 +423,13 @@ public class McpCliHandler {
             logger.debug("Created BasicGeminiAI instance");
         }
         
+        // Try to create Bedrock client using AIComponentsModule
+        AI bedrock = AIComponentsModule.createBedrockAI(observer, configuration);
+        if (bedrock != null) {
+            aiClients.put("bedrock", bedrock);
+            logger.debug("Created BasicBedrockAI instance");
+        }
+        
         // Try to create Dial client (fallback) using AIComponentsModule
         AI dial = AIComponentsModule.createDialAI(observer, configuration);
         if (dial != null) {

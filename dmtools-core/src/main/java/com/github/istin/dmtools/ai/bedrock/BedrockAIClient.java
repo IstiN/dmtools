@@ -30,9 +30,19 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.signer.Aws4Signer;
+import software.amazon.awssdk.auth.signer.params.Aws4SignerParams;
+import software.amazon.awssdk.http.SdkHttpFullRequest;
+import software.amazon.awssdk.http.SdkHttpMethod;
+import software.amazon.awssdk.regions.Region;
 
 public class BedrockAIClient extends AbstractRestClient implements AI {
 
@@ -1030,6 +1040,215 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
         } catch (IOException e) {
             logger.warn("POST connection error for URL: {} - Error: {} (Attempt: {}/{})", url, e.getMessage(), 1, 3);
             throw e;
+        }
+    }
+
+    /**
+     * Gets a list of available foundation models from AWS Bedrock.
+     * Uses the control plane endpoint (bedrock.{region}.amazonaws.com) instead of runtime endpoint.
+     * Uses the existing execute() infrastructure like POST requests.
+     * 
+     * @return JSON string containing the list of available foundation models
+     * @throws IOException if the request fails
+     */
+    @MCPTool(
+        name = "bedrock_list_models",
+        description = "Get a list of available AWS Bedrock foundation models",
+        integration = "ai"
+    )
+    public String getAvailableModels() throws IOException {
+        if (region == null || region.trim().isEmpty()) {
+            throw new IOException("Bedrock region is not configured. Cannot list available models.");
+        }
+        
+        // Use control plane endpoint for listing models (not runtime endpoint)
+        // Override path() behavior temporarily by using the full URL
+        String controlPlaneBasePath = "https://bedrock." + region + ".amazonaws.com";
+        String fullUrl = controlPlaneBasePath + "/foundation-models";
+        
+        logger.info("Fetching available Bedrock models from: {}", fullUrl);
+        
+        // Use the existing execute() infrastructure which handles authentication properly
+        // For Bearer Token: sign() method adds Authorization header
+        // For IAM auth: we need to sign GET requests with AWS Signature V4
+        String authType = authenticationStrategy.getAuthenticationType();
+        
+        if ("BEARER_TOKEN".equals(authType)) {
+            // For Bearer Token, use execute() which calls sign() - this works fine
+            GenericRequest request = new GenericRequest(this, fullUrl);
+            return execute(request);
+        } else {
+            // For IAM-based auth, we need to sign GET requests with AWS Signature V4
+            // Use the authentication strategy's credentials to sign the request
+            return executeSignedGetRequest(fullUrl);
+        }
+    }
+    
+    /**
+     * Executes a signed GET request for IAM-based authentication.
+     * Uses the authentication strategy's credentials to sign with AWS Signature V4.
+     */
+    private String executeSignedGetRequest(String url) throws IOException {
+        Request.Builder requestBuilder = new Request.Builder()
+                .url(url)
+                .header("User-Agent", "DMTools")
+                .get();
+        
+        // Sign the GET request using AWS Signature V4 with credentials from authentication strategy
+        Request request = signGetRequestWithAWS4(url, requestBuilder);
+        
+        logger.debug("GET request starting for URL: {} (auth: {})", url, authenticationStrategy.getAuthenticationType());
+        
+        try (Response response = getClient().newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                String responseBody = response.body() != null ? response.body().string() : "";
+                
+                // Cache the response if caching is enabled (handled by execute() method normally)
+                // For this custom GET request, we skip caching to keep it simple
+                
+                return responseBody;
+            } else {
+                // Parse AWS error response for better error messages
+                String errorBody = response.body() != null ? response.body().string() : "";
+                if (response.code() == 403 && errorBody.contains("ListFoundationModels")) {
+                    // Provide helpful error message about missing permissions
+                    String errorMessage = parseAWSErrorMessage(errorBody);
+                    throw new IOException("AWS Bedrock permission denied: " + errorMessage + 
+                        "\n\nTo fix this, add the following IAM policy to your IAM user/role:\n" +
+                        "{\n" +
+                        "  \"Version\": \"2012-10-17\",\n" +
+                        "  \"Statement\": [\n" +
+                        "    {\n" +
+                        "      \"Effect\": \"Allow\",\n" +
+                        "      \"Action\": [\n" +
+                        "        \"bedrock:ListFoundationModels\"\n" +
+                        "      ],\n" +
+                        "      \"Resource\": \"*\"\n" +
+                        "    }\n" +
+                        "  ]\n" +
+                        "}");
+                }
+                throw printAndCreateException(request, response);
+            }
+        }
+    }
+    
+    /**
+     * Signs a GET request using AWS Signature V4 with credentials from the authentication strategy.
+     */
+    private Request signGetRequestWithAWS4(String url, Request.Builder requestBuilder) throws IOException {
+        try {
+            AwsCredentials credentials;
+            
+            // Get credentials based on authentication strategy type
+            if (authenticationStrategy instanceof IAMKeysAuthenticationStrategy) {
+                // Extract credentials from IAMKeysAuthenticationStrategy using reflection
+                IAMKeysAuthenticationStrategy iamStrategy = (IAMKeysAuthenticationStrategy) authenticationStrategy;
+                credentials = getCredentialsFromIAMStrategy(iamStrategy);
+            } else if (authenticationStrategy instanceof DefaultCredentialsAuthenticationStrategy) {
+                // Use DefaultCredentialsProvider
+                credentials = DefaultCredentialsProvider.create().resolveCredentials();
+            } else {
+                // Fallback to DefaultCredentialsProvider
+                credentials = DefaultCredentialsProvider.create().resolveCredentials();
+            }
+            
+            // Create AWS SDK HttpFullRequest for signing with GET method
+            SdkHttpFullRequest.Builder sdkRequestBuilder = 
+                SdkHttpFullRequest.builder()
+                    .uri(URI.create(url))
+                    .method(SdkHttpMethod.GET);
+            
+            SdkHttpFullRequest sdkRequest = sdkRequestBuilder.build();
+            
+            // Create signer
+            Aws4Signer signer = Aws4Signer.create();
+            
+            // Parameters for signing
+            Aws4SignerParams signerParams = 
+                Aws4SignerParams.builder()
+                    .awsCredentials(credentials)
+                    .signingName("bedrock")
+                    .signingRegion(Region.of(region))
+                    .build();
+            
+            // Sign the request
+            SdkHttpFullRequest signedRequest = signer.sign(sdkRequest, signerParams);
+            
+            // Transfer signed headers to OkHttp Request.Builder
+            signedRequest.headers().forEach((name, values) -> {
+                if (!values.isEmpty()) {
+                    requestBuilder.header(name, values.get(0));
+                }
+            });
+            
+            // Add custom headers
+            if (customHeaders != null && !customHeaders.isEmpty()) {
+                for (Map.Entry<String, String> header : customHeaders.entrySet()) {
+                    requestBuilder.header(header.getKey(), header.getValue());
+                }
+            }
+            
+            return requestBuilder.get().build();
+            
+        } catch (Exception e) {
+            logger.error("Failed to sign GET request: {}", e.getMessage(), e);
+            throw new IOException("Failed to sign GET request: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Parses AWS error message from error response body.
+     * Extracts the main error message for better user feedback.
+     */
+    private String parseAWSErrorMessage(String errorBody) {
+        try {
+            JSONObject errorJson = new JSONObject(errorBody);
+            if (errorJson.has("Message")) {
+                return errorJson.getString("Message");
+            } else if (errorJson.has("message")) {
+                return errorJson.getString("message");
+            } else if (errorJson.has("error")) {
+                return errorJson.getString("error");
+            }
+        } catch (Exception e) {
+            // If parsing fails, return the raw error body (truncated if too long)
+            if (errorBody.length() > 500) {
+                return errorBody.substring(0, 500) + "...";
+            }
+            return errorBody;
+        }
+        return errorBody;
+    }
+    
+    /**
+     * Extracts AWS credentials from IAMKeysAuthenticationStrategy using reflection.
+     * This is necessary because the strategy doesn't expose getter methods for credentials.
+     */
+    private AwsCredentials getCredentialsFromIAMStrategy(IAMKeysAuthenticationStrategy strategy) throws Exception {
+        try {
+            // Use reflection to access private fields
+            java.lang.reflect.Field accessKeyIdField = IAMKeysAuthenticationStrategy.class.getDeclaredField("accessKeyId");
+            java.lang.reflect.Field secretAccessKeyField = IAMKeysAuthenticationStrategy.class.getDeclaredField("secretAccessKey");
+            java.lang.reflect.Field sessionTokenField = IAMKeysAuthenticationStrategy.class.getDeclaredField("sessionToken");
+            
+            accessKeyIdField.setAccessible(true);
+            secretAccessKeyField.setAccessible(true);
+            sessionTokenField.setAccessible(true);
+            
+            String accessKeyId = (String) accessKeyIdField.get(strategy);
+            String secretAccessKey = (String) secretAccessKeyField.get(strategy);
+            String sessionToken = (String) sessionTokenField.get(strategy);
+            
+            if (sessionToken != null && !sessionToken.trim().isEmpty()) {
+                return AwsSessionCredentials.create(accessKeyId, secretAccessKey, sessionToken);
+            } else {
+                return AwsBasicCredentials.create(accessKeyId, secretAccessKey);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to extract credentials from IAM strategy: {}", e.getMessage(), e);
+            // Fallback to DefaultCredentialsProvider
+            return DefaultCredentialsProvider.create().resolveCredentials();
         }
     }
 
