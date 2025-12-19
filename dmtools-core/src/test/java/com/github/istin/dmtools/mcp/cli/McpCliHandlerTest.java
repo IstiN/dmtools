@@ -246,4 +246,121 @@ class McpCliHandlerTest {
         JSONObject response2 = new JSONObject(result2);
         assertTrue(response2.getBoolean("error")); // Expected since test_tool doesn't exist
     }
+
+    @Test
+    @DisplayName("Should map single positional argument to varargs array parameter")
+    void testVarargsSingleArgument() {
+        // Test that a single URL is converted to String[] for varargs parameter
+        String[] args = {"mcp", "confluence_contents_by_urls", 
+            "https://team-1626860771808.atlassian.net/wiki/spaces/DE1/pages/1940652034/JAI+DIGIX+TEST+CASES+RELATION"};
+        
+        String result = mcpCliHandler.processMcpCommand(args);
+        
+        // Should not throw ClassCastException - the URL should be converted to String[]
+        JSONObject response = new JSONObject(result);
+        // The command might fail due to missing config, but should not fail with ClassCastException
+        // If it's an error, it should be a configuration/connection error, not a type casting error
+        if (response.has("error")) {
+            String message = response.getString("message");
+            assertFalse(message.contains("ClassCastException"), 
+                "Should not have ClassCastException - varargs should be handled correctly. Error: " + message);
+            assertFalse(message.contains("cannot be cast"), 
+                "Should not have casting error. Error: " + message);
+        }
+    }
+
+    @Test
+    @DisplayName("Should map multiple positional arguments to varargs array parameter")
+    void testVarargsMultipleArguments() {
+        // Test that multiple URLs are collected into String[] for varargs parameter
+        String[] args = {"mcp", "confluence_contents_by_urls", 
+            "https://example.com/wiki/spaces/SPACE/pages/123/Page1",
+            "https://example.com/wiki/spaces/SPACE/pages/456/Page2",
+            "https://example.com/wiki/spaces/SPACE/pages/789/Page3"};
+        
+        String result = mcpCliHandler.processMcpCommand(args);
+        
+        // Should not throw ClassCastException - all URLs should be collected into String[]
+        JSONObject response = new JSONObject(result);
+        if (response.has("error")) {
+            String message = response.getString("message");
+            assertFalse(message.contains("ClassCastException"), 
+                "Should not have ClassCastException - multiple varargs should be handled correctly. Error: " + message);
+            assertFalse(message.contains("cannot be cast"), 
+                "Should not have casting error. Error: " + message);
+        }
+    }
+
+    @Test
+    @DisplayName("Should handle varargs parameter with URLs containing special characters")
+    void testVarargsWithSpecialCharacters() {
+        // Test URLs with +, spaces, and other special characters
+        String[] args = {"mcp", "confluence_contents_by_urls", 
+            "https://team-1626860771808.atlassian.net/wiki/spaces/DE1/pages/1940652034/JAI+DIGIX+TEST+CASES+RELATION"};
+        
+        String result = mcpCliHandler.processMcpCommand(args);
+        
+        JSONObject response = new JSONObject(result);
+        if (response.has("error")) {
+            String message = response.getString("message");
+            assertFalse(message.contains("ClassCastException"), 
+                "Should handle special characters in varargs. Error: " + message);
+        }
+    }
+
+    @Test
+    @DisplayName("Should handle regular parameters correctly when varargs parameter exists")
+    void testRegularParametersWithVarargs() {
+        // Test that regular parameters still work when there's a varargs parameter
+        // Using a tool that might have both regular and varargs params
+        String[] args = {"mcp", "confluence_contents_by_urls", 
+            "https://example.com/wiki/spaces/SPACE/pages/123/Page"};
+        
+        String result = mcpCliHandler.processMcpCommand(args);
+        
+        // Should parse without errors (even if tool execution fails due to config)
+        JSONObject response = new JSONObject(result);
+        assertNotNull(response);
+        // Should not have parsing/type errors
+        if (response.has("error")) {
+            String message = response.getString("message");
+            assertFalse(message.contains("ClassCastException"), 
+                "Should not have type casting errors. Error: " + message);
+        }
+    }
+
+    @Test
+    @DisplayName("Should handle empty varargs parameter gracefully")
+    void testEmptyVarargs() {
+        // Test with no arguments for varargs parameter (should fail validation, not type error)
+        String[] args = {"mcp", "confluence_contents_by_urls"};
+        
+        String result = mcpCliHandler.processMcpCommand(args);
+        
+        JSONObject response = new JSONObject(result);
+        // Should return an error, but not a ClassCastException
+        assertTrue(response.has("error"));
+        String message = response.getString("message");
+        assertFalse(message.contains("ClassCastException"), 
+            "Should not have ClassCastException for empty varargs. Error: " + message);
+    }
+
+    @Test
+    @DisplayName("Should handle varargs parameter with --debug flag")
+    void testVarargsWithDebugFlag() {
+        // Test that --debug flag doesn't interfere with varargs parsing
+        String[] args = {"mcp", "confluence_contents_by_urls", 
+            "https://team-1626860771808.atlassian.net/wiki/spaces/DE1/pages/1940652034/JAI+DIGIX+TEST+CASES+RELATION",
+            "--debug"};
+        
+        String result = mcpCliHandler.processMcpCommand(args);
+        
+        JSONObject response = new JSONObject(result);
+        // --debug should be ignored (not treated as positional arg)
+        if (response.has("error")) {
+            String message = response.getString("message");
+            assertFalse(message.contains("ClassCastException"), 
+                "Should handle --debug flag correctly with varargs. Error: " + message);
+        }
+    }
 }

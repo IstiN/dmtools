@@ -112,6 +112,11 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     }
     
     @Override
+    public String getDialApiVersion() {
+        return propertyReader.getDialApiVersion();
+    }
+    
+    @Override
     public String getCodeAIModel() {
         return propertyReader.getCodeAIModel();
     }

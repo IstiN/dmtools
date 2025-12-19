@@ -718,10 +718,11 @@ public class ServerManagedIntegrationsModule {
                 String apiKey = dialConfig.optString("DIAL_AI_API_KEY", null);
                 String model = dialConfig.optString("DIAL_AI_MODEL", "gpt-4");
                 String basePath = dialConfig.optString("DIAL_AI_BATH_PATH", "https://api.openai.com/v1");
+                String apiVersion = dialConfig.optString("DIAL_API_VERSION", null);
                 
                 if (apiKey != null && !apiKey.isEmpty()) {
                     System.out.println("✅ [ServerManagedIntegrationsModule] Creating custom DialAIClient with resolved credentials");
-                    return new DialAIClient(basePath, apiKey, model, observer);
+                    return new DialAIClient(basePath, apiKey, model, apiVersion, observer);
                 } else {
                     System.out.println("⚠️ [ServerManagedIntegrationsModule] Dial configuration missing DIAL_AI_API_KEY, skipping");
                 }

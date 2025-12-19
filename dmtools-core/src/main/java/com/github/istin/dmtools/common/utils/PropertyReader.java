@@ -442,6 +442,10 @@ public class PropertyReader {
 		return getValue("DIAL_MODEL");
 	}
 
+	public String getDialApiVersion() {
+		return getValue("DIAL_API_VERSION");
+	}
+
 	public String getCodeAIModel() {
 		return getValue("CODE_AI_MODEL");
 	}

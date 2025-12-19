@@ -162,6 +162,11 @@ public class InMemoryConfiguration implements ApplicationConfiguration {
     }
     
     @Override
+    public String getDialApiVersion() {
+        return getValue("DIAL_API_VERSION");
+    }
+    
+    @Override
     public String getCodeAIModel() {
         return getValue("CODE_AI_MODEL");
     }

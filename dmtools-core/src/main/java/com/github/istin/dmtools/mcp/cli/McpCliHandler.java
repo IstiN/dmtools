@@ -235,6 +235,7 @@ public class McpCliHandler {
     /**
      * Maps positional arguments to named parameters based on the tool's schema.
      * Uses parameter order from method declaration (via annotation processor).
+     * Handles varargs/array parameters by collecting all remaining args into an array.
      */
     private void mapPositionalArguments(String toolName, List<String> positionalArgs, Map<String, Object> arguments) {
         try {
@@ -250,20 +251,42 @@ public class McpCliHandler {
                 return;
             }
             
+            // Get tool schema to check parameter types
+            Map<String, Object> toolSchema = getToolSchema(toolName);
+            
             // Map positional args to parameter names in declaration order
-            int numToMap = Math.min(positionalArgs.size(), paramNames.size());
-            for (int i = 0; i < numToMap; i++) {
-                String paramValue = positionalArgs.get(i);
+            int numParams = paramNames.size();
+            int numArgs = positionalArgs.size();
+            
+            for (int i = 0; i < numParams; i++) {
                 String paramName = paramNames.get(i);
-                // Try to convert to appropriate type (Integer for "limit" parameter, etc.)
-                Object convertedValue = convertParameterValue(paramName, paramValue);
-                arguments.put(paramName, convertedValue);
+                boolean isArrayParam = isArrayParameter(toolSchema, paramName);
+                boolean isLastParam = (i == numParams - 1);
+                
+                if (isArrayParam && isLastParam && i < numArgs) {
+                    // Varargs/array parameter: collect all remaining positional args into an array
+                    List<String> remainingArgs = positionalArgs.subList(i, numArgs);
+                    String[] arrayValue = remainingArgs.toArray(new String[0]);
+                    arguments.put(paramName, arrayValue);
+                    logger.debug("Mapped {} positional args to array parameter '{}' for tool '{}'", 
+                               remainingArgs.size(), paramName, toolName);
+                    break; // All remaining args consumed
+                } else if (i < numArgs) {
+                    // Regular parameter: map single value
+                    String paramValue = positionalArgs.get(i);
+                    Object convertedValue = convertParameterValue(paramName, paramValue);
+                    arguments.put(paramName, convertedValue);
+                }
             }
             
-            // If there are more positional args than parameters, log warning
-            if (positionalArgs.size() > paramNames.size()) {
-                logger.warn("Tool '{}' has {} parameters but {} positional arguments provided. Extra arguments ignored.", 
-                    toolName, paramNames.size(), positionalArgs.size());
+            // If there are more positional args than parameters (and last param is not array), log warning
+            if (numArgs > numParams) {
+                String lastParamName = paramNames.get(numParams - 1);
+                boolean isLastArray = isArrayParameter(toolSchema, lastParamName);
+                if (!isLastArray) {
+                    logger.warn("Tool '{}' has {} parameters but {} positional arguments provided. Extra arguments ignored.", 
+                        toolName, numParams, numArgs);
+                }
             }
         } catch (Exception e) {
             logger.warn("Error mapping parameters for tool '{}': {}. Using indexed fallback.", 
@@ -273,6 +296,60 @@ public class McpCliHandler {
                 arguments.put("arg" + i, positionalArgs.get(i));
             }
         }
+    }
+    
+    /**
+     * Get tool schema from cache or generate it.
+     */
+    private Map<String, Object> getToolSchema(String toolName) {
+        try {
+            Set<String> integrations = Set.of("jira", "ado", "ai", "confluence", "figma", "file", "cli", "teams", "sharepoint", "kb", "mermaid");
+            Map<String, Object> toolsResponse = MCPSchemaGenerator.generateToolsListResponse(integrations);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> tools = (List<Map<String, Object>>) toolsResponse.get("tools");
+            
+            for (Map<String, Object> tool : tools) {
+                if (toolName.equals(tool.get("name"))) {
+                    return tool;
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not retrieve schema for tool '{}': {}", toolName, e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * Check if a parameter is expected to be an array based on tool schema.
+     */
+    private boolean isArrayParameter(Map<String, Object> toolSchema, String paramName) {
+        if (toolSchema == null) {
+            // Heuristic: if param name ends with 's' and contains common array indicators
+            return paramName.endsWith("s") && 
+                   (paramName.contains("url") || paramName.contains("id") || 
+                    paramName.contains("field") || paramName.contains("string"));
+        }
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> inputSchema = (Map<String, Object>) toolSchema.get("inputSchema");
+        if (inputSchema == null) {
+            return false;
+        }
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> properties = (Map<String, Object>) inputSchema.get("properties");
+        if (properties == null) {
+            return false;
+        }
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> paramSchema = (Map<String, Object>) properties.get(paramName);
+        if (paramSchema == null) {
+            return false;
+        }
+        
+        String type = (String) paramSchema.get("type");
+        return "array".equals(type);
     }
 
     /**

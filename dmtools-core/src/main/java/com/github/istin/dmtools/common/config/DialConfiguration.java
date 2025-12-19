@@ -21,4 +21,10 @@ public interface DialConfiguration {
      * @return The Dial model name
      */
     String getDialModel();
+
+    /**
+     * Gets the Dial API version (for Azure OpenAI compatibility)
+     * @return The Dial API version, or null if not set
+     */
+    String getDialApiVersion();
 } 
