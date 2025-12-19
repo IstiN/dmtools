@@ -792,8 +792,17 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return List of tickets with X-ray test steps and preconditions added for Test issues
      * @throws Exception if search or X-ray API calls fail
      */
+    @MCPTool(
+            name = "jira_xray_search_tickets",
+            description = "Search for Jira tickets using JQL query and enrich Test/Precondition issues with X-ray test steps and preconditions. Returns list of tickets with X-ray data.",
+            integration = "jira_xray",
+            category = "search"
+    )
     @Override
-    public List<Ticket> searchAndPerform(String searchQueryJQL, String[] fields) throws Exception {
+    public List<Ticket> searchAndPerform(
+            @MCPParam(name = "searchQueryJQL", description = "JQL search query (e.g., 'project = TP AND issueType = Test')", required = true, example = "project = TP AND issueType = Test") String searchQueryJQL,
+            @MCPParam(name = "fields", description = "Array of field names to retrieve (e.g., ['summary', 'description', 'status'])", required = false, example = "summary,description,status") String[] fields
+    ) throws Exception {
         // First, call parent method to get tickets from Jira
         List<Ticket> tickets = super.searchAndPerform(searchQueryJQL, fields);
         
@@ -972,7 +981,15 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return JSONObject with test details including steps and preconditions, or null if not found
      * @throws IOException if API call fails
      */
-    public JSONObject getTestDetailsGraphQL(String testKey) throws IOException {
+    @MCPTool(
+            name = "jira_xray_get_test_details",
+            description = "Get test details including steps and preconditions using X-ray GraphQL API. Returns JSONObject with test details.",
+            integration = "jira_xray",
+            category = "test_retrieval"
+    )
+    public JSONObject getTestDetailsGraphQL(
+            @MCPParam(name = "testKey", description = "Jira ticket key (e.g., 'TP-909')", required = true, example = "TP-909") String testKey
+    ) throws IOException {
         return xrayRestClient.getTestDetailsGraphQL(testKey);
     }
 
@@ -984,7 +1001,15 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return JSONArray of test steps, or empty array if none found
      * @throws IOException if API call fails
      */
-    public JSONArray getTestStepsGraphQL(String testKey) throws IOException {
+    @MCPTool(
+            name = "jira_xray_get_test_steps",
+            description = "Get test steps for a test issue using X-ray GraphQL API. Returns JSONArray of test steps.",
+            integration = "jira_xray",
+            category = "test_retrieval"
+    )
+    public JSONArray getTestStepsGraphQL(
+            @MCPParam(name = "testKey", description = "Jira ticket key (e.g., 'TP-909')", required = true, example = "TP-909") String testKey
+    ) throws IOException {
         return xrayRestClient.getTestStepsGraphQL(testKey);
     }
 
@@ -996,7 +1021,15 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return JSONArray of precondition objects with jira fields, or empty array if none found
      * @throws IOException if API call fails
      */
-    public JSONArray getPreconditionsGraphQL(String testKey) throws IOException {
+    @MCPTool(
+            name = "jira_xray_get_preconditions",
+            description = "Get preconditions for a test issue using X-ray GraphQL API. Returns JSONArray of precondition objects.",
+            integration = "jira_xray",
+            category = "test_retrieval"
+    )
+    public JSONArray getPreconditionsGraphQL(
+            @MCPParam(name = "testKey", description = "Jira ticket key (e.g., 'TP-909')", required = true, example = "TP-909") String testKey
+    ) throws IOException {
         return xrayRestClient.getPreconditionsGraphQL(testKey);
     }
     
@@ -1008,7 +1041,15 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return JSONObject with precondition details including definition, or null if not found
      * @throws IOException if API call fails
      */
-    public JSONObject getPreconditionDetailsGraphQL(String preconditionKey) throws IOException {
+    @MCPTool(
+            name = "jira_xray_get_precondition_details",
+            description = "Get Precondition details including definition using X-ray GraphQL API. Returns JSONObject with precondition details.",
+            integration = "jira_xray",
+            category = "test_retrieval"
+    )
+    public JSONObject getPreconditionDetailsGraphQL(
+            @MCPParam(name = "preconditionKey", description = "Jira ticket key (e.g., 'TP-910')", required = true, example = "TP-910") String preconditionKey
+    ) throws IOException {
         return xrayRestClient.getPreconditionDetailsGraphQL(preconditionKey);
     }
 
@@ -1023,7 +1064,18 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return JSONObject with created step details (id, action, data, result), or null if failed
      * @throws IOException if API call fails
      */
-    public JSONObject addTestStepGraphQL(String issueId, String action, String data, String result) throws IOException {
+    @MCPTool(
+            name = "jira_xray_add_test_step",
+            description = "Add a single test step to a test issue using X-ray GraphQL API. Returns JSONObject with created step details.",
+            integration = "jira_xray",
+            category = "test_management"
+    )
+    public JSONObject addTestStepGraphQL(
+            @MCPParam(name = "issueId", description = "Jira issue ID (e.g., '12345')", required = true, example = "12345") String issueId,
+            @MCPParam(name = "action", description = "Step action (e.g., 'Enter username')", required = true, example = "Enter username") String action,
+            @MCPParam(name = "data", description = "Step data (e.g., 'test_user')", required = false, example = "test_user") String data,
+            @MCPParam(name = "result", description = "Step expected result (e.g., 'Username accepted')", required = false, example = "Username accepted") String result
+    ) throws IOException {
         return xrayRestClient.addTestStepGraphQL(issueId, action, data, result);
     }
 
@@ -1036,7 +1088,16 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return JSONArray of created step objects, or empty array if failed
      * @throws IOException if API call fails
      */
-    public JSONArray addTestStepsGraphQL(String issueId, JSONArray steps) throws IOException {
+    @MCPTool(
+            name = "jira_xray_add_test_steps",
+            description = "Add multiple test steps to a test issue using X-ray GraphQL API. Returns JSONArray of created step objects.",
+            integration = "jira_xray",
+            category = "test_management"
+    )
+    public JSONArray addTestStepsGraphQL(
+            @MCPParam(name = "issueId", description = "Jira issue ID (e.g., '12345')", required = true, example = "12345") String issueId,
+            @MCPParam(name = "steps", description = "JSON array string of step objects, each with 'action', 'data', and 'result' fields (e.g., '[{\"action\":\"Enter username\",\"data\":\"test_user\",\"result\":\"Username accepted\"}]')", required = true, example = "[{\"action\":\"Enter username\",\"data\":\"test_user\",\"result\":\"Username accepted\"}]") JSONArray steps
+    ) throws IOException {
         return xrayRestClient.addTestStepsGraphQL(issueId, steps);
     }
 
@@ -1049,7 +1110,16 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return JSONObject with result, or null if failed
      * @throws IOException if API call fails
      */
-    public JSONObject addPreconditionToTestGraphQL(String testIssueId, String preconditionIssueId) throws IOException {
+    @MCPTool(
+            name = "jira_xray_add_precondition_to_test",
+            description = "Add a single precondition to a test issue using X-ray GraphQL API. Returns JSONObject with result.",
+            integration = "jira_xray",
+            category = "test_management"
+    )
+    public JSONObject addPreconditionToTestGraphQL(
+            @MCPParam(name = "testIssueId", description = "Jira issue ID of the test (e.g., '12345')", required = true, example = "12345") String testIssueId,
+            @MCPParam(name = "preconditionIssueId", description = "Jira issue ID of the precondition (e.g., '12346')", required = true, example = "12346") String preconditionIssueId
+    ) throws IOException {
         return xrayRestClient.addPreconditionToTestGraphQL(testIssueId, preconditionIssueId);
     }
 
@@ -1062,7 +1132,16 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return JSONArray of results, or empty array if failed
      * @throws IOException if API call fails
      */
-    public JSONArray addPreconditionsToTestGraphQL(String testIssueId, JSONArray preconditionIssueIds) throws IOException {
+    @MCPTool(
+            name = "jira_xray_add_preconditions_to_test",
+            description = "Add multiple preconditions to a test issue using X-ray GraphQL API. Returns JSONArray of results.",
+            integration = "jira_xray",
+            category = "test_management"
+    )
+    public JSONArray addPreconditionsToTestGraphQL(
+            @MCPParam(name = "testIssueId", description = "Jira issue ID of the test (e.g., '12345')", required = true, example = "12345") String testIssueId,
+            @MCPParam(name = "preconditionIssueIds", description = "JSON array string of precondition issue IDs (e.g., '[\"12346\", \"12347\"]')", required = true, example = "[\"12346\", \"12347\"]") JSONArray preconditionIssueIds
+    ) throws IOException {
         return xrayRestClient.addPreconditionsToTestGraphQL(testIssueId, preconditionIssueIds);
     }
 

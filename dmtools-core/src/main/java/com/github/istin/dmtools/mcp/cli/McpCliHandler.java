@@ -7,7 +7,9 @@ import com.github.istin.dmtools.common.config.PropertyReaderConfiguration;
 import com.github.istin.dmtools.di.AIComponentsModule;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
+import com.github.istin.dmtools.atlassian.jira.xray.XrayClient;
 import com.github.istin.dmtools.cli.CliCommandExecutor;
+import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
 import com.github.istin.dmtools.di.KnowledgeBaseComponent;
 import com.github.istin.dmtools.di.DaggerMermaidIndexComponent;
@@ -303,6 +305,17 @@ public class McpCliHandler {
             logger.debug("Created BasicJiraClient instance");
         } catch (IOException e) {
             logger.warn("Failed to create BasicJiraClient: {}", e.getMessage());
+        }
+
+        try {
+            // Create Xray client (extends JiraClient, provides X-ray specific functionality)
+            TrackerClient<?> xrayClient = XrayClient.getInstance();
+            if (xrayClient != null) {
+                clients.put("jira_xray", xrayClient);
+                logger.debug("Created XrayClient instance");
+            }
+        } catch (IOException e) {
+            logger.debug("XrayClient not initialized: {}. X-ray tools will not be available.", e.getMessage());
         }
 
         try {

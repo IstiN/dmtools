@@ -230,9 +230,9 @@ case "$COMMAND" in
         usage
         ;;
     "list")
-        if [ $# -gt 0 ]; then
+        if [ ${#ARGS[@]} -gt 0 ]; then
             # List with filter
-            execute_java_command "java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list \"$1\""
+            execute_java_command "java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list \"${ARGS[0]}\""
         else
             # List all tools
             execute_java_command "java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list"
