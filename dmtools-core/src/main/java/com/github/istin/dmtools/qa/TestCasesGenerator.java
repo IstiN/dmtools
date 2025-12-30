@@ -10,6 +10,7 @@ import com.github.istin.dmtools.ai.agent.TestCaseDeduplicationAgent;
 import com.github.istin.dmtools.ai.agent.TestCaseGeneratorAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.model.Relationship;
+import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
 import com.github.istin.dmtools.microsoft.ado.model.WorkItem;
@@ -23,6 +24,8 @@ import com.github.istin.dmtools.job.TrackerParams;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import dagger.Component;
 import lombok.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -36,6 +39,7 @@ import java.util.List;
 
 public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, List<TestCasesGenerator.TestCasesResult>> {
 
+    private static final Logger logger = LogManager.getLogger(TestCasesGenerator.class);
     private static final String DEFAULT_EXISTING_RELATIONSHIP = Relationship.RELATES_TO;
 
     @Data
@@ -227,6 +231,12 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                     )
             );
         }
+        
+        // Preprocess test cases to handle preconditions with temporary IDs
+        if (params.getPreprocessJSAction() != null && !params.getPreprocessJSAction().trim().isEmpty()) {
+            newTestCases = preprocessTestCases(newTestCases, params, ticketContext);
+        }
+        
         TestCasesResult testCasesResult = new TestCasesResult(ticketContext.getTicket().getKey(), finaResults, newTestCases);
 
         if (params.getOutputType().equals(TrackerParams.OutputType.comment)) {
@@ -323,10 +333,19 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 // Extract custom fields if specified
                 JSONObject customFields = new JSONObject();
                 if (testCasesCustomFields != null && testCasesCustomFields.length > 0) {
+                    JSONObject fieldsJson = ticket.getFieldsAsJSON();
                     for (String customFieldName : testCasesCustomFields) {
+                        // Try standard field access first
                         String fieldValue = ticket.getFieldValueAsString(customFieldName);
                         if (fieldValue != null && !fieldValue.trim().isEmpty()) {
                             customFields.put(customFieldName, fieldValue);
+                        } else if (fieldsJson != null && fieldsJson.has(customFieldName)) {
+                            // For complex fields like JSONArray (xrayTestSteps, xrayPreconditions)
+                            // extract directly from fields JSONObject
+                            Object fieldObj = fieldsJson.get(customFieldName);
+                            if (fieldObj != null) {
+                                customFields.put(customFieldName, fieldObj);
+                            }
                         }
                     }
                 }
@@ -346,6 +365,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         }
         return unpackedExamples;
     }
+    
 
     private String extractFromConfluence(String... urls) throws IOException {
         StringBuilder content = new StringBuilder();
@@ -543,5 +563,168 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             }
         }
         return finaResults;
+    }
+    
+    /**
+     * Preprocess test cases using JavaScript function to handle preconditions with temporary IDs.
+     * The JS function should create Precondition issues and replace temporary IDs with real keys.
+     * 
+     * @param testCases List of test cases to preprocess
+     * @param params Test cases generator parameters
+     * @param ticketContext Ticket context for the main ticket
+     * @return Preprocessed list of test cases with temporary IDs replaced
+     * @throws Exception if preprocessing fails
+     */
+    private List<TestCaseGeneratorAgent.TestCase> preprocessTestCases(
+            List<TestCaseGeneratorAgent.TestCase> testCases,
+            TestCasesGeneratorParams params,
+            TicketContext ticketContext
+    ) throws Exception {
+        if (testCases == null || testCases.isEmpty()) {
+            return testCases;
+        }
+        
+        // Convert test cases to JSON array
+        JSONArray testCasesJson = new JSONArray();
+        for (TestCaseGeneratorAgent.TestCase testCase : testCases) {
+            JSONObject testCaseJson = new JSONObject();
+            testCaseJson.put("priority", testCase.getPriority());
+            testCaseJson.put("summary", testCase.getSummary());
+            testCaseJson.put("description", testCase.getDescription());
+            if (testCase.getCustomFields() != null && testCase.getCustomFields().length() > 0) {
+                testCaseJson.put("customFields", testCase.getCustomFields());
+            }
+            testCasesJson.put(testCaseJson);
+        }
+        
+        // Prepare parameters for JavaScript execution
+        JSONObject jsParams = new JSONObject();
+        jsParams.put("newTestCases", testCasesJson);
+        jsParams.put("ticket", createTicketContextJson(ticketContext.getTicket()));
+        jsParams.put("jobParams", createParamsJson(params));
+        
+        // Execute JavaScript preprocessing
+        Object result = js(params.getPreprocessJSAction())
+                .mcp(trackerClient, ai, confluence, null)
+                .withJobContext(params, ticketContext.getTicket(), null)
+                .with(TrackerParams.INITIATOR, params.getInitiator())
+                .with("newTestCases", testCasesJson)
+                .execute();
+        
+        // Convert result back to List<TestCase>
+        if (result == null) {
+            logger.warn("JavaScript preprocessing returned null, using original test cases");
+            return testCases;
+        }
+        
+        JSONArray preprocessedJson;
+        if (result instanceof JSONArray) {
+            preprocessedJson = (JSONArray) result;
+        } else if (result instanceof String) {
+            try {
+                preprocessedJson = new JSONArray((String) result);
+            } catch (Exception e) {
+                logger.error("Failed to parse JavaScript preprocessing result as JSON array: {}", e.getMessage());
+                return testCases;
+            }
+        } else {
+            // Handle PolyglotList or other collection types
+            try {
+                // Try to convert using reflection to detect PolyglotList
+                String className = result.getClass().getName();
+                if (className.contains("PolyglotList") || className.contains("List")) {
+                    // Convert to JSONArray by iterating
+                    preprocessedJson = new JSONArray();
+                    if (result instanceof java.util.List) {
+                        java.util.List<?> list = (java.util.List<?>) result;
+                        for (Object item : list) {
+                            if (item instanceof JSONObject) {
+                                preprocessedJson.put(item);
+                            } else if (item instanceof java.util.Map) {
+                                preprocessedJson.put(new JSONObject((java.util.Map<?, ?>) item));
+                            } else {
+                                // Try to convert using Gson
+                                try {
+                                    com.google.gson.Gson gson = new com.google.gson.Gson();
+                                    String jsonStr = gson.toJson(item);
+                                    preprocessedJson.put(new JSONObject(jsonStr));
+                                } catch (Exception e) {
+                                    logger.warn("Failed to convert item to JSONObject: {}", e.getMessage());
+                                }
+                            }
+                        }
+                    } else {
+                        // Try to use toString() and parse as JSON
+                        String resultStr = result.toString();
+                        preprocessedJson = new JSONArray(resultStr);
+                    }
+                } else {
+                    // Try to parse as JSON string
+                    String resultStr = result.toString();
+                    preprocessedJson = new JSONArray(resultStr);
+                }
+            } catch (Exception e) {
+                logger.error("Failed to convert JavaScript preprocessing result to JSONArray (type: {}): {}", 
+                        result.getClass().getName(), e.getMessage());
+                return testCases;
+            }
+        }
+        
+        // Convert JSON array back to List<TestCase>
+        List<TestCaseGeneratorAgent.TestCase> preprocessedTestCases = new ArrayList<>();
+        for (int i = 0; i < preprocessedJson.length(); i++) {
+            JSONObject testCaseJson = preprocessedJson.getJSONObject(i);
+            String priority = testCaseJson.optString("priority", "");
+            String summary = testCaseJson.getString("summary");
+            String description = testCaseJson.getString("description");
+            JSONObject customFields = testCaseJson.optJSONObject("customFields");
+            if (customFields == null) {
+                customFields = new JSONObject();
+            }
+            preprocessedTestCases.add(new TestCaseGeneratorAgent.TestCase(priority, summary, description, customFields));
+        }
+        
+        logger.info("Preprocessed {} test cases via JavaScript", preprocessedTestCases.size());
+        return preprocessedTestCases;
+    }
+    
+    /**
+     * Create JSON representation of ticket for JavaScript context.
+     */
+    private JSONObject createTicketContextJson(ITicket ticket) {
+        JSONObject ticketJson = new JSONObject();
+        try {
+            ticketJson.put("key", ticket.getTicketKey());
+            ticketJson.put("title", ticket.getTicketTitle());
+            ticketJson.put("description", ticket.getTicketDescription());
+            if (ticket instanceof Ticket) {
+                Ticket jiraTicket = (Ticket) ticket;
+                if (jiraTicket.getFields() != null) {
+                    ticketJson.put("status", jiraTicket.getFields().getStatus() != null ? jiraTicket.getFields().getStatus().getName() : "");
+                    ticketJson.put("priority", jiraTicket.getFields().getPriority() != null ? jiraTicket.getFields().getPriority().getName() : "");
+                    ticketJson.put("issueType", jiraTicket.getFields().getIssueType() != null ? jiraTicket.getFields().getIssueType().getName() : "");
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to create ticket context JSON: {}", e.getMessage());
+        }
+        return ticketJson;
+    }
+    
+    /**
+     * Create JSON representation of params for JavaScript context.
+     */
+    private JSONObject createParamsJson(TestCasesGeneratorParams params) {
+        JSONObject paramsJson = new JSONObject();
+        try {
+            paramsJson.put("testCaseIssueType", params.getTestCaseIssueType());
+            paramsJson.put("testCasesPriorities", params.getTestCasesPriorities());
+            if (params.getInputJql() != null) {
+                paramsJson.put("inputJql", params.getInputJql());
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to create params JSON: {}", e.getMessage());
+        }
+        return paramsJson;
     }
 }

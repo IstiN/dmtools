@@ -112,6 +112,11 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     }
     
     @Override
+    public String getDialApiVersion() {
+        return propertyReader.getDialApiVersion();
+    }
+    
+    @Override
     public String getCodeAIModel() {
         return propertyReader.getCodeAIModel();
     }
@@ -394,6 +399,51 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     @Override
     public int getAnthropicMaxTokens() {
         return propertyReader.getAnthropicMaxTokens();
+    }
+    
+    @Override
+    public String getBedrockBasePath() {
+        return propertyReader.getBedrockBasePath();
+    }
+    
+    @Override
+    public String getBedrockRegion() {
+        return propertyReader.getBedrockRegion();
+    }
+    
+    @Override
+    public String getBedrockModelId() {
+        return propertyReader.getBedrockModelId();
+    }
+    
+    @Override
+    public String getBedrockBearerToken() {
+        return propertyReader.getBedrockBearerToken();
+    }
+    
+    @Override
+    public String getBedrockAccessKeyId() {
+        return propertyReader.getBedrockAccessKeyId();
+    }
+    
+    @Override
+    public String getBedrockSecretAccessKey() {
+        return propertyReader.getBedrockSecretAccessKey();
+    }
+    
+    @Override
+    public String getBedrockSessionToken() {
+        return propertyReader.getBedrockSessionToken();
+    }
+    
+    @Override
+    public int getBedrockMaxTokens() {
+        return propertyReader.getBedrockMaxTokens();
+    }
+    
+    @Override
+    public double getBedrockTemperature() {
+        return propertyReader.getBedrockTemperature();
     }
     
     @Override

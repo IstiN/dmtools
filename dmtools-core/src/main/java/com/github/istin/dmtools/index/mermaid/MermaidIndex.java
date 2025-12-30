@@ -4,6 +4,9 @@ import com.github.istin.dmtools.ai.ChunkPreparation;
 import com.github.istin.dmtools.ai.agent.MermaidDiagramGeneratorAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.confluence.index.ConfluenceMermaidIndexIntegration;
+import com.github.istin.dmtools.atlassian.jira.index.JiraMermaidIndexIntegration;
+import com.github.istin.dmtools.common.model.ITicket;
+import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.ImageResizer;
 import com.github.istin.dmtools.common.utils.StringUtils;
 import com.github.istin.dmtools.context.FileToTextTransformer;
@@ -43,7 +46,7 @@ public class MermaidIndex {
     private final ImageResizer imageResizer;
     
     /**
-     * Creates a new MermaidIndex instance.
+     * Creates a new MermaidIndex instance for Confluence integration.
      * 
      * @param integrationName Name of the integration (e.g., "confluence")
      * @param storagePath Base path for storing generated diagrams
@@ -78,6 +81,53 @@ public class MermaidIndex {
             this.integration = new ConfluenceMermaidIndexIntegration(confluence);
         } else {
             throw new IllegalArgumentException("Unsupported integration: " + integrationName);
+        }
+    }
+    
+    /**
+     * Creates a new MermaidIndex instance for Jira or Jira Xray integration.
+     * 
+     * @param integrationName Name of the integration ("jira" or "jira_xray")
+     * @param storagePath Base path for storing generated diagrams
+     * @param includePatterns List of patterns to include (first element should be JQL query)
+     * @param excludePatterns List of patterns to exclude (not used for Jira)
+     * @param trackerClient TrackerClient instance (BasicJiraClient or XrayClient)
+     * @param customFields Array of custom field names to include in content
+     * @param includeComments Whether to include comments in the content
+     * @param diagramGenerator Diagram generator agent
+     * @throws IllegalArgumentException if required parameters are null
+     */
+    public MermaidIndex(String integrationName, String storagePath,
+                       List<String> includePatterns, List<String> excludePatterns,
+                       TrackerClient<? extends ITicket> trackerClient,
+                       String[] customFields, boolean includeComments,
+                       MermaidDiagramGeneratorAgent diagramGenerator) {
+        if (storagePath == null || storagePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("Storage path is required");
+        }
+        if (diagramGenerator == null) {
+            throw new IllegalArgumentException("Diagram generator is required");
+        }
+        if (trackerClient == null) {
+            throw new IllegalArgumentException("TrackerClient is required for Jira integration");
+        }
+        
+        this.integrationName = integrationName;
+        this.storagePath = storagePath;
+        this.includePatterns = includePatterns;
+        this.excludePatterns = excludePatterns;
+        this.diagramGenerator = diagramGenerator;
+        this.imageResizer = new ImageResizer();
+        
+        // Create integration instance based on name
+        // Both "jira" and "jira_xray" use JiraMermaidIndexIntegration, but with different TrackerClient instances
+        // The TrackerClient (BasicJiraClient or XrayClient) is already selected in MermaidIndexTools
+        logger.info("Creating JiraMermaidIndexIntegration for integration: {} with TrackerClient: {}", 
+                integrationName, trackerClient.getClass().getName());
+        if ("jira".equalsIgnoreCase(integrationName) || "jira_xray".equalsIgnoreCase(integrationName)) {
+            this.integration = new JiraMermaidIndexIntegration(trackerClient, customFields, includeComments);
+        } else {
+            throw new IllegalArgumentException("Unsupported integration: " + integrationName + ". Use 'jira' or 'jira_xray' for this constructor.");
         }
     }
     

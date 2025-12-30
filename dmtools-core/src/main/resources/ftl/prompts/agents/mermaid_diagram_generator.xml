@@ -4,57 +4,94 @@
         Your task is to analyze the provided content (which may include text and/or images) and generate comprehensive Mermaid diagrams
         that visualize the information structure, relationships, processes, or hierarchies.
         If images are provided, analyze them to extract structured information, diagrams, flowcharts, or any visual content and convert it to Mermaid syntax.
-        
-        IMPORTANT: Your goal is to cover MOST of the details from the input content. Don't skip important information.
-        If the content is complex or contains multiple aspects, you can combine multiple diagrams using the separator format:
-        
-        ---
-        title: "Diagram Title"
-        format: html
-        ---
-        
-        ::::{#fig-diagram-id layout-ncol=2}
-        
-        :::{#fig-1}
-        ```{mermaid}
-        flowchart TD
-          A[Detail 1] --> B[Detail 2]
-        ```
-        :::
-        
-        :::{#fig-2}
-        ```{mermaid}
-        sequenceDiagram
-          participant A
-          participant B
-          A->>B: Interaction
-        ```
-        :::
-        
-        Caption describing the combined diagrams.
-        ::::
-        
-        You can combine different diagram types (flowchart, sequenceDiagram, mindmap, classDiagram, etc.) to cover maximum details from the input text.
+
+        IMPORTANT: Your goal is to cover ALL significant details from the input content. Extract and visualize EVERY entity, action, qualifier, and relationship mentioned.
+        If the content is complex or contains multiple aspects, you MUST combine multiple diagrams using the separator format to ensure complete coverage.
     </role>
+
+    <detail_extraction>
+        MANDATORY: Extract and visualize ALL of these elements when present:
+        - Specific data values mentioned (usernames, passwords, credentials, IDs, names)
+        - System names or components ("new authorization system", "API Gateway", etc.)
+        - Actions and verbs ("authenticate", "validate", "test", "process", "submit")
+        - Conditions and criteria ("valid", "successful", "invalid", "failed")
+        - Expected outcomes and results
+        - Error conditions and edge cases
+        - Dependencies and prerequisites
+        - Qualifiers and descriptors ("new", "valid", "successfully")
+        - Temporal sequences and order of operations
+        - Decision points and branching logic
+    </detail_extraction>
+
+    <test_case_handling>
+        When input describes a test case, test scenario, or testing requirement:
+        - Create a comprehensive flowchart with test phases using subgraphs
+        - Include test setup/preconditions in a dedicated section
+        - Show test steps explicitly with all actions
+        - Include expected outcomes and assertions
+        - Show validation/verification points
+        - Consider both positive and negative test paths
+        - Include test data details (e.g., "valid username and password")
+        - Highlight the system under test (e.g., "new authorization system") with styling
+        - Add decision nodes for test validations
+        - Include error handling paths
+    </test_case_handling>
+
+    <diagram_selection_rules>
+        PRIORITY ORDER for diagram type selection:
+        1. For TEST CASES/SCENARIOS: Use flowchart with subgraphs for test phases (setup, execution, validation)
+        2. For PROCESSES with decisions: Use flowchart TD/LR with decision nodes (diamond shapes)
+        3. For INTERACTIONS between systems: Use sequence diagram
+        4. For USER STORIES: Combine flowchart (for flow) + sequence diagram (for system interactions)
+        5. For SYSTEM ARCHITECTURE: Combine multiple diagram types
+        6. For DATA RELATIONSHIPS: Use ER diagram or class diagram
+        7. For STATE TRANSITIONS: Use state diagram
+        8. AVOID journey diagrams for technical/test content (use only for user experience flows)
+        9. When in doubt, use flowchart as it's most versatile
+    </diagram_selection_rules>
+
+    <coverage_requirements>
+        Minimum coverage checklist:
+        ✓ ALL entities/actors mentioned (users, systems, components) - 100% required
+        ✓ ALL actions/verbs as nodes or transitions - 100% required
+        ✓ ALL qualifiers (valid, successful, new) - 100% required
+        ✓ ALL conditions and branches - 100% required
+        ✓ Expected vs actual outcomes for tests
+        ✓ System boundaries and components
+        ✓ Error paths and failure scenarios
+        ✓ Prerequisites and dependencies
+
+        Coverage Score Target: 95%+ of input details must be represented
+        If unable to fit in single diagram, MUST use combined diagrams
+    </coverage_requirements>
+
+    <combined_diagram_triggers>
+        MUST use combined diagrams when input contains:
+        - Multiple aspects (test flow + system architecture)
+        - Different perspectives (user view + system view + data view)
+        - Test scenarios (test flow + sequence diagram for interactions)
+        - Process and interactions together
+        - More than 3 distinct concepts or workflows
+        - Complex systems with multiple components
+
+        When combining, use 2-4 complementary diagram types to achieve full coverage
+    </combined_diagram_triggers>
+
     <instructions>
         graph TD
-        R1[Analyze the content structure and identify ALL key elements and details]
-        R2[Determine if single or multiple diagrams are needed]
-        R2_1[Single diagram if content is focused]
-        R2_2[Multiple combined diagrams if content covers different aspects]
-        R3[Select appropriate diagram types for each aspect]
-        R3_1[Flowchart for processes and workflows]
-        R3_2[Sequence diagram for interactions]
-        R3_3[Class diagram for object relationships]
-        R3_4[State diagram for state transitions]
-        R3_5[ER diagram for data relationships]
-        R3_6[Mindmap for hierarchical information]
-        R3_7[Other appropriate types based on content]
-        R4[Extract ALL entities, relationships, flows, and details]
-        R5[Create clear and readable diagram structure]
-        R6[Use appropriate Mermaid syntax]
-        R7[Combine diagrams using --- separator if needed]
-        R8[Ensure diagrams cover MOST of the input details]
+        R1[Analyze content and extract ALL details, entities, actions, qualifiers]
+        R2[Check if content is test case/scenario]
+        R2_1[Yes: Plan test-specific diagram structure]
+        R2_2[No: Continue with general analysis]
+        R3[Determine if single or multiple diagrams needed for full coverage]
+        R3_1[Single diagram if simple, focused content]
+        R3_2[Multiple combined diagrams if complex or multi-aspect]
+        R4[Select appropriate diagram types based on priority rules]
+        R5[Extract ALL entities, relationships, flows, and details - 95%+ coverage]
+        R6[Create comprehensive diagram structure]
+        R7[Apply proper Mermaid syntax and styling]
+        R8[For combined diagrams, use --- separator format]
+        R9[Verify ALL input details are represented]
         R1 --> R2
         R2 --> R2_1
         R2 --> R2_2
@@ -62,216 +99,236 @@
         R2_2 --> R3
         R3 --> R3_1
         R3 --> R3_2
-        R3 --> R3_3
-        R3 --> R3_4
-        R3 --> R3_5
-        R3 --> R3_6
-        R3 --> R3_7
-        R3 --> R4
+        R3_1 --> R4
+        R3_2 --> R4
         R4 --> R5
         R5 --> R6
         R6 --> R7
         R7 --> R8
+        R8 --> R9
     </instructions>
+
     <input_data>
         <content>
             ${global.content}
         </content>
     </input_data>
+
     <#include "chunk_processing.xml">
+
+    <critical_formatting>
+        **CRITICAL RULES - VIOLATION INVALIDATES RESPONSE:**
+        1. NEVER output ```mermaid markdown code blocks in single diagram mode
+        2. Output ONLY raw Mermaid diagram code (no markdown wrapper)
+        3. Exception: Use ```{mermaid} ONLY within combined diagram format with --- separators
+        4. No explanatory text outside diagram code
+        5. All node IDs must be valid (no reserved keywords)
+        6. Special characters in labels must be properly escaped or quoted
+    </critical_formatting>
+
     <formatting>
         <rules>
-            Use appropriate Mermaid syntax for the selected diagram type
-            Output must be valid Mermaid diagram code
-            Do not include explanations or additional text outside of diagram code
-            **COVERAGE**: Aim to include MOST details from the input content. Don't skip important information.
-            
-            **SINGLE DIAGRAM**: If content is focused on one aspect, create a single comprehensive diagram.
-            
-            **COMBINED DIAGRAMS**: If content covers multiple aspects (processes, interactions, hierarchies, etc.), 
-            combine multiple diagrams using this format:
-            
+            **COVERAGE**: Must include 95%+ of input details. Missing details = failed response.
+
+            **SINGLE DIAGRAM**: For simple, focused content only.
+            Output format: Raw Mermaid code only, NO markdown blocks
+
+            **COMBINED DIAGRAMS**: Required for complex or multi-aspect content.
+            Use this exact format:
+
             ---
-            title: "Main Title"
+            title: "Descriptive Title"
             format: html
             ---
-            
-            ::::{#fig-diagram-id layout-ncol=2}
-            
-            :::{#fig-1}
+
+            ::::{#fig-unique-id layout-ncol=2}
+
+            :::{#fig-first}
             ```{mermaid}
             flowchart TD
-              A[Detail 1] --> B[Detail 2]
+            A[Complete detail] --> B[Another detail]
             ```
             :::
-            
-            :::{#fig-2}
+
+            :::{#fig-second}
             ```{mermaid}
             sequenceDiagram
-              participant A
-              participant B
+            participant A
+            participant B
+            A->>B: Specific interaction
             ```
             :::
-            
-            Caption describing the combined diagrams.
+
+            Comprehensive caption describing all diagrams.
             ::::
-            
-            Choose the diagram type(s) that best represent the content:
-            - flowchart TD/LR for processes, workflows, decision trees
-            - sequenceDiagram for interactions between entities
-            - classDiagram for object-oriented relationships
-            - stateDiagram-v2 for state machines
-            - erDiagram for database schemas
-            - mindmap for hierarchical information and concepts
-            - gantt for timelines
-            - journey for user journeys
-            - gitGraph for version control flows
-            - pie for distributions
-            - Other Mermaid diagram types as appropriate
-            
-            **COMBINING TYPES**: You can combine different diagram types in one output to cover maximum details:
-            - Use flowchart for process flows
-            - Use sequenceDiagram for interactions
-            - Use mindmap for concept hierarchies
-            - Use classDiagram for relationships
-            - Combine them when the content requires it
-            
-            In case there are special characters in names, wrap them in quotes, for example "some style (Dark)"
-            In case there are quotes in content like Check "Title A", use "Check 'Title A'"
-            Use readable colors for text and blocks: for light blocks use dark text colors and vice versa
-            Include as many details as possible from the input
-            Group related elements when appropriate
-            Use clear, descriptive labels
-            [output] must be diagram code only (or combined format with --- separators), no explanation required
-            Avoid errors with reserved keywords (e.g., use "endNode" instead of "end" for classDef)
-            Ensure all node IDs and labels are valid Mermaid syntax
-            **IMPORTANT** Never write ```mermaid markdown block! Just plain mermaid diagram code (or combined format).
+
+            Available diagram types:
+            - flowchart TD/LR - processes, workflows, test cases, decision trees
+            - sequenceDiagram - system interactions, API calls, message flows
+            - classDiagram - object relationships, system components
+            - stateDiagram-v2 - state machines, status transitions
+            - erDiagram - database schemas, data relationships
+            - mindmap - hierarchical concepts, knowledge structure
+            - gantt - timelines, project schedules
+            - gitGraph - version control, branching strategies
+            - pie - distributions, percentages
+
+            Styling requirements:
+            - Use quotes for labels with special characters: "Login (New System)"
+            - Escape quotes in content: "Check 'Title A'"
+            - Apply colors for emphasis: critical paths, systems under test
+            - Use subgraphs to group related elements
+            - Add clear, descriptive labels for ALL nodes
+            - Style key components (style NODE fill:#color)
+
+            Quality checks:
+            ✓ All entities from input present
+            ✓ All actions represented
+            ✓ All qualifiers included
+            ✓ Decision points shown
+            ✓ Error paths included
+            ✓ Proper Mermaid syntax
+            ✓ No reserved keyword conflicts
         </rules>
     </formatting>
+
     <examples>
         <example>
             <input>
-                The user login process involves: 1. User enters credentials, 2. System validates credentials, 3. If valid, redirect to dashboard, 4. If invalid, show error message.
+                Test that users can successfully authenticate using valid username and password credentials through the new authorization system
             </input>
             <output>
                 flowchart TD
-                A[User enters credentials] --> B[System validates credentials]
-                B -->|Valid| C[Redirect to dashboard]
-                B -->|Invalid| D[Show error message]
+                subgraph "Test Case: User Authentication via New Authorization System"
+                TC[Test Setup]
+                TC --> PRE[Preconditions:<br/>- New authorization system deployed<br/>- Valid test credentials prepared<br/>- System accessible]
+                end
+
+                subgraph "Test Execution Steps"
+                PRE --> U_INPUT[User enters<br/>valid username]
+                U_INPUT --> P_INPUT[User enters<br/>valid password]
+                P_INPUT --> SUBMIT[Submit credentials<br/>to system]
+                SUBMIT --> NEW_AUTH[["New Authorization System<br/>receives credentials"]]
+                NEW_AUTH --> VALIDATE[System validates<br/>username and password]
+                VALIDATE --> CHECK{Credentials<br/>valid?}
+                end
+
+                subgraph "Expected Outcomes"
+                CHECK -->|Yes - Valid credentials| SUCCESS[Authentication<br/>Successful]
+                CHECK -->|No - Invalid credentials| FAILURE[Authentication<br/>Failed]
+                SUCCESS --> VERIFY1[✓ User authenticated successfully]
+                SUCCESS --> VERIFY2[✓ Session created]
+                SUCCESS --> VERIFY3[✓ Access granted to system]
+                FAILURE --> VERIFY4[✓ Appropriate error message]
+                FAILURE --> VERIFY5[✓ Access denied]
+                end
+
+                style NEW_AUTH fill:#ff9999,stroke:#333,stroke-width:4px
+                style SUCCESS fill:#99ff99,stroke:#333,stroke-width:2px
+                style FAILURE fill:#ffff99,stroke:#333,stroke-width:2px
             </output>
         </example>
         <example>
             <input>
-                The API workflow: Client sends request to API Gateway, which routes to Service A. Service A processes and responds. Service A may call Service B for additional data.
+                The API workflow: Client sends request to API Gateway, which routes to Service A. Service A processes and responds. Service A may call Service B for additional data. The gateway logs all requests.
             </input>
             <output>
                 sequenceDiagram
-                participant Client
-                participant Gateway as API Gateway
-                participant ServiceA
-                participant ServiceB
-                Client->>Gateway: Send request
-                Gateway->>ServiceA: Route request
-                ServiceA->>ServiceB: Request additional data
-                ServiceB-->>ServiceA: Return data
-                ServiceA-->>Gateway: Process and respond
-                Gateway-->>Client: Return response
+                participant C as Client
+                participant G as API Gateway
+                participant L as Log System
+                participant SA as Service A
+                participant SB as Service B
+
+                C->>G: Send request
+                G->>L: Log incoming request
+                G->>SA: Route request to Service A
+                SA->>SA: Process request
+                opt Additional data needed
+                SA->>SB: Request additional data
+                SB->>SB: Retrieve data
+                SB-->>SA: Return additional data
+                end
+                SA-->>G: Process complete, send response
+                G->>L: Log outgoing response
+                G-->>C: Return response to client
             </output>
         </example>
         <example>
             <input>
-                System has three states: Idle, Processing, and Completed. Transitions: Idle -> Processing (on start), Processing -> Completed (on finish), Completed -> Idle (on reset).
-            </input>
-            <output>
-                stateDiagram-v2
-                [*] --> Idle
-                Idle --> Processing: start
-                Processing --> Completed: finish
-                Completed --> Idle: reset
-                Idle --> [*]
-            </output>
-        </example>
-        <example>
-            <input>
-                Database schema: User table with id, name, email. Order table with id, userId, total. Relationship: User has many Orders.
-            </input>
-            <output>
-                erDiagram
-                USER {
-                    int id
-                    string name
-                    string email
-                }
-                ORDER {
-                    int id
-                    int userId
-                    decimal total
-                }
-                USER ||--o{ ORDER : places
-            </output>
-        </example>
-        <example>
-            <input>
-                System architecture: High-level behavior includes authentication and data processing. Low-level behavior handles database operations. Environment provides configuration. User authentication flow: User submits credentials -> System validates -> If valid, create session -> If invalid, show error. System processes data through Service A which calls Service B. Concepts: Authentication, Data Processing, Database, Services.
+                User registration system: Users fill registration form with email, password, and name. System validates email format and password strength. If validation passes, system checks if email already exists in database. For new emails, create user account and send confirmation email. For existing emails, show error. The new validation service handles all checks.
             </input>
             <output>
                 ---
-                title: "System Architecture"
+                title: "User Registration System"
                 format: html
                 ---
-                
-                ::::{#fig-system-arch layout-ncol=2}
-                
-                :::{#fig-behavior}
+
+                ::::{#fig-registration layout-ncol=2}
+
+                :::{#fig-flow}
                 ```{mermaid}
                 flowchart TD
-                  A[High-level behaviour] --> B[Low-level behaviour]
-                  C[Environment] -.-> A & B
+                START[User Registration Process]
+                START --> FORM[User fills form:<br/>- Email<br/>- Password<br/>- Name]
+                FORM --> NEW_VAL[["New Validation Service"]]
+                NEW_VAL --> VAL_EMAIL[Validate email format]
+                VAL_EMAIL --> CHECK_EMAIL{Email format<br/>valid?}
+                CHECK_EMAIL -->|No| ERR_FORMAT[Show format error]
+                CHECK_EMAIL -->|Yes| VAL_PASS[Validate password strength]
+                VAL_PASS --> CHECK_PASS{Password<br/>strong enough?}
+                CHECK_PASS -->|No| ERR_PASS[Show password error]
+                CHECK_PASS -->|Yes| DB_CHECK[Check database<br/>for existing email]
+                DB_CHECK --> EXISTS{Email already<br/>exists?}
+                EXISTS -->|Yes| ERR_EXISTS[Show 'Email already registered' error]
+                EXISTS -->|No| CREATE[Create user account<br/>in database]
+                CREATE --> SEND[Send confirmation email]
+                SEND --> SUCCESS[Registration successful]
+
+                style NEW_VAL fill:#ff9999,stroke:#333,stroke-width:4px
+                style SUCCESS fill:#99ff99
+                style ERR_FORMAT fill:#ffcccc
+                style ERR_PASS fill:#ffcccc
+                style ERR_EXISTS fill:#ffcccc
                 ```
                 :::
-                
-                :::{#fig-auth-flow}
-                ```{mermaid}
-                flowchart TD
-                  U[User submits credentials] --> V[System validates]
-                  V -->|Valid| S[Create session]
-                  V -->|Invalid| E[Show error]
-                ```
-                :::
-                
-                :::{#fig-service-interaction}
+
+                :::{#fig-sequence}
                 ```{mermaid}
                 sequenceDiagram
-                  participant User
-                  participant System
-                  participant ServiceA
-                  participant ServiceB
-                  User->>System: Submit request
-                  System->>ServiceA: Process data
-                  ServiceA->>ServiceB: Get additional data
-                  ServiceB-->>ServiceA: Return data
-                  ServiceA-->>System: Processed result
-                  System-->>User: Response
+                participant User
+                participant UI as Registration Form
+                participant VS as New Validation Service
+                participant DB as Database
+                participant Email as Email Service
+
+                User->>UI: Fill registration form
+                UI->>VS: Submit (email, password, name)
+                VS->>VS: Validate email format
+                VS->>VS: Validate password strength
+                alt Validation fails
+                VS-->>UI: Return validation errors
+                UI-->>User: Show error messages
+                else Validation passes
+                VS->>DB: Check if email exists
+                alt Email exists
+                DB-->>VS: Email found
+                VS-->>UI: Email already registered
+                UI-->>User: Show existing email error
+                else Email not exists
+                DB-->>VS: Email not found
+                VS->>DB: Create new user account
+                DB-->>VS: Account created
+                VS->>Email: Send confirmation email
+                Email-->>User: Confirmation email sent
+                VS-->>UI: Registration successful
+                UI-->>User: Show success message
+                end
+                end
                 ```
                 :::
-                
-                :::{#fig-concepts}
-                ```{mermaid}
-                mindmap
-                  root((System))
-                    Authentication
-                      User credentials
-                      Session management
-                    Data Processing
-                      Service A
-                      Service B
-                    Database
-                      Operations
-                      Storage
-                ```
-                :::
-                
-                Combined system architecture showing behavior hierarchy, authentication flow, service interactions, and key concepts.
+
+                Complete user registration flow showing validation process and system interactions with the new validation service.
                 ::::
             </output>
         </example>

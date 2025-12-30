@@ -7,12 +7,13 @@ import com.github.istin.dmtools.ai.js.JSAIClient;
 import com.github.istin.dmtools.ai.ollama.OllamaAIClient;
 import com.github.istin.dmtools.ai.anthropic.AnthropicAIClient;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
+import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
+import com.github.istin.dmtools.atlassian.jira.xray.XrayClient;
 import com.github.istin.dmtools.broadcom.rally.RallyClient;
 import com.github.istin.dmtools.broadcom.rally.model.RallyFields;
 import com.github.istin.dmtools.common.utils.SecurityUtils;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
-import com.github.istin.dmtools.atlassian.jira.JiraClient;
 import com.github.istin.dmtools.microsoft.ado.AzureDevOpsClient;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.code.model.SourceCodeConfig;
@@ -140,6 +141,8 @@ public class ServerManagedIntegrationsModule {
             if (defaultTracker != null && !defaultTracker.isEmpty()) {
                 if ("jira".equalsIgnoreCase(defaultTracker)) {
                     client = createJiraClient(resolvedIntegrations);
+                } else if ("jira_xray".equalsIgnoreCase(defaultTracker)) {
+                    client = createXrayClient(resolvedIntegrations);
                 } else if ("ado".equalsIgnoreCase(defaultTracker)) {
                     client = createAdoClient(resolvedIntegrations);
                 } else if ("rally".equalsIgnoreCase(defaultTracker)) {
@@ -155,6 +158,12 @@ public class ServerManagedIntegrationsModule {
             }
 
             // Auto-detection fallback (original logic)
+            
+            // Check for X-ray configuration first (requires both jira and xray configs)
+            if (resolvedIntegrations.has("jira") && resolvedIntegrations.has("xray")) {
+                client = createXrayClient(resolvedIntegrations);
+                if (client != null) return client;
+            }
             
             // Create a custom JiraClient instance using resolved credentials with JSON parameter names
             if (resolvedIntegrations.has("jira")) {
@@ -178,6 +187,58 @@ public class ServerManagedIntegrationsModule {
             return null;
         } catch (Exception e) {
             System.err.println("❌ [ServerManagedIntegrationsModule] Failed to create TrackerClient instance with resolved credentials: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private TrackerClient<? extends ITicket> createXrayClient(JSONObject resolvedIntegrations) throws IOException {
+        // X-ray requires both Jira and X-ray configuration
+        if (!resolvedIntegrations.has("jira")) {
+            System.err.println("❌ [ServerManagedIntegrationsModule] X-ray configuration requires Jira configuration");
+            return null;
+        }
+        if (!resolvedIntegrations.has("xray")) {
+            System.err.println("❌ [ServerManagedIntegrationsModule] X-ray configuration not found in resolved integrations");
+            return null;
+        }
+
+        JSONObject jiraConfig = resolvedIntegrations.getJSONObject("jira");
+        JSONObject xrayConfig = resolvedIntegrations.getJSONObject("xray");
+
+        // Get Jira configuration
+        String jiraBasePath = jiraConfig.optString("JIRA_BASE_PATH", "");
+        String jiraAuthType = jiraConfig.optString("JIRA_AUTH_TYPE", "Basic");
+        String jiraExtraFieldsProject = jiraConfig.optString("JIRA_EXTRA_FIELDS_PROJECT", "");
+        String jiraExtraFields = jiraConfig.optString("JIRA_EXTRA_FIELDS", "");
+        int maxSearchResults = jiraConfig.optInt("JIRA_MAX_SEARCH_RESULTS", -1);
+
+        // Handle Jira authentication
+        String jiraToken = "";
+        if (jiraConfig.has("JIRA_EMAIL") && jiraConfig.has("JIRA_API_TOKEN")) {
+            String email = jiraConfig.optString("JIRA_EMAIL", "");
+            String apiToken = jiraConfig.optString("JIRA_API_TOKEN", "");
+            if (!email.isEmpty() && !apiToken.isEmpty()) {
+                String credentials = email.trim() + ":" + apiToken.trim();
+                jiraToken = Base64.getEncoder().encodeToString(credentials.getBytes());
+                System.out.println("✅ [ServerManagedIntegrationsModule] Combined JIRA_EMAIL + JIRA_API_TOKEN for authentication");
+            }
+        } else if (jiraConfig.has("JIRA_LOGIN_PASS_TOKEN")) {
+            jiraToken = jiraConfig.optString("JIRA_LOGIN_PASS_TOKEN", "");
+        }
+
+        // Get X-ray configuration
+        String xrayBasePath = xrayConfig.optString("XRAY_BASE_PATH", "");
+        String xrayClientId = xrayConfig.optString("XRAY_CLIENT_ID", "");
+        String xrayClientSecret = xrayConfig.optString("XRAY_CLIENT_SECRET", "");
+
+        if (!jiraBasePath.isEmpty() && !jiraToken.isEmpty() && 
+            !xrayBasePath.isEmpty() && !xrayClientId.isEmpty() && !xrayClientSecret.isEmpty()) {
+            System.out.println("✅ [ServerManagedIntegrationsModule] Creating CustomServerManagedXrayClient with resolved credentials");
+            return new CustomServerManagedXrayClient(jiraBasePath, jiraToken, jiraAuthType, 
+                    jiraExtraFieldsProject, jiraExtraFields, maxSearchResults,
+                    xrayBasePath, xrayClientId, xrayClientSecret);
+        } else {
+            System.err.println("❌ [ServerManagedIntegrationsModule] X-ray configuration missing required parameters");
             return null;
         }
     }
@@ -340,6 +401,43 @@ public class ServerManagedIntegrationsModule {
         @Override
         public TrackerClient.TextType getTextType() {
             return TrackerClient.TextType.MARKDOWN;
+        }
+    }
+
+    /**
+     * Custom XrayClient implementation that uses resolved credentials
+     * instead of static properties from PropertyReader
+     */
+    private static class CustomServerManagedXrayClient extends XrayClient {
+
+        public CustomServerManagedXrayClient(
+                String jiraBasePath,
+                String jiraToken,
+                String jiraAuthType,
+                String extraFieldsProject,
+                String extraFields,
+                int maxSearchResults,
+                String xrayBasePath,
+                String xrayClientId,
+                String xrayClientSecret
+        ) throws IOException {
+            // Use protected constructor with resolved credentials and reasonable defaults
+            // Following the same pattern as CustomServerManagedJiraClient
+            super(jiraBasePath, jiraToken, jiraAuthType, maxSearchResults,
+                    xrayBasePath, xrayClientId, xrayClientSecret,
+                    true, // isLoggingEnabled - default to true
+                    true, // isClearCache - default to true to clean cache
+                    true, // isWaitBeforePerform - default to true
+                    100L, // sleepTimeRequest - default to 100ms
+                    extraFieldsProject, // extraFieldsProject
+                    extraFields != null && !extraFields.trim().isEmpty() ? extraFields.split(",") : null // extraFields
+            );
+
+            // Performance optimization: Enable caching (following CustomServerManagedJiraClient pattern)
+            setCacheGetRequestsEnabled(true);
+            System.out.println("✅ [CustomServerManagedXrayClient] Cache cleaned and enabled for performance optimization");
+            System.out.println("✅ [CustomServerManagedXrayClient] Max search results configured: " +
+                    (maxSearchResults == -1 ? "unlimited" : String.valueOf(maxSearchResults)));
         }
     }
     
@@ -620,10 +718,11 @@ public class ServerManagedIntegrationsModule {
                 String apiKey = dialConfig.optString("DIAL_AI_API_KEY", null);
                 String model = dialConfig.optString("DIAL_AI_MODEL", "gpt-4");
                 String basePath = dialConfig.optString("DIAL_AI_BATH_PATH", "https://api.openai.com/v1");
+                String apiVersion = dialConfig.optString("DIAL_API_VERSION", null);
                 
                 if (apiKey != null && !apiKey.isEmpty()) {
                     System.out.println("✅ [ServerManagedIntegrationsModule] Creating custom DialAIClient with resolved credentials");
-                    return new DialAIClient(basePath, apiKey, model, observer);
+                    return new DialAIClient(basePath, apiKey, model, apiVersion, observer);
                 } else {
                     System.out.println("⚠️ [ServerManagedIntegrationsModule] Dial configuration missing DIAL_AI_API_KEY, skipping");
                 }

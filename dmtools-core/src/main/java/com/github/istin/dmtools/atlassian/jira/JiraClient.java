@@ -979,7 +979,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
         jiraRequest.setBody(jsonObject.toString());
         String post = jiraRequest.post();
-        String key = new JSONObject(post).getString("key");
+        
+        // Check for errors in the response before extracting key
+        JSONObject responseJson = new JSONObject(post);
+        checkJiraResponseForErrors(responseJson, "Failed to create ticket");
+        
+        String key = responseJson.getString("key");
         log(getTicketBrowseUrl(key));
         return post;
     }
@@ -1046,9 +1051,103 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
         jiraRequest.setBody(jsonObject.toString());
         String post = jiraRequest.post();
-        String key = new JSONObject(post).getString("key");
+        
+        // Check for errors in the response before extracting key
+        JSONObject responseJson = new JSONObject(post);
+        checkJiraResponseForErrors(responseJson, "Failed to create ticket");
+        
+        String key = responseJson.getString("key");
         log(getTicketBrowseUrl(key));
         return post;
+    }
+    
+    /**
+     * Checks Jira API response for errors and throws a descriptive exception if found.
+     * 
+     * @param responseJson The JSON response from Jira API
+     * @param defaultMessage Default error message if no specific errors found
+     * @throws IOException if errors are found in the response
+     */
+    private void checkJiraResponseForErrors(JSONObject responseJson, String defaultMessage) throws IOException {
+        List<String> allErrors = new ArrayList<>();
+        
+        // Check for errorMessages array
+        if (responseJson.has("errorMessages")) {
+            JSONArray errorMessages = responseJson.optJSONArray("errorMessages");
+            if (errorMessages != null && errorMessages.length() > 0) {
+                for (int i = 0; i < errorMessages.length(); i++) {
+                    allErrors.add(errorMessages.getString(i));
+                }
+            }
+        }
+        
+        // Check for errors object (field-level errors)
+        if (responseJson.has("errors")) {
+            JSONObject errors = responseJson.optJSONObject("errors");
+            if (errors != null && errors.length() > 0) {
+                for (String fieldName : errors.keySet()) {
+                    String errorMessage = errors.getString(fieldName);
+                    // Try to resolve field name to human-readable format
+                    String readableFieldName = resolveFieldNameToReadable(fieldName);
+                    if (readableFieldName != null && !readableFieldName.equals(fieldName)) {
+                        allErrors.add(readableFieldName + " (" + fieldName + "): " + errorMessage);
+                    } else {
+                        // For custom fields, try to make the message more user-friendly
+                        if (fieldName.startsWith("customfield_")) {
+                            allErrors.add("Field " + fieldName + ": " + errorMessage);
+                        } else {
+                            allErrors.add(fieldName + ": " + errorMessage);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // If we found any errors, throw an exception with a clear message
+        if (!allErrors.isEmpty()) {
+            StringBuilder errorBuilder = new StringBuilder(defaultMessage);
+            if (allErrors.size() == 1) {
+                errorBuilder.append(" - ").append(allErrors.get(0));
+            } else {
+                errorBuilder.append(":\n");
+                for (int i = 0; i < allErrors.size(); i++) {
+                    errorBuilder.append("  ").append(i + 1).append(". ").append(allErrors.get(i));
+                    if (i < allErrors.size() - 1) {
+                        errorBuilder.append("\n");
+                    }
+                }
+            }
+            throw new IOException(errorBuilder.toString());
+        }
+    }
+    
+    /**
+     * Attempts to resolve a field ID or custom field code to a human-readable field name.
+     * 
+     * @param fieldIdentifier Field ID (e.g., "customfield_10238") or field code
+     * @return Human-readable field name if found, or null
+     */
+    private String resolveFieldNameToReadable(String fieldIdentifier) {
+        // Check if it's a standard field
+        if (fieldIdentifier.equals("summary")) return "Summary";
+        if (fieldIdentifier.equals("description")) return "Description";
+        if (fieldIdentifier.equals("issuetype")) return "Issue Type";
+        if (fieldIdentifier.equals("project")) return "Project";
+        if (fieldIdentifier.equals("priority")) return "Priority";
+        if (fieldIdentifier.equals("assignee")) return "Assignee";
+        if (fieldIdentifier.equals("reporter")) return "Reporter";
+        if (fieldIdentifier.equals("status")) return "Status";
+        
+        // For custom fields, try to get the field name from cache or API
+        // This is a best-effort attempt - if field mapping is not available, return null
+        try {
+            // Try to get field name from field mapping cache if available
+            // Note: This requires field mapping to be populated, which may not always be available
+            return null; // Could be enhanced to check field mapping cache
+        } catch (Exception e) {
+            // If we can't resolve, return null and use the field identifier as-is
+            return null;
+        }
     }
 
 

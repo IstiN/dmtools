@@ -15,6 +15,7 @@ import com.github.istin.dmtools.ai.dial.model.model.Choice;
 import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.Setter;
+import okhttp3.HttpUrl;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,6 +40,9 @@ public class DialAIClient extends AbstractRestClient implements AI {
     @Getter
     private final String model;
 
+    @Getter
+    private final String apiVersion;
+
     @Setter
     private Metadata metadata;
 
@@ -48,18 +52,29 @@ public class DialAIClient extends AbstractRestClient implements AI {
 
     // Default constructor - backward compatibility
     public DialAIClient(String basePath, String authorization, String model) throws IOException {
-        this(basePath, authorization, model, null);
+        this(basePath, authorization, model, null, null);
     }
 
     // Default constructor with observer - backward compatibility
     public DialAIClient(String basePath, String authorization, String model, ConversationObserver conversationObserver) throws IOException {
-        this(basePath, authorization, model, conversationObserver, LogManager.getLogger(DialAIClient.class));
+        this(basePath, authorization, model, null, conversationObserver, LogManager.getLogger(DialAIClient.class));
+    }
+    
+    // Constructor with apiVersion - backward compatibility
+    public DialAIClient(String basePath, String authorization, String model, String apiVersion) throws IOException {
+        this(basePath, authorization, model, apiVersion, null, LogManager.getLogger(DialAIClient.class));
+    }
+    
+    // Constructor with apiVersion and observer
+    public DialAIClient(String basePath, String authorization, String model, String apiVersion, ConversationObserver conversationObserver) throws IOException {
+        this(basePath, authorization, model, apiVersion, conversationObserver, LogManager.getLogger(DialAIClient.class));
     }
     
     // NEW: Constructor with logger injection for server-managed mode
-    public DialAIClient(String basePath, String authorization, String model, ConversationObserver conversationObserver, Logger logger) throws IOException {
+    public DialAIClient(String basePath, String authorization, String model, String apiVersion, ConversationObserver conversationObserver, Logger logger) throws IOException {
         super(basePath, authorization);
         this.model = model;
+        this.apiVersion = apiVersion;
         this.conversationObserver = conversationObserver;
         this.logger = logger != null ? logger : LogManager.getLogger(DialAIClient.class);
         setCachePostRequestsEnabled(true);
@@ -140,7 +155,20 @@ public class DialAIClient extends AbstractRestClient implements AI {
     }
 
     private String performChatCompletion(String model, JSONArray messagesArray) throws Exception {
-        String path = path("openai/deployments/" + model + "/chat/completions");
+        String basePath = path("openai/deployments/" + model + "/chat/completions");
+        String path = basePath;
+        
+        // Append api-version query parameter if configured
+        if (apiVersion != null && !apiVersion.trim().isEmpty()) {
+            HttpUrl httpUrl = HttpUrl.parse(basePath);
+            if (httpUrl != null) {
+                HttpUrl urlWithApiVersion = httpUrl.newBuilder()
+                        .addQueryParameter("api-version", apiVersion)
+                        .build();
+                path = urlWithApiVersion.toString();
+            }
+        }
+        
         logger.info(path);
         GenericRequest postRequest = new GenericRequest(this, path);
 

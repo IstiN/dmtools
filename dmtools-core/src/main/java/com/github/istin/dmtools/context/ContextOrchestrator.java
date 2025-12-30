@@ -4,6 +4,8 @@ import com.github.istin.dmtools.ai.ChunkPreparation;
 import com.github.istin.dmtools.ai.agent.ContentMergeAgent;
 import com.github.istin.dmtools.ai.agent.SummaryContextAgent;
 import com.github.istin.dmtools.common.model.ToText;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -200,6 +202,10 @@ public class ContextOrchestrator {
         executorService.shutdown();
     }
 
+    @Getter
+    @Setter
+    private int tokenLimit = -1;
+
     public List<ChunkPreparation.Chunk> summarize() throws Exception {
         ChunkPreparation chunkPreparation = new ChunkPreparation();
         Set<String> keys = contextMemory.keySet();
@@ -208,7 +214,13 @@ public class ContextOrchestrator {
             Map<String, Object> stringObjectMap = contextMemory.get(key);
             entries.addAll(stringObjectMap.entrySet());
         }
-        return chunkPreparation.prepareChunks(entries);
+        if (tokenLimit == -1) {
+            return chunkPreparation
+                    .prepareChunks(entries);
+        } else {
+            return chunkPreparation
+                    .prepareChunks(entries, tokenLimit);
+        }
     }
 
     public void clear() {

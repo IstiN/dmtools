@@ -3,7 +3,11 @@ package com.github.istin.dmtools.index.mermaid.tool;
 import com.github.istin.dmtools.ai.agent.MermaidDiagramGeneratorAgent;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
+import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
+import com.github.istin.dmtools.atlassian.jira.xray.XrayClient;
+import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
+import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.index.mermaid.MermaidIndex;
 import com.github.istin.dmtools.mcp.MCPParam;
 import com.github.istin.dmtools.mcp.MCPTool;
@@ -40,25 +44,27 @@ public class MermaidIndexTools {
     }
     
     /**
-     * Generate Mermaid diagrams from Confluence content based on include/exclude patterns.
+     * Generate Mermaid diagrams from content sources (Confluence or Jira) based on include/exclude patterns.
      * Processes content recursively and stores diagrams in hierarchical file structure.
      * 
-     * @param integration Integration type (currently only "confluence" is supported)
+     * @param integration Integration type ("confluence", "jira", or "jira_xray")
      * @param storagePath Base path for storing generated diagrams
-     * @param includePatterns Array of include patterns (e.g., ["AINA/pages/123/Page/**"])
-     * @param excludePatterns Optional array of exclude patterns
+     * @param includePatterns Array of include patterns. For Confluence: ["SPACE/pages/PAGE_ID/PAGE_NAME/**"]. For Jira: ["JQL query"]
+     * @param excludePatterns Optional array of exclude patterns (not used for Jira)
+     * @param customFields Optional array of custom field names to include (only for Jira integrations)
+     * @param includeComments Whether to include comments in content (only for Jira integrations, default: false)
      * @return JSON string with operation result and statistics
      */
     @MCPTool(
         name = "mermaid_index_generate",
-        description = "Generate Mermaid diagrams from content sources (e.g., Confluence) based on include/exclude patterns. Processes content recursively and stores diagrams in hierarchical file structure.",
+        description = "Generate Mermaid diagrams from content sources (Confluence or Jira) based on include/exclude patterns. Processes content recursively and stores diagrams in hierarchical file structure.",
         integration = "mermaid",
         category = "diagram_generation"
     )
     public String mermaidIndexGenerate(
             @MCPParam(
                 name = "integration",
-                description = "Integration type (currently only 'confluence' is supported)",
+                description = "Integration type: 'confluence', 'jira', or 'jira_xray'",
                 required = true,
                 example = "confluence"
             ) String integration,
@@ -70,27 +76,42 @@ public class MermaidIndexTools {
             ) String storagePath,
             @MCPParam(
                 name = "include_patterns",
-                description = "Array of include patterns. Format: [\"SPACE/pages/PAGE_ID/PAGE_NAME/**\"] for recursive, [\"SPACE/pages/PAGE_ID/PAGE_NAME\"] for single page, [\"SPACE/pages/PAGE_ID/PAGE_NAME/*\"] for immediate children",
+                description = "Array of include patterns. For Confluence: [\"SPACE/pages/PAGE_ID/PAGE_NAME/**\"]. For Jira: [\"JQL query\"]",
                 required = true,
                 example = "[\"AINA/pages/11665522/Templates/**\"]",
                 type = "array"
             ) List<String> includePatterns,
             @MCPParam(
                 name = "exclude_patterns",
-                description = "Optional array of exclude patterns to filter out specific content",
+                description = "Optional array of exclude patterns to filter out specific content (not used for Jira)",
                 required = false,
                 example = "[]",
                 type = "array"
-            ) List<String> excludePatterns
+            ) List<String> excludePatterns,
+            @MCPParam(
+                name = "custom_fields",
+                description = "Optional array of custom field names to include in content (only for Jira integrations)",
+                required = false,
+                example = "[\"summary\", \"description\", \"customfield_10001\"]",
+                type = "array"
+            ) List<String> customFields,
+            @MCPParam(
+                name = "include_comments",
+                description = "Whether to include comments in content (only for Jira integrations, default: false)",
+                required = false,
+                example = "false"
+            ) Boolean includeComments
     ) {
         try {
-            logger.info("Starting Mermaid index generation: integration={}, storagePath={}, include={}, exclude={}", 
-                    integration, storagePath, includePatterns, excludePatterns);
-            
-            // Validate integration type
-            if (!"confluence".equalsIgnoreCase(integration)) {
-                return "{\"success\": false, \"error\": \"Unsupported integration: " + integration + ". Only 'confluence' is currently supported.\"}";
+            // Normalize optional parameters
+            boolean includeCommentsValue = includeComments != null && includeComments;
+            String[] customFieldsArray = null;
+            if (customFields != null && !customFields.isEmpty()) {
+                customFieldsArray = customFields.toArray(new String[0]);
             }
+            
+            logger.info("Starting Mermaid index generation: integration={}, storagePath={}, include={}, exclude={}, customFields={}, includeComments={}", 
+                    integration, storagePath, includePatterns, excludePatterns, customFields, includeCommentsValue);
             
             // Validate storage path
             if (storagePath == null || storagePath.trim().isEmpty()) {
@@ -102,30 +123,74 @@ public class MermaidIndexTools {
                 return "{\"success\": false, \"error\": \"At least one include pattern is required\"}";
             }
             
-            // Get Confluence instance
-            Confluence confluence;
-            try {
-                confluence = BasicConfluence.getInstance();
-                if (confluence == null) {
-                    return "{\"success\": false, \"error\": \"Confluence is not configured. Please configure Confluence credentials.\"}";
-                }
-            } catch (IOException e) {
-                logger.error("Failed to get Confluence instance", e);
-                return "{\"success\": false, \"error\": \"Failed to get Confluence instance: " + e.getMessage() + "\"}";
-            }
-            
             // Normalize exclude patterns (handle null)
             List<String> normalizedExclude = excludePatterns != null ? excludePatterns : new ArrayList<>();
             
-            // Create MermaidIndex instance
-            MermaidIndex mermaidIndex = new MermaidIndex(
-                    integration,
-                    storagePath,
-                    includePatterns,
-                    normalizedExclude,
-                    confluence,
-                    diagramGenerator
-            );
+            MermaidIndex mermaidIndex;
+            
+            // Handle Confluence integration
+            if ("confluence".equalsIgnoreCase(integration)) {
+                // Get Confluence instance
+                Confluence confluence;
+                try {
+                    confluence = BasicConfluence.getInstance();
+                    if (confluence == null) {
+                        return "{\"success\": false, \"error\": \"Confluence is not configured. Please configure Confluence credentials.\"}";
+                    }
+                } catch (IOException e) {
+                    logger.error("Failed to get Confluence instance", e);
+                    return "{\"success\": false, \"error\": \"Failed to get Confluence instance: " + e.getMessage() + "\"}";
+                }
+                
+                mermaidIndex = new MermaidIndex(
+                        integration,
+                        storagePath,
+                        includePatterns,
+                        normalizedExclude,
+                        confluence,
+                        diagramGenerator
+                );
+            }
+            // Handle Jira integrations
+            else if ("jira".equalsIgnoreCase(integration) || "jira_xray".equalsIgnoreCase(integration)) {
+                // Get TrackerClient instance
+                TrackerClient<? extends ITicket> trackerClient;
+                try {
+                    if ("jira_xray".equalsIgnoreCase(integration)) {
+                        logger.info("Using XrayClient for integration: {}", integration);
+                        trackerClient = XrayClient.getInstance();
+                        if (trackerClient == null) {
+                            logger.error("XrayClient.getInstance() returned null");
+                            return "{\"success\": false, \"error\": \"XrayClient is not configured. Please configure X-ray credentials.\"}";
+                        }
+                        logger.info("XrayClient instance obtained successfully: {}", trackerClient.getClass().getName());
+                    } else {
+                        logger.info("Using BasicJiraClient for integration: {}", integration);
+                        trackerClient = BasicJiraClient.getInstance();
+                        if (trackerClient == null) {
+                            logger.error("BasicJiraClient.getInstance() returned null");
+                            return "{\"success\": false, \"error\": \"Jira is not configured. Please configure Jira credentials.\"}";
+                        }
+                        logger.info("BasicJiraClient instance obtained successfully: {}", trackerClient.getClass().getName());
+                    }
+                } catch (IOException e) {
+                    logger.error("Failed to get Jira client instance for integration: {}", integration, e);
+                    return "{\"success\": false, \"error\": \"Failed to get Jira client instance: " + e.getMessage() + "\"}";
+                }
+                
+                mermaidIndex = new MermaidIndex(
+                        integration,
+                        storagePath,
+                        includePatterns,
+                        normalizedExclude,
+                        trackerClient,
+                        customFieldsArray,
+                        includeCommentsValue,
+                        diagramGenerator
+                );
+            } else {
+                return "{\"success\": false, \"error\": \"Unsupported integration: " + integration + ". Supported: 'confluence', 'jira', 'jira_xray'.\"}";
+            }
             
             // Execute indexing
             mermaidIndex.index();
@@ -134,7 +199,9 @@ public class MermaidIndexTools {
             
             return "{\"success\": true, \"message\": \"Mermaid diagrams generated successfully\", \"integration\": \"" + 
                     integration + "\", \"storagePath\": \"" + storagePath + "\", \"includePatterns\": " + 
-                    includePatterns.size() + ", \"excludePatterns\": " + normalizedExclude.size() + "}";
+                    includePatterns.size() + ", \"excludePatterns\": " + normalizedExclude.size() + 
+                    ", \"customFields\": " + (customFieldsArray != null ? customFieldsArray.length : 0) + 
+                    ", \"includeComments\": " + includeCommentsValue + "}";
             
         } catch (Exception e) {
             logger.error("Error generating Mermaid index", e);

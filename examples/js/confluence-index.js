@@ -32,13 +32,59 @@ function action(params) {
         console.log('=== Confluence Mermaid Index ===');
         
         // Get job parameters
-        const jobParams = params.jobParams || {};
+        // Parse from JSON string to ensure we get a plain JavaScript object
+        // This handles GraalVM polyglot objects that may not support direct property access
+        let jobParams = params.jobParams || {};
+        try {
+            const jobParamsJson = JSON.stringify(jobParams);
+            jobParams = JSON.parse(jobParamsJson);
+        } catch (e) {
+            console.warn('Failed to parse jobParams as JSON, using original:', e);
+        }
+        
         const integration = jobParams.integration || 'confluence';
         const storagePath = jobParams.storagePath;
-        const include = jobParams.include || [];
-        const exclude = jobParams.exclude || [];
         
         console.log('Job parameters:', JSON.stringify(jobParams));
+        
+        // Helper function to convert values to JavaScript arrays
+        function toArray(value) {
+            if (Array.isArray(value)) {
+                return value;
+            }
+            if (value === undefined || value === null) {
+                return [];
+            }
+            // Try to convert polyglot list/array to JavaScript array
+            try {
+                // If it has array elements (GraalVM polyglot), convert it
+                if (value.length !== undefined && typeof value.length === 'number') {
+                    const result = [];
+                    for (let i = 0; i < value.length; i++) {
+                        result.push(value[i]);
+                    }
+                    return result;
+                }
+                // If it's iterable, use spread operator
+                if (Symbol.iterator in value) {
+                    return Array.from(value);
+                }
+                // Otherwise, wrap in array
+                return [value];
+            } catch (e) {
+                console.warn('Failed to convert to array:', e);
+                return [];
+            }
+        }
+        
+        // Support both 'include' and 'include_patterns' for backward compatibility
+        // Try both dot notation and bracket notation
+        let include = jobParams['include_patterns'] || jobParams.include_patterns || jobParams['include'] || jobParams.include;
+        include = toArray(include);
+        
+        // Support both 'exclude' and 'exclude_patterns' for backward compatibility
+        let exclude = jobParams['exclude_patterns'] || jobParams.exclude_patterns || jobParams['exclude'] || jobParams.exclude;
+        exclude = toArray(exclude);
         
         // Validate required parameters
         if (!storagePath) {
@@ -50,8 +96,8 @@ function action(params) {
         
         console.log('Integration:', integration);
         console.log('Storage path:', storagePath);
-        console.log('Include patterns:', include);
-        console.log('Exclude patterns:', exclude);
+        console.log('Include patterns:', JSON.stringify(include));
+        console.log('Exclude patterns:', JSON.stringify(exclude));
         
         // Use MCP tool for Mermaid index generation
         // This uses the MCP architecture similar to confluence, jira, kb tools

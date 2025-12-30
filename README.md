@@ -41,7 +41,7 @@ Delivery Management Tools
 
 ```bash
 # One-line installation
-curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 
 # Verify installation
 dmtools --version

@@ -155,7 +155,7 @@ usage() {
     # Check if JAR file exists before calling JobRunner
     if [ -z "$JAR_FILE" ] || [ ! -f "$JAR_FILE" ]; then
         error "DMTools JAR file not found. Please install DMTools first:
-  curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+  curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 
 Or if you're developing locally, build the project first:
   ./gradlew build
@@ -230,9 +230,9 @@ case "$COMMAND" in
         usage
         ;;
     "list")
-        if [ $# -gt 0 ]; then
+        if [ ${#ARGS[@]} -gt 0 ]; then
             # List with filter
-            execute_java_command "java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list \"$1\""
+            execute_java_command "java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list \"${ARGS[0]}\""
         else
             # List all tools
             execute_java_command "java -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list"
@@ -272,7 +272,7 @@ esac
 # Check if JAR file exists
 if [ -z "$JAR_FILE" ] || [ ! -f "$JAR_FILE" ]; then
     error "DMTools JAR file not found. Please install DMTools first:
-  curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+  curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 
 Or if you're developing locally, build the project first:
   ./gradlew build
