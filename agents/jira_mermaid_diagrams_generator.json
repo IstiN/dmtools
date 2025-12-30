@@ -1,0 +1,18 @@
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "examples/js/jira-index.js",
+    "jobParams": {
+      "integration": "jira",
+      "storagePath": "./agents/mermaid-diagrams",
+      "include": [
+        "project in (DMC) and issueType in (Story) and key in (DMC-829, DMC-800)"
+      ],
+      "exclude": [],
+      "customFields": [],
+      "includeComments": false
+    }
+  }
+}
+
+

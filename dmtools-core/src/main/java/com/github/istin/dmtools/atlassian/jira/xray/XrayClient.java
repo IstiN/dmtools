@@ -76,6 +76,9 @@ public class XrayClient extends JiraClient<Ticket> {
     private final String[] defaultJiraFields;
     private final String[] extendedJiraFields;
     private final String[] customCodesOfConfigFields;
+    
+    // Flag to prevent recursion when enriching tickets
+    private final ThreadLocal<Boolean> isEnriching = ThreadLocal.withInitial(() -> false);
 
     static {
         PropertyReader propertyReader = new PropertyReader();
@@ -783,69 +786,59 @@ public class XrayClient extends JiraClient<Ticket> {
     }
 
     /**
-     * Overrides searchAndPerform to enrich test tickets with X-ray test steps and preconditions.
-     * First calls the parent method to get tickets from Jira, then for each Test issue,
-     * retrieves test steps and preconditions from X-ray GraphQL API and adds them to the ticket.
+     * Enriches test tickets with X-ray test steps and preconditions.
+     * This is a shared method used by both searchAndPerform overloads to avoid code duplication.
      * 
-     * @param searchQueryJQL JQL search query
-     * @param fields Array of field names to retrieve
-     * @return List of tickets with X-ray test steps and preconditions added for Test issues
-     * @throws Exception if search or X-ray API calls fail
+     * @param tickets List of tickets to enrich (will be modified in place)
+     * @param searchQueryJQL JQL query used to fetch X-ray data
      */
-    @MCPTool(
-            name = "jira_xray_search_tickets",
-            description = "Search for Jira tickets using JQL query and enrich Test/Precondition issues with X-ray test steps and preconditions. Returns list of tickets with X-ray data.",
-            integration = "jira_xray",
-            category = "search"
-    )
-    @Override
-    public List<Ticket> searchAndPerform(
-            @MCPParam(name = "searchQueryJQL", description = "JQL search query (e.g., 'project = TP AND issueType = Test')", required = true, example = "project = TP AND issueType = Test") String searchQueryJQL,
-            @MCPParam(name = "fields", description = "Array of field names to retrieve (e.g., ['summary', 'description', 'status'])", required = false, example = "summary,description,status") String[] fields
-    ) throws Exception {
-        // First, call parent method to get tickets from Jira
-        List<Ticket> tickets = super.searchAndPerform(searchQueryJQL, fields);
-        
+    private void enrichTicketsWithXrayData(List<Ticket> tickets, String searchQueryJQL) {
         if (tickets == null || tickets.isEmpty()) {
-            logger.debug("No tickets found for query: {}", searchQueryJQL);
-            return tickets;
+            return;
         }
         
-        logger.debug("Found {} tickets, enriching with X-ray test steps and preconditions", tickets.size());
+        logger.debug("Found {} tickets, enriching Test/Precondition issues with X-ray data", tickets.size());
         
         // Filter Test and Precondition issues
         List<Ticket> testTickets = new ArrayList<>();
-        Map<String, Ticket> ticketMap = new HashMap<>();
         for (Ticket ticket : tickets) {
+            String ticketKey = ticket != null ? ticket.getKey() : "unknown";
             try {
                 String issueType = ticket.getIssueType();
                 if (issueType != null && (issueType.equalsIgnoreCase("Test") || issueType.equalsIgnoreCase("Precondition"))) {
-                    String ticketKey = ticket.getKey();
                     if (ticketKey != null && !ticketKey.isEmpty()) {
                         testTickets.add(ticket);
-                        ticketMap.put(ticketKey, ticket);
+                        logger.debug("Found Test/Precondition ticket: {}", ticketKey);
+                    }
+                } else if (issueType == null) {
+                    // If issuetype field is not available, treat all tickets as potential tests
+                    // This happens when issuetype is not requested in fields array
+                    if (ticketKey != null && !ticketKey.isEmpty()) {
+                        testTickets.add(ticket);
+                        logger.debug("Found ticket without issuetype field, treating as potential test: {}", ticketKey);
                     }
                 }
-            } catch (NullPointerException e) {
-                // Skip tickets without issue type (may happen if fields are not fully loaded)
-                String ticketKey = ticket != null ? ticket.getKey() : "unknown";
-                logger.debug("Skipping ticket {} - issue type is not available", ticketKey);
+            } catch (Exception e) {
+                // If issuetype field is not available (not requested in fields), treat as potential test
+                logger.debug("Issue type check failed for ticket {}, treating as potential test: {}", ticketKey, e.getMessage());
+                if (ticketKey != null && !ticketKey.isEmpty()) {
+                    testTickets.add(ticket);
+                }
             }
         }
         
         if (testTickets.isEmpty()) {
-            logger.debug("No Test or Precondition issues found in results");
-            return tickets;
+            logger.debug("No Test or Precondition issues found in results, skipping X-ray enrichment");
+            return;
         }
         
-        // Use the same JQL query to get all X-ray data via GraphQL with pagination
-        // This will fetch all tests matching the JQL query, not just the first 100
-        logger.debug("Fetching X-ray data for {} test tickets using JQL query: {} (will fetch all matching tests via pagination)", 
-                testTickets.size(), searchQueryJQL);
+        // Enrich test tickets with X-ray data
+        logger.info("Enriching {} Test/Precondition tickets with X-ray test steps and preconditions", testTickets.size());
         
         try {
-            // Fetch all tests with pagination (uses paginationLimit from xrayRestClient, but will fetch all pages)
+            // Fetch all tests with pagination using the same JQL query
             JSONArray xrayTests = xrayRestClient.getTestsByJQLGraphQL(searchQueryJQL);
+            logger.debug("Retrieved {} tests from X-ray GraphQL API", xrayTests.length());
             
             // Create a map of X-ray test data by ticket key for fast lookup
             Map<String, JSONObject> xrayDataMap = new HashMap<>();
@@ -880,18 +873,21 @@ public class XrayClient extends JiraClient<Ticket> {
                 }
             }
             
-            logger.debug("Retrieved {} tests from X-ray GraphQL API", xrayDataMap.size());
+            logger.debug("X-ray data map contains {} entries", xrayDataMap.size());
             
             // Batch fetch precondition summary/description from Jira
             Map<String, Ticket> preconditionTicketsMap = new HashMap<>();
-            for (String preconditionKey : preconditionKeys) {
-                try {
-                    Ticket preconditionTicket = performTicket(preconditionKey, new String[]{"summary", "description"});
-                    if (preconditionTicket != null) {
-                        preconditionTicketsMap.put(preconditionKey, preconditionTicket);
+            if (!preconditionKeys.isEmpty()) {
+                logger.debug("Fetching {} preconditions from Jira", preconditionKeys.size());
+                for (String preconditionKey : preconditionKeys) {
+                    try {
+                        Ticket preconditionTicket = performTicket(preconditionKey, new String[]{"summary", "description"});
+                        if (preconditionTicket != null) {
+                            preconditionTicketsMap.put(preconditionKey, preconditionTicket);
+                        }
+                    } catch (IOException e) {
+                        logger.debug("Failed to get Jira data for precondition {}: {}", preconditionKey, e.getMessage());
                     }
-                } catch (IOException e) {
-                    logger.debug("Failed to get Jira data for precondition {}: {}", preconditionKey, e.getMessage());
                 }
             }
             
@@ -902,12 +898,13 @@ public class XrayClient extends JiraClient<Ticket> {
                     JSONObject xrayData = xrayDataMap.get(ticketKey);
                     
                     if (xrayData == null) {
-                        logger.debug("No X-ray data found for ticket {}", ticketKey);
+                        logger.debug("No X-ray data found for ticket {} (may not be a test with steps)", ticketKey);
                         continue;
                     }
                     
                     Fields fieldsObj = ticket.getFields();
                     if (fieldsObj == null) {
+                        logger.warn("Ticket {} has no fields object", ticketKey);
                         continue;
                     }
                     
@@ -916,8 +913,12 @@ public class XrayClient extends JiraClient<Ticket> {
                         JSONArray steps = xrayData.getJSONArray("steps");
                         if (steps != null && steps.length() > 0) {
                             fieldsObj.getJSONObject().put("xrayTestSteps", steps);
-                            logger.debug("Added {} test steps to ticket {}", steps.length(), ticketKey);
+                            logger.info("✅ Added {} test steps to ticket {}", steps.length(), ticketKey);
+                        } else {
+                            logger.debug("Ticket {} has empty steps array", ticketKey);
                         }
+                    } else {
+                        logger.debug("Ticket {} has no steps in X-ray data", ticketKey);
                     }
                     
                     // Add preconditions with definition from Xray and summary/description from Jira
@@ -953,24 +954,150 @@ public class XrayClient extends JiraClient<Ticket> {
                             }
                             
                             fieldsObj.getJSONObject().put("xrayPreconditions", preconditions);
-                            logger.debug("Added {} preconditions to ticket {} (with definition from Xray and summary/description from Jira)", 
-                                    preconditions.length(), ticketKey);
+                            logger.info("✅ Added {} preconditions to ticket {}", preconditions.length(), ticketKey);
                         }
                     }
                     
                 } catch (Exception e) {
-                    logger.warn("Error enriching ticket {} with X-ray data: {}", ticket.getKey(), e.getMessage());
+                    logger.warn("Error enriching ticket {} with X-ray data: {}", ticket.getKey(), e.getMessage(), e);
                     // Continue processing other tickets even if one fails
                 }
             }
             
+            logger.info("Finished enriching {} Test/Precondition tickets with X-ray data", testTickets.size());
+            
         } catch (IOException e) {
-            logger.warn("Failed to get X-ray data for JQL query {}: {}", searchQueryJQL, e.getMessage());
-            // Continue - tickets will be returned without X-ray enrichment
+            logger.warn("Failed to get X-ray data for JQL query {}: {}", searchQueryJQL, e.getMessage(), e);
+            // Continue - tickets will be processed without X-ray enrichment
         }
+    }
+
+    /**
+     * Overrides searchAndPerform to enrich test tickets with X-ray test steps and preconditions.
+     * First calls the parent method to get tickets from Jira, then for each Test issue,
+     * retrieves test steps and preconditions from X-ray GraphQL API and adds them to the ticket.
+     * 
+     * @param searchQueryJQL JQL search query
+     * @param fields Array of field names to retrieve
+     * @return List of tickets with X-ray test steps and preconditions added for Test issues
+     * @throws Exception if search or X-ray API calls fail
+     */
+    @MCPTool(
+            name = "jira_xray_search_tickets",
+            description = "Search for Jira tickets using JQL query and enrich Test/Precondition issues with X-ray test steps and preconditions. Returns list of tickets with X-ray data.",
+            integration = "jira_xray",
+            category = "search"
+    )
+    @Override
+    public List<Ticket> searchAndPerform(
+            @MCPParam(name = "searchQueryJQL", description = "JQL search query (e.g., 'project = TP AND issueType = Test')", required = true, example = "project = TP AND issueType = Test") String searchQueryJQL,
+            @MCPParam(name = "fields", description = "Array of field names to retrieve (e.g., ['summary', 'description', 'status'])", required = false, example = "summary,description,status") String[] fields
+    ) throws Exception {
+        // Ensure issuetype field is always included for X-ray enrichment
+        fields = ensureIssueTypeField(fields);
+
+        // First, call parent method to get tickets from Jira
+        List<Ticket> tickets = super.searchAndPerform(searchQueryJQL, fields);
+        
+        if (tickets == null || tickets.isEmpty()) {
+            logger.debug("No tickets found for query: {}", searchQueryJQL);
+            return tickets;
+        }
+        
+        // Enrich tickets with X-ray data
+        enrichTicketsWithXrayData(tickets, searchQueryJQL);
         
         logger.debug("Finished enriching {} tickets with X-ray data", tickets.size());
         return tickets;
+    }
+
+    /**
+     * Ensures that the issuetype field is included in the fields array for X-ray enrichment.
+     * X-ray enrichment requires knowing the issue type to determine if it's a Test or Precondition.
+     *
+     * @param fields Array of field names to check and modify
+     * @return Modified array with issuetype field included
+     */
+    private String[] ensureIssueTypeField(String[] fields) {
+        logger.debug("ensureIssueTypeField called with fields: {}", fields != null ? String.join(",", fields) : "null");
+
+        if (fields == null || fields.length == 0) {
+            logger.debug("Fields array is null or empty, returning ['issuetype']");
+            return new String[]{"issuetype"};
+        }
+
+        // Check if issuetype is already present (case-insensitive)
+        for (String field : fields) {
+            if ("issuetype".equalsIgnoreCase(field)) {
+                logger.debug("Field 'issuetype' already present in fields array");
+                return fields; // Already present, return as-is
+            }
+        }
+
+        // Add issuetype to the fields array
+        String[] newFields = new String[fields.length + 1];
+        System.arraycopy(fields, 0, newFields, 0, fields.length);
+        newFields[fields.length] = "issuetype";
+
+        logger.info("Added 'issuetype' field to search fields for X-ray enrichment. Original fields: {}, New fields: {}",
+                    String.join(",", fields), String.join(",", newFields));
+
+        return newFields;
+    }
+
+    /**
+     * Overrides searchAndPerform with Performer callback to enrich test tickets with X-ray test steps and preconditions.
+     * For each ticket that is a Test issue, retrieves test steps and preconditions from X-ray GraphQL API
+     * and adds them to the ticket before passing it to the Performer callback.
+     * 
+     * @param performer Performer callback to process each ticket
+     * @param searchQueryJQL JQL search query
+     * @param fields Array of field names to retrieve
+     * @throws Exception if search or X-ray API calls fail
+     */
+    @Override
+    public void searchAndPerform(Performer<Ticket> performer, String searchQueryJQL, String[] fields) throws Exception {
+        // Check if we're already enriching to prevent recursion
+        if (isEnriching.get()) {
+            logger.debug("Already enriching tickets, calling parent searchAndPerform directly to avoid recursion");
+            super.searchAndPerform(performer, searchQueryJQL, fields);
+            return;
+        }
+        
+        logger.debug("XrayClient.searchAndPerform with Performer: enriching tickets with X-ray data for JQL: {}", searchQueryJQL);
+        isEnriching.set(true);
+        
+        try {
+            // First, get all tickets using parent's searchAndPerform with Performer (not the List version to avoid recursion)
+            // We use a collector Performer to gather tickets first, then enrich them
+            List<Ticket> tickets = new ArrayList<>();
+            super.searchAndPerform(ticket -> {
+                tickets.add(ticket);
+                return false; // Continue collecting all tickets
+            }, searchQueryJQL, fields);
+            
+            if (tickets == null || tickets.isEmpty()) {
+                logger.debug("No tickets found for query: {}", searchQueryJQL);
+                return;
+            }
+            
+            // Enrich tickets with X-ray data
+            enrichTicketsWithXrayData(tickets, searchQueryJQL);
+        
+            // Now process all tickets with the Performer callback
+            logger.debug("Processing {} tickets with Performer callback", tickets.size());
+            for (Ticket ticket : tickets) {
+                boolean shouldBreak = performer.perform(ticket);
+                if (shouldBreak) {
+                    logger.debug("Performer requested to stop processing");
+                    break;
+                }
+            }
+            
+            logger.debug("Finished processing tickets with Performer callback");
+        } finally {
+            isEnriching.set(false);
+        }
     }
 
     /**
