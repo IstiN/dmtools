@@ -56,6 +56,186 @@ EOF
 echo '{"key": "PROJ-123"}' | dmtools jira_get_ticket
 ```
 
+## 🚀 JavaScript Actions (JSRunner)
+
+DMTools supports running JavaScript actions via the `jsrunner` job type. This allows you to execute custom JavaScript code that can interact with MCP tools, process data, and perform complex workflows.
+
+### Basic JSRunner Job
+
+```json
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "my-script.js",
+    "jobParams": {
+      "ticketKey": "PROJ-123",
+      "outputPath": "./output"
+    }
+  }
+}
+```
+
+**Execute:**
+```bash
+dmtools run my-job.json
+```
+
+### Example JavaScript Script
+
+Create a file `my-script.js`:
+
+```javascript
+/**
+ * Example JavaScript action demonstrating MCP tool usage
+ * Shows how to call different MCP tools from JavaScript
+ */
+function action(params) {
+    try {
+        console.log('🚀 Starting JavaScript action...');
+
+        const ticketKey = params.jobParams?.ticketKey || 'PROJ-123';
+
+        // 1. Get Jira ticket information
+        console.log('📋 Getting Jira ticket...');
+        const ticket = jira_get_ticket(ticketKey);
+        console.log('Ticket title:', ticket.fields?.summary);
+
+        // 2. Get ticket comments
+        console.log('💬 Getting ticket comments...');
+        const comments = jira_get_comments(ticketKey);
+        console.log('Found', comments.length, 'comments');
+
+        // 3. Search for related tickets
+        console.log('🔍 Searching for related tickets...');
+        const relatedTickets = jira_search_by_jql(
+            'project = PROJ AND status = Open',
+            'summary,status'
+        );
+        console.log('Found', relatedTickets.length, 'related tickets');
+
+        // 4. Get Confluence page content
+        console.log('📄 Getting Confluence page...');
+        const page = confluence_content_by_title('API Documentation');
+        if (page) {
+            console.log('Page found with ID:', page.id);
+        }
+
+        // 5. Extract Figma design data
+        console.log('🎨 Getting Figma design layers...');
+        const layers = figma_get_layers('https://www.figma.com/file/abc123/MyDesign');
+        if (layers) {
+            console.log('Found', layers.length, 'design layers');
+        }
+
+        // 6. Use AI for analysis (if configured)
+        console.log('🤖 Analyzing with AI...');
+        try {
+            const aiResponse = gemini_ai_chat('Summarize the ticket: ' + ticket.fields?.summary);
+            console.log('AI Summary:', aiResponse.substring(0, 100) + '...');
+        } catch (aiError) {
+            console.log('AI tools not configured, skipping...');
+        }
+
+        // 6. Send Teams message (if configured)
+        console.log('💬 Sending Teams notification...');
+        try {
+            teams_send_message('Ticket processed: ' + ticketKey, 'user@company.com');
+            console.log('Teams message sent');
+        } catch (teamsError) {
+            console.log('Teams not configured, skipping...');
+        }
+
+        // 7. File operations - read and write files
+        console.log('📁 Performing file operations...');
+        try {
+            // Write processed data to file
+            const outputData = {
+                ticketKey: ticketKey,
+                summary: ticket.fields?.summary,
+                commentsCount: comments.length,
+                processedAt: new Date().toISOString()
+            };
+
+            file_write('./output/ticket-report.json', JSON.stringify(outputData, null, 2));
+            console.log('Report saved to ticket-report.json');
+
+            // Validate the written file
+            const isValid = file_validate_json_file('./output/ticket-report.json');
+            console.log('File validation:', isValid ? '✅ Valid JSON' : '❌ Invalid JSON');
+
+        } catch (fileError) {
+            console.log('File operations not available, skipping...');
+        }
+
+        // 8. Execute CLI commands
+        console.log('💻 Executing CLI commands...');
+        try {
+            // Run git status to check repository state
+            const gitResult = cli_execute_command('git status --porcelain');
+            console.log('Git status:', gitResult || 'No changes');
+
+        } catch (cliError) {
+            console.log('CLI commands not available, skipping...');
+        }
+
+        console.log('✅ JavaScript action completed successfully');
+
+        return {
+            success: true,
+            ticketProcessed: ticketKey,
+            commentsCount: comments.length,
+            relatedTicketsCount: relatedTickets.length,
+            confluencePageFound: !!page,
+            figmaLayersFound: layers ? layers.length : 0
+        };
+
+    } catch (error) {
+        console.error('❌ Error in JavaScript action:', error);
+        return {
+            success: false,
+            error: error.toString()
+        };
+    }
+}
+```
+
+### MCP Tools Available in JavaScript
+
+| Category | Example Tools | Description |
+|----------|---------------|-------------|
+| **Jira** | `jira_get_ticket()`, `jira_search_by_jql()`, `jira_post_comment()` | Ticket management and queries |
+| **Confluence** | `confluence_content_by_title()`, `confluence_create_page()` | Page content and management |
+| **Figma** | `figma_get_layers()`, `figma_get_icons()` | Design file analysis |
+| **Teams** | `teams_send_message()`, `teams_get_messages()` | Chat and messaging |
+| **AI** | `gemini_ai_chat()`, `ollama_ai_chat()`, `anthropic_ai_chat()` | AI-powered analysis |
+| **File** | `file_read()`, `file_write()`, `file_validate_json()` | File system operations |
+| **CLI** | `cli_execute_command()` | Execute system commands |
+
+### Running Custom JavaScript Actions
+
+```bash
+# Create your script
+cat > my-action.js << 'EOF'
+function action(params) {
+    console.log('Hello from custom JS action!');
+    return { success: true };
+}
+EOF
+
+# Create job configuration
+cat > job.json << 'EOF'
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "my-action.js"
+  }
+}
+EOF
+
+# Run the job
+dmtools run job.json
+```
+
 ## 📋 Available MCP Tools
 
 ### Jira Tools (45 tools)
