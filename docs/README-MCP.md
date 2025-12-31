@@ -4,7 +4,7 @@ DMTools provides a comprehensive CLI interface for Model Context Protocol (MCP) 
 
 ## 🚀 First Commands
 ```bash
-# List all available MCP tools (105+ total)
+# List all available MCP tools (130+ total)
 dmtools list
 
 # Get a Jira ticket
@@ -87,7 +87,15 @@ Create a file `my-script.js`:
 ```javascript
 /**
  * Example JavaScript action demonstrating MCP tool usage
- * Shows how to call different MCP tools from JavaScript
+ * Shows how to call different MCP tools from JavaScript:
+ * - Jira: ticket management
+ * - ADO: work item management
+ * - Confluence: page content
+ * - Figma: design analysis
+ * - AI: intelligent analysis
+ * - Teams: messaging
+ * - File: data persistence
+ * - CLI: system commands
  */
 function action(params) {
     try {
@@ -127,7 +135,22 @@ function action(params) {
             console.log('Found', layers.length, 'design layers');
         }
 
-        // 6. Use AI for analysis (if configured)
+        // 6. Work with Azure DevOps work items
+        console.log('🔧 Working with Azure DevOps...');
+        try {
+            // Get ADO work item
+            const workItem = ado_get_work_item(12345);
+            console.log('ADO work item title:', workItem.fields?.['System.Title']);
+
+            // Update work item status
+            ado_move_to_state(12345, 'In Progress');
+            console.log('Work item moved to In Progress');
+
+        } catch (adoError) {
+            console.log('ADO tools not configured, skipping...');
+        }
+
+        // 7. Use AI for analysis (if configured)
         console.log('🤖 Analyzing with AI...');
         try {
             const aiResponse = gemini_ai_chat('Summarize the ticket: ' + ticket.fields?.summary);
@@ -136,7 +159,7 @@ function action(params) {
             console.log('AI tools not configured, skipping...');
         }
 
-        // 6. Send Teams message (if configured)
+        // 8. Send Teams message (if configured)
         console.log('💬 Sending Teams notification...');
         try {
             teams_send_message('Ticket processed: ' + ticketKey, 'user@company.com');
@@ -145,7 +168,7 @@ function action(params) {
             console.log('Teams not configured, skipping...');
         }
 
-        // 7. File operations - read and write files
+        // 9. File operations - read and write files
         console.log('📁 Performing file operations...');
         try {
             // Write processed data to file
@@ -167,7 +190,7 @@ function action(params) {
             console.log('File operations not available, skipping...');
         }
 
-        // 8. Execute CLI commands
+        // 10. Execute CLI commands
         console.log('💻 Executing CLI commands...');
         try {
             // Run git status to check repository state
@@ -186,7 +209,8 @@ function action(params) {
             commentsCount: comments.length,
             relatedTicketsCount: relatedTickets.length,
             confluencePageFound: !!page,
-            figmaLayersFound: layers ? layers.length : 0
+            figmaLayersFound: layers ? layers.length : 0,
+            adoWorkItemProcessed: true
         };
 
     } catch (error) {
@@ -204,6 +228,7 @@ function action(params) {
 | Category | Example Tools | Description |
 |----------|---------------|-------------|
 | **Jira** | `jira_get_ticket()`, `jira_search_by_jql()`, `jira_post_comment()` | Ticket management and queries |
+| **ADO** | `ado_get_work_item()`, `ado_move_to_state()`, `ado_assign_work_item()` | Azure DevOps work item management |
 | **Confluence** | `confluence_content_by_title()`, `confluence_create_page()` | Page content and management |
 | **Figma** | `figma_get_layers()`, `figma_get_icons()` | Design file analysis |
 | **Teams** | `teams_send_message()`, `teams_get_messages()` | Chat and messaging |
@@ -297,6 +322,36 @@ dmtools run job.json
 | `jira_xray_get_test_details` | `testKey` | Get detailed information about a specific test |
 | `jira_xray_get_test_steps` | `testKey` | Get all test steps for a specific test |
 | `jira_xray_search_tickets` | `jql`, `fields` | Search for Xray-related tickets using JQL |
+
+### ADO Tools (25+ tools)
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `ado_get_work_item` | `id` | Get work item details by ID |
+| `ado_get_work_items` | `ids` | Get multiple work items by IDs |
+| `ado_create_work_item` | `project`, `type`, `title`, `description` | Create a new work item |
+| `ado_update_work_item` | `id`, `fields` | Update work item fields |
+| `ado_delete_work_item` | `id` | Delete a work item |
+| `ado_get_work_item_revisions` | `id` | Get revision history of a work item |
+| `ado_add_comment` | `id`, `comment` | Add a comment to a work item |
+| `ado_get_comments` | `id` | Get all comments for a work item |
+| `ado_assign_work_item` | `id`, `email` | Assign work item to a user by email |
+| `ado_move_to_state` | `id`, `state` | Move work item to a specific state |
+| `ado_add_tag` | `id`, `tag` | Add a tag to a work item |
+| `ado_remove_tag` | `id`, `tag` | Remove a tag from a work item |
+| `ado_get_work_item_types` | `project` | Get available work item types for a project |
+| `ado_get_states` | `project`, `type` | Get available states for a work item type |
+| `ado_query_work_items` | `query` | Execute a work item query (WIQL) |
+| `ado_get_attachment` | `id` | Download work item attachment |
+| `ado_add_attachment` | `id`, `filePath`, `comment` | Add attachment to work item |
+| `ado_get_work_item_links` | `id` | Get work item links and relationships |
+| `ado_add_link` | `sourceId`, `targetId`, `linkType` | Add link between work items |
+| `ado_remove_link` | `sourceId`, `targetId`, `linkType` | Remove link between work items |
+| `ado_get_iteration` | `project`, `iteration` | Get iteration details |
+| `ado_get_area` | `project`, `area` | Get area details |
+| `ado_set_work_item_parent` | `id`, `parentId` | Set parent work item |
+| `ado_get_work_item_parent` | `id` | Get parent work item |
+| `ado_get_work_item_children` | `id` | Get child work items |
 
 ### Figma Tools (12 tools)
 
