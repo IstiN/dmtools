@@ -363,7 +363,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     @Override
     public void searchAndPerform(Performer<T> performer, String searchQueryJQL, String[] fields) throws Exception {
         // Resolve field names to support user-friendly custom field names
-        String[] resolvedFields = resolveFieldNamesForSearch(searchQueryJQL, fields);
+        List<String> resolvedFields = resolveFieldNamesForSearch(searchQueryJQL, fields);
         if (isCloudJira()) {
             SearchResult searchResults = searchByPage(searchQueryJQL, null, resolvedFields);
             if (searchResults == null) {
@@ -427,7 +427,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         }
     }
 
-    private void legacyServerJiraSearch(Performer<T> performer, String searchQueryJQL, String[] resolvedFields) throws Exception {
+    private void legacyServerJiraSearch(Performer<T> performer, String searchQueryJQL, List<String> resolvedFields) throws Exception {
         int startAt = 0;
         SearchResult searchResults = search(searchQueryJQL, startAt, resolvedFields);
         JSONArray errorMessages = searchResults.getErrorMessages();
@@ -486,14 +486,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         @MCPParam(name = "startAt", description = "Starting index for pagination (0-based)", required = true, example = "0")
         int startAt,
         @MCPParam(name = "fields", description = "Array of field names to include in the response", required = true, example = "['summary', 'status', 'assignee']")
-        String[] fields
+        List<String> fields
     ) throws IOException {
-        // Resolve field names to support user-friendly custom field names
-        String[] resolvedFields = resolveFieldNamesForSearch(jql, fields);
-        
+        // Fields are already resolved, use them directly
         GenericRequest jqlSearchRequest = new GenericRequest(this, path("search")).
                 param(PARAM_JQL, jql)
-                .param(PARAM_FIELDS, StringUtils.concatenate(",", resolvedFields))
+                .param(PARAM_FIELDS, StringUtils.concatenate(",", fields))
                 .param(PARAM_START_AT, String.valueOf(startAt));
 
         Integer expired = jqlExpirationInHours.get(jql);
@@ -528,14 +526,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             @MCPParam(name = "nextPageToken", description = "Next Page Token from previous response, empty by default for 1 page", required = true, example = "AasvvasasaSASdada")
             String nextPageToken,
             @MCPParam(name = "fields", description = "Array of field names to include in the response", required = true, example = "['summary', 'status', 'assignee']")
-            String[] fields
+            List<String> fields
     ) throws IOException {
-        // Resolve field names to support user-friendly custom field names
-        String[] resolvedFields = resolveFieldNamesForSearch(jql, fields);
-
+        // Fields are already resolved, use them directly
         GenericRequest jqlSearchRequest = new GenericRequest(this, path("search/jql")).
                 param(PARAM_JQL, jql)
-                .param(PARAM_FIELDS, StringUtils.concatenate(",", resolvedFields))
+                .param(PARAM_FIELDS, StringUtils.concatenate(",", fields))
                 ;
         if (nextPageToken != null && !nextPageToken.isEmpty()) {
             jqlSearchRequest.param(NEXT_PAGE_TOKEN, nextPageToken);
@@ -551,6 +547,23 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
         try {
             String body = jqlSearchRequest.execute();
+            log("Jira search API response received, length: " + body.length());
+            // Log the response structure to debug missing fields
+            try {
+                JSONObject jsonResponse = new JSONObject(body);
+                if (jsonResponse.has("issues")) {
+                    JSONArray issues = jsonResponse.getJSONArray("issues");
+                    if (issues.length() > 0) {
+                        JSONObject firstIssue = issues.getJSONObject(0);
+                        if (firstIssue.has("fields")) {
+                            JSONObject fieldsObj = firstIssue.getJSONObject("fields");
+                            log("Fields returned by Jira API: " + fieldsObj.keySet().toString());
+                        }
+                    }
+                }
+            } catch (Exception logException) {
+                log("Could not parse Jira response for logging: " + logException.getMessage());
+            }
             return new SearchResult(body);
         } catch (JSONException e) {
             clearCache(jqlSearchRequest);
@@ -643,8 +656,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             String projectKey = extractProjectKeyFromTicketKey(ticketKey);
             
             // Resolve field names to support user-friendly custom field names
-            String[] resolvedFields = resolveFieldNames(fields, projectKey);
-            
+            List<String> resolvedFields = resolveFieldNames(fields, projectKey);
+
             jiraRequest.param("fields", StringUtils.concatenate(",", resolvedFields));
         }
         return jiraRequest;
@@ -1334,12 +1347,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             try {
                 String response = getFields(projectKey);
                 
-                // Parse all fields and build mapping
-                if (isCloudJira()) {
-                    populateFieldMappingFromCloudResponse(projectFieldMapping, response);
-                } else {
-                    populateFieldMappingFromServerResponse(projectFieldMapping, response);
-                }
+                // Parse all fields and build mapping (same format for both Cloud and Server)
+                populateFieldMappingFromServerResponse(projectFieldMapping, response);
                 
                 log("Cached " + projectFieldMapping.size() + " field mappings for project: " + projectKey);
                 return projectFieldMapping;
@@ -1388,13 +1397,22 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     private void populateFieldMappingFromServerResponse(Map<String, String> mapping, String response) {
         try {
             JSONArray fields = new JSONArray(response);
-            
+
             for (int i = 0; i < fields.length(); i++) {
                 JSONObject field = fields.getJSONObject(i);
                 try {
                     String fieldName = field.getString("name");
                     String fieldId = field.getString("id");
-                    mapping.put(fieldName.toLowerCase(), fieldId);
+
+                    // Only map custom fields, not system fields
+                    // System fields have IDs like "summary", "description", "status", etc.
+                    // Custom fields have IDs like "customfield_xxxxx"
+                    if (fieldId.startsWith("customfield_")) {
+                        mapping.put(fieldName.toLowerCase(), fieldId);
+                        log("Mapped custom field '" + fieldName + "' to '" + fieldId + "'");
+                    } else {
+                        log("Skipping system field '" + fieldName + "' with ID '" + fieldId + "'");
+                    }
                 } catch (JSONException e) {
                     // Skip malformed field entries
                 }
@@ -1497,27 +1515,80 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
      * @param projectKey The project key for field resolution context
      * @return Array of resolved field names (preserves original names if resolution fails)
      */
-    private String[] resolveFieldNames(String[] fields, String projectKey) {
+    // Known system fields in Jira that should not be resolved to custom fields
+    private static final Set<String> SYSTEM_FIELDS = Set.of(
+        "summary", "description", "status", "assignee", "reporter", "creator",
+        "created", "updated", "resolution", "priority", "issuetype", "project",
+        "labels", "comment", "attachment", "worklog", "timetracking",
+        "aggregatetimeestimate", "aggregatetimespent", "aggregateprogress", "workratio",
+        "security", "issuerestriction", "thumbnail", "timespent", "timeestimate",
+        "duedate", "environment", "components", "versions", "fixversions",
+        "subtasks", "parent", "issuelinks", "watches", "votes"
+    );
+
+    private List<String> resolveFieldNames(String[] fields, String projectKey) {
         if (fields == null || fields.length == 0) {
-            return fields;
+            return Arrays.asList(fields);
         }
-        
-        String[] resolvedFields = new String[fields.length];
-        for (int i = 0; i < fields.length; i++) {
+
+        List<String> resolvedFields = new ArrayList<>();
+        for (String field : fields) {
             try {
-                String resolvedField = resolveFieldNameToCustomFieldId(projectKey, fields[i]);
-                // If resolution returns null, keep the original field name
-                resolvedFields[i] = (resolvedField != null) ? resolvedField : fields[i];
+                String fieldName = field.toLowerCase();
+
+                // Check if this field (case-insensitive) is already in resolvedFields
+                boolean alreadyExists = resolvedFields.stream()
+                    .anyMatch(existing -> existing.equalsIgnoreCase(field));
+                if (alreadyExists) {
+                    log("Field '" + field + "' already exists in resolved fields (case-insensitive), skipping");
+                    continue;
+                }
+
+                // For system fields, keep them as-is AND also try to resolve to custom fields with same name
+                if (SYSTEM_FIELDS.contains(fieldName)) {
+                    resolvedFields.add(field);
+                    log("Field '" + field + "' is a system field, keeping original name");
+
+                    // Also try to find a custom field with the same name (case-insensitive)
+                    String customFieldId = resolveFieldNameToCustomFieldId(projectKey, field);
+                    if (customFieldId != null) {
+                        // Check if custom field already exists (case-insensitive)
+                        boolean customAlreadyExists = resolvedFields.stream()
+                            .anyMatch(existing -> existing.equalsIgnoreCase(customFieldId));
+                        if (!customAlreadyExists) {
+                            resolvedFields.add(customFieldId);
+                            log("Also found custom field '" + customFieldId + "' for system field '" + field + "'");
+                        }
+                    }
+                } else {
+                    // For non-system fields, try to resolve to custom field
+                    log("Attempting to resolve field '" + field + "' for project '" + projectKey + "'");
+                    String resolvedField = resolveFieldNameToCustomFieldId(projectKey, field);
+                    if (resolvedField != null) {
+                        // Check if resolved field already exists (case-insensitive)
+                        boolean resolvedAlreadyExists = resolvedFields.stream()
+                            .anyMatch(existing -> existing.equalsIgnoreCase(resolvedField));
+                        if (!resolvedAlreadyExists) {
+                            resolvedFields.add(resolvedField);
+                            log("Successfully resolved field '" + field + "' to '" + resolvedField + "'");
+                        } else {
+                            log("Resolved field '" + resolvedField + "' already exists, skipping");
+                        }
+                    } else {
+                        resolvedFields.add(field);
+                        log("Field '" + field + "' not found in custom fields, keeping original name");
+                    }
+                }
             } catch (Exception e) {
-                log("Error resolving field '" + fields[i] + "' for project " + projectKey + ": " + e.getMessage() + ". Using original name.");
-                resolvedFields[i] = fields[i]; // Fallback to original field name
+                log("Error resolving field '" + field + "' for project " + projectKey + ": " + e.getMessage() + ". Using original name.");
+                // Field is already added, keep it as-is
             }
         }
-        
+
         if (logger != null) {
-            logger.debug("Resolved {} field names for project {}", fields.length, projectKey);
+            logger.debug("Resolved {} field names for project {} -> {} total fields", fields.length, projectKey, resolvedFields.size());
         }
-        
+
         return resolvedFields;
     }
     
@@ -1552,7 +1623,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         
         // Pattern 1: "project = PROJECTKEY" (with or without spaces)
         String[] patterns = {"project=", "project =", "project in ("};
-        
+
         for (String pattern : patterns) {
             int patternIndex = lowerJql.indexOf(pattern);
             if (patternIndex >= 0) {
@@ -1587,7 +1658,36 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
                 }
             }
         }
-        
+
+        // Pattern 2: "key in (...)" - extract project key from first ticket key
+        int keyInIndex = lowerJql.indexOf("key in");
+        if (keyInIndex >= 0) {
+            int startIndex = keyInIndex + "key in".length();
+            // Skip whitespace after "key in"
+            while (startIndex < jql.length() && Character.isWhitespace(jql.charAt(startIndex))) {
+                startIndex++;
+            }
+            if (startIndex < jql.length() && jql.charAt(startIndex) == '(') {
+                startIndex++; // Skip opening parenthesis
+                int endIndex = jql.indexOf(')', startIndex);
+                if (endIndex > startIndex) {
+                    String keyList = jql.substring(startIndex, endIndex);
+                    // Extract first ticket key from the list
+                    String[] keys = keyList.split(",");
+                    if (keys.length > 0) {
+                        String firstKey = keys[0].trim().replaceAll("'", "").replaceAll("\"", "");
+                        if (!firstKey.isEmpty() && firstKey.contains("-")) {
+                            String projectKey = firstKey.substring(0, firstKey.indexOf("-"));
+                            if (logger != null) {
+                                logger.debug("Extracted project key '{}' from key in (...) pattern in JQL: {}", projectKey, jql);
+                            }
+                            return projectKey;
+                        }
+                    }
+                }
+            }
+        }
+
         if (logger != null) {
             logger.debug("Could not extract project key from JQL: {}", jql);
         }
@@ -1601,30 +1701,32 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
      * @param fields Array of field names to resolve
      * @return Array of resolved field names
      */
-    private String[] resolveFieldNamesForSearch(String searchQueryJQL, String[] fields) {
+    private List<String> resolveFieldNamesForSearch(String searchQueryJQL, String[] fields) {
         if (fields == null || fields.length == 0) {
-            return fields;
+            return Arrays.asList(fields);
         }
-        
+
         log("Attempting to resolve fields for search. JQL: " + searchQueryJQL);
-        
+
         // Try to extract project key from JQL query
         String projectKey = extractProjectKeyFromJQL(searchQueryJQL);
-        
+
         if (projectKey.isEmpty()) {
             // If we can't determine project, return original fields
             log("Could not extract project key from JQL for field resolution: " + searchQueryJQL);
-            return fields;
+            return Arrays.asList(fields);
         }
-        
+
         log("Extracted project key '" + projectKey + "' from JQL. Resolving " + fields.length + " fields.");
-        
+
         // Resolve field names using the extracted project key
-        String[] resolvedFields = resolveFieldNames(fields, projectKey);
-        
-        log("Field resolution completed. Original fields: " + String.join(", ", fields) + 
+        List<String> resolvedFields = resolveFieldNames(fields, projectKey);
+
+        log("Field resolution completed. Original fields: " + String.join(", ", fields) +
             " -> Resolved fields: " + String.join(", ", resolvedFields));
-        
+
+        log("Final fields being sent to Jira API: " + String.join(",", resolvedFields));
+
         return resolvedFields;
     }
 
@@ -2557,23 +2659,13 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             integration = "jira",
             category = "project_management"
     )
-    public String getFieldCustomCode(@MCPParam(name = "project", description = "The Jira project key", required = true) String project, 
+    public String getFieldCustomCode(@MCPParam(name = "project", description = "The Jira project key", required = true) String project,
                                    @MCPParam(name = "fieldName", description = "The human-readable field name", required = true) String fieldName) throws IOException {
         String response = getFields(project);
-        
-        // Use the same detection logic as getIssueTypes for consistency
-        if (isCloudJira()) {
-            log("Using Cloud Jira parsing for field custom code");
-            try {
-                return parseCloudJiraResponse(fieldName, response);
-            } catch (JSONException e) {
-                log("Cloud Jira parsing failed, falling back to Server parsing: " + e.getMessage());
-                return parseServerJiraResponse(fieldName, response);
-            }
-        } else {
-            log("Using Server Jira parsing for field custom code");
-            return parseServerJiraResponse(fieldName, response);
-        }
+
+        // The /field endpoint returns JSON array format for both Cloud and Server Jira
+        log("Using Server Jira parsing for field custom code (works for both Cloud and Server)");
+        return parseServerJiraResponse(fieldName, response);
     }
 
     @Override
