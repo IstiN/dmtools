@@ -4,7 +4,7 @@ DMTools provides a comprehensive CLI interface for Model Context Protocol (MCP) 
 
 ## 🚀 First Commands
 ```bash
-# List all available MCP tools (130+ total)
+# List all available MCP tools (150+ total)
 dmtools list
 
 # Get a Jira ticket
@@ -88,9 +88,9 @@ Create a file `my-script.js`:
 /**
  * Example JavaScript action demonstrating MCP tool usage
  * Shows how to call different MCP tools from JavaScript:
- * - Jira: ticket management
+ * - Jira: ticket management and search
  * - ADO: work item management
- * - Confluence: page content
+ * - Confluence: page content and search
  * - Figma: design analysis
  * - AI: intelligent analysis
  * - Teams: messaging
@@ -127,6 +127,11 @@ function action(params) {
         if (page) {
             console.log('Page found with ID:', page.id);
         }
+
+        // Search Confluence content
+        console.log('🔍 Searching Confluence...');
+        const searchResults = confluence_search_content_by_text('user authentication', 5);
+        console.log('Found', searchResults.length, 'search results');
 
         // 5. Extract Figma design data
         console.log('🎨 Getting Figma design layers...');
@@ -209,6 +214,7 @@ function action(params) {
             commentsCount: comments.length,
             relatedTicketsCount: relatedTickets.length,
             confluencePageFound: !!page,
+            confluenceSearchResults: searchResults.length,
             figmaLayersFound: layers ? layers.length : 0,
             adoWorkItemProcessed: true
         };
@@ -229,7 +235,7 @@ function action(params) {
 |----------|---------------|-------------|
 | **Jira** | `jira_get_ticket()`, `jira_search_by_jql()`, `jira_post_comment()` | Ticket management and queries |
 | **ADO** | `ado_get_work_item()`, `ado_move_to_state()`, `ado_assign_work_item()` | Azure DevOps work item management |
-| **Confluence** | `confluence_content_by_title()`, `confluence_create_page()` | Page content and management |
+| **Confluence** | `confluence_content_by_title()`, `confluence_search_content_by_text()`, `confluence_create_page()` | Page content, search, and management |
 | **Figma** | `figma_get_layers()`, `figma_get_icons()` | Design file analysis |
 | **Teams** | `teams_send_message()`, `teams_get_messages()` | Chat and messaging |
 | **AI** | `gemini_ai_chat()`, `ollama_ai_chat()`, `anthropic_ai_chat()` | AI-powered analysis |
@@ -322,6 +328,28 @@ dmtools run job.json
 | `jira_xray_get_test_details` | `testKey` | Get detailed information about a specific test |
 | `jira_xray_get_test_steps` | `testKey` | Get all test steps for a specific test |
 | `jira_xray_search_tickets` | `jql`, `fields` | Search for Xray-related tickets using JQL |
+
+### Confluence Tools (16 tools)
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `confluence_contents_by_urls` | `urlStrings` | Get Confluence content by multiple URLs |
+| `confluence_search_content_by_text` | `query`, `limit` | Search content by text query using CQL |
+| `confluence_content_by_id` | `contentId` | Get content by its unique content ID |
+| `confluence_content_by_title_and_space` | `title`, `space` | Get content by title and space key |
+| `confluence_content_by_title` | `title` | Get content by title in the default space |
+| `confluence_get_current_user_profile` | - | Get the current user's profile information |
+| `confluence_get_user_profile_by_id` | `userId` | Get a specific user's profile by user ID |
+| `confluence_get_content_attachments` | `contentId` | Get all attachments for a specific content |
+| `confluence_find_content_by_title_and_space` | `title`, `space` | Find content by title and space key |
+| `confluence_find_content` | `title` | Find content by title in the default space |
+| `confluence_find_or_create` | `title`, `body`, `parentId` | Find content by title or create it if not found |
+| `confluence_create_page` | `title`, `parentId`, `body`, `space` | Create a new page with title, parent, body, and space |
+| `confluence_update_page` | `contentId`, `title`, `body`, `parentId`, `space` | Update an existing page |
+| `confluence_update_page_with_history` | `contentId`, `title`, `body`, `parentId`, `space`, `historyComment` | Update page and add history comment |
+| `confluence_get_children_by_id` | `contentId` | Get child pages by content ID |
+| `confluence_get_children_by_name` | `spaceKey`, `contentName` | Get child pages by space key and content name |
+| `confluence_download_attachment` | `href` | Download attachment by URL |
 
 ### ADO Tools (25+ tools)
 
