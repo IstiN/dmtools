@@ -4,7 +4,7 @@ DMTools provides a comprehensive CLI interface for Model Context Protocol (MCP) 
 
 ## 🚀 First Commands
 ```bash
-# List all available MCP tools (150+ total)
+# List all available MCP tools
 dmtools list
 
 # Get a Jira ticket
@@ -269,7 +269,7 @@ dmtools run job.json
 
 ## 📋 Available MCP Tools
 
-### Jira Tools (45 tools)
+### Jira Tools
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
@@ -314,7 +314,7 @@ dmtools run job.json
 | `jira_update_ticket` | `params`, `key` | Update a Jira ticket using JSON parameters following the standard Jira REST API format |
 | `jira_update_ticket_parent` | `key`, `parentKey` | Update the parent of a Jira ticket |
 
-### Jira Xray Tools (10 tools)
+### Jira Xray Tools
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
@@ -329,7 +329,7 @@ dmtools run job.json
 | `jira_xray_get_test_steps` | `testKey` | Get all test steps for a specific test |
 | `jira_xray_search_tickets` | `jql`, `fields` | Search for Xray-related tickets using JQL |
 
-### Confluence Tools (16 tools)
+### Confluence Tools
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
@@ -351,7 +351,7 @@ dmtools run job.json
 | `confluence_get_children_by_name` | `spaceKey`, `contentName` | Get child pages by space key and content name |
 | `confluence_download_attachment` | `href` | Download attachment by URL |
 
-### ADO Tools (25+ tools)
+### ADO Tools
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
@@ -381,7 +381,7 @@ dmtools run job.json
 | `ado_get_work_item_parent` | `id` | Get parent work item |
 | `ado_get_work_item_children` | `id` | Get child work items |
 
-### Figma Tools (12 tools)
+### Figma Tools
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
@@ -398,7 +398,7 @@ dmtools run job.json
 | `figma_get_svg_content` | `nodeId`, `href` | Get SVG content as text by node ID. Use this after figma_get_icons to get SVG code for vector icons. |
 | `figma_get_text_content` | `nodeIds`, `href` | Extract text content from text nodes. Returns map of nodeId to text content. |
 
-### Microsoft Teams Tools (25 tools)
+### Microsoft Teams Tools
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
@@ -430,7 +430,7 @@ dmtools run job.json
 | `teams_send_message_by_id` | `message`, `chatId` | Send a message to a chat by ID |
 | `teams_send_myself_message` | `message` | Send a message to yourself (personal notes) |
 
-### File Tools (3 tools)
+### File Tools
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
@@ -439,7 +439,7 @@ dmtools run job.json
 | `file_validate_json_file` | `filePath` | Validate JSON file and return formatted result |
 | `file_write` | `filePath`, `contents` | Write content to a file |
 
-### CLI Tools (1 tool)
+### CLI Tools
 
 | Tool | Parameters | Description |
 |------|------------|-------------|
