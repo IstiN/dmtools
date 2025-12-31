@@ -35,7 +35,7 @@ public class RetryUtil {
                     String body = ((RestClient.RestClientException) e).getBody();
                     if (body != null) {
                         int code = ((RestClient.RestClientException) e).getCode();
-                        if (body.contains("invalid message format") || code == 400 || code == 403) {
+                        if (body.contains("invalid message format") || code == 400 || code == 401 || code == 403) {
                             return (T) body;
                         }
                     }

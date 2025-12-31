@@ -653,18 +653,20 @@ public class ServerManagedIntegrationsModule {
                 
                 String basePath = ollamaConfig.optString("OLLAMA_BASE_PATH", "http://localhost:11434");
                 String model = ollamaConfig.optString("OLLAMA_MODEL", null);
+                String apiKey = ollamaConfig.optString("OLLAMA_API_KEY", null);
                 int numCtx = ollamaConfig.optInt("OLLAMA_NUM_CTX", 16384);
                 int numPredict = ollamaConfig.optInt("OLLAMA_NUM_PREDICT", -1);
-                
+
                 // Parse custom headers
                 Map<String, String> customHeaders = parseCustomHeaders(
                     ollamaConfig.optString("OLLAMA_CUSTOM_HEADER_NAMES", null),
                     ollamaConfig.optString("OLLAMA_CUSTOM_HEADER_VALUES", null)
                 );
-                
+
                 if (model != null && !model.isEmpty()) {
-                    System.out.println("✅ [ServerManagedIntegrationsModule] Creating OllamaAIClient with resolved credentials");
-                    return new OllamaAIClient(basePath, model, numCtx, numPredict, observer, customHeaders);
+                    System.out.println("✅ [ServerManagedIntegrationsModule] Creating OllamaAIClient with resolved credentials" +
+                        (apiKey != null ? " (with API key)" : ""));
+                    return new OllamaAIClient(basePath, model, apiKey, numCtx, numPredict, observer, customHeaders);
                 } else {
                     System.out.println("⚠️ [ServerManagedIntegrationsModule] Ollama configuration missing OLLAMA_MODEL, skipping");
                 }

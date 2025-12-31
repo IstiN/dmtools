@@ -385,7 +385,12 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     public int getOllamaNumPredict() {
         return propertyReader.getOllamaNumPredict();
     }
-    
+
+    @Override
+    public String getOllamaApiKey() {
+        return propertyReader.getValue("OLLAMA_API_KEY");
+    }
+
     @Override
     public String getAnthropicBasePath() {
         return propertyReader.getAnthropicBasePath();

@@ -318,6 +318,11 @@ public class InMemoryConfiguration implements ApplicationConfiguration {
             return -1;
         }
     }
+
+    @Override
+    public String getOllamaApiKey() {
+        return getValue("OLLAMA_API_KEY");
+    }
     
     // AnthropicConfiguration
     

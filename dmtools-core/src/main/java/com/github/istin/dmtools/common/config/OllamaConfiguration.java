@@ -27,6 +27,12 @@ public interface OllamaConfiguration {
      * @return The prediction token limit
      */
     int getOllamaNumPredict();
+
+    /**
+     * Gets the Ollama API key for authentication
+     * @return The API key, or null if not configured
+     */
+    String getOllamaApiKey();
 }
 
 
