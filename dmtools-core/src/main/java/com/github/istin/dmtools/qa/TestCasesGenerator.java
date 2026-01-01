@@ -124,14 +124,20 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 ticketContext.prepareContext(false, params.isIncludeOtherTicketReferences());
                 String additionalRules = extractFromConfluence(params.getConfluencePages());
                 result.add(generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params));
-                trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
+                TrackerParams.OutputType outputType = params.getOutputType();
+                if (!outputType.equals(TrackerParams.OutputType.none)) {
+                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
+                }
             } catch (Exception e) {
                 String errorMessage = String.format("%s, test case generation failed with error: %s\n\nStack trace:\n%s", 
                     trackerClient.tag(params.getInitiator()),
                     e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
                     getStackTraceAsString(e));
                 try {
-                    trackerClient.postComment(ticket.getTicketKey(), errorMessage);
+                    TrackerParams.OutputType outputType = params.getOutputType();
+                    if (!outputType.equals(TrackerParams.OutputType.none)) {
+                        trackerClient.postComment(ticket.getTicketKey(), errorMessage);
+                    }
                 } catch (Exception commentException) {
                     System.err.println("Failed to post error comment to ticket " + ticket.getTicketKey() + ": " + commentException.getMessage());
                 }
@@ -239,7 +245,8 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         
         TestCasesResult testCasesResult = new TestCasesResult(ticketContext.getTicket().getKey(), finaResults, newTestCases);
 
-        if (params.getOutputType().equals(TrackerParams.OutputType.comment)) {
+        TrackerParams.OutputType outputType = params.getOutputType();
+        if (outputType.equals(TrackerParams.OutputType.comment)) {
             StringBuilder result = new StringBuilder();
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
                 result.append("Summary: ").append(testCase.getSummary()).append("<br>");
@@ -247,7 +254,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 result.append("Description: ").append(StringUtils.convertToMarkdown(testCase.getDescription())).append("<br>");
             }
             trackerClient.postComment(key, result.toString());
-        } else {
+        } else if (outputType.equals(TrackerParams.OutputType.creation)) {
             String newTestCaseRelationship = resolveRelationshipForNew(params);
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
                 // Get project code: for ADO use getProject(), for Jira use key.split("-")[0]
