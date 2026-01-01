@@ -30,6 +30,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Properties;
 
+import com.github.istin.dmtools.common.utils.JSONUtils;
 import com.github.istin.dmtools.teammate.Teammate;
 import com.github.istin.dmtools.js.JSRunner;
 import com.github.istin.dmtools.kb.KBProcessingJob;
@@ -135,7 +136,7 @@ public class JobRunner {
                 if (result == null) {
                     System.err.println("Execution result of '" + jobParams.getName() + "' is null.");
                 } else {
-                    System.out.println(result);
+                    System.out.println(JSONUtils.serializeResult(result));
                     return;
                 }
                 System.exit(1);
@@ -153,7 +154,7 @@ public class JobRunner {
         if (result == null) {
             System.err.println("Execution result of '" + jobParams.getName() + "' is null.");
         } else {
-            System.out.println(result);
+            System.out.println(JSONUtils.serializeResult(result));
             return;
         }
         System.exit(1);

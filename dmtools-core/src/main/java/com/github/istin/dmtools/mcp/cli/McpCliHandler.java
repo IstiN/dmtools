@@ -16,6 +16,7 @@ import com.github.istin.dmtools.di.DaggerMermaidIndexComponent;
 import com.github.istin.dmtools.di.MermaidIndexComponent;
 import com.github.istin.dmtools.figma.BasicFigmaClient;
 import com.github.istin.dmtools.file.FileTools;
+import com.github.istin.dmtools.common.utils.JSONUtils;
 import com.github.istin.dmtools.microsoft.teams.BasicTeamsClient;
 import com.github.istin.dmtools.microsoft.teams.TeamsAuthTools;
 import com.github.istin.dmtools.microsoft.sharepoint.BasicSharePointClient;
@@ -135,40 +136,7 @@ public class McpCliHandler {
      * Handles various result types: JSONModel, List, primitives, etc.
      */
     private String serializeResult(Object result) {
-        if (result == null) {
-            return "null";
-        }
-        
-        // Handle JSONModel objects
-        if (result instanceof com.github.istin.dmtools.common.model.JSONModel) {
-            return result.toString();
-        }
-        
-        // Handle Lists (e.g., List<Chat>)
-        if (result instanceof List) {
-            org.json.JSONArray jsonArray = new org.json.JSONArray();
-            for (Object item : (List<?>) result) {
-                if (item instanceof com.github.istin.dmtools.common.model.JSONModel) {
-                    jsonArray.put(new JSONObject(item.toString()));
-                } else {
-                    jsonArray.put(item);
-                }
-            }
-            return jsonArray.toString(2); // Pretty print with 2-space indent
-        }
-        
-        // Handle primitives and other types
-        if (result instanceof String || result instanceof Number || result instanceof Boolean) {
-            return result.toString();
-        }
-        
-        // Try to convert to JSON object
-        try {
-            return new JSONObject(result.toString()).toString(2);
-        } catch (Exception e) {
-            // Fall back to plain toString
-            return result.toString();
-        }
+        return JSONUtils.serializeResult(result);
     }
 
     /**

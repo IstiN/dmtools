@@ -47,7 +47,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     @AllArgsConstructor
     @Getter
     @Setter
-    public class TestCasesResult {
+    public static class TestCasesResult {
         private String key;
         private List<ITicket> similarTestCases;
         private List<TestCaseGeneratorAgent.TestCase> newTestCases;
