@@ -49,6 +49,7 @@
             Each JSON object may include optional 'customFields' object with custom field values.
             The 'customFields' object should contain field names as keys and their values as strings.
             Format: "customFields": { "fieldName1": "value1", "fieldName2": "value2" }
+            **IMPORTANT** Follow exactly format of field name as described in rules if name "Field Name" it must be "Field Name" key, not "fieldName".
             </#if>
             The output must be in plain JSON format without any additional text, formatting, or markdown.
             If there are no new test cases, return an empty JSON array.

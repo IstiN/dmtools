@@ -4,6 +4,7 @@ import com.github.istin.dmtools.atlassian.common.model.Assignee;
 import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.atlassian.jira.model.*;
 import com.github.istin.dmtools.atlassian.jira.utils.IssuesIDsParser;
+import com.github.istin.dmtools.atlassian.jira.utils.JiraResponseUtils;
 import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
@@ -80,7 +81,16 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     private final Long instanceCreationTime = System.currentTimeMillis();
 
     @Setter
+    @Getter
     private boolean isLogEnabled = true;
+
+    @Setter
+    @Getter
+    private boolean isTransformCustomFieldsToNames = false;
+
+    @Setter
+    @Getter
+    private String projectContext;
     
     // Cache manager for keys logic only (field mappings, Cloud/Server detection, etc.)
     private final CacheManager cacheManager;
@@ -521,10 +531,14 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
         try {
             String body = jqlSearchRequest.execute();
+            String projectKey = extractProjectKeyFromJQL(jql);
+            body = transformResponse(body, projectKey);
             return new SearchResult(body);
         } catch (JSONException e) {
             clearCache(jqlSearchRequest);
             String body = jqlSearchRequest.execute();
+            String projectKey = extractProjectKeyFromJQL(jql);
+            body = transformResponse(body, projectKey);
             try {
                 return new SearchResult(body);
             } catch (JSONException e1) {
@@ -584,6 +598,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             } catch (Exception logException) {
                 log("Could not parse Jira response for logging: " + logException.getMessage());
             }
+            String projectKey = extractProjectKeyFromJQL(jql);
+            body = transformResponse(body, projectKey);
             return new SearchResult(body);
         } catch (JSONException e) {
             clearCache(jqlSearchRequest);
@@ -666,6 +682,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         if (response.contains("errorMessages")) {
             return null;
         }
+        String projectKey = extractProjectKeyFromTicketKey(ticketKey);
+        response = transformResponse(response, projectKey);
         return createTicket(response);
     }
 
@@ -1380,7 +1398,78 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             }
         }, FIELD_MAPPING_CACHE_TTL);
     }
-    
+
+    /**
+     * Gets a reverse mapping (ID to human name) for fields in a project
+     * 
+     * @param projectKey The project key
+     * @return Map of custom field ID to human-friendly name
+     * @throws IOException if field loading fails
+     */
+    private Map<String, String> getReverseFieldMappingForProject(String projectKey) throws IOException {
+        String cacheKey = "reverseFieldMapping_" + projectKey;
+
+        return cacheManager.getOrComputeWithTTL(cacheKey, () -> {
+            try {
+                String response = getFields(projectKey);
+                Map<String, String> reverseMapping = new ConcurrentHashMap<>();
+                JSONArray fields = new JSONArray(response);
+                for (int i = 0; i < fields.length(); i++) {
+                    JSONObject field = fields.getJSONObject(i);
+                    String fieldId = field.optString("id");
+                    String fieldName = field.optString("name");
+                    if (fieldId != null && fieldId.startsWith("customfield_") && fieldName != null) {
+                        reverseMapping.put(fieldId, fieldName);
+                    }
+                }
+                return reverseMapping;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }, FIELD_MAPPING_CACHE_TTL);
+    }
+
+    private String transformResponse(String response, String projectKey) throws IOException {
+        if (response == null || response.isEmpty() || !isTransformCustomFieldsToNames()) {
+            return response;
+        }
+
+        String projectToUse = projectKey;
+        if (projectToUse == null || projectToUse.isEmpty()) {
+            projectToUse = getProjectContext();
+        }
+
+        if (projectToUse == null || projectToUse.isEmpty()) {
+            log("No project context available for field transformation, skipping.");
+            return response;
+        }
+
+        try {
+            Map<String, String> reverseMapping = getReverseFieldMappingForProject(projectToUse);
+            if (reverseMapping.isEmpty()) {
+                return response;
+            }
+
+            if (response.trim().startsWith("{")) {
+                JSONObject jsonObject = new JSONObject(response);
+                JiraResponseUtils.transformJson(jsonObject, reverseMapping);
+                return jsonObject.toString();
+            } else if (response.trim().startsWith("[")) {
+                JSONArray jsonArray = new JSONArray(response);
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    Object item = jsonArray.get(i);
+                    if (item instanceof JSONObject) {
+                        JiraResponseUtils.transformJson((JSONObject) item, reverseMapping);
+                    }
+                }
+                return jsonArray.toString();
+            }
+        } catch (JSONException e) {
+            log("Failed to parse JSON for transformation: " + e.getMessage());
+        }
+        return response;
+    }
+
     /**
      * Populates field mapping from Cloud Jira response
      */

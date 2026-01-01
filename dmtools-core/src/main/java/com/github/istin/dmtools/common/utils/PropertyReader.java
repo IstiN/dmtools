@@ -242,6 +242,14 @@ public class PropertyReader {
 		return Boolean.parseBoolean(value);
 	}
 
+	public boolean isJiraTransformCustomFieldsToNames() {
+		String value = getValue("JIRA_TRANSFORM_CUSTOM_FIELDS_TO_NAMES");
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
 	public String getJiraExtraFieldsProject() {
 		return getValue("JIRA_EXTRA_FIELDS_PROJECT");
 	}
