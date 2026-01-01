@@ -25,6 +25,7 @@ import com.github.istin.dmtools.mcp.generated.MCPToolExecutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -117,10 +118,20 @@ public class McpCliHandler {
 
             Object result = MCPToolExecutor.executeTool(toolName, arguments, clientInstances);
             if (result == null) {
-                return "Tool executed successfully but returned no result.";
+                return createErrorResponse("Tool executed successfully but returned no result.");
             }
 
-            return serializeResult(result);
+            String serialized = serializeResult(result);
+            if (serialized.trim().startsWith("{")) {
+                return serialized;
+            }
+            JSONObject response = new JSONObject();
+            if (serialized.trim().startsWith("[")) {
+                response.put("result", new JSONArray(serialized));
+            } else {
+                response.put("result", result);
+            }
+            return response.toString(2);
 
         } catch (IllegalArgumentException e) {
             logger.error("Invalid tool or arguments", e);
