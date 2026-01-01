@@ -313,7 +313,7 @@ public class PdfAsTrackerClient implements TrackerClient<PdfPageAsTicket> {
     }
 
     @Override
-    public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
+    public List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException {
         throw new UnsupportedOperationException();
     }
 

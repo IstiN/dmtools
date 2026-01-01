@@ -33,6 +33,7 @@ class TrackerParamsTest {
         TrackerParams params = new TrackerParams(
             "project = TEST",
             "user@example.com",
+            "TARGET",
             metadata,
             true,
             "preAction.js",
@@ -46,6 +47,7 @@ class TrackerParamsTest {
 
         assertEquals("project = TEST", params.getInputJql());
         assertEquals("user@example.com", params.getInitiator());
+        assertEquals("TARGET", params.getTargetProject());
         assertEquals(metadata, params.getMetadata());
         assertTrue(params.isAttachResponseAsFile());
         assertEquals("preAction.js", params.getPreJSAction());
@@ -64,6 +66,9 @@ class TrackerParamsTest {
 
         trackerParams.setInitiator("admin@test.com");
         assertEquals("admin@test.com", trackerParams.getInitiator());
+
+        trackerParams.setTargetProject("TARGET");
+        assertEquals("TARGET", trackerParams.getTargetProject());
 
         Metadata metadata = new Metadata();
         trackerParams.setMetadata(metadata);

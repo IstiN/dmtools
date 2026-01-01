@@ -786,11 +786,6 @@ public class IntegrationService {
                 }
                 
                 @Override
-                public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
-                    return Collections.emptyList();
-                }
-                
-                @Override
                 public TrackerClient.TextType getTextType() {
                     return TrackerClient.TextType.MARKDOWN;
                 }

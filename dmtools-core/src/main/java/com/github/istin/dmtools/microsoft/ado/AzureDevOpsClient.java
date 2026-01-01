@@ -852,8 +852,31 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
     }
 
     @Override
-    public List<? extends com.github.istin.dmtools.common.model.ITicket> getTestCases(com.github.istin.dmtools.common.model.ITicket ticket) throws IOException {
-        throw new UnsupportedOperationException("getTestCases not implemented for ADO");
+    public List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException {
+        if (!(ticket instanceof WorkItem)) {
+            return Collections.emptyList();
+        }
+        WorkItem workItem = (WorkItem) ticket;
+        if (workItem.getJSONObject().optJSONArray("relations") == null) {
+            enrichWorkItemWithRelations(workItem);
+        }
+        JSONArray relations = workItem.getJSONObject().optJSONArray("relations");
+        if (relations == null) {
+            return Collections.emptyList();
+        }
+        List<ITicket> testCases = new ArrayList<>();
+        for (int i = 0; i < relations.length(); i++) {
+            JSONObject relation = relations.getJSONObject(i);
+            String url = relation.optString("url");
+            if (url != null && url.contains("/workItems/")) {
+                String id = url.substring(url.lastIndexOf("/") + 1);
+                ITicket linkedTicket = performTicket(id, getExtendedQueryFields());
+                if (linkedTicket != null && linkedTicket.getIssueType().equalsIgnoreCase(testCaseIssueType)) {
+                    testCases.add(linkedTicket);
+                }
+            }
+        }
+        return testCases;
     }
 
     // ========== Attachment Operations ==========

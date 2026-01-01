@@ -96,7 +96,7 @@ public class JAssistant {
         CodeGeneration codeGeneration = new CodeGeneration(trackerClient.getBasePath(), role, ticketContext);
         codeGeneration.setExtraTickets(ticketContext.getExtraTickets());
         if (!IssueType.isBug(ticket.getIssueType())) {
-            List<? extends ITicket> testCases = trackerClient.getTestCases(ticket);
+            List<? extends ITicket> testCases = trackerClient.getTestCases(ticket, "Test Case");
             codeGeneration.setExistingTickets(testCases);
         }
 
@@ -459,7 +459,7 @@ public class JAssistant {
         input.setTicket(ticket);
 
         if (!IssueType.isBug(ticket.getIssueType())) {
-            List<? extends ITicket> testCases = trackerClient.getTestCases(ticket);
+            List<? extends ITicket> testCases = trackerClient.getTestCases(ticket, "Test Case");
             input.setExistingTickets(testCases);
         }
 

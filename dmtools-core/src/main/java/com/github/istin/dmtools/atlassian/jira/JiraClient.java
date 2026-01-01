@@ -290,6 +290,26 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     }
 
     @Override
+    public List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException {
+        Fields fields = ticket.getFields();
+        if (fields == null) {
+            return Collections.emptyList();
+        }
+        List<IssueLink> issueLinks = fields.getIssueLinks();
+        if (issueLinks == null || issueLinks.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<ITicket> testCases = new ArrayList<>();
+        for (IssueLink issueLink : issueLinks) {
+            ITicket relatedTicket = issueLink.getRelatedTicket();
+            if (relatedTicket != null && relatedTicket.getIssueType().equalsIgnoreCase(testCaseIssueType)) {
+                testCases.add(relatedTicket);
+            }
+        }
+        return testCases;
+    }
+
+    @Override
     public void deleteLabelInTicket(T ticket, String label) throws IOException {
         throw new UnsupportedOperationException();
     }

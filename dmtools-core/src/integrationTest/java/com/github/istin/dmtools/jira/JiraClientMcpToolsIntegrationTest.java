@@ -5,17 +5,16 @@ import com.github.istin.dmtools.atlassian.jira.model.IssueType;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.IComment;
 import com.github.istin.dmtools.common.model.IUser;
-import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.timeline.ReportIteration;
-import com.github.istin.dmtools.common.tracker.model.Status;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.extension.ExtendWith;
+
 import java.io.IOException;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -169,7 +168,7 @@ public class JiraClientMcpToolsIntegrationTest {
         String jql = "project = " + testProjectKey + " ORDER BY created DESC";
         String[] fields = {"summary", "status", "issuetype"};
         
-        var searchResult = jiraClient.searchByPage(jql, null, fields);
+        var searchResult = jiraClient.searchByPage(jql, null, Arrays.asList(fields));
         
         assertNotNull(searchResult);
         assertNotNull(searchResult.getIssues());
@@ -784,7 +783,7 @@ public class JiraClientMcpToolsIntegrationTest {
         String jql = "project = " + testProjectKey + " AND summary ~ \"" + searchSummary + "\"";
         String[] fieldsWithUserFriendlyNames = {"summary", "description", "Diagrams", "issuetype"};
         
-        var searchResult = jiraClient.searchByPage(jql, null, fieldsWithUserFriendlyNames);
+        var searchResult = jiraClient.searchByPage(jql, null, Arrays.asList(fieldsWithUserFriendlyNames));
         
         assertNotNull(searchResult);
         assertNotNull(searchResult.getIssues());
@@ -898,7 +897,7 @@ public class JiraClientMcpToolsIntegrationTest {
         String jql = "project = " + testProjectKey + " AND summary ~ \"" + searchSummary + "\"";
         String[] explicitCustomFields = {"summary", "description", "customfield_10124", "issuetype"};
         
-        var searchResult = jiraClient.searchByPage(jql, null, explicitCustomFields);
+        var searchResult = jiraClient.searchByPage(jql, null, Arrays.asList(explicitCustomFields));
         
         assertNotNull(searchResult);
         assertNotNull(searchResult.getIssues());

@@ -167,8 +167,9 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         String key = mainTicket.getTicketKey();
         String ticketText = ticketContext.toText();
         String existingRelationship = resolveRelationshipForExisting(params);
+        List<? extends ITicket> currentlyLinked = trackerClient.getTestCases(mainTicket, params.getTestCaseIssueType());
         List<ITicket> finaResults = params.isFindRelated()
-                ? findAndLinkSimilarTestCasesBySummary(ticketContext.getTicket().getTicketKey(), ticketText, listOfAllTestCases, params.isLinkRelated(), params.getRelatedTestCasesRules(), existingRelationship)
+                ? findAndLinkSimilarTestCasesBySummary(ticketContext.getTicket().getTicketKey(), ticketText, listOfAllTestCases, params.isLinkRelated(), params.getRelatedTestCasesRules(), existingRelationship, currentlyLinked)
                 : Collections.emptyList();
 
         // Initialize accumulator for all generated test cases
@@ -536,7 +537,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     }
 
     @NotNull
-    public List<ITicket> findAndLinkSimilarTestCasesBySummary(String ticketKey, String ticketText, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink, String relationship) throws Exception {
+    public List<ITicket> findAndLinkSimilarTestCasesBySummary(String ticketKey, String ticketText, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink, String relationship, List<? extends ITicket> currentlyLinkedTestCases) throws Exception {
         List<ITicket> finaResults = new ArrayList<>();
         String value = confluence.contentByUrl(relatedTestCasesRulesLink).getStorage().getValue();
         String extraRelatedTestCaseRulesFromConfluence;
@@ -565,7 +566,10 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                     if (isConfirmed) {
                         finaResults.add(testCase);
                         if (isLink) {
-                            trackerClient.linkIssueWithRelationship(ticketKey, testCase.getKey(), relationship);
+                            boolean isAlreadyLinked = currentlyLinkedTestCases != null && currentlyLinkedTestCases.stream().anyMatch(t -> t.getTicketKey().equals(testCase.getTicketKey()));
+                            if (!isAlreadyLinked) {
+                                trackerClient.linkIssueWithRelationship(ticketKey, testCase.getKey(), relationship);
+                            }
                         }
                     }
                 }

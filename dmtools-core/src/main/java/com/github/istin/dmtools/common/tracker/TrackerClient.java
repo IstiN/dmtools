@@ -109,7 +109,7 @@ public interface TrackerClient<T extends ITicket> extends ContentUtils.UrlToImag
         return fieldName;
     }
 
-    List<? extends ITicket> getTestCases(ITicket ticket) throws IOException;
+    List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException;
 
     void setLogEnabled(boolean isLogEnabled);
 

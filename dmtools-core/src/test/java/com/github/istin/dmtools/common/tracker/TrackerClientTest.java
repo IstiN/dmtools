@@ -284,9 +284,9 @@ public class TrackerClientTest {
     public void testGetTestCases() throws IOException {
         List<ITicket> expectedTestCases = List.of(mockTicket);
 
-        doReturn(expectedTestCases).when(trackerClient).getTestCases(any());
+        doReturn(expectedTestCases).when(trackerClient).getTestCases(any(), any());
 
-        List<? extends ITicket> actualTestCases = trackerClient.getTestCases(mockTicket);
+        List<? extends ITicket> actualTestCases = trackerClient.getTestCases(mockTicket, "Test Case");
         assertEquals(expectedTestCases, actualTestCases);
     }
 

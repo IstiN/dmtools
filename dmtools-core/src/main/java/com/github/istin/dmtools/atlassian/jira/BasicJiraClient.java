@@ -163,11 +163,6 @@ public class BasicJiraClient extends JiraClient<Ticket> {
     }
 
     @Override
-    public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
-        return Collections.emptyList();
-    }
-
-    @Override
     public TextType getTextType() {
         return TextType.MARKDOWN;
     }

@@ -104,7 +104,7 @@ public class BasicRallyClient extends RallyClient {
     }
 
     @Override
-    public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
+    public List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException {
         return Collections.emptyList();
     }
 

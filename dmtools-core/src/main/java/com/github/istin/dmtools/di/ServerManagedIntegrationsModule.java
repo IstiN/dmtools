@@ -394,11 +394,6 @@ public class ServerManagedIntegrationsModule {
         }
         
         @Override
-        public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
-            return Collections.emptyList();
-        }
-        
-        @Override
         public TrackerClient.TextType getTextType() {
             return TrackerClient.TextType.MARKDOWN;
         }
@@ -506,7 +501,7 @@ public class ServerManagedIntegrationsModule {
         }
 
         @Override
-        public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
+        public List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException {
             return Collections.emptyList();
         }
 
