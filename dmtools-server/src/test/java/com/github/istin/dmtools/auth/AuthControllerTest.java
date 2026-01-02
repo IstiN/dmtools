@@ -67,6 +67,7 @@ public class AuthControllerTest {
         // Set JWT secret via reflection (this is needed for the private field)
         ReflectionTestUtils.setField(authController, "jwtSecret", "testSecretKeyMustBeLongEnoughForHmacSha256Algorithm");
         ReflectionTestUtils.setField(authController, "jwtExpirationMs", 3600000);
+        ReflectionTestUtils.setField(authController, "jwtRefreshExpirationMs", 2592000000L); // 30 days
     }
 
     @Test
@@ -230,6 +231,11 @@ public class AuthControllerTest {
             anyInt()
         )).thenReturn("mock-jwt-token");
         
+        when(jwtUtils.generateRefreshToken(
+            eq("testuser@local.test"),
+            eq("user-id")
+        )).thenReturn("mock-refresh-token");
+        
         // Act
         ResponseEntity<?> responseEntity = authController.localLogin(loginRequest, response);
         
@@ -238,6 +244,7 @@ public class AuthControllerTest {
         
         LocalLoginResponse responseBody = (LocalLoginResponse) responseEntity.getBody();
         assertEquals("mock-jwt-token", responseBody.getToken());
+        assertEquals("mock-refresh-token", responseBody.getRefreshToken());
         
         // Verify cookie
         Cookie[] cookies = response.getCookies();
@@ -281,5 +288,140 @@ public class AuthControllerTest {
         
         ErrorResponse responseBody = (ErrorResponse) responseEntity.getBody();
         assertEquals("Local auth disabled", responseBody.getError());
+    }
+
+    @Test
+    void refreshToken_WithValidRefreshToken_ShouldReturnNewTokens() {
+        // Arrange
+        String refreshToken = "valid-refresh-token";
+        RefreshTokenRequest request = new RefreshTokenRequest(refreshToken);
+        
+        User user = new User();
+        user.setId("user-id");
+        user.setEmail("test@example.com");
+        user.setName("Test User");
+        user.setRoles(new HashSet<>());
+        
+        when(jwtUtils.validateRefreshToken(refreshToken)).thenReturn(true);
+        when(jwtUtils.getEmailFromRefreshToken(refreshToken)).thenReturn("test@example.com");
+        when(jwtUtils.getUserIdFromRefreshToken(refreshToken)).thenReturn("user-id");
+        when(userService.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(jwtUtils.generateJwtToken("test@example.com", "user-id")).thenReturn("new-access-token");
+        when(jwtUtils.generateRefreshToken("test@example.com", "user-id")).thenReturn("new-refresh-token");
+        
+        // Act
+        ResponseEntity<?> response = authController.refreshToken(request);
+        
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        
+        RefreshTokenResponse responseBody = (RefreshTokenResponse) response.getBody();
+        assertNotNull(responseBody);
+        assertEquals("new-access-token", responseBody.getAccessToken());
+        assertEquals("new-refresh-token", responseBody.getRefreshToken());
+        assertEquals("Bearer", responseBody.getTokenType());
+        assertEquals(3600, responseBody.getExpiresIn()); // 3600000ms / 1000
+        assertEquals(2592000, responseBody.getRefreshExpiresIn()); // 2592000000ms / 1000
+    }
+
+    @Test
+    void refreshToken_WithInvalidRefreshToken_ShouldReturnUnauthorized() {
+        // Arrange
+        String refreshToken = "invalid-refresh-token";
+        RefreshTokenRequest request = new RefreshTokenRequest(refreshToken);
+        
+        when(jwtUtils.validateRefreshToken(refreshToken)).thenReturn(false);
+        
+        // Act
+        ResponseEntity<?> response = authController.refreshToken(request);
+        
+        // Assert
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        
+        ErrorResponse responseBody = (ErrorResponse) response.getBody();
+        assertEquals("Invalid or expired refresh token", responseBody.getError());
+    }
+
+    @Test
+    void refreshToken_WithMissingRefreshToken_ShouldReturnUnauthorized() {
+        // Arrange
+        RefreshTokenRequest request = new RefreshTokenRequest(null);
+        
+        // Act
+        ResponseEntity<?> response = authController.refreshToken(request);
+        
+        // Assert
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        
+        ErrorResponse responseBody = (ErrorResponse) response.getBody();
+        assertEquals("Refresh token is required", responseBody.getError());
+    }
+
+    @Test
+    void refreshToken_WithEmptyRefreshToken_ShouldReturnUnauthorized() {
+        // Arrange
+        RefreshTokenRequest request = new RefreshTokenRequest("   ");
+        
+        // Act
+        ResponseEntity<?> response = authController.refreshToken(request);
+        
+        // Assert
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        
+        ErrorResponse responseBody = (ErrorResponse) response.getBody();
+        assertEquals("Refresh token is required", responseBody.getError());
+    }
+
+    @Test
+    void refreshToken_WithNonExistentUser_ShouldReturnUnauthorized() {
+        // Arrange
+        String refreshToken = "valid-refresh-token";
+        RefreshTokenRequest request = new RefreshTokenRequest(refreshToken);
+        
+        when(jwtUtils.validateRefreshToken(refreshToken)).thenReturn(true);
+        when(jwtUtils.getEmailFromRefreshToken(refreshToken)).thenReturn("nonexistent@example.com");
+        when(jwtUtils.getUserIdFromRefreshToken(refreshToken)).thenReturn("user-id");
+        when(userService.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
+        
+        // Act
+        ResponseEntity<?> response = authController.refreshToken(request);
+        
+        // Assert
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        
+        ErrorResponse responseBody = (ErrorResponse) response.getBody();
+        assertEquals("User not found", responseBody.getError());
+    }
+
+    @Test
+    void refreshToken_WithTokenRotation_ShouldReturnDifferentRefreshToken() {
+        // Arrange
+        String oldRefreshToken = "old-refresh-token";
+        RefreshTokenRequest request = new RefreshTokenRequest(oldRefreshToken);
+        
+        User user = new User();
+        user.setId("user-id");
+        user.setEmail("test@example.com");
+        user.setName("Test User");
+        user.setRoles(new HashSet<>());
+        
+        when(jwtUtils.validateRefreshToken(oldRefreshToken)).thenReturn(true);
+        when(jwtUtils.getEmailFromRefreshToken(oldRefreshToken)).thenReturn("test@example.com");
+        when(jwtUtils.getUserIdFromRefreshToken(oldRefreshToken)).thenReturn("user-id");
+        when(userService.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(jwtUtils.generateJwtToken("test@example.com", "user-id")).thenReturn("new-access-token");
+        when(jwtUtils.generateRefreshToken("test@example.com", "user-id")).thenReturn("new-refresh-token");
+        
+        // Act
+        ResponseEntity<?> response = authController.refreshToken(request);
+        
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        
+        RefreshTokenResponse responseBody = (RefreshTokenResponse) response.getBody();
+        assertNotNull(responseBody);
+        // Verify that new refresh token is different from old one (token rotation)
+        assertNotEquals(oldRefreshToken, responseBody.getRefreshToken());
+        assertEquals("new-refresh-token", responseBody.getRefreshToken());
     }
 } 
