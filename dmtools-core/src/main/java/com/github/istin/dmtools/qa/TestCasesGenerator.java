@@ -124,7 +124,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 ticketContext.prepareContext(false, params.isIncludeOtherTicketReferences());
                 String additionalRules = extractFromConfluence(params.getConfluencePages());
                 result.add(generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params));
-                TrackerParams.OutputType outputType = params.getOutputType();
+                TrackerParams.OutputType outputType = getOutputTypeSafe(params);
                 if (!outputType.equals(TrackerParams.OutputType.none)) {
                     trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
                 }
@@ -134,7 +134,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                     e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
                     getStackTraceAsString(e));
                 try {
-                    TrackerParams.OutputType outputType = params.getOutputType();
+                    TrackerParams.OutputType outputType = getOutputTypeSafe(params);
                     if (!outputType.equals(TrackerParams.OutputType.none)) {
                         trackerClient.postComment(ticket.getTicketKey(), errorMessage);
                     }
@@ -246,7 +246,8 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         
         TestCasesResult testCasesResult = new TestCasesResult(ticketContext.getTicket().getKey(), finaResults, newTestCases);
 
-        TrackerParams.OutputType outputType = params.getOutputType();
+        TrackerParams.OutputType outputType = getOutputTypeSafe(params);
+        
         if (outputType.equals(TrackerParams.OutputType.comment)) {
             StringBuilder result = new StringBuilder();
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
@@ -496,6 +497,19 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
     private boolean isNotBlank(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    /**
+     * Safely gets the output type from params.
+     * For TestCasesGenerator, if the output type is null or not specified,
+     * we default to 'creation' because its primary purpose is to create new test cases.
+     */
+    private TrackerParams.OutputType getOutputTypeSafe(TestCasesGeneratorParams params) {
+        TrackerParams.OutputType outputType = params.getOutputType();
+        if (outputType == null) {
+            return TrackerParams.OutputType.creation;
+        }
+        return outputType;
     }
 
     /**

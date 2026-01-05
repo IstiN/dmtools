@@ -1,6 +1,9 @@
 #!/bin/bash
 # DMTools CLI Installation Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+# Usage: 
+#   Latest version: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+#   Specific version: VERSION=v1.7.103 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.103/install.sh | bash
+#   Or as argument: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash -s v1.7.103
 # Requirements: Java 23 (will attempt automatic installation on macOS/Linux)
 
 set -e
@@ -62,6 +65,96 @@ detect_platform() {
     echo "${os}_${arch}"
 }
 
+# Detect version from script URL or parameters
+detect_version() {
+    local version=""
+    
+    # Method 1: Check for VERSION environment variable (highest priority)
+    if [ -n "${VERSION:-}" ]; then
+        version="$VERSION"
+        # Ensure version has 'v' prefix if it doesn't already
+        if [[ ! "$version" =~ ^v ]]; then
+            version="v${version}"
+        fi
+        echo "$version"
+        return 0
+    fi
+    
+    # Method 2: Check for command-line argument
+    if [ $# -gt 0 ] && [ -n "$1" ]; then
+        version="$1"
+        # Ensure version has 'v' prefix if it doesn't already
+        if [[ ! "$version" =~ ^v ]]; then
+            version="v${version}"
+        fi
+        echo "$version"
+        return 0
+    fi
+    
+    # Method 3: Try to detect from script filename (if saved as install-v1.7.103.sh)
+    if [ -f "${BASH_SOURCE[0]}" ]; then
+        local script_name
+        script_name=$(basename "${BASH_SOURCE[0]}")
+        local filename_version
+        filename_version=$(echo "$script_name" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        if [ -n "$filename_version" ]; then
+            echo "$filename_version"
+            return 0
+        fi
+    fi
+    
+    # Method 4: Try to detect from SCRIPT_URL environment variable (can be set before curl)
+    if [ -n "${SCRIPT_URL:-}" ]; then
+        local url_version
+        url_version=$(echo "$SCRIPT_URL" | grep -oE '/v[0-9]+\.[0-9]+\.[0-9]+/' | head -1 | sed 's/\///g')
+        if [ -n "$url_version" ]; then
+            echo "$url_version"
+            return 0
+        fi
+    fi
+    
+    # Method 5: Try to detect from parent process command line (when piped from curl)
+    # This checks the parent process (usually bash running the pipe) for curl commands
+    local parent_cmd
+    if command -v ps >/dev/null 2>&1; then
+        # Get parent process ID
+        local ppid=${PPID:-}
+        if [ -n "$ppid" ]; then
+            # Try to get the command line of parent process (works on Linux)
+            if parent_cmd=$(ps -p "$ppid" -o args= 2>/dev/null | head -1); then
+                # Extract version from curl URL in parent command
+                local detected_version
+                detected_version=$(echo "$parent_cmd" | grep -oE 'github\.com/[^/]+/[^/]+/(v[0-9]+\.[0-9]+\.[0-9]+)/' | head -1 | sed -E 's/.*\/(v[0-9]+\.[0-9]+\.[0-9]+)\/.*/\1/')
+                if [ -n "$detected_version" ]; then
+                    echo "$detected_version"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+    
+    # Method 6: Try to detect from script's own source (if script was saved to a file)
+    # This works when the script is downloaded and saved, then executed
+    if [ -f "${BASH_SOURCE[0]}" ]; then
+        local script_path="${BASH_SOURCE[0]}"
+        # Try to extract version from the script content if it contains a versioned URL
+        local script_content
+        script_content=$(cat "$script_path" 2>/dev/null || echo "")
+        if [ -n "$script_content" ]; then
+            # Look for versioned GitHub URL pattern in comments or usage
+            local detected_version
+            detected_version=$(echo "$script_content" | grep -oE 'github\.com/[^/]+/[^/]+/(v[0-9]+\.[0-9]+\.[0-9]+)/' | head -1 | sed -E 's/.*\/(v[0-9]+\.[0-9]+\.[0-9]+)\/.*/\1/')
+            if [ -n "$detected_version" ]; then
+                echo "$detected_version"
+                return 0
+            fi
+        fi
+    fi
+    
+    # No version detected, return empty to trigger fallback
+    return 1
+}
+
 # Get latest release version
 get_latest_version() {
     progress "Fetching latest release information..." >&2
@@ -115,6 +208,22 @@ Debug information:
 Please check your network connection and try again.
 If the issue persists, you can manually download from:
 https://github.com/${REPO}/releases/latest"
+}
+
+# Get version to install (detects from various sources or falls back to latest)
+get_version() {
+    local version
+    
+    # Try to detect version from various sources
+    if version=$(detect_version "$@"); then
+        if [ -n "$version" ]; then
+            echo "$version"
+            return 0
+        fi
+    fi
+    
+    # Fall back to latest version
+    get_latest_version
 }
 
 # Validate downloaded file is not HTML (404 error page) and is valid
@@ -565,10 +674,33 @@ main() {
     # Check prerequisites
     check_java
     
-    # Get latest version
+    # Get version to install (detects from URL/args/env or falls back to latest)
     local version
-    version=$(get_latest_version)
-    info "Latest version: $version"
+    local version_source="latest"
+    
+    # Check if version was explicitly provided
+    if [ -n "${VERSION:-}" ] || [ $# -gt 0 ]; then
+        version=$(get_version "$@")
+        version_source="specified"
+    else
+        # Try to detect from script source first
+        if version=$(detect_version "$@"); then
+            if [ -n "$version" ]; then
+                version_source="detected from URL"
+            else
+                version=$(get_latest_version)
+            fi
+        else
+            version=$(get_latest_version)
+        fi
+    fi
+    
+    # Display appropriate message based on version source
+    if [ "$version_source" = "specified" ] || [ "$version_source" = "detected from URL" ]; then
+        info "Installing version: $version"
+    else
+        info "Latest version: $version"
+    fi
     
     # Create directories
     create_install_dir

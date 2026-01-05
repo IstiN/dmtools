@@ -63,6 +63,20 @@ public class TrackerParams {
     @SerializedName(OUTPUT_TYPE)
     private OutputType outputType = OutputType.comment;
 
+    /**
+     * Sets the output type.
+     */
+    public void setOutputType(OutputType outputType) {
+        this.outputType = outputType;
+    }
+
+    /**
+     * Gets the output type.
+     */
+    public OutputType getOutputType() {
+        return outputType;
+    }
+
     @SerializedName(OPERATION_TYPE)
     private OperationType operationType = OperationType.Append;
 
