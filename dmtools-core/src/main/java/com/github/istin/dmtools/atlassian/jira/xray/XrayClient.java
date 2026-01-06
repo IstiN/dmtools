@@ -72,6 +72,8 @@ public class XrayClient extends JiraClient<Ticket> {
     // Field names for steps and preconditions extraction
     private static final String[] STEPS_FIELD_NAMES = {"steps", "testSteps", "xraySteps", "xrayTestSteps", "test_steps"};
     private static final String[] PRECONDITIONS_FIELD_NAMES = {"preconditions", "xrayPreconditions", "testPreconditions", "test_preconditions"};
+    private static final String[] GHERKIN_FIELD_NAMES = {"gherkin", "cucumber", "cucumber_scenario", "xrayGherkin", "gherkin_scenario"};
+    private static final String[] DATASET_FIELD_NAMES = {"dataset", "xrayDataset", "testDataset", "test_dataset", "data_driven"};
 
     private static volatile XrayClient instance;
     private final String[] defaultJiraFields;
@@ -273,6 +275,53 @@ public class XrayClient extends JiraClient<Ticket> {
     }
 
     /**
+     * Extracts gherkin scenario from Fields object.
+     * Checks for predefined field names: gherkin, cucumber, cucumber_scenario, xrayGherkin, gherkin_scenario
+     *
+     * @param fields Fields object from FieldsInitializer
+     * @return Gherkin scenario string, or null if not found
+     */
+    private String extractGherkin(Fields fields) {
+        for (String fieldName : GHERKIN_FIELD_NAMES) {
+            try {
+                Object gherkinValue = fields.getJSONObject().opt(fieldName);
+                if (gherkinValue != null) {
+                    return gherkinValue.toString();
+                }
+            } catch (Exception e) {
+                // Field doesn't exist or is not accessible, continue to next field name
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Helper method to extract dataset from Fields object.
+     * Checks multiple possible field names for dataset.
+     * 
+     * @param fields Fields object potentially containing dataset
+     * @return JSONObject with dataset data (parameters and rows), or null if not found
+     */
+    private JSONObject extractDataset(Fields fields) {
+        for (String fieldName : DATASET_FIELD_NAMES) {
+            try {
+                Object datasetValue = fields.getJSONObject().opt(fieldName);
+                if (datasetValue != null) {
+                    if (datasetValue instanceof JSONObject) {
+                        return (JSONObject) datasetValue;
+                    } else if (datasetValue instanceof String) {
+                        // Try to parse as JSON
+                        return new JSONObject((String) datasetValue);
+                    }
+                }
+            } catch (Exception e) {
+                // Field doesn't exist or is not accessible, continue to next field name
+            }
+        }
+        return null;
+    }
+
+    /**
      * Sets test steps on a Jira ticket via X-ray GraphQL API.
      * Migrated from REST API to GraphQL for better reliability.
      * 
@@ -288,7 +337,7 @@ public class XrayClient extends JiraClient<Ticket> {
      * @return The Xray issue ID if available, or null if not synced yet
      */
     private String waitForXraySync(String ticketKey) {
-        int maxAttempts = 10; // Maximum 10 attempts
+        int maxAttempts = 3; // Maximum 3 attempts
         long waitTimeMs = 2000; // Wait 2 seconds between attempts
         
         logger.debug("Waiting for X-ray to sync ticket {}", ticketKey);
@@ -395,6 +444,97 @@ public class XrayClient extends JiraClient<Ticket> {
         
         addTestStepsGraphQL(issueIdToUse, graphqlSteps);
         logger.info("Successfully set {} steps for test {} using GraphQL (with issue ID)", steps.length(), testKey);
+    }
+
+    /**
+     * Sets gherkin (Cucumber) scenario on a Jira ticket via X-ray GraphQL API.
+     *
+     * @param testKey Jira ticket key (e.g., "PROJ-123")
+     * @param gherkin Gherkin scenario text
+     * @param xrayIssueId Xray issue ID if available (from waitForXraySync), or null
+     * @throws IOException if API call fails
+     */
+    private void setCucumberTest(String testKey, String gherkin, String xrayIssueId) throws IOException {
+        if (gherkin == null || gherkin.isEmpty()) {
+            logger.debug("No gherkin content to set for test {}", testKey);
+            return;
+        }
+
+        logger.debug("Setting gherkin for test {} using GraphQL", testKey);
+
+        // Use Xray issue ID if available (preferred), otherwise try ticket key, then fallback to Jira issue ID
+        String issueIdToUse = null;
+
+        if (xrayIssueId != null && !xrayIssueId.isEmpty()) {
+            issueIdToUse = xrayIssueId;
+            logger.debug("Using Xray issue ID {} for test {}", issueIdToUse, testKey);
+        } else {
+            // Fallback: Get issue ID from Jira
+            logger.debug("Getting issue ID from Jira for test {} to use with GraphQL API", testKey);
+            Ticket ticket = performTicket(testKey, new String[]{"id"});
+            if (ticket == null || ticket.getId() == null || ticket.getId().isEmpty()) {
+                throw new IOException("Cannot get issue ID for test " + testKey);
+            }
+            issueIdToUse = ticket.getId();
+            logger.debug("Using Jira issue ID {} for test {}", issueIdToUse, testKey);
+        }
+
+        logger.debug("Setting gherkin for test {} (issue ID: {}) using GraphQL", testKey, issueIdToUse);
+
+        xrayRestClient.updateCucumberTestGraphQL(issueIdToUse, gherkin);
+        logger.info("Successfully set gherkin and updated test {} to Cucumber type using GraphQL", testKey);
+    }
+
+    /**
+     * Sets dataset for a Cucumber test using X-ray GraphQL API.
+     * Dataset contains parameters and data rows for data-driven testing.
+     * 
+     * @param testKey Jira ticket key (e.g., "TP-123")
+     * @param dataset JSONObject containing parameters and rows
+     * @param xrayIssueId Xray issue ID if available (from waitForXraySync), or null
+     * @throws IOException if API call fails
+     */
+    private void setDataset(String testKey, JSONObject dataset, String xrayIssueId) throws IOException {
+        if (dataset == null || dataset.isEmpty()) {
+            logger.debug("No dataset to set for test {}", testKey);
+            return;
+        }
+
+        logger.debug("Setting dataset for test {} using Internal API", testKey);
+
+        // Use Xray issue ID if available (preferred), otherwise try ticket key, then fallback to Jira issue ID
+        String issueIdToUse = null;
+        String jiraIssueId = null;
+
+        // Get Jira issue ID first
+        Ticket ticket = performTicket(testKey, new String[]{"id"});
+        if (ticket == null || ticket.getId() == null || ticket.getId().isEmpty()) {
+            throw new IOException("Cannot get issue ID for test " + testKey);
+        }
+        jiraIssueId = ticket.getId();
+
+        if (xrayIssueId != null && !xrayIssueId.isEmpty()) {
+            issueIdToUse = xrayIssueId;
+            logger.debug("Using Xray issue ID {} (testIssueId) for test {}", issueIdToUse, testKey);
+        } else {
+            // Fallback: Use Jira issue ID (they might be the same in some cases)
+            issueIdToUse = jiraIssueId;
+            logger.debug("Using Jira issue ID {} as testIssueId for test {}", issueIdToUse, testKey);
+        }
+
+        logger.debug("Setting dataset for test {} (Jira ID: {}, testIssueId: {}) using Internal API", 
+                testKey, jiraIssueId, issueIdToUse);
+
+        try {
+            // Pass 'this' (JiraClient instance) for HTML fetching
+            xrayRestClient.updateDatasetInternalAPI(this, testKey, issueIdToUse, dataset);
+            logger.info("Successfully set dataset for test {} using Internal API", testKey);
+        } catch (IOException e) {
+            logger.warn("Internal API failed for dataset update: {}. " +
+                       "This is expected if X-acpt token extraction fails. " +
+                       "Dataset may need to be set manually through Xray UI.", e.getMessage());
+            // Don't throw - this is a known limitation
+        }
     }
 
     /**
@@ -584,35 +724,43 @@ public class XrayClient extends JiraClient<Ticket> {
 
     @Override
     public String createTicketInProject(String project, String issueType, String summary, String description, FieldsInitializer fieldsInitializer) throws IOException {
-        // Extract steps and preconditions from FieldsInitializer before creating ticket
+        // Extract steps, gherkin, dataset, and preconditions from FieldsInitializer before creating ticket
         JSONArray steps = null;
+        String gherkin = null;
+        JSONObject dataset = null;
         JSONArray preconditions = null;
 
-        // Create a wrapper FieldsInitializer that intercepts field sets to extract steps/preconditions
+        // Create a wrapper FieldsInitializer that intercepts field sets to extract steps/gherkin/dataset/preconditions
         FieldsInitializer wrappedFieldsInitializer = null;
         if (fieldsInitializer != null) {
-            // Create a temporary Fields object to extract steps/preconditions
+            // Create a temporary Fields object to extract steps/gherkin/dataset/preconditions
             Fields tempFields = new Fields();
             fieldsInitializer.init(tempFields);
             
+            gherkin = extractGherkin(tempFields);
+            dataset = extractDataset(tempFields);
             steps = extractSteps(tempFields);
             preconditions = extractPreconditions(tempFields);
             
-            // Create a new FieldsInitializer that excludes steps/preconditions
+            // Create a new FieldsInitializer that excludes steps/gherkin/dataset/preconditions
             final Fields fieldsWithoutXray = tempFields;
-            // Use Sets for O(1) lookup of steps and preconditions field names
+            // Use Sets for O(1) lookup of steps, gherkin, dataset and preconditions field names
             final Set<String> stepsFieldNamesSet = new HashSet<>(Arrays.asList(STEPS_FIELD_NAMES));
             final Set<String> preconditionsFieldNamesSet = new HashSet<>(Arrays.asList(PRECONDITIONS_FIELD_NAMES));
+            final Set<String> gherkinFieldNamesSet = new HashSet<>(Arrays.asList(GHERKIN_FIELD_NAMES));
+            final Set<String> datasetFieldNamesSet = new HashSet<>(Arrays.asList(DATASET_FIELD_NAMES));
             wrappedFieldsInitializer = new FieldsInitializer() {
                 @Override
                 public void init(TrackerTicketFields fields) {
-                    // Copy all fields except steps/preconditions
+                    // Copy all fields except steps/gherkin/dataset/preconditions
                     JSONObject fieldsJson = fieldsWithoutXray.getJSONObject();
                     for (String key : fieldsJson.keySet()) {
                         // Skip X-ray specific fields using O(1) lookup
                         boolean isStepsField = stepsFieldNamesSet.contains(key);
                         boolean isPreconditionsField = preconditionsFieldNamesSet.contains(key);
-                        if (!isStepsField && !isPreconditionsField) {
+                        boolean isGherkinField = gherkinFieldNamesSet.contains(key);
+                        boolean isDatasetField = datasetFieldNamesSet.contains(key);
+                        if (!isStepsField && !isPreconditionsField && !isGherkinField && !isDatasetField) {
                             fields.set(key, fieldsJson.get(key));
                         }
                     }
@@ -631,9 +779,28 @@ public class XrayClient extends JiraClient<Ticket> {
         // X-ray needs time to recognize the ticket before we can set steps/preconditions
         String xrayIssueId = waitForXraySync(ticketKey);
 
-        // Set steps/definition and preconditions via X-ray API
-        // For Precondition issues, set definition instead of steps
-        if (steps != null) {
+        // Set gherkin (Cucumber) or steps/definition and preconditions via X-ray API
+        // Gherkin has precedence over steps
+        if (gherkin != null) {
+            try {
+                setCucumberTest(ticketKey, gherkin, xrayIssueId);
+                
+                // Set dataset if present (for data-driven Cucumber tests)
+                if (dataset != null) {
+                    try {
+                        setDataset(ticketKey, dataset, xrayIssueId);
+                    } catch (IOException e) {
+                        logger.error("Failed to set X-ray dataset for ticket {}: {}",
+                                ticketKey, e.getMessage());
+                        // Don't fail the entire operation if dataset setting fails
+                    }
+                }
+            } catch (IOException e) {
+                logger.error("Failed to set X-ray gherkin (Cucumber) for ticket {}: {}",
+                        ticketKey, e.getMessage());
+                // Don't fail the entire operation if X-ray API calls fail
+            }
+        } else if (steps != null) {
             try {
                 if ("Precondition".equalsIgnoreCase(issueType)) {
                     // For Precondition issues, convert steps to definition string
@@ -649,15 +816,16 @@ public class XrayClient extends JiraClient<Ticket> {
                 // Don't fail the entire operation if X-ray API calls fail
                 // The ticket was already created in Jira
             }
-            }
-            if (preconditions != null) {
+        }
+        
+        if (preconditions != null) {
             try {
                 setPreconditions(ticketKey, preconditions, xrayIssueId);
-        } catch (IOException e) {
+            } catch (IOException e) {
                 logger.error("Failed to set X-ray preconditions for ticket {} with {} preconditions: {}",
                         ticketKey, preconditions.length(), e.getMessage());
-            // Don't fail the entire operation if X-ray API calls fail
-            // The ticket was already created in Jira
+                // Don't fail the entire operation if X-ray API calls fail
+                // The ticket was already created in Jira
             }
         }
 
@@ -801,7 +969,10 @@ public class XrayClient extends JiraClient<Ticket> {
         // Filter Test and Precondition issues
         List<Ticket> testTickets = new ArrayList<>();
         for (Ticket ticket : tickets) {
-            String ticketKey = ticket != null ? ticket.getKey() : "unknown";
+            if (ticket == null) {
+                continue;
+            }
+            String ticketKey = ticket.getKey() != null ? ticket.getKey() : "unknown";
             try {
                 String issueType = ticket.getIssueType();
                 if (issueType != null && (issueType.equalsIgnoreCase("Test") || issueType.equalsIgnoreCase("Precondition"))) {
@@ -909,7 +1080,7 @@ public class XrayClient extends JiraClient<Ticket> {
                     
                     // Add test steps
                     if (xrayData.has("steps")) {
-                        JSONArray steps = xrayData.getJSONArray("steps");
+                        JSONArray steps = xrayData.optJSONArray("steps");
                         if (steps != null && steps.length() > 0) {
                             fieldsObj.getJSONObject().put("xrayTestSteps", steps);
                             logger.info("✅ Added {} test steps to ticket {}", steps.length(), ticketKey);
@@ -919,11 +1090,38 @@ public class XrayClient extends JiraClient<Ticket> {
                     } else {
                         logger.debug("Ticket {} has no steps in X-ray data", ticketKey);
                     }
+
+                    // Add test type and gherkin for Cucumber tests
+                    if (xrayData.has("testType")) {
+                        JSONObject testType = xrayData.optJSONObject("testType");
+                        if (testType != null) {
+                            fieldsObj.getJSONObject().put("xrayTestType", testType);
+                            logger.debug("Added test type {} to ticket {}", testType.optString("name", "unknown"), ticketKey);
+                        }
+                    }
+                    if (xrayData.has("gherkin")) {
+                        String gherkin = xrayData.optString("gherkin", null);
+                        if (gherkin != null && !gherkin.isEmpty()) {
+                            fieldsObj.getJSONObject().put("xrayGherkin", gherkin);
+                            logger.info("✅ Added gherkin content to ticket {}", ticketKey);
+                        }
+                    }
+                    
+                    // Add dataset for tests with data-driven scenarios
+                    if (xrayData.has("dataset")) {
+                        JSONObject dataset = xrayData.optJSONObject("dataset");
+                        if (dataset != null && !dataset.isEmpty()) {
+                            fieldsObj.getJSONObject().put("xrayDataset", dataset);
+                            int paramsCount = dataset.has("parameters") ? dataset.getJSONArray("parameters").length() : 0;
+                            int rowsCount = dataset.has("rows") ? dataset.getJSONArray("rows").length() : 0;
+                            logger.info("✅ Added dataset to ticket {} ({} parameters, {} rows)", ticketKey, paramsCount, rowsCount);
+                        }
+                    }
                     
                     // Add preconditions with definition from Xray and summary/description from Jira
                     if (xrayData.has("preconditions")) {
-                        JSONObject preconditionsObj = xrayData.getJSONObject("preconditions");
-                        if (preconditionsObj.has("results")) {
+                        JSONObject preconditionsObj = xrayData.optJSONObject("preconditions");
+                        if (preconditionsObj != null && preconditionsObj.has("results")) {
                             JSONArray preconditions = preconditionsObj.getJSONArray("results");
                             
                             // Enrich each precondition with Jira data

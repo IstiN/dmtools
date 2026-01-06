@@ -22,6 +22,7 @@ public class TestCasesGeneratorParams extends Params {
     public static final String IS_OVERRIDE_PROMPT_EXAMPLES = "isOverridePromptExamples";
     public static final String IS_FIND_RELATED = "isFindRelated";
     public static final String IS_LINK_RELATED = "isLinkRelated";
+    public static final String IS_GENERATE_NEW = "isGenerateNew";
     public static final String EXAMPLES = "examples";
     public static final String TEST_CASE_LINK_RELATIONSHIP = "testCaseLinkRelationship";
     public static final String INCLUDE_OTHER_TICKET_REFERENCES = "includeOtherTicketReferences";
@@ -49,6 +50,8 @@ public class TestCasesGeneratorParams extends Params {
     private boolean isFindRelated = true;
     @SerializedName(IS_LINK_RELATED)
     private boolean isLinkRelated = true;
+    @SerializedName(IS_GENERATE_NEW)
+    private boolean isGenerateNew = true;
     @SerializedName(IS_OVERRIDE_PROMPT_EXAMPLES)
     private boolean isOverridePromptExamples = false;
     @SerializedName(TEST_CASE_LINK_RELATIONSHIP)

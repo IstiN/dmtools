@@ -174,69 +174,71 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
         // Initialize accumulator for all generated test cases
         List<TestCaseGeneratorAgent.TestCase> allGeneratedTestCases = new ArrayList<>();
+        List<TestCaseGeneratorAgent.TestCase> newTestCases = new ArrayList<>();
 
-        // Calculate token limits (same pattern as findAndLinkSimilarTestCasesBySummary)
-        ChunkPreparation chunkPreparation = new ChunkPreparation();
-        int storyTokens = new Claude35TokenCounter().countTokens(ticketContext.toText());
-        int systemTokenLimits = chunkPreparation.getTokenLimit();
-        int tokenLimit = (systemTokenLimits - storyTokens)/2;
-        System.out.println("GENERATION TOKEN LIMIT: " + tokenLimit);
-        List<TestCaseGeneratorAgent.TestCase> newTestCases;
-        
-        // Extract customFieldsRules (may be Confluence URL)
-        String customFieldsRules = params.getCustomFieldsRules();
-        if (customFieldsRules != null && customFieldsRules.startsWith("https://")) {
-            customFieldsRules = extractFromConfluence(customFieldsRules);
-        }
-        
-        // Combine example fields with custom fields
-        String[] exampleFields = combineFieldsWithCustomFields(params.getTestCasesExampleFields(), params.getTestCasesCustomFields());
-        String examples = unpackExamples(params.getExamples(), exampleFields, params.getTestCasesCustomFields());
+        if (params.isGenerateNew()) {
+            // Calculate token limits (same pattern as findAndLinkSimilarTestCasesBySummary)
+            ChunkPreparation chunkPreparation = new ChunkPreparation();
+            int storyTokens = new Claude35TokenCounter().countTokens(ticketContext.toText());
+            int systemTokenLimits = chunkPreparation.getTokenLimit();
+            int tokenLimit = (systemTokenLimits - storyTokens) / 2;
+            System.out.println("GENERATION TOKEN LIMIT: " + tokenLimit);
 
-        if (!finaResults.isEmpty()) {
-            // Chunk existing test cases for generation
-            List<ChunkPreparation.Chunk> testCaseChunks = chunkPreparation.prepareChunks(finaResults, tokenLimit);
-            System.out.println("TEST CASE CHUNKS FOR GENERATION: " + testCaseChunks.size());
+            // Extract customFieldsRules (may be Confluence URL)
+            String customFieldsRules = params.getCustomFieldsRules();
+            if (customFieldsRules != null && customFieldsRules.startsWith("https://")) {
+                customFieldsRules = extractFromConfluence(customFieldsRules);
+            }
 
-            // Generate test cases per chunk
-            for (ChunkPreparation.Chunk chunk : testCaseChunks) {
-                List<TestCaseGeneratorAgent.TestCase> chunkTestCases = testCaseGeneratorAgent.run(
+            // Combine example fields with custom fields
+            String[] exampleFields = combineFieldsWithCustomFields(params.getTestCasesExampleFields(), params.getTestCasesCustomFields());
+            String examples = unpackExamples(params.getExamples(), exampleFields, params.getTestCasesCustomFields());
+
+            if (!finaResults.isEmpty()) {
+                // Chunk existing test cases for generation
+                List<ChunkPreparation.Chunk> testCaseChunks = chunkPreparation.prepareChunks(finaResults, tokenLimit);
+                System.out.println("TEST CASE CHUNKS FOR GENERATION: " + testCaseChunks.size());
+
+                // Generate test cases per chunk
+                for (ChunkPreparation.Chunk chunk : testCaseChunks) {
+                    List<TestCaseGeneratorAgent.TestCase> chunkTestCases = testCaseGeneratorAgent.run(
+                            new TestCaseGeneratorAgent.Params(
+                                    params.getTestCasesPriorities(),
+                                    chunk.getText(), // Chunked test cases instead of all finaResults
+                                    ticketText,
+                                    extraRules,
+                                    params.isOverridePromptExamples(),
+                                    examples,
+                                    customFieldsRules != null ? customFieldsRules : ""
+                            )
+                    );
+                    allGeneratedTestCases.addAll(chunkTestCases);
+                    System.out.println("Generated " + chunkTestCases.size() + " test cases from chunk");
+                }
+
+                if (testCaseChunks.size() > 1) {
+                    // Deduplicate results - reuse testCaseChunks instead of converting to text again
+                    newTestCases = deduplicateInChunks(
+                            allGeneratedTestCases,
+                            testCaseChunks
+                    );
+                } else {
+                    newTestCases = allGeneratedTestCases;
+                }
+                System.out.println("Final deduplicated test cases: " + newTestCases.size());
+            } else {
+                newTestCases = testCaseGeneratorAgent.run(
                         new TestCaseGeneratorAgent.Params(
                                 params.getTestCasesPriorities(),
-                                chunk.getText(), // Chunked test cases instead of all finaResults
-                                ticketText,
+                                "", // Chunked test cases instead of all finaResults
+                                ticketContext.toText(),
                                 extraRules,
                                 params.isOverridePromptExamples(),
                                 examples,
                                 customFieldsRules != null ? customFieldsRules : ""
                         )
                 );
-                allGeneratedTestCases.addAll(chunkTestCases);
-                System.out.println("Generated " + chunkTestCases.size() + " test cases from chunk");
             }
-
-            if (testCaseChunks.size() > 1) {
-                // Deduplicate results - reuse testCaseChunks instead of converting to text again
-                newTestCases = deduplicateInChunks(
-                        allGeneratedTestCases,
-                        testCaseChunks
-                );
-            } else {
-                newTestCases = allGeneratedTestCases;
-            }
-            System.out.println("Final deduplicated test cases: " + newTestCases.size());
-        } else {
-            newTestCases = testCaseGeneratorAgent.run(
-                    new TestCaseGeneratorAgent.Params(
-                            params.getTestCasesPriorities(),
-                            "", // Chunked test cases instead of all finaResults
-                            ticketContext.toText(),
-                            extraRules,
-                            params.isOverridePromptExamples(),
-                            examples,
-                            customFieldsRules != null ? customFieldsRules : ""
-                    )
-            );
         }
         
         // Preprocess test cases to handle preconditions with temporary IDs

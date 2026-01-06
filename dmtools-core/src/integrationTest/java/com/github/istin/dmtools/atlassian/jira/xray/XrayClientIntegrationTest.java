@@ -1607,5 +1607,298 @@ public class XrayClientIntegrationTest {
             logger.info("Restored pagination limit to: {}", originalLimit);
         }
     }
+
+    @Test
+    @Order(14)
+    @DisplayName("Test creating a Test issue with gherkin (Cucumber)")
+    void testCreateTestWithGherkin() throws IOException {
+        Assumptions.assumeTrue(xrayClient != null, "XrayClient not initialized");
+
+        logger.info("=== Testing Test issue creation with gherkin (Cucumber) ===");
+
+        String summary = "Xray Integration Test - Gherkin - " + System.currentTimeMillis();
+        String description = "This is a test created by XrayClient integration test to verify gherkin (Cucumber) functionality.";
+        String gherkin = "Scenario: Test Cucumber support\n" +
+                "  Given I have dmtools installed\n" +
+                "  When I create a test with gherkin\n" +
+                "  Then Xray should mark it as Cucumber type";
+
+        // Create the test ticket with gherkin using FieldsInitializer
+        String response = xrayClient.createTicketInProject(
+                testProjectKey,
+                "Test",
+                summary,
+                description,
+                new TrackerClient.FieldsInitializer() {
+                    @Override
+                    public void init(TrackerClient.TrackerTicketFields fields) {
+                        fields.set("gherkin", gherkin);
+                    }
+                }
+        );
+
+        assertNotNull(response);
+        JSONObject ticketJson = new JSONObject(response);
+        String ticketKey = ticketJson.getString("key");
+        createdTicketKeys.add(ticketKey);
+
+        logger.info("Created test ticket with gherkin: {}", ticketKey);
+
+        // Wait for X-ray to sync and process the gherkin
+        int maxWaitAttempts = 3;
+        int waitAttempt = 0;
+        JSONObject testDetails = null;
+        boolean gherkinVerified = false;
+
+        while (waitAttempt < maxWaitAttempts && !gherkinVerified) {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+
+            try {
+                testDetails = xrayClient.getTestDetailsGraphQL(ticketKey);
+                if (testDetails != null && testDetails.has("testType")) {
+                    String testTypeName = testDetails.getJSONObject("testType").optString("name", "");
+                    String retrievedGherkin = testDetails.optString("gherkin", "");
+
+                    if ("Cucumber".equalsIgnoreCase(testTypeName)) {
+                        gherkinVerified = true;
+                        logger.info("✅ Test type is Cucumber");
+                        assertEquals(gherkin.trim(), retrievedGherkin.trim(), "Gherkin content should match");
+                        logger.info("✅ Gherkin content matches");
+                        break;
+                    } else {
+                        logger.warn("⚠️ Test type is {}, expected Cucumber. Attempt {}/{}",
+                                testTypeName, waitAttempt + 1, maxWaitAttempts);
+                    }
+                }
+            } catch (IOException e) {
+                logger.debug("Waiting for X-ray sync (attempt {}/{}): {}",
+                        waitAttempt + 1, maxWaitAttempts, e.getMessage());
+            }
+            waitAttempt++;
+        }
+
+        assertTrue(gherkinVerified, "Test should be updated to Cucumber type with gherkin content");
+        logger.info("✅ Cucumber test verification successful");
+    }
+
+    @Test
+    @Order(11)
+    void testGetTestDetailsWithDataset() throws IOException {
+        Assumptions.assumeTrue(xrayClient != null, "XrayClient not initialized");
+
+        logger.info("=== Testing retrieving test details with dataset (TP-1436) ===");
+
+        String testKey = "TP-1436";
+        JSONObject testDetails = xrayClient.getTestDetailsGraphQL(testKey);
+
+        assertNotNull(testDetails, "Test details should be retrieved");
+        logger.info("Test details for {}: {}", testKey, testDetails.toString(2));
+
+        // Verify dataset is included
+        if (testDetails.has("dataset")) {
+            JSONObject dataset = testDetails.getJSONObject("dataset");
+            logger.info("✅ Dataset found in test details");
+            logger.info("Dataset: {}", dataset.toString(2));
+
+            // Verify parameters
+            if (dataset.has("parameters")) {
+                JSONArray parameters = dataset.getJSONArray("parameters");
+                logger.info("Found {} parameters", parameters.length());
+                for (int i = 0; i < parameters.length(); i++) {
+                    JSONObject param = parameters.getJSONObject(i);
+                    logger.info("  Parameter {}: name={}, type={}", i+1, 
+                        param.optString("name"), param.optString("type"));
+                }
+            }
+
+            // Verify rows
+            if (dataset.has("rows")) {
+                JSONArray rows = dataset.getJSONArray("rows");
+                logger.info("Found {} rows", rows.length());
+                for (int i = 0; i < rows.length(); i++) {
+                    JSONObject row = rows.getJSONObject(i);
+                    logger.info("  Row {}: order={}, values={}", i+1, 
+                        row.optInt("order"), row.optJSONArray("Values"));
+                }
+            }
+        } else {
+            logger.warn("⚠️ Dataset not found in test details");
+            fail("Dataset should be present in test details for " + testKey);
+        }
+
+        logger.info("✅ Dataset retrieval test successful");
+    }
+
+    @Test
+    @Order(12)
+    void testCreateTestWithGherkinAndDataset() throws IOException {
+        Assumptions.assumeTrue(xrayClient != null, "XrayClient not initialized");
+
+        logger.info("=== Testing Test issue creation with gherkin and dataset (Cucumber with data-driven) ===");
+
+        String summary = "Xray Integration Test - Cucumber with Dataset - " + System.currentTimeMillis();
+        String description = "This is a test created by XrayClient integration test to verify Cucumber with dataset functionality.";
+        String gherkin = "Scenario Outline: Test login with different users\n" +
+                "  Given user \"<username>\" is registered\n" +
+                "  When user logs in with password \"<password>\"\n" +
+                "  Then login result is \"<result>\"\n" +
+                "\n" +
+                "  Examples:\n" +
+                "    | username | password  | result  |\n" +
+                "    | admin    | admin123  | success |\n" +
+                "    | user     | wrongpass | failed  |\n" +
+                "    | guest    | guest456  | success |";
+
+        // Create dataset with parameters and rows (for API-based approach)
+        // Note: Xray may parse Examples from Gherkin automatically
+        JSONObject dataset = new JSONObject();
+        
+        // Define parameters
+        JSONArray parameters = new JSONArray();
+        JSONObject param1 = new JSONObject();
+        param1.put("name", "username");
+        param1.put("type", "text");
+        parameters.put(param1);
+        
+        JSONObject param2 = new JSONObject();
+        param2.put("name", "password");
+        param2.put("type", "text");
+        parameters.put(param2);
+        
+        JSONObject param3 = new JSONObject();
+        param3.put("name", "result");
+        param3.put("type", "text");
+        parameters.put(param3);
+        
+        dataset.put("parameters", parameters);
+        
+        // Define data rows
+        JSONArray rows = new JSONArray();
+        
+        JSONObject row1 = new JSONObject();
+        row1.put("order", 0);
+        JSONArray values1 = new JSONArray();
+        values1.put("admin");
+        values1.put("admin123");
+        values1.put("success");
+        row1.put("Values", values1);
+        rows.put(row1);
+        
+        JSONObject row2 = new JSONObject();
+        row2.put("order", 1);
+        JSONArray values2 = new JSONArray();
+        values2.put("user");
+        values2.put("wrongpass");
+        values2.put("failed");
+        row2.put("Values", values2);
+        rows.put(row2);
+        
+        JSONObject row3 = new JSONObject();
+        row3.put("order", 2);
+        JSONArray values3 = new JSONArray();
+        values3.put("guest");
+        values3.put("guest456");
+        values3.put("success");
+        row3.put("Values", values3);
+        rows.put(row3);
+        
+        dataset.put("rows", rows);
+
+        // Create the test ticket with gherkin (Xray should parse Examples automatically)
+        // For now, test without explicit dataset API call
+        String response = xrayClient.createTicketInProject(
+                testProjectKey,
+                "Test",
+                summary,
+                description,
+                new TrackerClient.FieldsInitializer() {
+                    @Override
+                    public void init(TrackerClient.TrackerTicketFields fields) {
+                        fields.set("gherkin", gherkin);
+                        // Try to set dataset via Internal API
+                        fields.set("dataset", dataset);
+                    }
+                }
+        );
+
+        assertNotNull(response);
+        JSONObject ticketJson = new JSONObject(response);
+        String ticketKey = ticketJson.getString("key");
+        createdTicketKeys.add(ticketKey);
+
+        logger.info("Created test ticket with gherkin and dataset: {}", ticketKey);
+
+        // Wait for X-ray to sync and process the gherkin and dataset
+        int maxWaitAttempts = 3;
+        int waitAttempt = 0;
+        JSONObject testDetails = null;
+        boolean datasetVerified = false;
+
+        while (waitAttempt < maxWaitAttempts && !datasetVerified) {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+
+            try {
+                testDetails = xrayClient.getTestDetailsGraphQL(ticketKey);
+                if (testDetails != null && testDetails.has("testType")) {
+                    String testTypeName = testDetails.getJSONObject("testType").optString("name", "");
+                    logger.debug("Attempt {}/{}: Test type is {}", waitAttempt + 1, maxWaitAttempts, testTypeName);
+                    
+                    // Check if dataset field exists and is not null
+                    JSONObject retrievedDataset = testDetails.optJSONObject("dataset");
+                    logger.debug("Attempt {}/{}: Dataset is {}", waitAttempt + 1, maxWaitAttempts, 
+                            retrievedDataset == null ? "null" : ("present with " + retrievedDataset.length() + " keys"));
+
+                    if ("Cucumber".equalsIgnoreCase(testTypeName) && retrievedDataset != null && !retrievedDataset.isEmpty()) {
+                        // Verify dataset structure
+                        if (retrievedDataset.has("parameters") && retrievedDataset.has("rows")) {
+                            JSONArray retrievedParams = retrievedDataset.getJSONArray("parameters");
+                            JSONArray retrievedRows = retrievedDataset.getJSONArray("rows");
+                            
+                            if (retrievedParams.length() == parameters.length() && 
+                                retrievedRows.length() == rows.length()) {
+                                datasetVerified = true;
+                                logger.info("✅ Test type is Cucumber");
+                                logger.info("✅ Dataset structure verified: {} parameters, {} rows", 
+                                    retrievedParams.length(), retrievedRows.length());
+                                
+                                // Log parameter names
+                                for (int i = 0; i < retrievedParams.length(); i++) {
+                                    JSONObject param = retrievedParams.getJSONObject(i);
+                                    logger.info("   Parameter {}: {}", i+1, param.optString("name"));
+                                }
+                                
+                                break;
+                            } else {
+                                logger.warn("⚠️ Dataset size mismatch. Expected {} params and {} rows, got {} params and {} rows. Attempt {}/{}",
+                                        parameters.length(), rows.length(), 
+                                        retrievedParams.length(), retrievedRows.length(),
+                                        waitAttempt + 1, maxWaitAttempts);
+                            }
+                        }
+                    } else {
+                        logger.warn("⚠️ Test type is {} or dataset is empty. Attempt {}/{}",
+                                testTypeName, waitAttempt + 1, maxWaitAttempts);
+                    }
+                }
+            } catch (IOException e) {
+                logger.debug("Waiting for X-ray sync (attempt {}/{}): {}",
+                        waitAttempt + 1, maxWaitAttempts, e.getMessage());
+            }
+            waitAttempt++;
+        }
+
+        assertTrue(datasetVerified, "Test should be updated to Cucumber type with dataset");
+        logger.info("✅ Cucumber test with dataset verification successful");
+    }
 }
 
