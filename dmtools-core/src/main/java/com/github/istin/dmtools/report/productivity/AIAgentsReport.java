@@ -26,6 +26,7 @@ import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.team.Employees;
 import org.apache.commons.io.FileUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -67,22 +68,25 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams, ResultItem
     public ResultItem runJob(AIAgentsReportParams aiAgentsReportParams) throws Exception {
         usersPerRegex.clear();
         interactionsPerRegexPerUser.clear();
+        userInteractionDates.clear();
         allUsers.clear();
+        listOfRequests.clear();
 
         WeeksReleaseGenerator releaseGenerator = new WeeksReleaseGenerator(aiAgentsReportParams.getStartDate());
         String formula = aiAgentsReportParams.getFormula();
         TrackerClient<? extends ITicket> jira = BasicJiraClient.getInstance();
-        String response = FileUtils.readFileToString(ProductivityTools.generate(jira, releaseGenerator, aiAgentsReportParams.getReportName() + (aiAgentsReportParams.isWeight() ? "_sp" : ""), formula, aiAgentsReportParams.getInputJQL(), generateListOfMetrics(aiAgentsReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(aiAgentsReportParams.getEmployees()), aiAgentsReportParams.getIgnoreTicketPrefixes(), new HtmlInjection() {
+        File generatedFile = ProductivityTools.generate(jira, releaseGenerator, aiAgentsReportParams.getReportName() + (aiAgentsReportParams.isWeight() ? "_sp" : ""), formula, aiAgentsReportParams.getInputJQL(), generateListOfMetrics(aiAgentsReportParams), Release.Style.BY_SPRINTS, Employees.getTesters(aiAgentsReportParams.getEmployees()), aiAgentsReportParams.getIgnoreTicketPrefixes(), new HtmlInjection() {
             @Override
             public String getHtmBeforeTimeline(DevProductivityReport productivityReport) {
                 try {
                     productivityReport.setDarkMode(aiAgentsReportParams.isDarkMode());
-                    return generateAnalyticsHtml((BasicJiraClient)jira);
+                    return generateAnalyticsHtml((BasicJiraClient) jira);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             }
-        }));
+        });
+        String response = FileUtils.readFileToString(generatedFile);
         return new ResultItem("aiAgentsReport", response);
     }
 
@@ -148,7 +152,8 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams, ResultItem
 
         for (Map.Entry<String, Set<String>> entry : usersPerRegex.entrySet()) {
             html.append("<tr>");
-            html.append("<td class='pattern-cell'>").append(PATTERN_NAMES.get(entry.getKey())).append("</td>");
+            String patternName = PATTERN_NAMES.getOrDefault(entry.getKey(), entry.getKey());
+            html.append("<td class='pattern-cell'>").append(patternName).append("</td>");
             html.append("<td>");
             String users = entry.getValue().stream()
                     .map(userId -> userNames.get(userId))
@@ -166,7 +171,7 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams, ResultItem
         html.append("<tr><th>Pattern</th><th>User</th><th>Interactions</th></tr>");
 
         for (Map.Entry<String, Map<String, Integer>> entry : interactionsPerRegexPerUser.entrySet()) {
-            String pattern = PATTERN_NAMES.get(entry.getKey());
+            String pattern = PATTERN_NAMES.getOrDefault(entry.getKey(), entry.getKey());
 
             List<Map.Entry<String, Integer>> sortedUsers = entry.getValue().entrySet().stream()
                     .map(userEntry -> new AbstractMap.SimpleEntry<>(
@@ -258,7 +263,7 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams, ResultItem
                     .append("<tr><th>Pattern</th><th>User</th><th>Recent Interactions</th></tr>");
 
             for (Map.Entry<String, Map<String, Integer>> entry : recentInteractions.entrySet()) {
-                String pattern = PATTERN_NAMES.get(entry.getKey());
+                String pattern = PATTERN_NAMES.getOrDefault(entry.getKey(), entry.getKey());
 
                 List<Map.Entry<String, Integer>> sortedUsers = entry.getValue().entrySet().stream()
                         .map(userEntry -> new AbstractMap.SimpleEntry<>(
@@ -341,7 +346,8 @@ public class AIAgentsReport extends AbstractJob<AIAgentsReportParams, ResultItem
                         listOfRequests.add(extractRequest(body));
                     }
                     try {
-                        return new KeyTime(PATTERN_NAMES.get(commentsRegex) + "_" + ticket.getTicketKey() + " " + getByIDFullName((BasicJiraClient) BasicJiraClient.getInstance(), notifierId), DateUtils.calendar(comment.getCreated()), authorName);
+                        String patternName = PATTERN_NAMES.getOrDefault(commentsRegex, commentsRegex);
+                        return new KeyTime(patternName + "_" + ticket.getTicketKey() + " " + getByIDFullName((BasicJiraClient) BasicJiraClient.getInstance(), notifierId), DateUtils.calendar(comment.getCreated()), authorName);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
