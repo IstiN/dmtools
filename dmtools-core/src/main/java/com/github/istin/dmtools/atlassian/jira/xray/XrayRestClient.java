@@ -9,8 +9,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * REST client for X-ray Cloud API communication.
@@ -506,28 +504,22 @@ public class XrayRestClient extends AbstractRestClient {
     public JSONArray getTestsByJQLGraphQL(String jqlQuery, int limit, String after) throws IOException {
         JSONArray allResults = new JSONArray();
         int pageLimit = Math.min(100, Math.max(1, limit)); // Ensure limit is between 1 and 100
-        Set<String> fetchedKeys = new HashSet<>();
+        String lastKey = null; // Track last fetched key for cursor-based pagination
         int maxIterations = 1000; // Safety limit to prevent infinite loops
         int iteration = 0;
         
         while (iteration < maxIterations) {
             iteration++;
             
-            // Build JQL query excluding already fetched keys
+            // Build JQL query with cursor-based pagination using key > lastKey
             String currentJQL = jqlQuery;
-            if (!fetchedKeys.isEmpty()) {
-                // Add exclusion for already fetched keys (keys need to be quoted in JQL)
-                StringBuilder excludeKeysBuilder = new StringBuilder();
-                boolean first = true;
-                for (String key : fetchedKeys) {
-                    if (!first) {
-                        excludeKeysBuilder.append(", ");
-                    }
-                    excludeKeysBuilder.append("\"").append(key).append("\"");
-                    first = false;
-                }
-                currentJQL = jqlQuery + " AND key NOT IN (" + excludeKeysBuilder.toString() + ")";
+            if (lastKey != null) {
+                // Escape any quotes in the key value
+                String escapedKey = lastKey.replace("\"", "\\\"");
+                currentJQL = jqlQuery + " AND key > \"" + escapedKey + "\"";
             }
+            // Add ORDER BY key ASC to ensure consistent ordering and enable cursor pagination
+            currentJQL += " ORDER BY key ASC";
             
             JSONObject pageData = getTestsByJQLGraphQLWithPagination(currentJQL, pageLimit);
             if (pageData == null) {
@@ -538,25 +530,28 @@ public class XrayRestClient extends AbstractRestClient {
             JSONArray pageResults = null;
             if (pageData.has("results")) {
                 pageResults = pageData.getJSONArray("results");
-                int newResultsCount = 0;
+                
+                // Add all results to the collection
                 for (int i = 0; i < pageResults.length(); i++) {
-                    JSONObject result = pageResults.getJSONObject(i);
-                    if (result.has("jira")) {
-                        JSONObject jira = result.getJSONObject("jira");
+                    allResults.put(pageResults.getJSONObject(i));
+                }
+                
+                int fetchedCount = pageResults.length();
+                logger.debug("Fetched {} tests from Xray (total so far: {})", fetchedCount, allResults.length());
+                
+                // Extract last key from this batch for next iteration
+                if (fetchedCount > 0) {
+                    JSONObject lastResult = pageResults.getJSONObject(fetchedCount - 1);
+                    if (lastResult.has("jira")) {
+                        JSONObject jira = lastResult.getJSONObject("jira");
                         if (jira.has("key")) {
-                            String key = jira.getString("key");
-                            if (!fetchedKeys.contains(key)) {
-                                allResults.put(result);
-                                fetchedKeys.add(key);
-                                newResultsCount++;
-                            }
+                            lastKey = jira.getString("key");
                         }
                     }
                 }
-                logger.debug("Fetched {} new tests from Xray (total so far: {})", newResultsCount, allResults.length());
                 
-                // If we got fewer results than requested, or no new results, this is the last page
-                if (pageResults.length() < pageLimit || newResultsCount == 0) {
+                // If we got fewer results than requested, this is the last page
+                if (fetchedCount < pageLimit) {
                     break;
                 }
             } else {
