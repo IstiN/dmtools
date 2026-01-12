@@ -99,20 +99,16 @@ public class OAuth2ClientConfig {
             }
             
             try {
-                // Handle Apple special case - generate dynamic client secret
+                // Handle Apple special case - don't set client secret in registration
+                // Apple uses dynamic JWT client secret only during token exchange
                 String clientSecret = registration.getClientSecret();
                 ClientAuthenticationMethod authMethod = ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
 
                 if ("apple".equalsIgnoreCase(registrationId)) {
-                    try {
-                        clientSecret = appleSecretGenerator.generateClientSecret();
-                        authMethod = ClientAuthenticationMethod.CLIENT_SECRET_POST; // Apple requires POST
-                        logger.info("🍎 Generated dynamic client secret for Apple provider");
-                    } catch (Exception e) {
-                        logger.error("❌ Failed to generate Apple client secret: {}", e.getMessage());
-                        // Continue with static secret if dynamic generation fails
-                        clientSecret = registration.getClientSecret() != null ? registration.getClientSecret() : "";
-                    }
+                    // For Apple, don't set client_secret in registration - it will be generated dynamically during token exchange
+                    clientSecret = "";
+                    authMethod = ClientAuthenticationMethod.NONE; // Apple doesn't use client auth in authorization request
+                    logger.info("🍎 Apple provider configured without client secret (will be generated dynamically)");
                 } else if (clientSecret == null) {
                     clientSecret = "";
                 }
