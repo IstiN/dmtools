@@ -89,21 +89,31 @@ public class OAuthProxyService {
             throw new IllegalArgumentException("Unknown OAuth provider: " + provider);
         }
         logger.info("✅ OAUTH SERVICE - Found client registration for provider: {}", provider);
-        logger.info("📋 OAUTH SERVICE - Registration details: clientId={}, redirectUri={}", 
+        logger.info("📋 OAUTH SERVICE - Registration details: clientId={}, redirectUri={}",
                    registration.getClientId().substring(0, 10) + "...", registration.getRedirectUri());
 
         // Keep using the original Spring Security redirect URI (already registered with OAuth providers)
         logger.info("🔧 OAUTH SERVICE - Building authorization URL with state: {}", state);
-        String authUrl = UriComponentsBuilder
+        UriComponentsBuilder builder = UriComponentsBuilder
             .fromUriString(registration.getProviderDetails().getAuthorizationUri().toString())
             .queryParam("client_id", registration.getClientId())
             .queryParam("redirect_uri", registration.getRedirectUri())
             .queryParam("scope", String.join(" ", registration.getScopes()))
             .queryParam("response_type", "code")
-            .queryParam("state", state)
-            .build()
-            .toUriString();
-            
+            .queryParam("state", state);
+
+        // Apple requires response_mode=form_post when name or email scopes are requested
+        if ("apple".equalsIgnoreCase(provider)) {
+            boolean hasNameOrEmailScope = registration.getScopes().stream()
+                .anyMatch(scope -> "name".equals(scope) || "email".equals(scope));
+            if (hasNameOrEmailScope) {
+                builder.queryParam("response_mode", "form_post");
+                logger.info("🍎 OAUTH SERVICE - Added response_mode=form_post for Apple with name/email scopes");
+            }
+        }
+
+        String authUrl = builder.build().toUriString();
+
         logger.info("✅ OAUTH SERVICE - Built provider auth URL for {}: {}", provider, authUrl.replaceAll("client_id=[^&]*", "client_id=***"));
         return authUrl;
     }
