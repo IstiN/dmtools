@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
@@ -73,6 +72,8 @@ public class CustomOidcUserService extends OidcUserService {
                     email = (String) attributes.get("preferred_username");
                 }
                 return email;
+            case "apple":
+                return (String) attributes.get("email");
             default:
                 return (String) attributes.get("email");
         }
@@ -90,6 +91,8 @@ public class CustomOidcUserService extends OidcUserService {
                     name = (String) attributes.get("displayName");
                 }
                 return name;
+            case "apple":
+                return (String) attributes.get("name"); // Apple may provide name on first login only
             default:
                 return (String) attributes.get("name");
         }
@@ -107,6 +110,8 @@ public class CustomOidcUserService extends OidcUserService {
                     givenName = (String) attributes.get("givenName");
                 }
                 return givenName;
+            case "apple":
+                return (String) attributes.get("given_name"); // Apple may provide on first login only
             default:
                 return (String) attributes.get("given_name");
         }
@@ -124,6 +129,8 @@ public class CustomOidcUserService extends OidcUserService {
                     familyName = (String) attributes.get("surname");
                 }
                 return familyName;
+            case "apple":
+                return (String) attributes.get("family_name"); // Apple may provide on first login only
             default:
                 return (String) attributes.get("family_name");
         }
@@ -136,6 +143,8 @@ public class CustomOidcUserService extends OidcUserService {
                 return (String) attributes.get("picture");
             case "microsoft":
                 return (String) attributes.get("picture");
+            case "apple":
+                return null; // Apple does not provide profile pictures
             default:
                 return (String) attributes.get("picture");
         }
@@ -148,6 +157,8 @@ public class CustomOidcUserService extends OidcUserService {
                 return (String) attributes.get("locale");
             case "microsoft":
                 return (String) attributes.get("preferredLanguage");
+            case "apple":
+                return null; // Apple does not provide locale information
             default:
                 return (String) attributes.get("locale");
         }
@@ -168,6 +179,8 @@ public class CustomOidcUserService extends OidcUserService {
                     providerId = (String) attributes.get("id");
                 }
                 return providerId;
+            case "apple":
+                return (String) attributes.get("sub"); // Apple uses 'sub' as the stable user identifier
             default:
                 return (String) attributes.get("id");
         }

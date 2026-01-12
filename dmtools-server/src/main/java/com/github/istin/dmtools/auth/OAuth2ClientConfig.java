@@ -35,13 +35,17 @@ public class OAuth2ClientConfig {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(OAuth2ClientConfig.class);
-    
+
     private final AuthConfigProperties authConfigProperties;
     private final OAuth2ClientProperties oAuth2ClientProperties;
+    private final AppleSecretGenerator appleSecretGenerator;
     
-    public OAuth2ClientConfig(AuthConfigProperties authConfigProperties, @Autowired(required = false) OAuth2ClientProperties oAuth2ClientProperties) {
+    public OAuth2ClientConfig(AuthConfigProperties authConfigProperties,
+                             @Autowired(required = false) OAuth2ClientProperties oAuth2ClientProperties,
+                             AppleSecretGenerator appleSecretGenerator) {
         this.authConfigProperties = authConfigProperties;
         this.oAuth2ClientProperties = oAuth2ClientProperties;
+        this.appleSecretGenerator = appleSecretGenerator;
     }
 
     @Bean
@@ -95,10 +99,28 @@ public class OAuth2ClientConfig {
             }
             
             try {
+                // Handle Apple special case - generate dynamic client secret
+                String clientSecret = registration.getClientSecret();
+                ClientAuthenticationMethod authMethod = ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
+
+                if ("apple".equalsIgnoreCase(registrationId)) {
+                    try {
+                        clientSecret = appleSecretGenerator.generateClientSecret();
+                        authMethod = ClientAuthenticationMethod.CLIENT_SECRET_POST; // Apple requires POST
+                        logger.info("🍎 Generated dynamic client secret for Apple provider");
+                    } catch (Exception e) {
+                        logger.error("❌ Failed to generate Apple client secret: {}", e.getMessage());
+                        // Continue with static secret if dynamic generation fails
+                        clientSecret = registration.getClientSecret() != null ? registration.getClientSecret() : "";
+                    }
+                } else if (clientSecret == null) {
+                    clientSecret = "";
+                }
+
                 ClientRegistration.Builder builder = ClientRegistration.withRegistrationId(registrationId)
                         .clientId(registration.getClientId())
-                        .clientSecret(registration.getClientSecret() != null ? registration.getClientSecret() : "")
-                        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                        .clientSecret(clientSecret)
+                        .clientAuthenticationMethod(authMethod)
                         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                         .redirectUri(registration.getRedirectUri() != null ? registration.getRedirectUri() : "http://localhost:8080/login/oauth2/code/" + registrationId);
                 
@@ -154,6 +176,12 @@ public class OAuth2ClientConfig {
                        .userInfoUri("https://graph.microsoft.com/v1.0/me")
                        .userNameAttributeName("id")
                        .jwkSetUri("https://login.microsoftonline.com/common/discovery/v2.0/keys");
+                break;
+            case "apple":
+                builder.authorizationUri("https://appleid.apple.com/auth/authorize")
+                       .tokenUri("https://appleid.apple.com/auth/token")
+                       .jwkSetUri("https://appleid.apple.com/auth/keys")
+                       .userNameAttributeName(IdTokenClaimNames.SUB);
                 break;
             default:
                 logger.warn("⚠️ Unknown OAuth2 provider '{}' - using generic settings", registrationId);
