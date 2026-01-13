@@ -154,6 +154,7 @@ jobs:
           APPLE_TEAM_ID: "YP9HC3USZ3"
           APPLE_KEY_ID: "3HS4CZPDXB"
           APPLE_CLIENT_ID: "cloud.ainative.web"
+          APPLE_BUNDLE_ID: "cloud.ainative.learnai"
           APPLE_PRIVATE_KEY_CONTENT: "${{ secrets.APPLE_PRIVATE_KEY }}"
           SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID: "431977789017-sosq5gjk1itkc99v8d5hvvku9ptl0m91.apps.googleusercontent.com"
           SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET: "${{ secrets.GOOGLE_CLIENT_SECRET }}"

@@ -36,6 +36,9 @@ public class AppleTokenVerifier {
     @Value("${apple.client-id:}")
     private String expectedClientId;
 
+    @Value("${apple.bundle-id:}")
+    private String expectedBundleId;
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -76,13 +79,13 @@ public class AppleTokenVerifier {
 
             // For native Apple Sign In, audience should be the Bundle ID
             // For web OAuth, audience should be the Service ID
-            // Accept both: cloud.ainative.learnai (Bundle ID) and cloud.ainative.web (Service ID)
-            boolean validAudience = "cloud.ainative.learnai".equals(tokenAudience) ||
-                                   "cloud.ainative.web".equals(tokenAudience);
+            // Accept both configured values
+            boolean validAudience = (expectedBundleId != null && expectedBundleId.equals(tokenAudience)) ||
+                                   (expectedClientId != null && expectedClientId.equals(tokenAudience));
 
             if (!validAudience) {
                 throw new JWTVerificationException("Invalid audience: " + tokenAudience +
-                    ". Expected: cloud.ainative.learnai or cloud.ainative.web");
+                    ". Expected: " + expectedBundleId + " or " + expectedClientId);
             }
 
             // Verify the JWT with the actual audience from token
