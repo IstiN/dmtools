@@ -68,10 +68,27 @@ public class AppleTokenVerifier {
             // Create algorithm for verification
             Algorithm algorithm = Algorithm.RSA256(publicKey);
 
-            // Verify the JWT
+            // Decode first to check the audience
+            DecodedJWT tempDecoded = JWT.decode(identityToken);
+            String tokenAudience = tempDecoded.getAudience().get(0); // Get first audience
+
+            logger.info("🎯 Apple token audience: {}", tokenAudience);
+
+            // For native Apple Sign In, audience should be the Bundle ID
+            // For web OAuth, audience should be the Service ID
+            // Accept both: cloud.ainative.learnai (Bundle ID) and cloud.ainative.web (Service ID)
+            boolean validAudience = "cloud.ainative.learnai".equals(tokenAudience) ||
+                                   "cloud.ainative.web".equals(tokenAudience);
+
+            if (!validAudience) {
+                throw new JWTVerificationException("Invalid audience: " + tokenAudience +
+                    ". Expected: cloud.ainative.learnai or cloud.ainative.web");
+            }
+
+            // Verify the JWT with the actual audience from token
             DecodedJWT verifiedJWT = JWT.require(algorithm)
                 .withIssuer("https://appleid.apple.com")
-                .withAudience(expectedClientId)
+                .withAudience(tokenAudience)
                 .build()
                 .verify(identityToken);
 
