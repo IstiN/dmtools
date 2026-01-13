@@ -90,8 +90,9 @@ public class AppleNativeAuthController {
 
             logger.info("🎯 Apple native authentication successful for user: {}", email);
 
-            // Return tokens
+            // Return tokens (include both "token" and "access_token" for compatibility)
             Map<String, Object> response = Map.of(
+                "token", accessToken, // For Flutter compatibility
                 "access_token", accessToken,
                 "refresh_token", refreshToken,
                 "token_type", "Bearer",
@@ -101,6 +102,9 @@ public class AppleNativeAuthController {
                 "email", email,
                 "is_private_email", appleUser.isPrivateEmail()
             );
+
+            logger.info("📤 Apple native auth response: access_token present={}, refresh_token present={}, user_id={}",
+                       accessToken != null, refreshToken != null, user.getId());
 
             return ResponseEntity.ok(response);
 
