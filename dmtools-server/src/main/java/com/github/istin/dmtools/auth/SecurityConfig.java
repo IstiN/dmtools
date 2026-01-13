@@ -96,6 +96,9 @@ public class SecurityConfig {
     @Autowired
     private AppleSecretGenerator appleSecretGenerator;
 
+    @Autowired
+    private AppleTokenVerifier appleTokenVerifier;
+
     public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
                          AuthDebugFilter authDebugFilter, 
                          JwtAuthenticationFilter jwtAuthenticationFilter, 
@@ -320,7 +323,7 @@ public class SecurityConfig {
                     logger.info("🔒 Local standalone mode enabled. Permitting /api/auth/local-login, /api/auth/refresh and /api/auth/config");
                     auth.requestMatchers(new AntPathRequestMatcher("/api/auth/local-login", "POST")).permitAll();
                     auth.requestMatchers(new AntPathRequestMatcher("/api/auth/refresh", "POST")).permitAll();
-                    auth.requestMatchers("/api/auth/config").permitAll();
+                    auth.requestMatchers("/api/auth/config", "/api/auth/apple-native").permitAll();
                     // Allow OAuth proxy endpoints (controller won't be present in standalone, so calls may 404, but not 403)
                     auth.requestMatchers("/api/oauth-proxy/**").permitAll();
                     // Block OAuth2 endpoints in standalone mode
@@ -343,7 +346,7 @@ public class SecurityConfig {
                 }
                 if (authConfigProperties.isLocalStandaloneMode()) {
                     auth
-                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
+                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config", "/api/auth/apple-native").permitAll()
                         .requestMatchers("/", "/index.html", "/test-*.html").permitAll()
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers("/*.js", "/*.css", "/assets/**", "/icons/**", "/favicon.ico", "/manifest.json", "/version.json").permitAll()
@@ -356,7 +359,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated();
                 } else {
                     auth
-                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
+                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config", "/api/auth/apple-native").permitAll()
                         .requestMatchers("/", "/index.html", "/test-*.html").permitAll()
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers("/*.js", "/*.css", "/assets/**", "/icons/**", "/favicon.ico", "/manifest.json", "/version.json").permitAll()
