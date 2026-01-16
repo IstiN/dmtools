@@ -33,6 +33,12 @@ CONFLUENCE_DEFAULT_SPACE=YOURSPACE
 # AI Provider (Gemini recommended)
 GEMINI_API_KEY=AIza...
 
+# Can be also defined for EPAM DIAL
+# DEFAULT_LLM=dial
+# DIAL_BATH_PATH=https://ai-proxy.lab.epam.com/
+# DIAL_API_KEY=xxxx
+# DIAL_MODEL=anthropic.claude-3-7-sonnet-20250219-v1:0
+
 # Optional: GitHub for source code operations
 GITHUB_TOKEN=ghp_...
 ```
@@ -53,12 +59,10 @@ dmtools confluence_content_by_title "Test Page"
 
 DMTools loads environment variables from multiple files in this order (first found wins):
 
-1. **`.env`** (current directory) - highest priority
-2. **`dmtools.env`** (current directory)
-3. **`dmtools-local.env`** (current directory) - for personal overrides
-4. **`.env`** (script directory)
-5. **`dmtools.env`** (script directory)
-6. **`dmtools-local.env`** (script directory) - lowest priority
+1. **`dmtools.env`** (current directory)
+2. **`dmtools-local.env`** (current directory) - for personal overrides
+3. **`dmtools.env`** (script directory)
+4. **`dmtools-local.env`** (script directory) - lowest priority
 
 **Tip:** Use `dmtools.env` for shared team configuration and `dmtools-local.env` for your personal overrides.
 
