@@ -113,13 +113,13 @@ public class DialAIClient extends AbstractRestClient implements AI {
         integration = "ai"
     )
     public String chat(@MCPParam(name = "message", description = "Text message to send to AI") String message) throws Exception {
-        return chat(model, message);
+        return chat(this.model, message);
     }
 
     @Override
-    public String chat(String model, String message, File imageFile) throws Exception {
-        if (model == null) {
-            model = this.model;
+    public String chat(String executionModel, String message, File imageFile) throws Exception {
+        if (executionModel == null) {
+            executionModel = this.model;
         }
         logger.info("-------- message to ai --------");
         logger.info(message);
@@ -151,11 +151,11 @@ public class DialAIClient extends AbstractRestClient implements AI {
                     .put("content", message));
         }
 
-        return performChatCompletion(model, messagesArray);
+        return performChatCompletion(executionModel, messagesArray);
     }
 
-    private String performChatCompletion(String model, JSONArray messagesArray) throws Exception {
-        String basePath = path("openai/deployments/" + model + "/chat/completions");
+    private String performChatCompletion(String executionModel, JSONArray messagesArray) throws Exception {
+        String basePath = path("openai/deployments/" + executionModel + "/chat/completions");
         String path = basePath;
         
         // Append api-version query parameter if configured
@@ -172,16 +172,16 @@ public class DialAIClient extends AbstractRestClient implements AI {
         logger.info(path);
         GenericRequest postRequest = new GenericRequest(this, path);
 
-        JSONObject jsonObject = buildParams(model, messagesArray);
+        JSONObject jsonObject = buildParams(executionModel, messagesArray);
         if (metadata != null) {
             jsonObject.put("metadata", new JSONObject(new Gson().toJson(metadata)));
         }
         postRequest.setBody(jsonObject.toString());
-        return RetryUtil.executeWithRetry(() -> processResponse(model, postRequest));
+        return RetryUtil.executeWithRetry(() -> processResponse(executionModel, postRequest));
     }
 
-    private static JSONObject buildParams(String model, JSONArray messagesArray) {
-        if (model.toLowerCase().contains("gpt-5")) {
+    private static JSONObject buildParams(String executionModel, JSONArray messagesArray) {
+        if (executionModel.toLowerCase().contains("gpt-5")) {
             return new JSONObject()
                 .put("max_completion_tokens", 65536)
                 .put("messages", messagesArray);
@@ -218,9 +218,9 @@ public class DialAIClient extends AbstractRestClient implements AI {
     }
 
     @Override
-    public String chat(String model, Message... messages) throws Exception {
-        if (model == null) {
-            model = this.model;
+    public String chat(String executionModel, Message... messages) throws Exception {
+        if (executionModel == null) {
+            executionModel = this.model;
         }
 
         // Normalize message roles to ensure compatibility with this AI provider
@@ -263,7 +263,7 @@ public class DialAIClient extends AbstractRestClient implements AI {
         }
         logger.info("-------- end chat ai with messages processing --------");
 
-        return performChatCompletion(model, messagesArray);
+        return performChatCompletion(executionModel, messagesArray);
     }
 
     @Override

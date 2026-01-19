@@ -47,6 +47,7 @@ public class TestCaseGeneratorAgent extends AbstractSimpleAgent<TestCaseGenerato
     @ToString
     @Data
     public static class TestCase implements ToText {
+        private String key;
         private String priority;
         private String summary;
         private String description;

@@ -58,7 +58,26 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     public static final String PARAM_FIELDS = "fields";
     public static final String PARAM_START_AT = "startAt";
     public static final String NEXT_PAGE_TOKEN = "nextPageToken";
-    
+
+    /**
+     * Resolves an array of field names, converting user-friendly names to custom field IDs where possible
+     * Supports mixing regular field names with user-friendly custom field names
+     *
+     * @param fields Array of field names (mix of user-friendly names and custom field IDs)
+     * @param projectKey The project key for field resolution context
+     * @return Array of resolved field names (preserves original names if resolution fails)
+     */
+    // Known system fields in Jira that should not be resolved to custom fields
+    private static final Set<String> SYSTEM_FIELDS = Set.of(
+            "summary", "description", "status", "assignee", "reporter", "creator",
+            "created", "updated", "resolution", "priority", "issuetype", "project",
+            "labels", "comment", "attachment", "worklog", "timetracking",
+            "aggregatetimeestimate", "aggregatetimespent", "aggregateprogress", "workratio",
+            "security", "issuerestriction", "thumbnail", "timespent", "timeestimate",
+            "duedate", "environment", "components", "versions", "fixversions",
+            "subtasks", "parent", "issuelinks", "watches", "votes"
+    );
+
     // Constants
     private static final int UNLIMITED_RESULTS = -1;
 
@@ -1061,7 +1080,11 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         log(fieldsJson.toString());
         // Copy all existing fields to the resolved fields object
         for (String fieldName : fieldsJson.keySet()) {
-            String customField = resolveFieldNameToCustomFieldId(projectKey, fieldName);
+            String customField = null;
+            if (!SYSTEM_FIELDS.contains(fieldName.toLowerCase())) {
+                customField = resolveFieldNameToCustomFieldId(projectKey, fieldName);
+            }
+
             if (customField == null) {
                 customField = fieldName;
             }
@@ -1648,24 +1671,6 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return null;
     }
     
-    /**
-     * Resolves an array of field names, converting user-friendly names to custom field IDs where possible
-     * Supports mixing regular field names with user-friendly custom field names
-     * 
-     * @param fields Array of field names (mix of user-friendly names and custom field IDs)
-     * @param projectKey The project key for field resolution context
-     * @return Array of resolved field names (preserves original names if resolution fails)
-     */
-    // Known system fields in Jira that should not be resolved to custom fields
-    private static final Set<String> SYSTEM_FIELDS = Set.of(
-        "summary", "description", "status", "assignee", "reporter", "creator",
-        "created", "updated", "resolution", "priority", "issuetype", "project",
-        "labels", "comment", "attachment", "worklog", "timetracking",
-        "aggregatetimeestimate", "aggregatetimespent", "aggregateprogress", "workratio",
-        "security", "issuerestriction", "thumbnail", "timespent", "timeestimate",
-        "duedate", "environment", "components", "versions", "fixversions",
-        "subtasks", "parent", "issuelinks", "watches", "votes"
-    );
 
     private List<String> resolveFieldNames(String[] fields, String projectKey) {
         if (fields == null || fields.length == 0) {

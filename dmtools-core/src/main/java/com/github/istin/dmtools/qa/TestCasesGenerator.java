@@ -314,7 +314,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                         }
                     }
                 }));
-
+                testCase.setKey(createdTestCase.getKey());
                 trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), newTestCaseRelationship);
             }
         }

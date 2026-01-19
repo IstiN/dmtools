@@ -181,7 +181,10 @@ public class TestCasesGeneratorTest {
         String expectedJsCode = "console.log('test');";
         TestCasesGeneratorParams params = new TestCasesGeneratorParams();
         params.setFindRelated(false);
+        params.setGenerateNew(true);
         params.setExamples(null);
+        params.setTestCasesPriorities("High,Medium,Low");
+        params.setModelTestCasesCreation("gpt-4");
         params.setOutputType(TrackerParams.OutputType.comment);
         params.setInitiator("qa@example.com");
         params.setPostJSAction("console.log('test')");
@@ -199,10 +202,12 @@ public class TestCasesGeneratorTest {
         // Generated test cases
         List<TestCaseGeneratorAgent.TestCase> generated = new ArrayList<>();
         generated.add(new TestCaseGeneratorAgent.TestCase("High", "Summary", "Description"));
+        when(testCaseGeneratorAgent.run(anyString(), any())).thenReturn(generated);
         when(testCaseGeneratorAgent.run(any())).thenReturn(generated);
 
         // Avoid real tracker interactions
         doNothing().when(trackerClient).postComment(anyString(), anyString());
+        when(trackerClient.getTestCases(any(), anyString())).thenReturn(Collections.emptyList());
 
         TestCasesGenerator.TestCasesResult result = testableGenerator.generateTestCases(
                 ticketContext,

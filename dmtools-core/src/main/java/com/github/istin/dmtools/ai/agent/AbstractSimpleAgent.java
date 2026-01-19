@@ -2,9 +2,11 @@ package com.github.istin.dmtools.ai.agent;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ChunkPreparation;
+import com.github.istin.dmtools.ai.params.JSONFixParams;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.prompt.PromptContext;
 import lombok.Getter;
+import org.json.JSONException;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -84,6 +86,7 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
 
 
         String response;
+        String prompt;
         if (!chunks.isEmpty()) {
             // Process chunks one by one
             StringBuilder chunkResponses = new StringBuilder();
@@ -118,10 +121,11 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
             chunkContext.set("totalChunks", chunks.size());
 
             String chunkPrompt = promptTemplateReader.read(promptName, chunkContext);
+            prompt = chunkPrompt;
             response = ai.chat(model, chunkPrompt);
         } else {
             context.set("chunkIndex", -1);
-            String prompt = promptTemplateReader.read(promptName, context);
+            prompt = promptTemplateReader.read(promptName, context);
             if (!files.isEmpty()) {
                 if (files.size() == 1) {
                     response = ai.chat(model, prompt, files.getFirst());
@@ -129,11 +133,19 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
                     response = ai.chat(model, prompt, files);
                 }
             } else {
-                response = ai.chat(prompt);
+                response = ai.chat(model, prompt);
             }
         }
 
-        return transformAIResponse(params, response);
+        try {
+            return transformAIResponse(params, response);
+        } catch (JSONException e) {
+            JSONFixParams jsonFixParams = new JSONFixParams();
+            jsonFixParams.setMalformedJson(response);
+            jsonFixParams.setErrorMessage(e.toString());
+            jsonFixParams.setExpectedSchema(prompt);
+            return transformAIResponse(params, new JSONFixAgent(ai, promptTemplateReader).run(jsonFixParams));
+        }
     }
     
     @Override
