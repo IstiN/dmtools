@@ -3,11 +3,14 @@ package com.github.istin.dmtools.ai.agent;
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.prompt.PromptContext;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -100,6 +103,12 @@ public abstract class BaseAgentTest<P, R, A extends AbstractSimpleAgent<P, R>> {
         when(mockAI.chat(any(), anyString())).thenReturn(mockResponse);
         when(mockAI.chat(any(), anyString(), any(java.io.File.class))).thenReturn(mockResponse);
         when(mockAI.chat(any(), anyString(), anyList())).thenReturn(mockResponse);
+        // Mock the actual method signature being called
+        when(mockAI.chat(any(), anyString(), any(JSONObject.class))).thenReturn(mockResponse);
+        when(mockAI.chat(anyString(), (JSONObject) any())).thenReturn(mockResponse);
+        when(mockAI.chat(any(), anyString(), any(java.io.File.class), (JSONObject) any())).thenReturn(mockResponse);
+        when(mockAI.chat(any(), anyString(), anyList(), (JSONObject) any())).thenReturn(mockResponse);
+
 
         // Act
         R result = agent.run(params);
@@ -112,7 +121,7 @@ public abstract class BaseAgentTest<P, R, A extends AbstractSimpleAgent<P, R>> {
         assertNotNull(capturedContext, "Prompt context should not be null");
 
         // Verify AI was called
-        verify(mockAI, atLeastOnce()).chat(anyString());
+        verify(mockAI, atLeastOnce()).chat(isNull(), anyString(), any(JSONObject.class));
 
         // Verify result
         assertNotNull(result, "Result should not be null");

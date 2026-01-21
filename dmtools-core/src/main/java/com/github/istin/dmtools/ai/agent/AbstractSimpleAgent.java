@@ -7,6 +7,7 @@ import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.prompt.PromptContext;
 import lombok.Getter;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -36,13 +37,16 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
 
     @Getter
     private final String promptName;
-    
+
+    private JSONObject agentContext;
+
     /**
      * Default constructor with prompt name
      * @param promptName The name of the prompt template to use
      */
     public AbstractSimpleAgent(String promptName) {
         this.promptName = promptName;
+        this.agentContext = new JSONObject().put(AI.AgentParams.AGENT_PROMPT, promptName);
     }
     
     @Override
@@ -108,7 +112,7 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
                 chunkContext.set("totalChunks", chunks.size());
                 
                 String chunkPrompt = promptTemplateReader.read(promptName, chunkContext);
-                String chunkResponse = ai.chat(model, chunkPrompt);
+                String chunkResponse = ai.chat(model, chunkPrompt, agentContext);
                 
                 if (i > 0) {
                     chunkResponses.append("\n\n");
@@ -122,18 +126,18 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
 
             String chunkPrompt = promptTemplateReader.read(promptName, chunkContext);
             prompt = chunkPrompt;
-            response = ai.chat(model, chunkPrompt);
+            response = ai.chat(model, chunkPrompt, agentContext);
         } else {
             context.set("chunkIndex", -1);
             prompt = promptTemplateReader.read(promptName, context);
             if (!files.isEmpty()) {
                 if (files.size() == 1) {
-                    response = ai.chat(model, prompt, files.getFirst());
+                    response = ai.chat(model, prompt, files.getFirst(), agentContext);
                 } else {
-                    response = ai.chat(model, prompt, files);
+                    response = ai.chat(model, prompt, files, agentContext);
                 }
             } else {
-                response = ai.chat(model, prompt);
+                response = ai.chat(model, prompt, agentContext);
             }
         }
 

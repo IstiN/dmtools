@@ -37,7 +37,7 @@ public class UserRequestToPresentationScriptParamsAgentTest {
     public void setUp() throws Exception {
         when(promptTemplateReader.read(anyString(), any())).thenReturn("mocked prompt");
         String mockJsonResponse = "{\"task\": \"some task\", \"jsFramework\": \"graaljs\", \"outputFormat\": \"function\", \"additionalRequirements\": \"none\"}";
-        when(ai.chat(anyString())).thenReturn(mockJsonResponse);
+        when(ai.chat(any(), anyString(), any(JSONObject.class))).thenReturn(mockJsonResponse);
     }
 
     @Test

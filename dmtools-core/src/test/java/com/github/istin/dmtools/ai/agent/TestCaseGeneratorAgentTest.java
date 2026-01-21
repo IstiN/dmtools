@@ -3,6 +3,7 @@ package com.github.istin.dmtools.ai.agent;
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.prompt.PromptContext;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -61,7 +62,7 @@ class TestCaseGeneratorAgentTest {
 
         when(mockPromptTemplateReader.read(eq("agents/test_case_generator"), any(PromptContext.class)))
             .thenReturn(renderedPrompt);
-        when(mockAI.chat(renderedPrompt))
+        when(mockAI.chat(any(), anyString(), any(JSONObject.class)))
             .thenReturn(mockAIResponse);
 
         // Act
@@ -75,7 +76,7 @@ class TestCaseGeneratorAgentTest {
         assertNotNull(capturedContext);
 
         // Verify AI was called with the rendered prompt
-        verify(mockAI).chat(renderedPrompt);
+        verify(mockAI).chat(any(), anyString(), any(JSONObject.class));
 
         // Verify result parsing
         assertNotNull(result);
@@ -100,7 +101,7 @@ class TestCaseGeneratorAgentTest {
 
         when(mockPromptTemplateReader.read(eq("agents/test_case_generator"), any(PromptContext.class)))
             .thenReturn(renderedPrompt);
-        when(mockAI.chat(renderedPrompt))
+        when(mockAI.chat(any(), anyString(), any(JSONObject.class)))
             .thenReturn(mockAIResponse);
 
         // Act
@@ -108,8 +109,8 @@ class TestCaseGeneratorAgentTest {
 
         // Assert - verify prompt template was rendered
         verify(mockPromptTemplateReader).read(eq("agents/test_case_generator"), any(PromptContext.class));
-        verify(mockAI).chat(renderedPrompt);
-        
+        verify(mockAI).chat(any(), anyString(), any(JSONObject.class));
+
         assertNotNull(result);
         assertTrue(result.isEmpty());
     }
@@ -247,7 +248,7 @@ class TestCaseGeneratorAgentTest {
 
         when(mockPromptTemplateReader.read(eq("agents/test_case_generator"), any(PromptContext.class)))
             .thenReturn(renderedPrompt);
-        when(mockAI.chat(renderedPrompt))
+        when(mockAI.chat(any(), anyString(), any(JSONObject.class)))
             .thenReturn(mockAIResponse);
 
         // Act
@@ -261,7 +262,7 @@ class TestCaseGeneratorAgentTest {
         assertNotNull(capturedContext);
 
         // Verify AI was called
-        verify(mockAI).chat(renderedPrompt);
+        verify(mockAI).chat(any(), anyString(), any(JSONObject.class));
 
         // Verify result
         assertNotNull(result);

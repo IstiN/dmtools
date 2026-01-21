@@ -2,10 +2,13 @@ package com.github.istin.dmtools.ai.agent;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -41,7 +44,8 @@ class MermaidDiagramGeneratorAgentTest {
 
         when(mockPromptTemplateReader.read(eq("agents/mermaid_diagram_generator"), any()))
                 .thenReturn(prompt);
-        when(mockAI.chat(eq(prompt))).thenReturn(expectedDiagram);
+        when(mockAI.chat(any(), anyString(), any(JSONObject.class)))
+                .thenReturn(expectedDiagram);
 
         MermaidDiagramGeneratorAgent.Params params = new MermaidDiagramGeneratorAgent.Params(content);
 
@@ -52,8 +56,9 @@ class MermaidDiagramGeneratorAgentTest {
         assertNotNull(result);
         assertEquals(expectedDiagram, result);
         verify(mockPromptTemplateReader).read(eq("agents/mermaid_diagram_generator"), any());
-        verify(mockAI).chat(eq(prompt));
+        verify(mockAI).chat(any(), anyString(), any(JSONObject.class));
     }
+
 
     @Test
     void testGetParamsClass() {

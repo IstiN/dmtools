@@ -69,7 +69,7 @@ public class DialAIClient extends AbstractRestClient implements AI {
     public DialAIClient(String basePath, String authorization, String model, String apiVersion, ConversationObserver conversationObserver) throws IOException {
         this(basePath, authorization, model, apiVersion, conversationObserver, LogManager.getLogger(DialAIClient.class));
     }
-    
+
     // NEW: Constructor with logger injection for server-managed mode
     public DialAIClient(String basePath, String authorization, String model, String apiVersion, ConversationObserver conversationObserver, Logger logger) throws IOException {
         super(basePath, authorization);
@@ -112,12 +112,18 @@ public class DialAIClient extends AbstractRestClient implements AI {
         description = "Send a text message to Dial AI and get response",
         integration = "ai"
     )
+
     public String chat(@MCPParam(name = "message", description = "Text message to send to AI") String message) throws Exception {
         return chat(this.model, message);
     }
 
     @Override
     public String chat(String executionModel, String message, File imageFile) throws Exception {
+        return chat(executionModel, message, imageFile, (JSONObject) null);
+    }
+
+    @Override
+    public String chat(String executionModel, String message, File imageFile, JSONObject agentContext) throws Exception {
         if (executionModel == null) {
             executionModel = this.model;
         }
@@ -151,10 +157,10 @@ public class DialAIClient extends AbstractRestClient implements AI {
                     .put("content", message));
         }
 
-        return performChatCompletion(executionModel, messagesArray);
+        return performChatCompletion(executionModel, messagesArray, agentContext);
     }
 
-    private String performChatCompletion(String executionModel, JSONArray messagesArray) throws Exception {
+    private String performChatCompletion(String executionModel, JSONArray messagesArray, JSONObject agentContext) throws Exception {
         String basePath = path("openai/deployments/" + executionModel + "/chat/completions");
         String path = basePath;
         
@@ -172,7 +178,7 @@ public class DialAIClient extends AbstractRestClient implements AI {
         logger.info(path);
         GenericRequest postRequest = new GenericRequest(this, path);
 
-        JSONObject jsonObject = buildParams(executionModel, messagesArray);
+        JSONObject jsonObject = buildParams(executionModel, messagesArray, agentContext);
         if (metadata != null) {
             jsonObject.put("metadata", new JSONObject(new Gson().toJson(metadata)));
         }
@@ -180,17 +186,26 @@ public class DialAIClient extends AbstractRestClient implements AI {
         return RetryUtil.executeWithRetry(() -> processResponse(executionModel, postRequest));
     }
 
-    private static JSONObject buildParams(String executionModel, JSONArray messagesArray) {
+    private JSONObject buildParams(String executionModel, JSONArray messagesArray, JSONObject agentContext) {
+        JSONObject jsonObjectParams = new JSONObject();
         if (executionModel.toLowerCase().contains("gpt-5")) {
-            return new JSONObject()
+            jsonObjectParams
                 .put("max_completion_tokens", 65536)
-                .put("messages", messagesArray);
+                    //.put("reasoning_effort", "none")
+            ;
         } else {
-            return new JSONObject()
+            jsonObjectParams
                     .put("temperature", 0.1)
                     .put("max_tokens", 65536)
-                    .put("messages", messagesArray);
+                    //.put("reasoning_effort", "none")
+                    ;
         }
+        AI.AgentParams.apply(jsonObjectParams, agentContext);
+        logger.info("-------- chat ai params --------");
+        logger.info(jsonObjectParams);
+        logger.info("-------- end chat ai params --------");
+        jsonObjectParams.put("messages", messagesArray);
+        return jsonObjectParams;
     }
 
     private String processResponse(String model, GenericRequest postRequest) throws IOException {
@@ -219,6 +234,11 @@ public class DialAIClient extends AbstractRestClient implements AI {
 
     @Override
     public String chat(String executionModel, Message... messages) throws Exception {
+        return chat(executionModel, null, messages);
+    }
+
+    @Override
+    public String chat(String executionModel, JSONObject agentContext, Message... messages) throws Exception {
         if (executionModel == null) {
             executionModel = this.model;
         }
@@ -263,21 +283,35 @@ public class DialAIClient extends AbstractRestClient implements AI {
         }
         logger.info("-------- end chat ai with messages processing --------");
 
-        return performChatCompletion(executionModel, messagesArray);
+        return performChatCompletion(executionModel, messagesArray, agentContext);
     }
 
     @Override
     public String chat(Message... messages) throws Exception {
-        return chat(this.model, messages);
+        return chat((JSONObject) null, messages);
+    }
+    @Override
+    public String chat(JSONObject agentContext, Message... messages) throws Exception {
+        return chat(this.model, agentContext, messages);
     }
 
     @Override
     public String chat(String model, String message, List<File> files) throws Exception {
-        return chat(model, message, files != null && !files.isEmpty() ? files.getFirst() : null);
+        return chat(model, message, files, (JSONObject) null);
     }
 
+    @Override
+    public String chat(String model, String message, List<File> files, JSONObject agentContext) throws Exception {
+        return chat(model, message, files != null && !files.isEmpty() ? files.getFirst() : null, agentContext);
+    }
+
+    @Override
     public String chat(String model, String message) throws Exception {
-        return chat(model, message, (File) null);
+        return chat(model, message, (JSONObject) null);
+    }
+    @Override
+    public String chat(String model, String message, JSONObject agentContext) throws Exception {
+        return chat(model, message, (File) null, agentContext);
     }
 
     @Override
