@@ -1,6 +1,9 @@
 #!/bin/bash
 # DMTools CLI Installation Script
-# Usage: curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash
+# Usage: 
+#   Latest version: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+#   Specific version: VERSION=v1.7.103 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.103/install.sh | bash
+#   Or as argument: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash -s v1.7.103
 # Requirements: Java 23 (will attempt automatic installation on macOS/Linux)
 
 set -e
@@ -62,6 +65,96 @@ detect_platform() {
     echo "${os}_${arch}"
 }
 
+# Detect version from script URL or parameters
+detect_version() {
+    local version=""
+    
+    # Method 1: Check for VERSION environment variable (highest priority)
+    if [ -n "${VERSION:-}" ]; then
+        version="$VERSION"
+        # Ensure version has 'v' prefix if it doesn't already
+        if [[ ! "$version" =~ ^v ]]; then
+            version="v${version}"
+        fi
+        echo "$version"
+        return 0
+    fi
+    
+    # Method 2: Check for command-line argument
+    if [ $# -gt 0 ] && [ -n "$1" ]; then
+        version="$1"
+        # Ensure version has 'v' prefix if it doesn't already
+        if [[ ! "$version" =~ ^v ]]; then
+            version="v${version}"
+        fi
+        echo "$version"
+        return 0
+    fi
+    
+    # Method 3: Try to detect from script filename (if saved as install-v1.7.103.sh)
+    if [ -f "${BASH_SOURCE[0]}" ]; then
+        local script_name
+        script_name=$(basename "${BASH_SOURCE[0]}")
+        local filename_version
+        filename_version=$(echo "$script_name" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        if [ -n "$filename_version" ]; then
+            echo "$filename_version"
+            return 0
+        fi
+    fi
+    
+    # Method 4: Try to detect from SCRIPT_URL environment variable (can be set before curl)
+    if [ -n "${SCRIPT_URL:-}" ]; then
+        local url_version
+        url_version=$(echo "$SCRIPT_URL" | grep -oE '/v[0-9]+\.[0-9]+\.[0-9]+/' | head -1 | sed 's/\///g')
+        if [ -n "$url_version" ]; then
+            echo "$url_version"
+            return 0
+        fi
+    fi
+    
+    # Method 5: Try to detect from parent process command line (when piped from curl)
+    # This checks the parent process (usually bash running the pipe) for curl commands
+    local parent_cmd
+    if command -v ps >/dev/null 2>&1; then
+        # Get parent process ID
+        local ppid=${PPID:-}
+        if [ -n "$ppid" ]; then
+            # Try to get the command line of parent process (works on Linux)
+            if parent_cmd=$(ps -p "$ppid" -o args= 2>/dev/null | head -1); then
+                # Extract version from curl URL in parent command
+                local detected_version
+                detected_version=$(echo "$parent_cmd" | grep -oE 'github\.com/[^/]+/[^/]+/(v[0-9]+\.[0-9]+\.[0-9]+)/' | head -1 | sed -E 's/.*\/(v[0-9]+\.[0-9]+\.[0-9]+)\/.*/\1/')
+                if [ -n "$detected_version" ]; then
+                    echo "$detected_version"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+    
+    # Method 6: Try to detect from script's own source (if script was saved to a file)
+    # This works when the script is downloaded and saved, then executed
+    if [ -f "${BASH_SOURCE[0]}" ]; then
+        local script_path="${BASH_SOURCE[0]}"
+        # Try to extract version from the script content if it contains a versioned URL
+        local script_content
+        script_content=$(cat "$script_path" 2>/dev/null || echo "")
+        if [ -n "$script_content" ]; then
+            # Look for versioned GitHub URL pattern in comments or usage
+            local detected_version
+            detected_version=$(echo "$script_content" | grep -oE 'github\.com/[^/]+/[^/]+/(v[0-9]+\.[0-9]+\.[0-9]+)/' | head -1 | sed -E 's/.*\/(v[0-9]+\.[0-9]+\.[0-9]+)\/.*/\1/')
+            if [ -n "$detected_version" ]; then
+                echo "$detected_version"
+                return 0
+            fi
+        fi
+    fi
+    
+    # No version detected, return empty to trigger fallback
+    return 1
+}
+
 # Get latest release version
 get_latest_version() {
     progress "Fetching latest release information..." >&2
@@ -117,21 +210,162 @@ If the issue persists, you can manually download from:
 https://github.com/${REPO}/releases/latest"
 }
 
-# Download file with progress
+# Get version to install (detects from various sources or falls back to latest)
+get_version() {
+    local version
+    
+    # Try to detect version from various sources
+    if version=$(detect_version "$@"); then
+        if [ -n "$version" ]; then
+            echo "$version"
+            return 0
+        fi
+    fi
+    
+    # Fall back to latest version
+    get_latest_version
+}
+
+# Validate downloaded file is not HTML (404 error page) and is valid
+validate_not_html() {
+    local file="$1"
+    local desc="$2"
+    local require_shell="${3:-false}"
+    
+    # Check if file exists and is readable
+    if [ ! -f "$file" ] || [ ! -r "$file" ]; then
+        return 1
+    fi
+    
+    # Check if file is empty
+    if [ ! -s "$file" ]; then
+        return 1
+    fi
+    
+    # Get first line for validation
+    local first_line
+    first_line=$(head -n 1 "$file" 2>/dev/null || echo "")
+    
+    # Check if file starts with HTML doctype or common HTML tags
+    if echo "$first_line" | grep -qiE "<!DOCTYPE|<html|<body"; then
+        return 1
+    fi
+    
+    # If shell script is required, check for shebang
+    if [ "$require_shell" = "true" ]; then
+        if ! echo "$first_line" | grep -qE "^#!/bin/(bash|sh)"; then
+            # Also check for common error messages that might be returned
+            if echo "$first_line" | grep -qiE "not found|404|error|page not found"; then
+                return 1
+            fi
+            # Check if file contains shell script indicators
+            if ! head -n 5 "$file" 2>/dev/null | grep -qE "^#!/|^#.*bash|^#.*sh|set -|function |\(\)"; then
+                return 1
+            fi
+        fi
+    fi
+    
+    return 0
+}
+
+# Download file with progress and validation
 download_file() {
     local url="$1"
     local output="$2"
     local desc="$3"
+    local validate="${4:-true}"
+    local max_retries=3
+    local retry_count=0
     
     progress "Downloading $desc..."
     
-    if command -v curl >/dev/null 2>&1; then
-        curl -L --progress-bar "$url" -o "$output" || error "Failed to download $desc"
-    elif command -v wget >/dev/null 2>&1; then
-        wget --progress=bar "$url" -O "$output" || error "Failed to download $desc"
-    else
-        error "Neither curl nor wget is available. Please install one of them."
+    while [ $retry_count -lt $max_retries ]; do
+        local http_code=0
+        local download_success=false
+        
+        if command -v curl >/dev/null 2>&1; then
+            # Use curl with better error handling
+            # First get HTTP status code
+            http_code=$(curl -L -s -o /dev/null -w "%{http_code}" --max-time 30 "$url" 2>/dev/null || echo "000")
+            
+            # Validate http_code is numeric
+            if ! echo "$http_code" | grep -qE '^[0-9]+$'; then
+                http_code="000"
+            fi
+            
+            # Check HTTP status code
+            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 400 ] 2>/dev/null; then
+                # HTTP status is OK, proceed with download
+                if curl -L --progress-bar --max-time 60 --fail "$url" -o "$output" 2>/dev/null; then
+                    download_success=true
+                else
+                    warn "Download failed despite OK HTTP status. Retrying..."
+                fi
+            else
+                # Handle HTTP error codes
+                if [ "$http_code" -ge 500 ] 2>/dev/null; then
+                    warn "Server error ($http_code) when downloading $desc. Retrying..."
+                elif [ "$http_code" -eq 404 ] 2>/dev/null; then
+                    warn "File not found (404) when downloading $desc."
+                    rm -f "$output"
+                    return 1
+                elif [ "$http_code" = "000" ] || [ -z "$http_code" ]; then
+                    warn "Network error or timeout when downloading $desc. Retrying..."
+                else
+                    warn "HTTP error ($http_code) when downloading $desc. Retrying..."
+                fi
+            fi
+        elif command -v wget >/dev/null 2>&1; then
+            # Use wget with better error handling
+            if wget --progress=bar --tries=1 --timeout=30 "$url" -O "$output" 2>&1; then
+                download_success=true
+            else
+                warn "Download failed. Retrying..."
+            fi
+        else
+            error "Neither curl nor wget is available. Please install one of them."
+        fi
+        
+        if [ "$download_success" = true ]; then
+            break
+        fi
+        
+        retry_count=$((retry_count + 1))
+        if [ $retry_count -lt $max_retries ]; then
+            local wait_time=$((retry_count * 2))
+            warn "Waiting ${wait_time}s before retry ($retry_count/$max_retries)..."
+            sleep $wait_time
+        fi
+    done
+    
+    # Check if download was successful
+    if [ ! -f "$output" ] || [ ! -s "$output" ]; then
+        error "Failed to download $desc from $url after $max_retries attempts.
+        
+Possible causes:
+  - Network connectivity issues
+  - GitHub service temporarily unavailable (503 error)
+  - File not found in release (404 error)
+  
+Please try again later or check: https://github.com/${REPO}/releases/latest"
     fi
+    
+    # Validate the downloaded file if requested
+    if [ "$validate" = "true" ]; then
+        local require_shell="false"
+        # Check if this is a shell script download
+        if [[ "$desc" == *"shell script"* ]] || [[ "$url" == *.sh ]]; then
+            require_shell="true"
+        fi
+        
+        if ! validate_not_html "$output" "$desc" "$require_shell"; then
+            warn "Downloaded file appears to be invalid (HTML error page or not a valid shell script). Removing invalid file."
+            rm -f "$output"
+            return 1
+        fi
+    fi
+    
+    return 0
 }
 
 # Create installation directory
@@ -246,6 +480,58 @@ steps:
     fi
 }
 
+# Get asset download URL from GitHub API (more reliable than redirect URLs)
+get_asset_url_from_api() {
+    local version="$1"
+    local asset_name="$2"
+    
+    # Ensure version has 'v' prefix for API call
+    local tag_for_api="$version"
+    if [[ ! "$tag_for_api" =~ ^v ]]; then
+        tag_for_api="v${version}"
+    fi
+    
+    local api_url="https://api.github.com/repos/${REPO}/releases/tags/${tag_for_api}"
+    
+    progress "Getting asset URL from GitHub API..." >&2
+    
+    local release_info
+    release_info=$(curl -s --connect-timeout 10 --max-time 30 "$api_url" 2>/dev/null)
+    
+    if [ -n "$release_info" ] && ! echo "$release_info" | grep -q '"message":"Not Found"'; then
+        # Extract browser_download_url for the asset (works without jq)
+        local download_url
+        download_url=$(echo "$release_info" | grep -o "\"browser_download_url\":\"[^\"]*${asset_name}[^\"]*\"" | head -1 | sed 's/.*"browser_download_url":"\([^"]*\)".*/\1/')
+        
+        if [ -n "$download_url" ] && [ "$download_url" != "null" ]; then
+            echo "$download_url"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+# Download dmtools.sh from repository if release asset is missing
+download_script_from_repo() {
+    local version="$1"
+    local script_url="https://raw.githubusercontent.com/${REPO}/main/dmtools.sh"
+    
+    progress "dmtools.sh not found in release assets, downloading from repository..."
+    
+    if download_file "$script_url" "$SCRIPT_PATH" "DMTools shell script (from repository)" "true"; then
+        # Validate it's actually a shell script
+        if ! head -n 1 "$SCRIPT_PATH" 2>/dev/null | grep -q "^#!/bin/bash"; then
+            warn "Downloaded file doesn't appear to be a valid shell script. Trying alternative source..."
+            rm -f "$SCRIPT_PATH"
+            return 1
+        fi
+        return 0
+    fi
+    
+    return 1
+}
+
 # Download DMTools JAR and script
 download_dmtools() {
     local version="$1"
@@ -255,11 +541,48 @@ download_dmtools() {
     # Download JAR
     download_file "$jar_url" "$JAR_PATH" "DMTools JAR"
     
-    # Download shell script
-    download_file "$script_url" "$SCRIPT_PATH" "DMTools shell script"
+    # Download shell script - try multiple methods
+    # Method 1: Try redirect-based URL (standard GitHub release URL)
+    if download_file "$script_url" "$SCRIPT_PATH" "DMTools shell script" "true"; then
+        # Success with redirect URL
+        chmod +x "$SCRIPT_PATH"
+        return 0
+    fi
     
-    # Make script executable
-    chmod +x "$SCRIPT_PATH"
+    # Method 2: Try GitHub API to get direct asset URL (avoids expired blob URLs)
+    warn "Redirect-based download failed, trying GitHub API for direct asset URL..."
+    local api_asset_url
+    api_asset_url=$(get_asset_url_from_api "$version" "dmtools.sh")
+    
+    if [ -n "$api_asset_url" ]; then
+        if download_file "$api_asset_url" "$SCRIPT_PATH" "DMTools shell script (from API)" "true"; then
+            chmod +x "$SCRIPT_PATH"
+            return 0
+        fi
+    fi
+    
+    # Method 3: Fallback to repository main branch
+    warn "Release asset download failed, trying repository main branch..."
+    if download_script_from_repo "$version"; then
+        chmod +x "$SCRIPT_PATH"
+        return 0
+    fi
+    
+    # All methods failed
+    error "Failed to download dmtools.sh from all available sources:
+  1. GitHub release redirect URL: $script_url
+  2. GitHub API asset URL: ${api_asset_url:-'(not available)'}
+  3. Repository main branch: https://raw.githubusercontent.com/${REPO}/main/dmtools.sh
+  
+Possible causes:
+  - Network connectivity issues
+  - GitHub service temporarily unavailable (503 error)
+  - File not found in release (404 error)
+  
+Please try again later or download manually from:
+  https://raw.githubusercontent.com/${REPO}/main/dmtools.sh
+  
+And place it at: $SCRIPT_PATH"
 }
 
 # Update shell configuration
@@ -351,10 +674,33 @@ main() {
     # Check prerequisites
     check_java
     
-    # Get latest version
+    # Get version to install (detects from URL/args/env or falls back to latest)
     local version
-    version=$(get_latest_version)
-    info "Latest version: $version"
+    local version_source="latest"
+    
+    # Check if version was explicitly provided
+    if [ -n "${VERSION:-}" ] || [ $# -gt 0 ]; then
+        version=$(get_version "$@")
+        version_source="specified"
+    else
+        # Try to detect from script source first
+        if version=$(detect_version "$@"); then
+            if [ -n "$version" ]; then
+                version_source="detected from URL"
+            else
+                version=$(get_latest_version)
+            fi
+        else
+            version=$(get_latest_version)
+        fi
+    fi
+    
+    # Display appropriate message based on version source
+    if [ "$version_source" = "specified" ] || [ "$version_source" = "detected from URL" ]; then
+        info "Installing version: $version"
+    else
+        info "Latest version: $version"
+    fi
     
     # Create directories
     create_install_dir

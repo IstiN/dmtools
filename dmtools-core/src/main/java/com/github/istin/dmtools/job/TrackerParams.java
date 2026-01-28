@@ -15,12 +15,16 @@ public class TrackerParams {
 
     public static final String INPUT_JQL = "inputJql";
     public static final String INITIATOR = "initiator";
+    public static final String TARGET_PROJECT = "targetProject";
 
     @SerializedName(INPUT_JQL)
     private String inputJql;
 
     @SerializedName(INITIATOR)
     private String initiator;
+
+    @SerializedName(TARGET_PROJECT)
+    private String targetProject;
 
     public static final String METADATA = "metadata";
     public static final String OPERATION_TYPE = "operationType";
@@ -58,6 +62,20 @@ public class TrackerParams {
 
     @SerializedName(OUTPUT_TYPE)
     private OutputType outputType = OutputType.comment;
+
+    /**
+     * Sets the output type.
+     */
+    public void setOutputType(OutputType outputType) {
+        this.outputType = outputType;
+    }
+
+    /**
+     * Gets the output type.
+     */
+    public OutputType getOutputType() {
+        return outputType;
+    }
 
     @SerializedName(OPERATION_TYPE)
     private OperationType operationType = OperationType.Append;

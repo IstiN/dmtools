@@ -22,11 +22,23 @@ public class TestCasesGeneratorParams extends Params {
     public static final String IS_OVERRIDE_PROMPT_EXAMPLES = "isOverridePromptExamples";
     public static final String IS_FIND_RELATED = "isFindRelated";
     public static final String IS_LINK_RELATED = "isLinkRelated";
+    public static final String IS_GENERATE_NEW = "isGenerateNew";
     public static final String EXAMPLES = "examples";
     public static final String TEST_CASE_LINK_RELATIONSHIP = "testCaseLinkRelationship";
     public static final String INCLUDE_OTHER_TICKET_REFERENCES = "includeOtherTicketReferences";
     public static final String TEST_CASE_LINK_RELATIONSHIP_FOR_NEW = "testCaseLinkRelationshipForNew";
     public static final String TEST_CASE_LINK_RELATIONSHIP_FOR_EXISTING = "testCaseLinkRelationshipForExisting";
+    public static final String TEST_CASES_CUSTOM_FIELDS = "testCasesCustomFields";
+    public static final String CUSTOM_FIELDS_RULES = "customFieldsRules";
+    public static final String PREPROCESS_JS_ACTION = "preprocessJSAction";
+    public static final String MODEL_TEST_CASES_CREATION = "modelTestCasesCreation";
+    public static final String MODEL_TEST_CASES_RELATION = "modelTestCasesRelation";
+    public static final String MODEL_TEST_CASE_RELATION = "modelTestCaseRelation";
+    public static final String MODEL_TEST_CASES_DEDUPLICATION = "modelTestCaseDeduplication";
+    public static final String ENABLE_PARALLEL_TEST_CASE_CHECK = "enableParallelTestCaseCheck";
+    public static final String PARALLEL_TEST_CASE_CHECK_THREADS = "parallelTestCaseCheckThreads";
+    public static final String ENABLE_PARALLEL_POST_VERIFICATION = "enableParallelPostVerification";
+    public static final String PARALLEL_POST_VERIFICATION_THREADS = "parallelPostVerificationThreads";
 
     @SerializedName(EXISTING_TEST_CASES_JQL)
     private String existingTestCasesJql;
@@ -46,6 +58,8 @@ public class TestCasesGeneratorParams extends Params {
     private boolean isFindRelated = true;
     @SerializedName(IS_LINK_RELATED)
     private boolean isLinkRelated = true;
+    @SerializedName(IS_GENERATE_NEW)
+    private boolean isGenerateNew = true;
     @SerializedName(IS_OVERRIDE_PROMPT_EXAMPLES)
     private boolean isOverridePromptExamples = false;
     @SerializedName(TEST_CASE_LINK_RELATIONSHIP)
@@ -54,5 +68,29 @@ public class TestCasesGeneratorParams extends Params {
     private String testCaseLinkRelationshipForNew;
     @SerializedName(TEST_CASE_LINK_RELATIONSHIP_FOR_EXISTING)
     private String testCaseLinkRelationshipForExisting;
+    @SerializedName(TEST_CASES_CUSTOM_FIELDS)
+    private String[] testCasesCustomFields;
+    @SerializedName(CUSTOM_FIELDS_RULES)
+    private String customFieldsRules;
+    @SerializedName(PREPROCESS_JS_ACTION)
+    private String preprocessJSAction;
 
+    @SerializedName(MODEL_TEST_CASES_CREATION)
+    private String modelTestCasesCreation;
+    @SerializedName(MODEL_TEST_CASES_RELATION)
+    private String modelTestCasesRelation;
+    @SerializedName(MODEL_TEST_CASE_RELATION)
+    private String modelTestCaseRelation;
+    @SerializedName(MODEL_TEST_CASES_DEDUPLICATION)
+    private String modelTestCaseDeduplication;
+
+    @SerializedName(ENABLE_PARALLEL_TEST_CASE_CHECK)
+    private boolean enableParallelTestCaseCheck = false;
+    @SerializedName(PARALLEL_TEST_CASE_CHECK_THREADS)
+    private int parallelTestCaseCheckThreads = 5;
+
+    @SerializedName(ENABLE_PARALLEL_POST_VERIFICATION)
+    private boolean enableParallelPostVerification = false;
+    @SerializedName(PARALLEL_POST_VERIFICATION_THREADS)
+    private int parallelPostVerificationThreads = 3;
 }

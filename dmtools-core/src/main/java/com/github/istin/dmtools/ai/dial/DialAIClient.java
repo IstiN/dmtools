@@ -15,6 +15,7 @@ import com.github.istin.dmtools.ai.dial.model.model.Choice;
 import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.Setter;
+import okhttp3.HttpUrl;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,6 +40,9 @@ public class DialAIClient extends AbstractRestClient implements AI {
     @Getter
     private final String model;
 
+    @Getter
+    private final String apiVersion;
+
     @Setter
     private Metadata metadata;
 
@@ -48,18 +52,29 @@ public class DialAIClient extends AbstractRestClient implements AI {
 
     // Default constructor - backward compatibility
     public DialAIClient(String basePath, String authorization, String model) throws IOException {
-        this(basePath, authorization, model, null);
+        this(basePath, authorization, model, null, null);
     }
 
     // Default constructor with observer - backward compatibility
     public DialAIClient(String basePath, String authorization, String model, ConversationObserver conversationObserver) throws IOException {
-        this(basePath, authorization, model, conversationObserver, LogManager.getLogger(DialAIClient.class));
+        this(basePath, authorization, model, null, conversationObserver, LogManager.getLogger(DialAIClient.class));
     }
     
+    // Constructor with apiVersion - backward compatibility
+    public DialAIClient(String basePath, String authorization, String model, String apiVersion) throws IOException {
+        this(basePath, authorization, model, apiVersion, null, LogManager.getLogger(DialAIClient.class));
+    }
+    
+    // Constructor with apiVersion and observer
+    public DialAIClient(String basePath, String authorization, String model, String apiVersion, ConversationObserver conversationObserver) throws IOException {
+        this(basePath, authorization, model, apiVersion, conversationObserver, LogManager.getLogger(DialAIClient.class));
+    }
+
     // NEW: Constructor with logger injection for server-managed mode
-    public DialAIClient(String basePath, String authorization, String model, ConversationObserver conversationObserver, Logger logger) throws IOException {
+    public DialAIClient(String basePath, String authorization, String model, String apiVersion, ConversationObserver conversationObserver, Logger logger) throws IOException {
         super(basePath, authorization);
         this.model = model;
+        this.apiVersion = apiVersion;
         this.conversationObserver = conversationObserver;
         this.logger = logger != null ? logger : LogManager.getLogger(DialAIClient.class);
         setCachePostRequestsEnabled(true);
@@ -97,14 +112,20 @@ public class DialAIClient extends AbstractRestClient implements AI {
         description = "Send a text message to Dial AI and get response",
         integration = "ai"
     )
+
     public String chat(@MCPParam(name = "message", description = "Text message to send to AI") String message) throws Exception {
-        return chat(model, message);
+        return chat(this.model, message);
     }
 
     @Override
-    public String chat(String model, String message, File imageFile) throws Exception {
-        if (model == null) {
-            model = this.model;
+    public String chat(String executionModel, String message, File imageFile) throws Exception {
+        return chat(executionModel, message, imageFile, (JSONObject) null);
+    }
+
+    @Override
+    public String chat(String executionModel, String message, File imageFile, JSONObject agentContext) throws Exception {
+        if (executionModel == null) {
+            executionModel = this.model;
         }
         logger.info("-------- message to ai --------");
         logger.info(message);
@@ -136,33 +157,55 @@ public class DialAIClient extends AbstractRestClient implements AI {
                     .put("content", message));
         }
 
-        return performChatCompletion(model, messagesArray);
+        return performChatCompletion(executionModel, messagesArray, agentContext);
     }
 
-    private String performChatCompletion(String model, JSONArray messagesArray) throws Exception {
-        String path = path("openai/deployments/" + model + "/chat/completions");
+    private String performChatCompletion(String executionModel, JSONArray messagesArray, JSONObject agentContext) throws Exception {
+        String basePath = path("openai/deployments/" + executionModel + "/chat/completions");
+        String path = basePath;
+        
+        // Append api-version query parameter if configured
+        if (apiVersion != null && !apiVersion.trim().isEmpty()) {
+            HttpUrl httpUrl = HttpUrl.parse(basePath);
+            if (httpUrl != null) {
+                HttpUrl urlWithApiVersion = httpUrl.newBuilder()
+                        .addQueryParameter("api-version", apiVersion)
+                        .build();
+                path = urlWithApiVersion.toString();
+            }
+        }
+        
         logger.info(path);
         GenericRequest postRequest = new GenericRequest(this, path);
 
-        JSONObject jsonObject = buildParams(model, messagesArray);
+        JSONObject jsonObject = buildParams(executionModel, messagesArray, agentContext);
         if (metadata != null) {
             jsonObject.put("metadata", new JSONObject(new Gson().toJson(metadata)));
         }
         postRequest.setBody(jsonObject.toString());
-        return RetryUtil.executeWithRetry(() -> processResponse(model, postRequest));
+        return RetryUtil.executeWithRetry(() -> processResponse(executionModel, postRequest));
     }
 
-    private static JSONObject buildParams(String model, JSONArray messagesArray) {
-        if (model.toLowerCase().contains("gpt-5")) {
-            return new JSONObject()
+    private JSONObject buildParams(String executionModel, JSONArray messagesArray, JSONObject agentContext) {
+        JSONObject jsonObjectParams = new JSONObject();
+        if (executionModel.toLowerCase().contains("gpt-5")) {
+            jsonObjectParams
                 .put("max_completion_tokens", 65536)
-                .put("messages", messagesArray);
+                    //.put("reasoning_effort", "none")
+            ;
         } else {
-            return new JSONObject()
+            jsonObjectParams
                     .put("temperature", 0.1)
                     .put("max_tokens", 65536)
-                    .put("messages", messagesArray);
+                    //.put("reasoning_effort", "none")
+                    ;
         }
+        AI.AgentParams.apply(jsonObjectParams, agentContext);
+        logger.info("-------- chat ai params --------");
+        logger.info(jsonObjectParams);
+        logger.info("-------- end chat ai params --------");
+        jsonObjectParams.put("messages", messagesArray);
+        return jsonObjectParams;
     }
 
     private String processResponse(String model, GenericRequest postRequest) throws IOException {
@@ -190,9 +233,14 @@ public class DialAIClient extends AbstractRestClient implements AI {
     }
 
     @Override
-    public String chat(String model, Message... messages) throws Exception {
-        if (model == null) {
-            model = this.model;
+    public String chat(String executionModel, Message... messages) throws Exception {
+        return chat(executionModel, null, messages);
+    }
+
+    @Override
+    public String chat(String executionModel, JSONObject agentContext, Message... messages) throws Exception {
+        if (executionModel == null) {
+            executionModel = this.model;
         }
 
         // Normalize message roles to ensure compatibility with this AI provider
@@ -235,21 +283,35 @@ public class DialAIClient extends AbstractRestClient implements AI {
         }
         logger.info("-------- end chat ai with messages processing --------");
 
-        return performChatCompletion(model, messagesArray);
+        return performChatCompletion(executionModel, messagesArray, agentContext);
     }
 
     @Override
     public String chat(Message... messages) throws Exception {
-        return chat(this.model, messages);
+        return chat((JSONObject) null, messages);
+    }
+    @Override
+    public String chat(JSONObject agentContext, Message... messages) throws Exception {
+        return chat(this.model, agentContext, messages);
     }
 
     @Override
     public String chat(String model, String message, List<File> files) throws Exception {
-        return chat(model, message, files != null && !files.isEmpty() ? files.getFirst() : null);
+        return chat(model, message, files, (JSONObject) null);
     }
 
+    @Override
+    public String chat(String model, String message, List<File> files, JSONObject agentContext) throws Exception {
+        return chat(model, message, files != null && !files.isEmpty() ? files.getFirst() : null, agentContext);
+    }
+
+    @Override
     public String chat(String model, String message) throws Exception {
-        return chat(model, message, (File) null);
+        return chat(model, message, (JSONObject) null);
+    }
+    @Override
+    public String chat(String model, String message, JSONObject agentContext) throws Exception {
+        return chat(model, message, (File) null, agentContext);
     }
 
     @Override

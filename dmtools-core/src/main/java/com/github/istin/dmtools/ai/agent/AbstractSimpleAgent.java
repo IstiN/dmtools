@@ -2,9 +2,12 @@ package com.github.istin.dmtools.ai.agent;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ChunkPreparation;
+import com.github.istin.dmtools.ai.params.JSONFixParams;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.prompt.PromptContext;
 import lombok.Getter;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -34,18 +37,26 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
 
     @Getter
     private final String promptName;
-    
+
+    private JSONObject agentContext;
+
     /**
      * Default constructor with prompt name
      * @param promptName The name of the prompt template to use
      */
     public AbstractSimpleAgent(String promptName) {
         this.promptName = promptName;
+        this.agentContext = new JSONObject().put(AI.AgentParams.AGENT_PROMPT, promptName);
     }
     
     @Override
     public Result run(Params params) throws Exception {
-        return executeWithDependencies(params);
+        return run(null, params);
+    }
+
+    @Override
+    public Result run(String model, Params params) throws Exception {
+        return executeWithDependencies(model, params);
     }
     
     /**
@@ -54,7 +65,7 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
      * @return The result
      * @throws Exception If an error occurs
      */
-    protected Result executeWithDependencies(Params params) throws Exception {
+    protected Result executeWithDependencies(String model, Params params) throws Exception {
         PromptContext context = new PromptContext(params);
         
         List<File> files = new ArrayList<>();
@@ -79,6 +90,7 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
 
 
         String response;
+        String prompt;
         if (!chunks.isEmpty()) {
             // Process chunks one by one
             StringBuilder chunkResponses = new StringBuilder();
@@ -96,34 +108,48 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
                 // Process the chunk
                 PromptContext chunkContext = new PromptContext(params);
                 chunkContext.set("chunk", chunk);
-                chunkContext.set("chunkIndex", i + 1);
+                chunkContext.set("chunkIndex", i);
                 chunkContext.set("totalChunks", chunks.size());
                 
                 String chunkPrompt = promptTemplateReader.read(promptName, chunkContext);
-                String chunkResponse = ai.chat(chunkPrompt);
+                String chunkResponse = ai.chat(model, chunkPrompt, agentContext);
                 
                 if (i > 0) {
                     chunkResponses.append("\n\n");
                 }
                 chunkResponses.append(chunkResponse);
             }
-            
-            response = chunkResponses.toString();
+            PromptContext chunkContext = new PromptContext(params);
+            chunkContext.set("chunk", new ChunkPreparation.Chunk(chunkResponses.toString(), null, 0));
+            chunkContext.set("chunkIndex", chunks.size());
+            chunkContext.set("totalChunks", chunks.size());
+
+            String chunkPrompt = promptTemplateReader.read(promptName, chunkContext);
+            prompt = chunkPrompt;
+            response = ai.chat(model, chunkPrompt, agentContext);
         } else {
             context.set("chunkIndex", -1);
-            String prompt = promptTemplateReader.read(promptName, context);
+            prompt = promptTemplateReader.read(promptName, context);
             if (!files.isEmpty()) {
                 if (files.size() == 1) {
-                    response = ai.chat(null, prompt, files.getFirst());
+                    response = ai.chat(model, prompt, files.getFirst(), agentContext);
                 } else {
-                    response = ai.chat(null, prompt, files);
+                    response = ai.chat(model, prompt, files, agentContext);
                 }
             } else {
-                response = ai.chat(prompt);
+                response = ai.chat(model, prompt, agentContext);
             }
         }
 
-        return transformAIResponse(params, response);
+        try {
+            return transformAIResponse(params, response);
+        } catch (JSONException e) {
+            JSONFixParams jsonFixParams = new JSONFixParams();
+            jsonFixParams.setMalformedJson(response);
+            jsonFixParams.setErrorMessage(e.toString());
+            jsonFixParams.setExpectedSchema(prompt);
+            return transformAIResponse(params, new JSONFixAgent(ai, promptTemplateReader).run(jsonFixParams));
+        }
     }
     
     @Override

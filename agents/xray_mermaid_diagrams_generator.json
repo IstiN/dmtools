@@ -1,0 +1,17 @@
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "examples/js/jira-index.js",
+    "jobParams": {
+      "integration": "jira_xray",
+      "storagePath": "./agents/mermaid-diagrams",
+      "include": [
+        "project in (TP) and issueType in (Test)"
+      ],
+      "exclude": [],
+      "customFields": [],
+      "includeComments": false
+    }
+  }
+}
+

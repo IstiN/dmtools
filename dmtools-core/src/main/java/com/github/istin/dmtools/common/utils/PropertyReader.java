@@ -32,9 +32,38 @@ public class PropertyReader {
 
 	static Properties prop;
 	private static Properties envFileProps;
+	private static Path projectRoot = null;
 
 	/**
-	 * Loads properties from dmtools.env file in current working directory.
+	 * Finds the project root by walking up the directory tree looking for Gradle project markers.
+	 * Caches the result to avoid repeated filesystem operations.
+	 * @return Path to the project root, or user.dir as fallback
+	 */
+	private static Path findProjectRoot() {
+		if (projectRoot != null) {
+			return projectRoot;
+		}
+		
+		Path current = Paths.get(System.getProperty("user.dir"));
+		while (current != null) {
+			if (Files.exists(current.resolve("settings.gradle")) || 
+				Files.exists(current.resolve("settings.gradle.kts"))) {
+				projectRoot = current;
+				logger.debug("Detected project root at: {}", projectRoot);
+				return projectRoot;
+			}
+			current = current.getParent();
+		}
+		
+		// Fallback to user.dir if no Gradle project markers found
+		projectRoot = Paths.get(System.getProperty("user.dir"));
+		logger.debug("No Gradle project markers found, using user.dir as project root: {}", projectRoot);
+		return projectRoot;
+	}
+
+	/**
+	 * Loads properties from dmtools.env file.
+	 * First tries project root, then falls back to current working directory.
 	 * This is called lazily on first access.
 	 */
 	private static void loadEnvFileProperties() {
@@ -44,44 +73,90 @@ public class PropertyReader {
 		
 		envFileProps = new Properties();
 		
-		// Try to load from current working directory
+		// Priority 1: Try to load from project root directory
+		Path root = findProjectRoot();
+		Path envFileAtRoot = root.resolve("dmtools.env");
+		if (Files.exists(envFileAtRoot) && Files.isRegularFile(envFileAtRoot)) {
+			try {
+				Map<String, String> envVars = CommandLineUtils.loadEnvironmentFromFile(envFileAtRoot.toString());
+				if (!envVars.isEmpty()) {
+					envVars.forEach(envFileProps::setProperty);
+					logger.debug("Loaded {} properties from dmtools.env at project root: {}", envVars.size(), envFileAtRoot);
+					return;
+				}
+			} catch (Exception e) {
+				logger.warn("Failed to load dmtools.env from {}: {}", envFileAtRoot, e.getMessage());
+			}
+		}
+		
+		// Priority 2: Fall back to current working directory (if different from project root)
 		String currentDir = System.getProperty("user.dir");
-		if (currentDir != null) {
+		if (currentDir != null && !currentDir.equals(root.toString())) {
 			Path envFile = Paths.get(currentDir, "dmtools.env");
 			if (Files.exists(envFile) && Files.isRegularFile(envFile)) {
 				try {
 					Map<String, String> envVars = CommandLineUtils.loadEnvironmentFromFile(envFile.toString());
 					if (!envVars.isEmpty()) {
 						envVars.forEach(envFileProps::setProperty);
-						logger.debug("Loaded {} properties from dmtools.env at: {}", envVars.size(), envFile);
+						logger.debug("Loaded {} properties from dmtools.env at working directory: {}", envVars.size(), envFile);
+						return;
 					}
 				} catch (Exception e) {
 					logger.warn("Failed to load dmtools.env from {}: {}", envFile, e.getMessage());
 				}
-			} else {
-				logger.debug("dmtools.env not found in current directory: {}", currentDir);
 			}
 		}
+		
+		logger.debug("dmtools.env not found in project root ({}) or working directory ({})", root, currentDir);
 	}
 
 	public String getValue(String propertyKey) {
 		if (prop == null) {
 			prop = new Properties();
 			InputStream input = null;
+			boolean loadedFromFile = false;
+			
+			// Priority 1: Try to load from root project's src/main/resources/config.properties
 			try {
-				input = getClass().getResourceAsStream(PATH_TO_CONFIG_FILE);
-				if (input != null) {
+				Path root = findProjectRoot();
+				Path configFile = root.resolve("src/main/resources/config.properties");
+				if (Files.exists(configFile) && Files.isRegularFile(configFile)) {
+					input = Files.newInputStream(configFile);
 					prop.load(input);
+					loadedFromFile = true;
+					logger.debug("Loaded config.properties from root project: {}", configFile);
 				}
 			} catch (IOException e) {
-				throw new IllegalStateException("Property file not found");
+				logger.debug("Could not load config.properties from root project: {}", e.getMessage());
 			} finally {
-				try {
-					if (input != null) {
+				if (input != null) {
+					try {
 						input.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					input = null;
+				}
+			}
+			
+			// Priority 2: Fall back to dmtools-core embedded resource (classpath)
+			if (!loadedFromFile) {
+				try {
+					input = getClass().getResourceAsStream(PATH_TO_CONFIG_FILE);
+					if (input != null) {
+						prop.load(input);
+						logger.debug("Loaded config.properties from classpath resource: {}", PATH_TO_CONFIG_FILE);
 					}
 				} catch (IOException e) {
-					e.printStackTrace();
+					logger.warn("Could not load config.properties from classpath: {}", e.getMessage());
+				} finally {
+					try {
+						if (input != null) {
+							input.close();
+						}
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		}
@@ -92,7 +167,7 @@ public class PropertyReader {
 			return property;
 		}
 		
-		// Priority 2: dmtools.env file in current directory
+		// Priority 2: dmtools.env file
 		loadEnvFileProperties();
 		property = envFileProps.getProperty(propertyKey);
 		if (property != null && !property.isEmpty()) {
@@ -167,6 +242,14 @@ public class PropertyReader {
 		return Boolean.parseBoolean(value);
 	}
 
+	public boolean isJiraTransformCustomFieldsToNames() {
+		String value = getValue("JIRA_TRANSFORM_CUSTOM_FIELDS_TO_NAMES");
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
 	public String getJiraExtraFieldsProject() {
 		return getValue("JIRA_EXTRA_FIELDS_PROJECT");
 	}
@@ -190,6 +273,81 @@ public class PropertyReader {
 			return null;
 		}
 		return value.split(",");
+	}
+
+	public String getXrayClientId() {
+		return getValue("XRAY_CLIENT_ID");
+	}
+
+	public String getXrayClientSecret() {
+		return getValue("XRAY_CLIENT_SECRET");
+	}
+
+	public String getXrayBasePath() {
+		return getValue("XRAY_BASE_PATH");
+	}
+
+	public boolean isXrayCachePostRequestsEnabled() {
+		String value = getValue("XRAY_CACHE_POST_REQUESTS_ENABLED");
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
+	public boolean isXrayCacheGetRequestsEnabled() {
+		String value = getValue("XRAY_CACHE_GET_REQUESTS_ENABLED");
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
+	public boolean isXrayParallelFetchEnabled() {
+		String value = getValue(XRAY_PARALLEL_FETCH_ENABLED);
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
+	public int getXrayParallelBatchSize() {
+		String value = getValue(XRAY_PARALLEL_BATCH_SIZE);
+		if (value == null || value.isEmpty()) {
+			return 100;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid XRAY_PARALLEL_BATCH_SIZE value: {}, using default: 100", value);
+			return 100;
+		}
+	}
+
+	public int getXrayParallelThreads() {
+		String value = getValue(XRAY_PARALLEL_THREADS);
+		if (value == null || value.isEmpty()) {
+			return 2;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid XRAY_PARALLEL_THREADS value: {}, using default: 2", value);
+			return 2;
+		}
+	}
+
+	public long getXrayParallelDelayMs() {
+		String value = getValue(XRAY_PARALLEL_DELAY_MS);
+		if (value == null || value.isEmpty()) {
+			return 500L;
+		}
+		try {
+			return Long.parseLong(value);
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid XRAY_PARALLEL_DELAY_MS value: {}, using default: 500", value);
+			return 500L;
+		}
 	}
 
 	public Long getSleepTimeRequest() {
@@ -355,6 +513,10 @@ public class PropertyReader {
 		return getValue("DIAL_MODEL");
 	}
 
+	public String getDialApiVersion() {
+		return getValue("DIAL_API_VERSION");
+	}
+
 	public String getCodeAIModel() {
 		return getValue("CODE_AI_MODEL");
 	}
@@ -377,6 +539,14 @@ public class PropertyReader {
 			return -1;
 		}
 		return Integer.parseInt(value);
+	}
+
+	public String[] getDefaultTicketStoryPointsFields() {
+		String value = getValue("DEFAULT_TICKET_STORY_POINTS_FIELDS");
+		if (value == null || value.isEmpty()) {
+			return null;
+		}
+		return value.split(",");
 	}
 
 	public Double getLinesOfCodeDivider() {
@@ -592,7 +762,26 @@ public class PropertyReader {
 	public static final String ANTHROPIC_BASE_PATH = "ANTHROPIC_BASE_PATH";
 	public static final String ANTHROPIC_MODEL = "ANTHROPIC_MODEL";
 	public static final String ANTHROPIC_MAX_TOKENS = "ANTHROPIC_MAX_TOKENS";
+	public static final String BEDROCK_BASE_PATH = "BEDROCK_BASE_PATH";
+	public static final String BEDROCK_REGION = "BEDROCK_REGION";
+	public static final String BEDROCK_MODEL_ID = "BEDROCK_MODEL_ID";
+	public static final String BEDROCK_BEARER_TOKEN = "BEDROCK_BEARER_TOKEN";
+	public static final String AWS_BEARER_TOKEN_BEDROCK = "AWS_BEARER_TOKEN_BEDROCK";
+	public static final String BEDROCK_ACCESS_KEY_ID = "BEDROCK_ACCESS_KEY_ID";
+	public static final String BEDROCK_SECRET_ACCESS_KEY = "BEDROCK_SECRET_ACCESS_KEY";
+	public static final String BEDROCK_SESSION_TOKEN = "BEDROCK_SESSION_TOKEN";
+	public static final String BEDROCK_MAX_TOKENS = "BEDROCK_MAX_TOKENS";
+	public static final String BEDROCK_TEMPERATURE = "BEDROCK_TEMPERATURE";
 	public static final String DEFAULT_LLM = "DEFAULT_LLM";
+	public static final String DEFAULT_TRACKER = "DEFAULT_TRACKER";
+	public static final String IMAGE_MAX_DIMENSION = "IMAGE_MAX_DIMENSION";
+	public static final String IMAGE_JPEG_QUALITY = "IMAGE_JPEG_QUALITY";
+
+	// X-ray parallel fetch configuration
+	public static final String XRAY_PARALLEL_FETCH_ENABLED = "XRAY_PARALLEL_FETCH_ENABLED";
+	public static final String XRAY_PARALLEL_BATCH_SIZE = "XRAY_PARALLEL_BATCH_SIZE";
+	public static final String XRAY_PARALLEL_THREADS = "XRAY_PARALLEL_THREADS";
+	public static final String XRAY_PARALLEL_DELAY_MS = "XRAY_PARALLEL_DELAY_MS";
 
 	public String getGeminiApiKey() {
 		return getValue(GEMINI_API_KEY);
@@ -729,8 +918,111 @@ public class PropertyReader {
 		return getValue("ANTHROPIC_CUSTOM_HEADER_VALUES");
 	}
 
+	// Bedrock configuration
+	public String getBedrockBasePath() {
+		String basePath = getValue(BEDROCK_BASE_PATH);
+		String region = getBedrockRegion();
+		if (basePath != null && !basePath.trim().isEmpty()) {
+			return basePath;
+		}
+		if (region != null && !region.trim().isEmpty()) {
+			return "https://bedrock-runtime." + region + ".amazonaws.com";
+		}
+		return null;
+	}
+
+	public String getBedrockRegion() {
+		return getValue(BEDROCK_REGION);
+	}
+
+	public String getBedrockModelId() {
+		return getValue(BEDROCK_MODEL_ID);
+	}
+
+	public String getBedrockBearerToken() {
+		// Check AWS_BEARER_TOKEN_BEDROCK first (alternative name), then fall back to BEDROCK_BEARER_TOKEN
+		String token = getValue(AWS_BEARER_TOKEN_BEDROCK);
+		if (token != null && !token.trim().isEmpty() && !token.startsWith("$")) {
+			return token;
+		}
+		return getValue(BEDROCK_BEARER_TOKEN);
+	}
+
+	public String getBedrockAccessKeyId() {
+		return getValue(BEDROCK_ACCESS_KEY_ID);
+	}
+
+	public String getBedrockSecretAccessKey() {
+		return getValue(BEDROCK_SECRET_ACCESS_KEY);
+	}
+
+	public String getBedrockSessionToken() {
+		return getValue(BEDROCK_SESSION_TOKEN);
+	}
+
+	public int getBedrockMaxTokens() {
+		String value = getValue(BEDROCK_MAX_TOKENS);
+		if (value == null || value.trim().isEmpty()) {
+			return 4096;
+		}
+		try {
+			int maxTokens = Integer.parseInt(value.trim());
+			// Validate minimum value
+			if (maxTokens < 1) {
+				logger.warn("Invalid BEDROCK_MAX_TOKENS value: {}, using default 4096", value);
+				return 4096;
+			}
+			return maxTokens;
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid BEDROCK_MAX_TOKENS value: {}, using default 4096", value);
+			return 4096;
+		}
+	}
+
+	public double getBedrockTemperature() {
+		String value = getValue(BEDROCK_TEMPERATURE);
+		if (value == null || value.trim().isEmpty()) {
+			return 1.0;
+		}
+		try {
+			double temperature = Double.parseDouble(value.trim());
+			// Validate range 0.0-1.0
+			if (temperature < 0.0) {
+				logger.warn("Invalid BEDROCK_TEMPERATURE value: {}, using default 1.0", value);
+				return 1.0;
+			}
+			if (temperature > 1.0) {
+				logger.warn("BEDROCK_TEMPERATURE value {} exceeds maximum 1.0, using 1.0", value);
+				return 1.0;
+			}
+			return temperature;
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid BEDROCK_TEMPERATURE value: {}, using default 1.0", value);
+			return 1.0;
+		}
+	}
+
 	public String getDefaultLLM() {
 		return getValue(DEFAULT_LLM);
 	}
 
+	public String getDefaultTracker() {
+		return getValue(DEFAULT_TRACKER);
+	}
+
+	public int getImageMaxDimension() {
+		return Integer.parseInt(getValue(IMAGE_MAX_DIMENSION, "8000"));
+	}
+
+	public float getImageJpegQuality() {
+		return Float.parseFloat(getValue(IMAGE_JPEG_QUALITY, "0.9"));
+	}
+
+    public boolean isCacheManagerLoggingEnabled() {
+		String value = getValue("CACHE_MANAGER_LOGGING_ENABLED");
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+    }
 }

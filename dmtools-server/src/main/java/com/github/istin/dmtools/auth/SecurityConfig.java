@@ -12,7 +12,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -29,6 +36,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -38,6 +49,9 @@ import org.springframework.security.oauth2.core.http.converter.OAuth2AccessToken
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.util.Arrays;
+import java.util.Map;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
@@ -78,6 +92,12 @@ public class SecurityConfig {
 
     @Autowired(required = false)
     private CustomOidcUserService customOidcUserService;
+
+    @Autowired
+    private AppleSecretGenerator appleSecretGenerator;
+
+    @Autowired
+    private AppleTokenVerifier appleTokenVerifier;
 
     public SecurityConfig(EnhancedOAuth2AuthenticationSuccessHandler enhancedOAuth2AuthenticationSuccessHandler, 
                          AuthDebugFilter authDebugFilter, 
@@ -129,6 +149,23 @@ public class SecurityConfig {
 
     @Bean
     public OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient() {
+        // Create a custom token response client that handles Apple specially
+        OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> defaultClient = createDefaultTokenResponseClient();
+
+        return (authorizationGrantRequest) -> {
+            String registrationId = authorizationGrantRequest.getClientRegistration().getRegistrationId();
+
+            if ("apple".equalsIgnoreCase(registrationId)) {
+                // Handle Apple token exchange with dynamic JWT client secret
+                return handleAppleTokenExchange(authorizationGrantRequest);
+            } else {
+                // Use default client for other providers
+                return defaultClient.getTokenResponse(authorizationGrantRequest);
+            }
+        };
+    }
+
+    private OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> createDefaultTokenResponseClient() {
         DefaultAuthorizationCodeTokenResponseClient accessTokenResponseClient = new DefaultAuthorizationCodeTokenResponseClient();
         OAuth2AccessTokenResponseHttpMessageConverter tokenResponseHttpMessageConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
         RestTemplate restTemplate = new RestTemplate(Arrays.asList(new FormHttpMessageConverter(), tokenResponseHttpMessageConverter));
@@ -176,6 +213,60 @@ public class SecurityConfig {
         });
         accessTokenResponseClient.setRestOperations(restTemplate);
         return accessTokenResponseClient;
+    }
+
+    private OAuth2AccessTokenResponse handleAppleTokenExchange(OAuth2AuthorizationCodeGrantRequest authorizationGrantRequest) {
+        try {
+            logger.info("🍎 Handling Apple token exchange with dynamic JWT client secret");
+
+            // Generate fresh JWT client secret for Apple
+            String clientSecret = appleSecretGenerator.generateClientSecret();
+            logger.info("✅ Generated Apple JWT client secret for token exchange");
+
+            // Create request parameters
+            MultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
+            parameters.add("grant_type", "authorization_code");
+            parameters.add("code", authorizationGrantRequest.getAuthorizationExchange().getAuthorizationResponse().getCode());
+            parameters.add("redirect_uri", authorizationGrantRequest.getAuthorizationExchange().getAuthorizationRequest().getRedirectUri());
+            parameters.add("client_id", authorizationGrantRequest.getClientRegistration().getClientId());
+            parameters.add("client_secret", clientSecret); // Use dynamic JWT
+
+            // Create HTTP request
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(parameters, headers);
+
+            // Make request to Apple
+            RestTemplate restTemplate = new RestTemplate();
+            restTemplate.setErrorHandler(new OAuth2ErrorResponseErrorHandler());
+
+            logger.info("🔗 Making token exchange request to Apple");
+            ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(
+                authorizationGrantRequest.getClientRegistration().getProviderDetails().getTokenUri(),
+                request,
+                (Class<Map<String, Object>>) (Class<?>) Map.class
+            );
+
+            logger.info("✅ Apple token exchange successful");
+
+            // Convert response to OAuth2AccessTokenResponse
+            Map<String, Object> tokenResponse = response.getBody();
+            if (tokenResponse == null) {
+                throw new OAuth2AuthenticationException(new OAuth2Error("invalid_token_response"), "Empty token response from Apple");
+            }
+
+            return OAuth2AccessTokenResponse.withToken((String) tokenResponse.get("access_token"))
+                .tokenType(OAuth2AccessToken.TokenType.BEARER)
+                .expiresIn(((Number) tokenResponse.get("expires_in")).longValue())
+                .additionalParameters(tokenResponse)
+                .build();
+
+        } catch (Exception e) {
+            logger.error("❌ Apple token exchange failed: {}", e.getMessage(), e);
+            throw new OAuth2AuthenticationException(new OAuth2Error("token_exchange_failed"), "Failed to exchange code for Apple tokens: " + e.getMessage(), e);
+        }
     }
 
     @Bean
@@ -229,9 +320,10 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> {
                 if (authConfigProperties.isLocalStandaloneMode()) {
-                    logger.info("🔒 Local standalone mode enabled. Permitting /api/auth/local-login and /api/auth/config");
+                    logger.info("🔒 Local standalone mode enabled. Permitting /api/auth/local-login, /api/auth/refresh and /api/auth/config");
                     auth.requestMatchers(new AntPathRequestMatcher("/api/auth/local-login", "POST")).permitAll();
-                    auth.requestMatchers("/api/auth/config").permitAll();
+                    auth.requestMatchers(new AntPathRequestMatcher("/api/auth/refresh", "POST")).permitAll();
+                    auth.requestMatchers("/api/auth/config", "/api/auth/apple-native").permitAll();
                     // Allow OAuth proxy endpoints (controller won't be present in standalone, so calls may 404, but not 403)
                     auth.requestMatchers("/api/oauth-proxy/**").permitAll();
                     // Block OAuth2 endpoints in standalone mode
@@ -243,6 +335,7 @@ public class SecurityConfig {
                     ).denyAll();
                 } else {
                     auth.requestMatchers(new AntPathRequestMatcher("/api/auth/local-login", "POST")).denyAll(); // Deny local login if not in standalone mode
+                    auth.requestMatchers(new AntPathRequestMatcher("/api/auth/refresh", "POST")).permitAll(); // Allow refresh endpoint
                     // Allow OAuth2 endpoints only in non-standalone mode
                     auth.requestMatchers(
                             new AntPathRequestMatcher("/oauth2/authorization/**"),
@@ -253,7 +346,7 @@ public class SecurityConfig {
                 }
                 if (authConfigProperties.isLocalStandaloneMode()) {
                     auth
-                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
+                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config", "/api/auth/apple-native").permitAll()
                         .requestMatchers("/", "/index.html", "/test-*.html").permitAll()
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers("/*.js", "/*.css", "/assets/**", "/icons/**", "/favicon.ico", "/manifest.json", "/version.json").permitAll()
@@ -266,7 +359,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated();
                 } else {
                     auth
-                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config").permitAll()
+                        .requestMatchers("/api/auth/user", "/api/auth/public-test", "/error", "/api/auth/config", "/api/auth/apple-native").permitAll()
                         .requestMatchers("/", "/index.html", "/test-*.html").permitAll()
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers("/*.js", "/*.css", "/assets/**", "/icons/**", "/favicon.ico", "/manifest.json", "/version.json").permitAll()

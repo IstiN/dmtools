@@ -32,8 +32,8 @@ public class ProjectSetupAnalysisJobTest {
     @Before
     public void setUp() throws Exception {
         job = new ProjectSetupAnalysisJob();
-        
-        mockTrackerClient = mock(TrackerClient.class);
+
+        // Use JiraClient mock as the trackerClient since ProjectSetupAnalysisJob casts it internally
         mockJiraClient = mock(JiraClient.class);
         mockFinalStatusDetectionAgent = mock(FinalStatusDetectionAgent.class);
         mockProjectSetupAnalysisAgent = mock(ProjectSetupAnalysisAgent.class);
@@ -42,13 +42,10 @@ public class ProjectSetupAnalysisJobTest {
         mockTestCaseWritingRulesAgent = mock(TestCaseWritingRulesAgent.class);
 
         // Use reflection to inject mocks
+        // Inject mockJiraClient as trackerClient (since ProjectSetupAnalysisJob casts trackerClient to JiraClient)
         java.lang.reflect.Field trackerField = ProjectSetupAnalysisJob.class.getDeclaredField("trackerClient");
         trackerField.setAccessible(true);
-        trackerField.set(job, mockTrackerClient);
-
-        java.lang.reflect.Field jiraField = ProjectSetupAnalysisJob.class.getDeclaredField("jiraClient");
-        jiraField.setAccessible(true);
-        jiraField.set(job, mockJiraClient);
+        trackerField.set(job, mockJiraClient);
 
         java.lang.reflect.Field finalStatusField = ProjectSetupAnalysisJob.class.getDeclaredField("finalStatusDetectionAgent");
         finalStatusField.setAccessible(true);
@@ -109,8 +106,8 @@ public class ProjectSetupAnalysisJobTest {
         when(mockJiraClient.getFields("TEST")).thenReturn("{\"fields\":[]}");
         when(mockFinalStatusDetectionAgent.run(any(FinalStatusDetectionAgent.Params.class))).thenReturn(finalStatuses);
         when(mockProjectSetupAnalysisAgent.run(any(ProjectSetupAnalysisAgent.Params.class))).thenReturn(projectSetupResult);
-        doReturn(completedTickets).when(mockTrackerClient).searchAndPerform(anyString(), any(String[].class));
-        when(mockTrackerClient.getExtendedQueryFields()).thenReturn(new String[]{"summary", "description"});
+        doReturn(completedTickets).when(mockJiraClient).searchAndPerform(anyString(), any(String[].class));
+        when(mockJiraClient.getExtendedQueryFields()).thenReturn(new String[]{"summary", "description"});
         when(mockWorkflowAnalysisAgent.run(any(WorkflowAnalysisAgent.Params.class))).thenReturn(workflowResult);
         when(mockStoryDescriptionWritingRulesAgent.run(any(StoryDescriptionWritingRulesAgent.Params.class))).thenReturn(storyRules);
         when(mockTestCaseWritingRulesAgent.run(any(TestCaseWritingRulesAgent.Params.class))).thenReturn(testCaseRules);

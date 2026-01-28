@@ -73,34 +73,62 @@ public class JiraClientFieldResolutionTest {
         
         private String createDefaultFieldsResponse() {
             return """
-                {
-                  "projects": [
-                    {
-                      "issuetypes": [
-                        {
-                          "fields": {
-                            "summary": {
-                              "name": "Summary",
-                              "fieldId": "summary"
-                            },
-                            "description": {
-                              "name": "Description",
-                              "fieldId": "description"
-                            },
-                            "customfield_10004": {
-                              "name": "Epic Link",
-                              "fieldId": "customfield_10004"
-                            },
-                            "customfield_10001": {
-                              "name": "Story Points",
-                              "fieldId": "customfield_10001"
-                            }
-                          }
-                        }
-                      ]
+                [
+                  {
+                    "id": "summary",
+                    "name": "Summary",
+                    "custom": false,
+                    "orderable": true,
+                    "navigable": true,
+                    "searchable": true,
+                    "clauseNames": ["summary"],
+                    "schema": {
+                      "type": "string",
+                      "system": "summary"
                     }
-                  ]
-                }
+                  },
+                  {
+                    "id": "description",
+                    "name": "Description",
+                    "custom": false,
+                    "orderable": true,
+                    "navigable": true,
+                    "searchable": true,
+                    "clauseNames": ["description"],
+                    "schema": {
+                      "type": "string",
+                      "system": "description"
+                    }
+                  },
+                  {
+                    "id": "customfield_10004",
+                    "name": "Epic Link",
+                    "custom": true,
+                    "orderable": true,
+                    "navigable": true,
+                    "searchable": true,
+                    "clauseNames": ["cf[10004]", "Epic Link"],
+                    "schema": {
+                      "type": "string",
+                      "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textfield",
+                      "customId": 10004
+                    }
+                  },
+                  {
+                    "id": "customfield_10001",
+                    "name": "Story Points",
+                    "custom": true,
+                    "orderable": true,
+                    "navigable": true,
+                    "searchable": true,
+                    "clauseNames": ["cf[10001]", "Story Points"],
+                    "schema": {
+                      "type": "number",
+                      "custom": "com.atlassian.jira.plugin.system.customfieldtypes:float",
+                      "customId": 10001
+                    }
+                  }
+                ]
                 """;
         }
         
@@ -130,7 +158,7 @@ public class JiraClientFieldResolutionTest {
         }
         
         @Override
-        public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
+        public List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException {
             return new ArrayList<>();
         }
         
@@ -180,24 +208,24 @@ public class JiraClientFieldResolutionTest {
         // Arrange
         String project = "TEST";
         String fieldName = "Epic Link";
-        
+
         jiraClient.setMockFieldsResponse(project, """
-            {
-              "projects": [
-                {
-                  "issuetypes": [
-                    {
-                      "fields": {
-                        "customfield_10004": {
-                          "name": "Epic Link",
-                          "fieldId": "customfield_10004"
-                        }
-                      }
-                    }
-                  ]
+            [
+              {
+                "id": "customfield_10004",
+                "name": "Epic Link",
+                "custom": true,
+                "orderable": true,
+                "navigable": true,
+                "searchable": true,
+                "clauseNames": ["cf[10004]", "Epic Link"],
+                "schema": {
+                  "type": "string",
+                  "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textfield",
+                  "customId": 10004
                 }
-              ]
-            }
+              }
+            ]
             """);
 
         // Act
@@ -213,24 +241,24 @@ public class JiraClientFieldResolutionTest {
         // Arrange
         String project = "TEST";
         String fieldName = "NonExistentField";
-        
+
         jiraClient.setMockFieldsResponse(project, """
-            {
-              "projects": [
-                {
-                  "issuetypes": [
-                    {
-                      "fields": {
-                        "customfield_10004": {
-                          "name": "Epic Link",
-                          "fieldId": "customfield_10004"
-                        }
-                      }
-                    }
-                  ]
+            [
+              {
+                "id": "customfield_10004",
+                "name": "Epic Link",
+                "custom": true,
+                "orderable": true,
+                "navigable": true,
+                "searchable": true,
+                "clauseNames": ["cf[10004]", "Epic Link"],
+                "schema": {
+                  "type": "string",
+                  "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textfield",
+                  "customId": 10004
                 }
-              ]
-            }
+              }
+            ]
             """);
 
         // Act
@@ -246,24 +274,24 @@ public class JiraClientFieldResolutionTest {
         // Arrange
         String project = "TEST";
         String fieldName = "Epic Link";
-        
+
         jiraClient.setMockFieldsResponse(project, """
-            {
-              "projects": [
-                {
-                  "issuetypes": [
-                    {
-                      "fields": {
-                        "customfield_10004": {
-                          "name": "Epic Link",
-                          "fieldId": "customfield_10004"
-                        }
-                      }
-                    }
-                  ]
+            [
+              {
+                "id": "customfield_10004",
+                "name": "Epic Link",
+                "custom": true,
+                "orderable": true,
+                "navigable": true,
+                "searchable": true,
+                "clauseNames": ["cf[10004]", "Epic Link"],
+                "schema": {
+                  "type": "string",
+                  "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textfield",
+                  "customId": 10004
                 }
-              ]
-            }
+              }
+            ]
             """);
 
         // Act - Call multiple times for same field
@@ -358,28 +386,38 @@ public class JiraClientFieldResolutionTest {
         // Arrange
         String project = "DMC";
         String[] fields = {"Epic Link", "Story Points", "Priority", "Components", "FixVersions"};
-        
+
         jiraClient.setMockFieldsResponse(project, """
-            {
-              "projects": [
-                {
-                  "issuetypes": [
-                    {
-                      "fields": {
-                        "customfield_10004": {
-                          "name": "Epic Link",
-                          "fieldId": "customfield_10004"
-                        },
-                        "customfield_10001": {
-                          "name": "Story Points",
-                          "fieldId": "customfield_10001"
-                        }
-                      }
-                    }
-                  ]
+            [
+              {
+                "id": "customfield_10004",
+                "name": "Epic Link",
+                "custom": true,
+                "orderable": true,
+                "navigable": true,
+                "searchable": true,
+                "clauseNames": ["cf[10004]", "Epic Link"],
+                "schema": {
+                  "type": "string",
+                  "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textfield",
+                  "customId": 10004
                 }
-              ]
-            }
+              },
+              {
+                "id": "customfield_10001",
+                "name": "Story Points",
+                "custom": true,
+                "orderable": true,
+                "navigable": true,
+                "searchable": true,
+                "clauseNames": ["cf[10001]", "Story Points"],
+                "schema": {
+                  "type": "number",
+                  "custom": "com.atlassian.jira.plugin.system.customfieldtypes:float",
+                  "customId": 10001
+                }
+              }
+            ]
             """);
 
         long startTime = System.currentTimeMillis();

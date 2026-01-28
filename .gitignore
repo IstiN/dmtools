@@ -149,3 +149,10 @@ dmtools-core/cacheTeamsClient
 /dmtools-core/cacheBasicOllamaAI/*
 cache**/
 dmtools-core/cache**/
+/dmtools-automation/bin/
+
+# Eclipse Buildship settings
+.settings/
+.settings/**
+.codemie
+.claude

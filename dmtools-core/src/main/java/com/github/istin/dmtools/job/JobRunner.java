@@ -30,6 +30,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Properties;
 
+import com.github.istin.dmtools.common.utils.JSONUtils;
 import com.github.istin.dmtools.teammate.Teammate;
 import com.github.istin.dmtools.js.JSRunner;
 import com.github.istin.dmtools.kb.KBProcessingJob;
@@ -135,7 +136,7 @@ public class JobRunner {
                 if (result == null) {
                     System.err.println("Execution result of '" + jobParams.getName() + "' is null.");
                 } else {
-                    System.out.println(result);
+                    System.out.println(JSONUtils.serializeResult(result));
                     return;
                 }
                 System.exit(1);
@@ -153,7 +154,7 @@ public class JobRunner {
         if (result == null) {
             System.err.println("Execution result of '" + jobParams.getName() + "' is null.");
         } else {
-            System.out.println(result);
+            System.out.println(JSONUtils.serializeResult(result));
             return;
         }
         System.exit(1);
@@ -253,7 +254,7 @@ public class JobRunner {
         System.out.println();
         System.out.println("Installation:");
         System.out.println("  If you don't have DMTools installed, run:");
-        System.out.println("  curl https://github.com/IstiN/dmtools/releases/latest/download/install.sh -fsS | bash");
+        System.out.println("  curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash");
         System.out.println();
         System.out.println("DM.ai uses DMTools. Do you?");
     }

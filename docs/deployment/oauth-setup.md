@@ -38,9 +38,9 @@ This guide covers **complete OAuth2 authentication setup** for DMTools applicati
    ```
    Name: DMTools Production
    Authorized JavaScript origins: 
-     - https://dmtools-431977789017.us-central1.run.app
+     - https://ai-native.cloud
    Authorized redirect URIs:
-     - https://dmtools-431977789017.us-central1.run.app/login/oauth2/code/google
+     - https://ai-native.cloud/login/oauth2/code/google
    ```
 7. Click **CREATE**
 8. **Copy the Client ID and Client Secret** 📋
@@ -64,7 +64,7 @@ This guide covers **complete OAuth2 authentication setup** for DMTools applicati
    ```
    Name: DMTools Production
    Supported account types: Accounts in any organizational directory and personal Microsoft accounts
-   Redirect URI: Web → https://dmtools-431977789017.us-central1.run.app/login/oauth2/code/microsoft
+   Redirect URI: Web → https://ai-native.cloud/login/oauth2/code/microsoft
    ```
 5. Click **Register**
 6. **Copy the Application (client) ID** 📋
@@ -101,8 +101,8 @@ This guide covers **complete OAuth2 authentication setup** for DMTools applicati
 4. Fill in the details:
    ```
    Application name: DMTools Production
-   Homepage URL: https://dmtools-431977789017.us-central1.run.app
-   Authorization callback URL: https://dmtools-431977789017.us-central1.run.app/login/oauth2/code/github
+   Homepage URL: https://ai-native.cloud
+   Authorization callback URL: https://ai-native.cloud/login/oauth2/code/github
    ```
 5. Click **Register application**
 6. **Copy the Client ID** 📋
@@ -167,7 +167,7 @@ SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_CLIENT_ID: "YOUR_NEW_MICROS
 ### Step 2: Verify Deployment
 Check that your application is running:
 ```bash
-curl -s -o /dev/null -w "Status: %{http_code}\n" https://dmtools-431977789017.us-central1.run.app
+curl -s -o /dev/null -w "Status: %{http_code}\n" https://ai-native.cloud
 ```
 
 ---
@@ -180,18 +180,18 @@ Test each provider by visiting these URLs:
 
 | Provider | OAuth URL |
 |----------|-----------|
-| **Google** | `https://dmtools-431977789017.us-central1.run.app/oauth2/authorization/google` |
-| **Microsoft** | `https://dmtools-431977789017.us-central1.run.app/oauth2/authorization/microsoft` |
-| **GitHub** | `https://dmtools-431977789017.us-central1.run.app/oauth2/authorization/github` |
+| **Google** | `https://ai-native.cloud/oauth2/authorization/google` |
+| **Microsoft** | `https://ai-native.cloud/oauth2/authorization/microsoft` |
+| **GitHub** | `https://ai-native.cloud/oauth2/authorization/github` |
 
 ### **Application URLs**
 
 | Endpoint | URL | Expected Response |
 |----------|-----|-------------------|
-| **Main App** | `https://dmtools-431977789017.us-central1.run.app` | 302 → Swagger UI |
-| **Health Check** | `https://dmtools-431977789017.us-central1.run.app/actuator/health` | 200 OK |
-| **Swagger UI** | `https://dmtools-431977789017.us-central1.run.app/swagger-ui/index.html` | 200 OK |
-| **API Config** | `https://dmtools-431977789017.us-central1.run.app/api/config` | 302 → Login |
+| **Main App** | `https://ai-native.cloud` | 302 → Swagger UI |
+| **Health Check** | `https://ai-native.cloud/actuator/health` | 200 OK |
+| **Swagger UI** | `https://ai-native.cloud/swagger-ui/index.html` | 200 OK |
+| **API Config** | `https://ai-native.cloud/api/config` | 302 → Login |
 
 ---
 
@@ -211,7 +211,7 @@ graph TD
 
 ### **Detailed Flow Example (Google)**
 ```
-1. User visits: https://dmtools-431977789017.us-central1.run.app
+1. User visits: https://ai-native.cloud
 2. Clicks Login → Chooses Google
 3. Redirects to: /oauth2/authorization/google
 4. Spring Security redirects to: https://accounts.google.com/oauth/authorize?...
@@ -273,7 +273,7 @@ SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_MICROSOFT_*
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_*
 
 # Application Configuration
-APP_BASE_URL="https://dmtools-431977789017.us-central1.run.app"
+APP_BASE_URL="https://ai-native.cloud"
 SPRING_PROFILES_ACTIVE="prod"
 JWT_SECRET="your-jwt-secret"
 
@@ -313,8 +313,8 @@ gcloud run services describe dmtools --region=us-central1 --project=dmtools-oaut
 gcloud logs read "resource.type=cloud_run_revision" --project=dmtools-oauth-1749672403 --limit=50
 
 # Test endpoints
-curl -I https://dmtools-431977789017.us-central1.run.app
-curl -I https://dmtools-431977789017.us-central1.run.app/actuator/health
+curl -I https://ai-native.cloud
+curl -I https://ai-native.cloud/actuator/health
 ```
 
 ---

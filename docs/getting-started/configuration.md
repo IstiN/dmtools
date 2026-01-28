@@ -33,6 +33,12 @@ CONFLUENCE_DEFAULT_SPACE=YOURSPACE
 # AI Provider (Gemini recommended)
 GEMINI_API_KEY=AIza...
 
+# Can be also defined for EPAM DIAL
+# DEFAULT_LLM=dial
+# DIAL_BATH_PATH=https://ai-proxy.lab.epam.com/
+# DIAL_API_KEY=xxxx
+# DIAL_MODEL=anthropic.claude-3-7-sonnet-20250219-v1:0
+
 # Optional: GitHub for source code operations
 GITHUB_TOKEN=ghp_...
 ```
@@ -53,12 +59,10 @@ dmtools confluence_content_by_title "Test Page"
 
 DMTools loads environment variables from multiple files in this order (first found wins):
 
-1. **`.env`** (current directory) - highest priority
-2. **`dmtools.env`** (current directory)
-3. **`dmtools-local.env`** (current directory) - for personal overrides
-4. **`.env`** (script directory)
-5. **`dmtools.env`** (script directory)
-6. **`dmtools-local.env`** (script directory) - lowest priority
+1. **`dmtools.env`** (current directory)
+2. **`dmtools-local.env`** (current directory) - for personal overrides
+3. **`dmtools.env`** (script directory)
+4. **`dmtools-local.env`** (script directory) - lowest priority
 
 **Tip:** Use `dmtools.env` for shared team configuration and `dmtools-local.env` for your personal overrides.
 
@@ -193,6 +197,59 @@ JIRA_CLEAR_CACHE=true
 # Enable detailed Jira logging
 JIRA_LOGGING_ENABLED=true
 ```
+
+### X-ray Test Case Performance Optimization
+
+**Parallel Fetch Configuration** (for faster test case preparation):
+
+```bash
+# Enable parallel GraphQL fetch for X-ray test cases (disabled by default)
+XRAY_PARALLEL_FETCH_ENABLED=false
+
+# Number of test keys per batch (default: 100, max: 100)
+XRAY_PARALLEL_BATCH_SIZE=100
+
+# Number of concurrent threads for parallel fetch (default: 2)
+XRAY_PARALLEL_THREADS=2
+
+# Delay between parallel requests for rate limiting in milliseconds (default: 500)
+XRAY_PARALLEL_DELAY_MS=500
+```
+
+**Performance Impact:**
+- **Sequential fetch (default)**: ~185 seconds for 14,090 tests
+- **Parallel fetch (enabled)**: ~48-73 seconds for 14,090 tests
+- **Speedup**: 60-74% reduction in X-ray fetch time
+
+**When to Enable:**
+- Large test suites (>1000 tests)
+- Stable X-ray API connection
+- No rate limiting issues
+
+**Tuning Guidelines:**
+
+For faster performance (if no rate limiting):
+```bash
+XRAY_PARALLEL_BATCH_SIZE=100       # Keep at 100 (API limit)
+XRAY_PARALLEL_THREADS=3            # More parallelism
+XRAY_PARALLEL_DELAY_MS=250         # Less delay
+```
+
+If encountering rate limits (429 errors):
+```bash
+XRAY_PARALLEL_THREADS=1            # Reduce parallelism
+XRAY_PARALLEL_DELAY_MS=1000        # Increase delay
+```
+
+**Safety Features:**
+- Automatic fallback to sequential fetch on errors
+- **Smart rate limit handling**: Uses exact retry time from X-ray API response
+  - X-ray returns: `{"error":{"nextValidRequestDate":"2026-01-27T17:48:54.791Z"}}`
+  - System waits until exact time instead of guessing
+  - Fallback to exponential backoff if time not available
+- Configurable delays between requests
+- Result validation to ensure no data loss
+- Thread-safe rate limit coordination across all parallel threads
 
 ### AI Configuration
 

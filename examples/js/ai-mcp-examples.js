@@ -9,6 +9,52 @@
  * - dial_ai_chat: Dial AI integration
  * 
  * Usage: Copy relevant examples to your postJSAction parameter
+ * 
+ * ============================================================================
+ * AI MODEL CONFIGURATION
+ * ============================================================================
+ * 
+ * To configure AI models, set the following in dmtools.env:
+ * 
+ * 1. Google Gemini:
+ *    GEMINI_API_KEY=your-api-key
+ *    GEMINI_DEFAULT_MODEL=gemini-2.0-flash
+ * 
+ * 2. Dial AI:
+ *    DIAL_AI_API_KEY=your-api-key
+ *    DIAL_AI_BASE_PATH=https://your-dial-ai-endpoint.com
+ * 
+ * 3. AWS Bedrock (supports multiple model families):
+ *    BEDROCK_REGION=eu-north-1
+ *    BEDROCK_MODEL_ID=your-model-id
+ *    BEDROCK_BEARER_TOKEN=your-aws-bearer-token
+ *    # Or use alternative token name:
+ *    AWS_BEARER_TOKEN_BEDROCK=your-aws-bearer-token
+ *    BEDROCK_MAX_TOKENS=4096
+ *    BEDROCK_TEMPERATURE=1.0
+ * 
+ * Available Bedrock Models:
+ * 
+ * - Amazon Nova (supports images):
+ *   BEDROCK_MODEL_ID=arn:aws:bedrock:eu-north-1:713881790201:inference-profile/eu.amazon.nova-lite-v1:0
+ *   # Or direct model ID:
+ *   BEDROCK_MODEL_ID=eu.amazon.nova-lite-v1:0
+ * 
+ * - Qwen (text only):
+ *   BEDROCK_MODEL_ID=qwen.qwen3-coder-480b-a35b-v1:0
+ * 
+ * - Claude (supports images):
+ *   BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
+ * 
+ * - Mistral (some support images):
+ *   BEDROCK_MODEL_ID=mistral.pixtral-large-2502-v1:0
+ * 
+ * To use Bedrock as default AI, set:
+ * DEFAULT_LLM=aws_bedrock
+ * # Or:
+ * DEFAULT_LLM=bedrock
+ * 
+ * ============================================================================
  */
 
 function action(params) {

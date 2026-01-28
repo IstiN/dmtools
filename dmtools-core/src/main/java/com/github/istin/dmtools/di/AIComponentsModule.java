@@ -3,6 +3,7 @@ package com.github.istin.dmtools.di;
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.anthropic.BasicAnthropicAI;
+import com.github.istin.dmtools.ai.bedrock.BasicBedrockAI;
 import com.github.istin.dmtools.ai.google.BasicGeminiAI;
 import com.github.istin.dmtools.ai.js.JSAIClient;
 import com.github.istin.dmtools.bridge.DMToolsBridge;
@@ -47,6 +48,7 @@ public class AIComponentsModule {
         boolean dialAttempted = false;
         boolean geminiAttempted = false;
         boolean anthropicAttempted = false;
+        boolean bedrockAttempted = false;
         
         // Check if a specific default LLM is configured
         String defaultLLM = configuration.getDefaultLLM();
@@ -106,6 +108,22 @@ public class AIComponentsModule {
                     logger.warn("DEFAULT_LLM is set to 'anthropic' but ANTHROPIC_MODEL is not configured. Skipping Anthropic initialization.");
                 }
                 anthropicAttempted = true;
+            } else if ("aws_bedrock".equalsIgnoreCase(defaultLLM.trim()) || "bedrock".equalsIgnoreCase(defaultLLM.trim())) {
+                if (isBedrockConfigured(configuration)) {
+                    try {
+                        logger.debug("Attempting to initialize AI via BasicBedrockAI as DEFAULT_LLM=aws_bedrock...");
+                        AI bedrock = new BasicBedrockAI(observer, configuration);
+                        logger.debug("BasicBedrockAI initialized successfully.");
+                        return bedrock;
+                    } catch (Exception e) {
+                        logger.error("Failed to initialize BasicBedrockAI (DEFAULT_LLM=aws_bedrock): " + e.getMessage());
+                    }
+                } else {
+                    logger.warn("DEFAULT_LLM is set to 'aws_bedrock' but Bedrock is not properly configured. " +
+                            "Required: BEDROCK_MODEL_ID and (BEDROCK_BASE_PATH or BEDROCK_REGION). " +
+                            "Authentication: BEDROCK_BEARER_TOKEN, or (BEDROCK_ACCESS_KEY_ID and BEDROCK_SECRET_ACCESS_KEY), or Default Credentials with BEDROCK_REGION.");
+                }
+                bedrockAttempted = true;
             }
         }
         
@@ -136,6 +154,20 @@ public class AIComponentsModule {
                     return anthropic;
                 } catch (Exception e) {
                     logger.error("Failed to initialize BasicAnthropicAI, trying fallback options. Error: " + e.getMessage());
+                }
+            }
+        }
+        
+        // Check for Bedrock configuration (skip if already attempted)
+        if (!bedrockAttempted) {
+            if (isBedrockConfigured(configuration)) {
+                try {
+                    logger.debug("Attempting to initialize AI via BasicBedrockAI as Bedrock is configured...");
+                    AI bedrock = new BasicBedrockAI(observer, configuration);
+                    logger.debug("BasicBedrockAI initialized successfully.");
+                    return bedrock;
+                } catch (Exception e) {
+                    logger.error("Failed to initialize BasicBedrockAI, trying fallback options. Error: " + e.getMessage());
                 }
             }
         }
@@ -315,6 +347,70 @@ public class AIComponentsModule {
             logger.debug("Failed to create BasicDialAI: {}", e.getMessage());
             return null;
         }
+    }
+    
+    /**
+     * Checks if Bedrock is configured with any supported authentication method.
+     * Supports: Bearer Token, IAM Keys, or Default Credentials.
+     * 
+     * @param configuration The application configuration
+     * @return true if Bedrock is properly configured, false otherwise
+     */
+    private static boolean isBedrockConfigured(ApplicationConfiguration configuration) {
+        String bedrockModelId = configuration.getBedrockModelId();
+        String bedrockBasePath = configuration.getBedrockBasePath();
+        String bedrockRegion = configuration.getBedrockRegion();
+        
+        // Check required fields: model ID and either base path or region
+        if (bedrockModelId == null || bedrockModelId.trim().isEmpty() || bedrockModelId.startsWith("$")) {
+            return false;
+        }
+        
+        if ((bedrockBasePath == null || bedrockBasePath.trim().isEmpty()) &&
+            (bedrockRegion == null || bedrockRegion.trim().isEmpty())) {
+            return false;
+        }
+        
+        // Check if at least one authentication method is configured
+        String bedrockBearerToken = configuration.getBedrockBearerToken();
+        String accessKeyId = configuration.getBedrockAccessKeyId();
+        String secretAccessKey = configuration.getBedrockSecretAccessKey();
+        
+        // Priority 1: Bearer Token
+        boolean hasBearerToken = bedrockBearerToken != null && 
+                                 !bedrockBearerToken.trim().isEmpty() && 
+                                 !bedrockBearerToken.startsWith("$");
+        
+        // Priority 2: IAM Keys
+        boolean hasIAMKeys = accessKeyId != null && 
+                            !accessKeyId.trim().isEmpty() && 
+                            !accessKeyId.startsWith("$") &&
+                            secretAccessKey != null && 
+                            !secretAccessKey.trim().isEmpty() && 
+                            !secretAccessKey.startsWith("$");
+        
+        // Priority 3: Default Credentials (requires region, credentials read from ~/.aws/credentials)
+        boolean hasDefaultCredentials = bedrockRegion != null && !bedrockRegion.trim().isEmpty();
+        
+        return hasBearerToken || hasIAMKeys || hasDefaultCredentials;
+    }
+    
+    /**
+     * Creates a Bedrock AI client if configuration is available.
+     * Supports all authentication methods: Bearer Token, IAM Keys, or Default Credentials.
+     * @param observer The conversation observer
+     * @param configuration The application configuration
+     * @return Bedrock AI instance or null if not configured
+     */
+    public static AI createBedrockAI(ConversationObserver observer, ApplicationConfiguration configuration) {
+        if (isBedrockConfigured(configuration)) {
+            try {
+                return new BasicBedrockAI(observer, configuration);
+            } catch (Exception e) {
+                logger.debug("Failed to create BasicBedrockAI: {}", e.getMessage());
+            }
+        }
+        return null;
     }
 
 }

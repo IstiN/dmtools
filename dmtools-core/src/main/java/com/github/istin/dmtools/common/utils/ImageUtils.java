@@ -38,4 +38,29 @@ public class ImageUtils {
         return new int[] {width, height};
     }
 
+    /**
+     * Gets the MIME type for an image file based on its extension.
+     * Supports JPEG, PNG, GIF, and WebP formats.
+     * @param imageFile The image file
+     * @return The MIME type (e.g., "image/jpeg", "image/png")
+     */
+    public static String getMimeType(File imageFile) {
+        String extension = getExtension(imageFile).toLowerCase();
+        switch (extension) {
+            case "jpg":
+            case "jpeg":
+                return "image/jpeg";
+            case "png":
+                return "image/png";
+            case "gif":
+                return "image/gif";
+            case "webp":
+                return "image/webp";
+            default:
+                // Default to JPEG if unknown
+                return "image/jpeg";
+        }
+    }
+
+
 }

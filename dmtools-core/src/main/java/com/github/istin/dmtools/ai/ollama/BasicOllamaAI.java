@@ -11,6 +11,7 @@ import java.util.Map;
 public class BasicOllamaAI extends OllamaAIClient {
     private static String DEFAULT_BASE_PATH;
     private static String DEFAULT_MODEL;
+    private static String DEFAULT_API_KEY;
     private static int DEFAULT_NUM_CTX;
     private static int DEFAULT_NUM_PREDICT;
     private static Map<String, String> DEFAULT_CUSTOM_HEADERS;
@@ -19,6 +20,7 @@ public class BasicOllamaAI extends OllamaAIClient {
         PropertyReader propertyReader = new PropertyReader();
         DEFAULT_BASE_PATH = propertyReader.getOllamaBasePath();
         DEFAULT_MODEL = propertyReader.getOllamaModel();
+        DEFAULT_API_KEY = propertyReader.getValue("OLLAMA_API_KEY");
         DEFAULT_NUM_CTX = propertyReader.getOllamaNumCtx();
         DEFAULT_NUM_PREDICT = propertyReader.getOllamaNumPredict();
         DEFAULT_CUSTOM_HEADERS = parseCustomHeaders(
@@ -32,7 +34,7 @@ public class BasicOllamaAI extends OllamaAIClient {
     }
 
     public BasicOllamaAI(ConversationObserver conversationObserver) throws IOException {
-        super(DEFAULT_BASE_PATH, DEFAULT_MODEL, DEFAULT_NUM_CTX, DEFAULT_NUM_PREDICT, conversationObserver, DEFAULT_CUSTOM_HEADERS);
+        super(DEFAULT_BASE_PATH, DEFAULT_MODEL, DEFAULT_API_KEY, DEFAULT_NUM_CTX, DEFAULT_NUM_PREDICT, conversationObserver, DEFAULT_CUSTOM_HEADERS);
     }
     
     /**
@@ -45,6 +47,7 @@ public class BasicOllamaAI extends OllamaAIClient {
         super(
             configuration.getOllamaBasePath(),
             configuration.getOllamaModel(),
+            configuration.getOllamaApiKey(),
             configuration.getOllamaNumCtx(),
             configuration.getOllamaNumPredict(),
             conversationObserver,

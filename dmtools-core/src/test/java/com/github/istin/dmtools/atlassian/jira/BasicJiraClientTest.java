@@ -68,7 +68,7 @@ public class BasicJiraClientTest {
     @Test
     public void testGetTestCases() throws IOException {
         ITicket mockTicket = mock(ITicket.class);
-        List<? extends ITicket> testCases = basicJiraClient.getTestCases(mockTicket);
+        List<? extends ITicket> testCases = basicJiraClient.getTestCases(mockTicket, "Test Case");
         assertNotNull(testCases);
         assertEquals(0, testCases.size());
     }

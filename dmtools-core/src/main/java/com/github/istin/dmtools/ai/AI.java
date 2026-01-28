@@ -2,6 +2,7 @@ package com.github.istin.dmtools.ai;
 
 import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.ai.utils.AIResponseParser;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -23,6 +24,59 @@ public interface AI {
     String chat(String model, Message... messages) throws Exception;
 
     String chat(Message... messages) throws Exception;
+
+    default String chat(String message, JSONObject agentContext) throws Exception {
+        return chat(message);
+    }
+
+    default String chat(String model, String message, JSONObject agentContext) throws Exception {
+        return chat(model, message);
+    }
+
+    default String chat(String model, String message, File imageFile, JSONObject agentContext) throws Exception {
+        return chat(model, message, imageFile);
+    }
+
+    default String chat(String model, String message, List<File> files, JSONObject agentContext) throws Exception {
+        return chat(model, message, files);
+    }
+
+    default String chat(String model, JSONObject agentContext, Message... messages) throws Exception {
+        return chat(model, messages);
+    }
+
+    default String chat(JSONObject agentContext, Message... messages) throws Exception {
+        return chat(messages);
+    }
+
+    class AgentParams {
+        public final static String AGENT_PROMPT = "agentPrompt";
+
+        static PropertyReader propertyReader = new PropertyReader();
+
+        public static void apply(JSONObject jsonObjectParams, JSONObject agentContext) {
+            if (jsonObjectParams == null || agentContext == null) {
+                return;
+            }
+            if (agentContext.has(AGENT_PROMPT)) {
+                String agentPrompt = agentContext.getString(AGENT_PROMPT);
+                if (agentPrompt == null) {
+                    return;
+                }
+                agentPrompt = agentPrompt.replaceAll("/", "_");
+                String value = propertyReader.getValue(agentPrompt, null);
+                if (value == null) {
+                    value = propertyReader.getValue(agentPrompt.toUpperCase(), null);
+                }
+                if (value != null) {
+                    JSONObject valuesJson = new JSONObject(value);
+                    for (String key : valuesJson.keySet()) {
+                        jsonObjectParams.put(key, valuesJson.get(key));
+                    }
+                }
+            }
+        }
+    }
 
     /**
      * Returns the role name used by this AI provider for assistant/model responses.

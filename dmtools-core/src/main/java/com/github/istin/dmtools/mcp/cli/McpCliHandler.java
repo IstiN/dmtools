@@ -7,11 +7,16 @@ import com.github.istin.dmtools.common.config.PropertyReaderConfiguration;
 import com.github.istin.dmtools.di.AIComponentsModule;
 import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
+import com.github.istin.dmtools.atlassian.jira.xray.XrayClient;
 import com.github.istin.dmtools.cli.CliCommandExecutor;
+import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.di.DaggerKnowledgeBaseComponent;
 import com.github.istin.dmtools.di.KnowledgeBaseComponent;
+import com.github.istin.dmtools.di.DaggerMermaidIndexComponent;
+import com.github.istin.dmtools.di.MermaidIndexComponent;
 import com.github.istin.dmtools.figma.BasicFigmaClient;
 import com.github.istin.dmtools.file.FileTools;
+import com.github.istin.dmtools.common.utils.JSONUtils;
 import com.github.istin.dmtools.microsoft.teams.BasicTeamsClient;
 import com.github.istin.dmtools.microsoft.teams.TeamsAuthTools;
 import com.github.istin.dmtools.microsoft.sharepoint.BasicSharePointClient;
@@ -20,6 +25,7 @@ import com.github.istin.dmtools.mcp.generated.MCPToolExecutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -112,10 +118,20 @@ public class McpCliHandler {
 
             Object result = MCPToolExecutor.executeTool(toolName, arguments, clientInstances);
             if (result == null) {
-                return "Tool executed successfully but returned no result.";
+                return createErrorResponse("Tool executed successfully but returned no result.");
             }
 
-            return serializeResult(result);
+            String serialized = serializeResult(result);
+            if (serialized.trim().startsWith("{")) {
+                return serialized;
+            }
+            JSONObject response = new JSONObject();
+            if (serialized.trim().startsWith("[")) {
+                response.put("result", new JSONArray(serialized));
+            } else {
+                response.put("result", result);
+            }
+            return response.toString(2);
 
         } catch (IllegalArgumentException e) {
             logger.error("Invalid tool or arguments", e);
@@ -131,40 +147,7 @@ public class McpCliHandler {
      * Handles various result types: JSONModel, List, primitives, etc.
      */
     private String serializeResult(Object result) {
-        if (result == null) {
-            return "null";
-        }
-        
-        // Handle JSONModel objects
-        if (result instanceof com.github.istin.dmtools.common.model.JSONModel) {
-            return result.toString();
-        }
-        
-        // Handle Lists (e.g., List<Chat>)
-        if (result instanceof List) {
-            org.json.JSONArray jsonArray = new org.json.JSONArray();
-            for (Object item : (List<?>) result) {
-                if (item instanceof com.github.istin.dmtools.common.model.JSONModel) {
-                    jsonArray.put(new JSONObject(item.toString()));
-                } else {
-                    jsonArray.put(item);
-                }
-            }
-            return jsonArray.toString(2); // Pretty print with 2-space indent
-        }
-        
-        // Handle primitives and other types
-        if (result instanceof String || result instanceof Number || result instanceof Boolean) {
-            return result.toString();
-        }
-        
-        // Try to convert to JSON object
-        try {
-            return new JSONObject(result.toString()).toString(2);
-        } catch (Exception e) {
-            // Fall back to plain toString
-            return result.toString();
-        }
+        return JSONUtils.serializeResult(result);
     }
 
     /**
@@ -231,6 +214,7 @@ public class McpCliHandler {
     /**
      * Maps positional arguments to named parameters based on the tool's schema.
      * Uses parameter order from method declaration (via annotation processor).
+     * Handles varargs/array parameters by collecting all remaining args into an array.
      */
     private void mapPositionalArguments(String toolName, List<String> positionalArgs, Map<String, Object> arguments) {
         try {
@@ -246,20 +230,42 @@ public class McpCliHandler {
                 return;
             }
             
+            // Get tool schema to check parameter types
+            Map<String, Object> toolSchema = getToolSchema(toolName);
+            
             // Map positional args to parameter names in declaration order
-            int numToMap = Math.min(positionalArgs.size(), paramNames.size());
-            for (int i = 0; i < numToMap; i++) {
-                String paramValue = positionalArgs.get(i);
+            int numParams = paramNames.size();
+            int numArgs = positionalArgs.size();
+            
+            for (int i = 0; i < numParams; i++) {
                 String paramName = paramNames.get(i);
-                // Try to convert to appropriate type (Integer for "limit" parameter, etc.)
-                Object convertedValue = convertParameterValue(paramName, paramValue);
-                arguments.put(paramName, convertedValue);
+                boolean isArrayParam = isArrayParameter(toolSchema, paramName);
+                boolean isLastParam = (i == numParams - 1);
+                
+                if (isArrayParam && isLastParam && i < numArgs) {
+                    // Varargs/array parameter: collect all remaining positional args into an array
+                    List<String> remainingArgs = positionalArgs.subList(i, numArgs);
+                    String[] arrayValue = remainingArgs.toArray(new String[0]);
+                    arguments.put(paramName, arrayValue);
+                    logger.debug("Mapped {} positional args to array parameter '{}' for tool '{}'", 
+                               remainingArgs.size(), paramName, toolName);
+                    break; // All remaining args consumed
+                } else if (i < numArgs) {
+                    // Regular parameter: map single value
+                    String paramValue = positionalArgs.get(i);
+                    Object convertedValue = convertParameterValue(paramName, paramValue);
+                    arguments.put(paramName, convertedValue);
+                }
             }
             
-            // If there are more positional args than parameters, log warning
-            if (positionalArgs.size() > paramNames.size()) {
-                logger.warn("Tool '{}' has {} parameters but {} positional arguments provided. Extra arguments ignored.", 
-                    toolName, paramNames.size(), positionalArgs.size());
+            // If there are more positional args than parameters (and last param is not array), log warning
+            if (numArgs > numParams) {
+                String lastParamName = paramNames.get(numParams - 1);
+                boolean isLastArray = isArrayParameter(toolSchema, lastParamName);
+                if (!isLastArray) {
+                    logger.warn("Tool '{}' has {} parameters but {} positional arguments provided. Extra arguments ignored.", 
+                        toolName, numParams, numArgs);
+                }
             }
         } catch (Exception e) {
             logger.warn("Error mapping parameters for tool '{}': {}. Using indexed fallback.", 
@@ -269,6 +275,60 @@ public class McpCliHandler {
                 arguments.put("arg" + i, positionalArgs.get(i));
             }
         }
+    }
+    
+    /**
+     * Get tool schema from cache or generate it.
+     */
+    private Map<String, Object> getToolSchema(String toolName) {
+        try {
+            Set<String> integrations = Set.of("jira", "ado", "ai", "confluence", "figma", "file", "cli", "teams", "sharepoint", "kb", "mermaid");
+            Map<String, Object> toolsResponse = MCPSchemaGenerator.generateToolsListResponse(integrations);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> tools = (List<Map<String, Object>>) toolsResponse.get("tools");
+            
+            for (Map<String, Object> tool : tools) {
+                if (toolName.equals(tool.get("name"))) {
+                    return tool;
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not retrieve schema for tool '{}': {}", toolName, e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * Check if a parameter is expected to be an array based on tool schema.
+     */
+    private boolean isArrayParameter(Map<String, Object> toolSchema, String paramName) {
+        if (toolSchema == null) {
+            // Heuristic: if param name ends with 's' and contains common array indicators
+            return paramName.endsWith("s") && 
+                   (paramName.contains("url") || paramName.contains("id") || 
+                    paramName.contains("field") || paramName.contains("string"));
+        }
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> inputSchema = (Map<String, Object>) toolSchema.get("inputSchema");
+        if (inputSchema == null) {
+            return false;
+        }
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> properties = (Map<String, Object>) inputSchema.get("properties");
+        if (properties == null) {
+            return false;
+        }
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> paramSchema = (Map<String, Object>) properties.get(paramName);
+        if (paramSchema == null) {
+            return false;
+        }
+        
+        String type = (String) paramSchema.get("type");
+        return "array".equals(type);
     }
 
     /**
@@ -301,6 +361,17 @@ public class McpCliHandler {
             logger.debug("Created BasicJiraClient instance");
         } catch (IOException e) {
             logger.warn("Failed to create BasicJiraClient: {}", e.getMessage());
+        }
+
+        try {
+            // Create Xray client (extends JiraClient, provides X-ray specific functionality)
+            TrackerClient<?> xrayClient = XrayClient.getInstance();
+            if (xrayClient != null) {
+                clients.put("jira_xray", xrayClient);
+                logger.debug("Created XrayClient instance");
+            }
+        } catch (IOException e) {
+            logger.debug("XrayClient not initialized: {}. X-ray tools will not be available.", e.getMessage());
         }
 
         try {
@@ -377,6 +448,15 @@ public class McpCliHandler {
             logger.warn("Failed to create KBTools: {}", e.getMessage());
         }
 
+        try {
+            // Create Mermaid Index Tools using Dagger
+            MermaidIndexComponent mermaidComponent = DaggerMermaidIndexComponent.create();
+            clients.put("mermaid", mermaidComponent.mermaidIndexTools());
+            logger.debug("Created MermaidIndexTools instance");
+        } catch (Exception e) {
+            logger.warn("Failed to create MermaidIndexTools: {}", e.getMessage());
+        }
+
         logger.info("Created {} client instances for MCP CLI", clients.size());
         return clients;
     }
@@ -410,6 +490,13 @@ public class McpCliHandler {
         if (gemini != null) {
             aiClients.put("gemini", gemini);
             logger.debug("Created BasicGeminiAI instance");
+        }
+        
+        // Try to create Bedrock client using AIComponentsModule
+        AI bedrock = AIComponentsModule.createBedrockAI(observer, configuration);
+        if (bedrock != null) {
+            aiClients.put("bedrock", bedrock);
+            logger.debug("Created BasicBedrockAI instance");
         }
         
         // Try to create Dial client (fallback) using AIComponentsModule

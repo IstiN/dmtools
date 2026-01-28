@@ -24,9 +24,11 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class OllamaAIClient extends AbstractRestClient implements AI {
 
@@ -57,27 +59,58 @@ public class OllamaAIClient extends AbstractRestClient implements AI {
     @Getter
     private final Map<String, String> customHeaders;
 
+    @Getter
+    private final String apiKey;
+
     // Default constructor - backward compatibility
     public OllamaAIClient(String basePath, String model) throws IOException {
-        this(basePath, model, 16384, -1, null, null);
+        this(basePath, model, null, 16384, -1, null, null, LogManager.getLogger(OllamaAIClient.class));
     }
 
     // Default constructor with observer - backward compatibility
     public OllamaAIClient(String basePath, String model, ConversationObserver conversationObserver) throws IOException {
-        this(basePath, model, 16384, -1, conversationObserver, null);
+        this(basePath, model, null, 16384, -1, conversationObserver, null, LogManager.getLogger(OllamaAIClient.class));
     }
 
     // Full constructor with all parameters
     public OllamaAIClient(String basePath, String model, int numCtx, int numPredict, ConversationObserver conversationObserver) throws IOException {
-        this(basePath, model, numCtx, numPredict, conversationObserver, null);
+        this(basePath, model, null, numCtx, numPredict, conversationObserver, null, LogManager.getLogger(OllamaAIClient.class));
     }
-    
+
     // Constructor with custom headers
     public OllamaAIClient(String basePath, String model, int numCtx, int numPredict, ConversationObserver conversationObserver, Map<String, String> customHeaders) throws IOException {
-        this(basePath, model, numCtx, numPredict, conversationObserver, customHeaders, LogManager.getLogger(OllamaAIClient.class));
+        this(basePath, model, null, numCtx, numPredict, conversationObserver, customHeaders, LogManager.getLogger(OllamaAIClient.class));
     }
-    
-    // NEW: Constructor with logger injection for server-managed mode
+
+    // Constructor with API key
+    public OllamaAIClient(String basePath, String model, String apiKey) throws IOException {
+        this(basePath, model, apiKey, 16384, -1, null, null, LogManager.getLogger(OllamaAIClient.class));
+    }
+
+    // Constructor with API key and observer
+    public OllamaAIClient(String basePath, String model, ConversationObserver conversationObserver, String apiKey) throws IOException {
+        this(basePath, model, apiKey, 16384, -1, conversationObserver, null, LogManager.getLogger(OllamaAIClient.class));
+    }
+
+    // Constructor with API key, custom headers and observer
+    public OllamaAIClient(String basePath, String model, String apiKey, int numCtx, int numPredict, ConversationObserver conversationObserver, Map<String, String> customHeaders) throws IOException {
+        this(basePath, model, apiKey, numCtx, numPredict, conversationObserver, customHeaders, LogManager.getLogger(OllamaAIClient.class));
+    }
+
+    // Constructor with API key, logger injection for server-managed mode
+    public OllamaAIClient(String basePath, String model, String apiKey, int numCtx, int numPredict, ConversationObserver conversationObserver, Map<String, String> customHeaders, Logger logger) throws IOException {
+        super(basePath, null);
+        this.model = model;
+        this.numCtx = numCtx;
+        this.numPredict = numPredict;
+        this.conversationObserver = conversationObserver;
+        this.customHeaders = customHeaders != null ? new HashMap<>(customHeaders) : null;
+        this.apiKey = apiKey;
+        this.logger = logger != null ? logger : LogManager.getLogger(OllamaAIClient.class);
+        setCachePostRequestsEnabled(true);
+    }
+
+    // Constructor with logger injection for backward compatibility (without API key)
     public OllamaAIClient(String basePath, String model, int numCtx, int numPredict, ConversationObserver conversationObserver, Map<String, String> customHeaders, Logger logger) throws IOException {
         super(basePath, null);
         this.model = model;
@@ -85,9 +118,11 @@ public class OllamaAIClient extends AbstractRestClient implements AI {
         this.numPredict = numPredict;
         this.conversationObserver = conversationObserver;
         this.customHeaders = customHeaders != null ? new HashMap<>(customHeaders) : null;
+        this.apiKey = null;
         this.logger = logger != null ? logger : LogManager.getLogger(OllamaAIClient.class);
         setCachePostRequestsEnabled(true);
     }
+
 
     public String getName() {
         return model;
@@ -106,14 +141,20 @@ public class OllamaAIClient extends AbstractRestClient implements AI {
     @Override
     public Request.Builder sign(Request.Builder builder) {
         builder = builder.header("Content-Type", "application/json");
-        
+
+        // Add API key authentication if provided
+        if (apiKey != null && !apiKey.trim().isEmpty()) {
+            builder = builder.header("Authorization", "Bearer " + apiKey);
+            logger.debug("Using API key authentication for Ollama request");
+        }
+
         // Add custom headers if provided
         if (customHeaders != null && !customHeaders.isEmpty()) {
             for (Map.Entry<String, String> header : customHeaders.entrySet()) {
                 builder = builder.header(header.getKey(), header.getValue());
             }
         }
-        
+
         return builder;
     }
 
@@ -130,6 +171,64 @@ public class OllamaAIClient extends AbstractRestClient implements AI {
     )
     public String chat(@MCPParam(name = "message", description = "Text message to send to AI") String message) throws Exception {
         return chat(model, message);
+    }
+
+    /**
+     * Chat with Ollama AI using file attachments
+     * @param message The text message to send to Ollama
+     * @param filePaths Array of file paths to attach to the message
+     * @return AI response as string
+     */
+    @MCPTool(
+        name = "ollama_ai_chat_with_files",
+        description = "Send a text message to Ollama AI with file attachments. Supports images and other file types for analysis and questions.",
+        integration = "ai"
+    )
+    public String chatWithFiles(
+            @MCPParam(
+                name = "message",
+                description = "Text message to send to Ollama AI",
+                example = "What is in this image? Please analyze the document content."
+            ) String message,
+            @MCPParam(
+                name = "filePaths",
+                description = "Array of file paths to attach to the message",
+                type = "array",
+                example = "['/path/to/image.png', '/path/to/document.pdf']"
+            ) String[] filePaths
+    ) throws Exception {
+        if (message == null || message.trim().isEmpty()) {
+            throw new IllegalArgumentException("Message cannot be null or empty");
+        }
+
+        if (filePaths == null || filePaths.length == 0) {
+            throw new IllegalArgumentException("File paths array cannot be null or empty");
+        }
+
+        // Convert string paths to File objects
+        List<File> files = Arrays.stream(filePaths)
+                .map(String::trim)
+                .filter(path -> !path.isEmpty())
+                .map(File::new)
+                .peek(file -> {
+                    if (!file.exists()) {
+                        logger.warn("File does not exist: {}", file.getAbsolutePath());
+                    }
+                    if (!file.canRead()) {
+                        logger.warn("File is not readable: {}", file.getAbsolutePath());
+                    }
+                })
+                .collect(Collectors.toList());
+
+        if (files.isEmpty()) {
+            throw new IllegalArgumentException("No valid files found from provided paths");
+        }
+
+        logger.info("Ollama AI chat with files: message='{}', files={}",
+                message, files.stream().map(File::getName).collect(Collectors.toList()));
+
+        // Call the chat method with files
+        return chat(model, message, files);
     }
 
     @Override

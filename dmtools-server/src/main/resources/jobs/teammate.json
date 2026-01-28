@@ -339,6 +339,24 @@
         "agentFunctions/teammatePipeline.js",
         "https://github.com/company/dmtools-scripts/blob/main/teammate/postProcess.js"
       ]
+    },
+    {
+      "key": "systemRequestCommentAlias",
+      "displayNameKey": "teammate.systemRequestCommentAlias.displayName",
+      "descriptionKey": "teammate.systemRequestCommentAlias.description",
+      "instructionsKey": "teammate.systemRequestCommentAlias.instructions",
+      "required": false,
+      "sensitive": false,
+      "inputType": "text",
+      "defaultValue": null,
+      "validation": {
+        "maxLength": 100
+      },
+      "examples": [
+        "Technical Analysis",
+        "Security Review",
+        "Architecture Assessment"
+      ]
     }
   ],
   "webhookExamples": [

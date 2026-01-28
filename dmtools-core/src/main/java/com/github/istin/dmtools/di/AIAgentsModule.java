@@ -6,7 +6,11 @@ import com.github.istin.dmtools.atlassian.confluence.BasicConfluence;
 import com.github.istin.dmtools.atlassian.jira.BasicJiraClient;
 import com.github.istin.dmtools.context.ContextOrchestrator;
 import com.github.istin.dmtools.presentation.PresentationMakerOrchestrator;
-import com.github.istin.dmtools.projectsetup.agent.*;
+import com.github.istin.dmtools.projectsetup.agent.FinalStatusDetectionAgent;
+import com.github.istin.dmtools.projectsetup.agent.ProjectSetupAnalysisAgent;
+import com.github.istin.dmtools.projectsetup.agent.StoryDescriptionWritingRulesAgent;
+import com.github.istin.dmtools.projectsetup.agent.TestCaseWritingRulesAgent;
+import com.github.istin.dmtools.projectsetup.agent.WorkflowAnalysisAgent;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
 import com.github.istin.dmtools.search.ConfluenceSearchOrchestrator;
 import com.github.istin.dmtools.search.TrackerSearchOrchestrator;
@@ -134,6 +138,11 @@ public class AIAgentsModule {
     @Provides
     ToolSelectorAgent provideToolSelectorAgent() {
         return new ToolSelectorAgent();
+    }
+
+    @Provides
+    MermaidDiagramGeneratorAgent provideMermaidDiagramGeneratorAgent() {
+        return new MermaidDiagramGeneratorAgent();
     }
 
     @Provides

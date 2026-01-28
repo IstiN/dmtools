@@ -44,7 +44,7 @@ public class JiraClientTest {
             }
 
             @Override
-            public List<? extends ITicket> getTestCases(ITicket ticket) throws IOException {
+            public List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException {
                 return List.of();
             }
 
