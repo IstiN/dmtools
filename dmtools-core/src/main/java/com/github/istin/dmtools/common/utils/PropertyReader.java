@@ -303,6 +303,53 @@ public class PropertyReader {
 		return Boolean.parseBoolean(value);
 	}
 
+	public boolean isXrayParallelFetchEnabled() {
+		String value = getValue(XRAY_PARALLEL_FETCH_ENABLED);
+		if (value == null) {
+			return false;
+		}
+		return Boolean.parseBoolean(value);
+	}
+
+	public int getXrayParallelBatchSize() {
+		String value = getValue(XRAY_PARALLEL_BATCH_SIZE);
+		if (value == null || value.isEmpty()) {
+			return 100;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid XRAY_PARALLEL_BATCH_SIZE value: {}, using default: 100", value);
+			return 100;
+		}
+	}
+
+	public int getXrayParallelThreads() {
+		String value = getValue(XRAY_PARALLEL_THREADS);
+		if (value == null || value.isEmpty()) {
+			return 2;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid XRAY_PARALLEL_THREADS value: {}, using default: 2", value);
+			return 2;
+		}
+	}
+
+	public long getXrayParallelDelayMs() {
+		String value = getValue(XRAY_PARALLEL_DELAY_MS);
+		if (value == null || value.isEmpty()) {
+			return 500L;
+		}
+		try {
+			return Long.parseLong(value);
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid XRAY_PARALLEL_DELAY_MS value: {}, using default: 500", value);
+			return 500L;
+		}
+	}
+
 	public Long getSleepTimeRequest() {
 		String value = getValue("SLEEP_TIME_REQUEST");
 		if (value == null || value.isEmpty()) {
@@ -729,6 +776,12 @@ public class PropertyReader {
 	public static final String DEFAULT_TRACKER = "DEFAULT_TRACKER";
 	public static final String IMAGE_MAX_DIMENSION = "IMAGE_MAX_DIMENSION";
 	public static final String IMAGE_JPEG_QUALITY = "IMAGE_JPEG_QUALITY";
+
+	// X-ray parallel fetch configuration
+	public static final String XRAY_PARALLEL_FETCH_ENABLED = "XRAY_PARALLEL_FETCH_ENABLED";
+	public static final String XRAY_PARALLEL_BATCH_SIZE = "XRAY_PARALLEL_BATCH_SIZE";
+	public static final String XRAY_PARALLEL_THREADS = "XRAY_PARALLEL_THREADS";
+	public static final String XRAY_PARALLEL_DELAY_MS = "XRAY_PARALLEL_DELAY_MS";
 
 	public String getGeminiApiKey() {
 		return getValue(GEMINI_API_KEY);

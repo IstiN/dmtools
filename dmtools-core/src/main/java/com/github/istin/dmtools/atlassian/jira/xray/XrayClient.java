@@ -1004,10 +1004,45 @@ public class XrayClient extends JiraClient<Ticket> {
         
         // Enrich test tickets with X-ray data
         logger.info("Enriching {} Test/Precondition tickets with X-ray test steps and preconditions", testTickets.size());
-        
+
+        // Track performance metrics
+        long startTime = System.currentTimeMillis();
+        boolean usedParallelFetch = false;
+        int totalBatches = 0;
+        int parallelThreads = 0;
+
         try {
-            // Fetch all tests with pagination using the same JQL query
-            JSONArray xrayTests = xrayRestClient.getTestsByJQLGraphQL(searchQueryJQL);
+            // Fetch all tests - use parallel fetch if enabled
+            JSONArray xrayTests;
+            PropertyReader propertyReader = new PropertyReader();
+            if (propertyReader.isXrayParallelFetchEnabled()) {
+                usedParallelFetch = true;
+                // Extract keys from existing testTickets - no separate Jira query needed!
+                List<String> testKeys = new ArrayList<>();
+                for (Ticket ticket : testTickets) {
+                    String key = ticket.getKey();
+                    if (key != null && !key.isEmpty()) {
+                        testKeys.add(key);
+                    }
+                }
+
+                logger.debug("Extracted {} test keys from tickets for parallel fetch", testKeys.size());
+
+                // Read configuration with defaults
+                int batchSize = propertyReader.getXrayParallelBatchSize();
+                int parallelism = propertyReader.getXrayParallelThreads();
+                long delayMs = propertyReader.getXrayParallelDelayMs();
+
+                // Calculate metrics
+                totalBatches = (int) Math.ceil((double) testKeys.size() / batchSize);
+                parallelThreads = parallelism;
+
+                logger.info("Using parallel fetch: batchSize={}, threads={}, delayMs={}", batchSize, parallelism, delayMs);
+                xrayTests = xrayRestClient.getTestsByKeysGraphQLParallel(testKeys, searchQueryJQL, batchSize, parallelism, delayMs);
+            } else {
+                // Fallback to sequential fetch using the same JQL query
+                xrayTests = xrayRestClient.getTestsByJQLGraphQL(searchQueryJQL);
+            }
             logger.debug("Retrieved {} tests from X-ray GraphQL API", xrayTests.length());
             
             // Create a map of X-ray test data by ticket key for fast lookup
@@ -1160,9 +1195,89 @@ public class XrayClient extends JiraClient<Ticket> {
                     // Continue processing other tickets even if one fails
                 }
             }
-            
-            logger.info("Finished enriching {} Test/Precondition tickets with X-ray data", testTickets.size());
-            
+
+            // Calculate final metrics
+            long endTime = System.currentTimeMillis();
+            long elapsedMs = endTime - startTime;
+            double elapsedSec = elapsedMs / 1000.0;
+
+            // Count X-ray test steps and preconditions
+            int totalSteps = 0;
+            int totalPreconditions = 0;
+            int cucumberTests = 0;
+
+            for (Ticket ticket : testTickets) {
+                try {
+                    Fields fields = ticket.getFields();
+                    if (fields != null && fields.getJSONObject() != null) {
+                        JSONObject fieldsJson = fields.getJSONObject();
+
+                        // Count test steps
+                        if (fieldsJson.has("xrayTestSteps")) {
+                            Object stepsObj = fieldsJson.get("xrayTestSteps");
+                            if (stepsObj instanceof JSONArray) {
+                                JSONArray steps = (JSONArray) stepsObj;
+                                totalSteps += steps.length();
+                            }
+                        }
+
+                        // Count preconditions
+                        if (fieldsJson.has("xrayPreconditions")) {
+                            Object precondsObj = fieldsJson.get("xrayPreconditions");
+                            if (precondsObj instanceof JSONArray) {
+                                JSONArray preconds = (JSONArray) precondsObj;
+                                totalPreconditions += preconds.length();
+                            }
+                        }
+
+                        // Count Cucumber tests (with gherkin)
+                        if (fieldsJson.has("xrayGherkin")) {
+                            Object gherkinObj = fieldsJson.get("xrayGherkin");
+                            if (gherkinObj != null && !gherkinObj.toString().trim().isEmpty()) {
+                                cucumberTests++;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.debug("Error counting metrics for ticket {}: {}", ticket.getKey(), e.getMessage());
+                }
+            }
+
+            // Print detailed summary
+            logger.info("================================================================================");
+            logger.info("X-RAY DATA ENRICHMENT SUMMARY");
+            logger.info("================================================================================");
+            logger.info("Total Test/Precondition Tickets:  {}", testTickets.size());
+            logger.info("X-ray Tests Retrieved:             {}", xrayDataMap.size());
+            logger.info("X-ray Cucumber Tests (Gherkin):    {}", cucumberTests);
+            logger.info("X-ray Test Steps:                  {}", totalSteps);
+            logger.info("X-ray Preconditions:               {}", totalPreconditions);
+            logger.info("--------------------------------------------------------------------------------");
+            logger.info("Fetch Method:                      {}", usedParallelFetch ? "PARALLEL" : "SEQUENTIAL");
+
+            if (usedParallelFetch) {
+                logger.info("Parallel Configuration:");
+                logger.info("  - Batches:                       {}", totalBatches);
+                logger.info("  - Threads:                       {}", parallelThreads);
+                logger.info("  - Requests per thread:           ~{}", Math.ceil((double) totalBatches / parallelThreads));
+            }
+
+            logger.info("--------------------------------------------------------------------------------");
+            logger.info(String.format("Time Elapsed:                      %.2f seconds (%d ms)", elapsedSec, elapsedMs));
+
+            // Estimate sequential time for comparison
+            if (usedParallelFetch && totalBatches > 0) {
+                // Assume ~1.5 seconds per request for sequential
+                double estimatedSequentialSec = totalBatches * 1.5;
+                double speedup = (estimatedSequentialSec / elapsedSec);
+                double improvement = ((estimatedSequentialSec - elapsedSec) / estimatedSequentialSec) * 100;
+
+                logger.info(String.format("Estimated Sequential Time:         %.2f seconds", estimatedSequentialSec));
+                logger.info(String.format("Performance Improvement:           %.1f%% faster (%.1fx speedup)", improvement, speedup));
+            }
+
+            logger.info("================================================================================");
+
         } catch (IOException e) {
             logger.warn("Failed to get X-ray data for JQL query {}: {}", searchQueryJQL, e.getMessage(), e);
             // Continue - tickets will be processed without X-ray enrichment

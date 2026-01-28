@@ -10,6 +10,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * REST client for X-ray Cloud API communication.
@@ -639,6 +642,426 @@ public class XrayRestClient extends AbstractRestClient {
         
         logger.debug("GraphQL returned total {} tests for JQL query: {}", allResults.length(), jqlQuery);
         return allResults;
+    }
+
+    /**
+     * Gets test details for multiple test keys using parallel GraphQL queries.
+     * Keys are split into batches and fetched concurrently with rate limiting.
+     *
+     * @param keys List of test case keys to fetch
+     * @param baseJQL Base JQL filter (e.g., "project = DIGIX AND issueType = Test") to ensure only correct issue types are returned
+     * @param batchSize Number of keys per batch (default: 50)
+     * @param parallelism Number of concurrent threads (default: 2)
+     * @param delayMs Initial delay between parallel requests for rate limiting (default: 500)
+     * @return JSONArray of test details including steps and preconditions
+     * @throws IOException if API call fails
+     */
+    public JSONArray getTestsByKeysGraphQLParallel(
+            List<String> keys,
+            String baseJQL,
+            int batchSize,
+            int parallelism,
+            long delayMs) throws IOException {
+
+        if (keys == null || keys.isEmpty()) {
+            return new JSONArray();
+        }
+
+        // Extract base filter from JQL (remove key filters if present)
+        String baseFilter = extractBaseFilter(baseJQL);
+        logger.debug("Base JQL filter for parallel fetch: {}", baseFilter);
+
+        // IMPORTANT: Sort keys first for consistent batching and JQL queries
+        // Jira keys sort naturally (TEST-100, TEST-200, etc.)
+        List<String> sortedKeys = new ArrayList<>(keys);
+        Collections.sort(sortedKeys);
+        logger.debug("Sorted {} keys for parallel fetch", sortedKeys.size());
+
+        // Split sorted keys into batches
+        List<List<String>> batches = new ArrayList<>();
+        for (int i = 0; i < sortedKeys.size(); i += batchSize) {
+            int end = Math.min(i + batchSize, sortedKeys.size());
+            batches.add(sortedKeys.subList(i, end));
+        }
+
+        logger.info("Split {} keys into {} batches (size: {}), fetching with {} parallel threads",
+                keys.size(), batches.size(), batchSize, parallelism);
+
+        // Create thread pool
+        ExecutorService executor = Executors.newFixedThreadPool(parallelism);
+        Semaphore rateLimiter = new Semaphore(parallelism);
+        AtomicLong lastRequestTime = new AtomicLong(System.currentTimeMillis());
+        AtomicLong currentDelay = new AtomicLong(delayMs); // Dynamic delay for rate limit handling
+
+        // Fetch batches in parallel
+        List<Future<JSONArray>> futures = new ArrayList<>();
+
+        for (List<String> batch : batches) {
+            Future<JSONArray> future = executor.submit(() -> {
+                int retries = 0;
+                int maxRetries = 3;
+
+                while (retries < maxRetries) {
+                    try {
+                        // Rate limiting
+                        enforceRateLimit(rateLimiter, lastRequestTime, currentDelay.get());
+
+                        String firstKey = batch.get(0);
+                        String lastKey = batch.get(batch.size() - 1);
+
+                        // Build JQL using range query
+                        // With base filter, range query will only return the correct issue types (Test/Precondition)
+                        // No need for IN clause anymore - gaps exist because other keys are different issue types
+                        String keyFilter = String.format(
+                            "key >= \"%s\" AND key <= \"%s\"",
+                            firstKey.replace("\"", "\\\""),
+                            lastKey.replace("\"", "\\\"")
+                        );
+
+                        // Combine base filter with key filter to ensure only correct issue types are returned
+                        String batchJql;
+                        if (baseFilter != null && !baseFilter.trim().isEmpty()) {
+                            batchJql = String.format("(%s) AND (%s) ORDER BY key ASC", baseFilter, keyFilter);
+                        } else {
+                            batchJql = keyFilter + " ORDER BY key ASC";
+                        }
+
+                        // Log batch details for debugging
+                        logger.info("=== Batch #{} ===", (batches.indexOf(batch) + 1));
+                        logger.info("Fetching {} keys: {} to {}", batch.size(), firstKey, lastKey);
+                        logger.debug("JQL query: {}", batchJql.length() > 200 ?
+                                   batchJql.substring(0, 200) + "..." : batchJql);
+
+                        // Fetch this batch via GraphQL WITHOUT pagination
+                        // We use getTestsByJQLGraphQLWithPagination directly (single request)
+                        // instead of getTestsByJQLGraphQL (which has pagination loop)
+                        // Use limit=100 (API maximum)
+                        JSONObject pageData = getTestsByJQLGraphQLWithPagination(batchJql, 100);
+
+                        if (pageData == null || !pageData.has("results")) {
+                            logger.warn("Empty or null response for batch with {} keys", batch.size());
+                            return new JSONArray();
+                        }
+
+                        JSONArray batchResults = pageData.getJSONArray("results");
+
+                        // Log what X-ray returned
+                        List<String> returnedKeys = new ArrayList<>();
+                        for (int i = 0; i < batchResults.length(); i++) {
+                            JSONObject test = batchResults.getJSONObject(i);
+                            if (test.has("jira")) {
+                                String key = test.getJSONObject("jira").getString("key");
+                                returnedKeys.add(key);
+                            }
+                        }
+
+                        logger.info("X-ray returned {} results", batchResults.length());
+                        logger.debug("First 5 returned keys: {}",
+                                    returnedKeys.subList(0, Math.min(5, returnedKeys.size())));
+                        logger.debug("Last 5 returned keys: {}",
+                                    returnedKeys.size() > 5 ? returnedKeys.subList(returnedKeys.size() - 5, returnedKeys.size()) : returnedKeys);
+
+                        // Check which requested keys are in the results (for validation)
+                        Set<String> batchKeySet = new HashSet<>(batch);
+                        Set<String> returnedKeySet = new HashSet<>(returnedKeys);
+                        Set<String> matchedKeys = new HashSet<>(batchKeySet);
+                        matchedKeys.retainAll(returnedKeySet);
+
+                        // With base filter, we should get all requested keys (no extra keys from other issue types)
+                        if (matchedKeys.size() == batch.size()) {
+                            logger.debug("✓ Batch complete: {}/{} keys returned", matchedKeys.size(), batch.size());
+                        } else {
+                            // This should rarely happen now with base filter
+                            Set<String> missingFromBatch = new HashSet<>(batchKeySet);
+                            missingFromBatch.removeAll(returnedKeySet);
+                            logger.warn("⚠ Batch incomplete: {}/{} keys returned, {} missing",
+                                       matchedKeys.size(), batch.size(), missingFromBatch.size());
+                            logger.warn("Missing keys: {}", missingFromBatch.size() <= 10 ? missingFromBatch :
+                                       "First 10: " + new ArrayList<>(missingFromBatch).subList(0, 10));
+                        }
+
+                        return batchResults;
+
+                    } catch (Exception e) {
+                        // Check if it's a rate limit error (429)
+                        if (e.getMessage() != null &&
+                            (e.getMessage().contains("429") ||
+                             e.getMessage().toLowerCase().contains("rate limit") ||
+                             e.getMessage().toLowerCase().contains("rate-limit"))) {
+                            retries++;
+
+                            // Try to extract nextValidRequestDate from error message
+                            Long waitUntilMs = extractNextValidRequestDate(e.getMessage());
+                            long sleepTime;
+
+                            if (waitUntilMs != null) {
+                                // Use exact time from X-ray API
+                                sleepTime = Math.max(0, waitUntilMs - System.currentTimeMillis());
+                                logger.warn("Rate limit (429) detected, X-ray says next request available at: {}, sleeping {}ms (retry {}/{})",
+                                            new java.util.Date(waitUntilMs), sleepTime, retries, maxRetries);
+
+                                // Update global delay to prevent other threads from hitting rate limit
+                                currentDelay.set(Math.max(currentDelay.get(), sleepTime / parallelism));
+                            } else {
+                                // Fallback to exponential backoff if we can't parse nextValidRequestDate
+                                sleepTime = currentDelay.get() * (retries + 1);
+                                logger.warn("Rate limit (429) detected, using exponential backoff, sleeping {}ms (retry {}/{})",
+                                            sleepTime, retries, maxRetries);
+
+                                // Increase global delay for all threads
+                                currentDelay.set(Math.min(currentDelay.get() * 2, 5000)); // Max 5 seconds
+                            }
+
+                            try {
+                                Thread.sleep(sleepTime);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                throw new IOException("Interrupted during rate limit backoff", ie);
+                            }
+                        } else {
+                            // Non-rate-limit error - log and return empty, don't kill other threads
+                            logger.error("Error fetching batch (will continue with other batches): {}", e.getMessage());
+                            logger.debug("Batch error details", e);
+                            return new JSONArray(); // Return empty to continue processing other batches
+                        }
+                    }
+                }
+
+                // Max retries exceeded - log and return empty, don't kill other threads
+                logger.error("Max retries ({}) exceeded for batch after rate limiting, skipping this batch", maxRetries);
+                return new JSONArray();
+            });
+            futures.add(future);
+        }
+
+        // Collect all results
+        logger.info("=== COLLECTING ALL RESULTS ===");
+        logger.info("Total requested keys: {}", sortedKeys.size());
+
+        // Check for duplicates in requested keys
+        Set<String> requestedKeys = new HashSet<>(sortedKeys);
+        if (requestedKeys.size() != sortedKeys.size()) {
+            int duplicates = sortedKeys.size() - requestedKeys.size();
+            logger.warn("WARNING: Found {} duplicate keys in input! This might cause issues.", duplicates);
+
+            // Find and log duplicates
+            Map<String, Integer> keyCount = new HashMap<>();
+            for (String key : sortedKeys) {
+                keyCount.put(key, keyCount.getOrDefault(key, 0) + 1);
+            }
+            List<String> duplicateKeys = keyCount.entrySet().stream()
+                .filter(e -> e.getValue() > 1)
+                .map(e -> e.getKey() + " (x" + e.getValue() + ")")
+                .limit(10)
+                .collect(java.util.stream.Collectors.toList());
+            logger.warn("First 10 duplicate keys: {}", duplicateKeys);
+        }
+
+        JSONArray allResults = new JSONArray();
+        Set<String> foundKeys = new HashSet<>(); // Track what we found
+        Map<String, Integer> foundKeyCount = new HashMap<>(); // Track duplicates in results
+        int totalBatchResults = 0;
+        int filteredCount = 0;
+        List<String> filteredKeys = new ArrayList<>();
+
+        try {
+            for (Future<JSONArray> future : futures) {
+                JSONArray batchResults = future.get(); // Wait for completion
+                totalBatchResults += batchResults.length();
+
+                for (int i = 0; i < batchResults.length(); i++) {
+                    JSONObject test = batchResults.getJSONObject(i);
+
+                    // Filter results to keep only the keys we explicitly requested
+                    // With range queries, X-ray may return extra keys that exist in the range
+                    String key = test.getJSONObject("jira").getString("key");
+                    if (requestedKeys.contains(key)) {
+                        allResults.put(test);
+                        foundKeys.add(key);
+                        foundKeyCount.put(key, foundKeyCount.getOrDefault(key, 0) + 1);
+                    } else {
+                        // X-ray returned a key we didn't ask for (exists in range but not in our list)
+                        filteredCount++;
+                        filteredKeys.add(key);
+                        if (filteredCount <= 5) {
+                            logger.debug("Filtering out extra key: {} (not in our requested list)", key);
+                        }
+                    }
+                }
+            }
+
+            // Check for duplicates in found results
+            List<String> duplicateResults = foundKeyCount.entrySet().stream()
+                .filter(e -> e.getValue() > 1)
+                .map(e -> e.getKey() + " (x" + e.getValue() + ")")
+                .collect(java.util.stream.Collectors.toList());
+            if (!duplicateResults.isEmpty()) {
+                logger.warn("WARNING: Found {} duplicate keys in RESULTS!", duplicateResults.size());
+                logger.warn("Duplicate results: {}", duplicateResults.size() <= 10 ? duplicateResults :
+                            "First 10: " + duplicateResults.subList(0, 10));
+            }
+
+            // Log detailed statistics
+            logger.info("=== FINAL BATCH PROCESSING STATISTICS ===");
+            logger.info("  - Requested keys:        {}", requestedKeys.size());
+            logger.info("  - Total batch results:   {}", totalBatchResults);
+            logger.info("  - Filtered out (extra):  {}", filteredCount);
+            logger.info("  - Found requested keys:  {}", foundKeys.size());
+            logger.info("  - Missing keys:          {}", requestedKeys.size() - foundKeys.size());
+
+            // Log filtered keys details
+            if (filteredCount > 0) {
+                logger.info("Filtered keys (not in our request): {}",
+                            filteredKeys.size() <= 20 ? filteredKeys :
+                            "First 20 of " + filteredKeys.size() + ": " + filteredKeys.subList(0, 20));
+            }
+
+            // Log missing keys if any
+            if (foundKeys.size() < requestedKeys.size()) {
+                Set<String> missingKeys = new HashSet<>(requestedKeys);
+                missingKeys.removeAll(foundKeys);
+                int missingCount = missingKeys.size();
+                double missingPercent = (missingCount * 100.0) / requestedKeys.size();
+
+                logger.warn("WARNING: {} keys ({}%) were requested but not found in X-ray API response",
+                            missingCount, String.format("%.1f", missingPercent));
+
+                // Log first 10 missing keys for debugging
+                int count = 0;
+                for (String missingKey : missingKeys) {
+                    if (count++ < 10) {
+                        logger.warn("  Missing key: {}", missingKey);
+                    } else {
+                        logger.warn("  ... and {} more missing keys", missingKeys.size() - 10);
+                        break;
+                    }
+                }
+
+                // If we're missing more than 5% of keys, something went wrong
+                // Return what we have with a clear warning
+                if (missingPercent > 5.0) {
+                    logger.error("Missing {}% of requested keys - parallel fetch incomplete",
+                                 String.format("%.1f", missingPercent));
+                    logger.error("Returning {} out of {} requested tests. Consider disabling parallel fetch if this persists.",
+                                 foundKeys.size(), requestedKeys.size());
+                    // Return partial results - caller can decide whether to use them
+                }
+            }
+
+        } catch (Exception e) {
+            logger.error("Error collecting parallel results: {}", e.getMessage());
+            logger.error("Parallel fetch failed completely. Please disable parallel fetch or check logs.");
+            executor.shutdownNow();
+            // Return empty results - parallel fetch failed
+            return new JSONArray();
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+            }
+        }
+
+        logger.info("Parallel fetch completed: {} total results", allResults.length());
+        return allResults;
+    }
+
+    /**
+     * Extracts base filter from JQL query by removing key-related filters.
+     * This ensures that range queries only return the correct issue types.
+     *
+     * Example:
+     * - Input: "project = DIGIX AND issueType = Test AND key in (DIGIX-123, DIGIX-456)"
+     * - Output: "project = DIGIX AND issueType = Test"
+     *
+     * @param jql Original JQL query
+     * @return Base filter without key conditions, or empty string if not found
+     */
+    private String extractBaseFilter(String jql) {
+        if (jql == null || jql.trim().isEmpty()) {
+            return "";
+        }
+
+        // Remove key-related filters using regex
+        // Patterns to remove: "key in (...)", "key = ...", "key >= ...", "key <= ...", etc.
+        String cleaned = jql
+            .replaceAll("(?i)\\s+AND\\s+key\\s+(in|=|>=|<=|>|<|!=)\\s+[^)]*\\)", "") // AND key ... )
+            .replaceAll("(?i)\\s+AND\\s+key\\s+(in|=|>=|<=|>|<|!=)\\s+\"[^\"]*\"", "") // AND key = "..."
+            .replaceAll("(?i)key\\s+(in|=|>=|<=|>|<|!=)\\s+[^)]*\\)\\s+AND\\s+", "") // key ... ) AND
+            .replaceAll("(?i)key\\s+(in|=|>=|<=|>|<|!=)\\s+\"[^\"]*\"\\s+AND\\s+", "") // key = "..." AND
+            .replaceAll("(?i)\\s+ORDER\\s+BY\\s+.*$", "") // Remove ORDER BY
+            .trim();
+
+        // If the result is empty or just "AND", return empty string
+        if (cleaned.isEmpty() || cleaned.equalsIgnoreCase("AND")) {
+            return "";
+        }
+
+        logger.debug("Extracted base filter from JQL: '{}' -> '{}'", jql, cleaned);
+        return cleaned;
+    }
+
+    /**
+     * Extracts nextValidRequestDate from X-ray API rate limit error message.
+     * X-ray returns JSON like: {"error":{"text":"Too many requests","nextValidRequestDate":"2026-01-27T17:48:54.791Z"}}
+     *
+     * @param errorMessage Error message that may contain rate limit info
+     * @return Timestamp in milliseconds when next request is allowed, or null if not found
+     */
+    private Long extractNextValidRequestDate(String errorMessage) {
+        if (errorMessage == null || !errorMessage.contains("nextValidRequestDate")) {
+            return null;
+        }
+
+        try {
+            // Try to extract the JSON part from the error message
+            int jsonStart = errorMessage.indexOf("{");
+            int jsonEnd = errorMessage.lastIndexOf("}");
+
+            if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                String jsonPart = errorMessage.substring(jsonStart, jsonEnd + 1);
+                JSONObject errorJson = new JSONObject(jsonPart);
+
+                // Navigate to error.nextValidRequestDate
+                if (errorJson.has("error")) {
+                    JSONObject error = errorJson.getJSONObject("error");
+                    if (error.has("nextValidRequestDate")) {
+                        String dateStr = error.getString("nextValidRequestDate");
+
+                        // Parse ISO 8601 date format (e.g., "2026-01-27T17:48:54.791Z")
+                        java.time.Instant instant = java.time.Instant.parse(dateStr);
+                        return instant.toEpochMilli();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not parse nextValidRequestDate from error message: {}", e.getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Enforces rate limiting by delaying requests.
+     */
+    private void enforceRateLimit(Semaphore rateLimiter, AtomicLong lastRequestTime, long delayMs)
+            throws InterruptedException {
+        rateLimiter.acquire();
+        try {
+            long now = System.currentTimeMillis();
+            long timeSinceLastRequest = now - lastRequestTime.get();
+            if (timeSinceLastRequest < delayMs) {
+                long sleepTime = delayMs - timeSinceLastRequest;
+                logger.debug("Rate limiting: sleeping {}ms", sleepTime);
+                Thread.sleep(sleepTime);
+            }
+            lastRequestTime.set(System.currentTimeMillis());
+        } finally {
+            rateLimiter.release();
+        }
     }
 
     /**
