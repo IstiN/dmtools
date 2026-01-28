@@ -29,7 +29,8 @@ get_asset_url() {
     
     if [ -n "$release_info" ] && ! echo "$release_info" | grep -q '"message":"Not Found"'; then
         # Try to extract download URL using grep and sed (works without jq)
-        local download_url=$(echo "$release_info" | grep -o "\"browser_download_url\":\"[^\"]*${asset_name}[^\"]*\"" | head -1 | sed 's/.*"browser_download_url":"\([^"]*\)".*/\1/')
+        # GitHub API returns JSON with space after colon, so pattern must handle it
+        local download_url=$(echo "$release_info" | grep -o "\"browser_download_url\":[[:space:]]*\"[^\"]*${asset_name}[^\"]*\"" | head -1 | sed 's/.*"browser_download_url":[[:space:]]*"\([^"]*\)".*/\1/')
         if [ -n "$download_url" ] && [ "$download_url" != "null" ]; then
             echo "$download_url"
             return 0
@@ -84,7 +85,8 @@ download_and_run() {
     fi
     
     # Check if downloaded file is a valid script (not HTML error page)
-    if head -1 "$temp_file" 2>/dev/null | grep -qiE "(html|<!doctype|not found|404|github)" 2>/dev/null; then
+    # Only check for HTML tags, not "github" which appears in valid scripts
+    if head -1 "$temp_file" 2>/dev/null | grep -qiE "(^<html|^<!doctype|^<body)" 2>/dev/null; then
         echo "Downloaded file appears to be an HTML error page" >&2
         rm -f "$temp_file" 2>/dev/null
         return 1
