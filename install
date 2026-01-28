@@ -43,7 +43,8 @@ get_asset_url() {
 download_and_run() {
     local url="$1"
     local temp_file
-    temp_file=$(mktemp /tmp/dmtools-install-XXXXXX.sh 2>/dev/null || mktemp /tmp/dmtools-install-XXXXXX.sh 2>/dev/null || echo "/tmp/dmtools-install-$$.sh")
+    # Cross-platform mktemp: try default mktemp first, then macOS style with -t, then fallback
+    temp_file=$(mktemp 2>/dev/null || mktemp -t dmtools-install 2>/dev/null || echo "/tmp/dmtools-install-$$.sh")
     
     # Download to temp file
     if command -v curl >/dev/null 2>&1; then
@@ -157,15 +158,47 @@ detect_unix_platform() {
     fi
 }
 
-# Get version from environment variable or use "latest"
+# Detect version from parent process command line (when piped from curl)
+detect_version_from_url() {
+    # Try to detect from parent process command line
+    if command -v ps >/dev/null 2>&1; then
+        local ppid=${PPID:-}
+        if [ -n "$ppid" ]; then
+            # Get parent process command line
+            local parent_cmd
+            if parent_cmd=$(ps -p "$ppid" -o args= 2>/dev/null | head -1); then
+                # Extract version from curl URL: .../v1.7.111/install
+                local detected_version
+                detected_version=$(echo "$parent_cmd" | grep -oE '/(v[0-9]+\.[0-9]+\.[0-9]+)/' | head -1 | sed 's/\///g')
+                if [ -n "$detected_version" ]; then
+                    echo "$detected_version"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+    return 1
+}
+
+# Get version from environment variable, URL, or use "latest"
 get_version() {
+    # Priority 1: Environment variable
     if [ -n "${DMTOOLS_VERSION:-}" ]; then
         # Remove 'v' prefix if present
         local version="${DMTOOLS_VERSION#v}"
         echo "v${version}"
-    else
-        echo "latest"
+        return 0
     fi
+
+    # Priority 2: Detect from curl URL in parent process
+    local detected_version
+    if detected_version=$(detect_version_from_url 2>/dev/null); then
+        echo "$detected_version"
+        return 0
+    fi
+
+    # Priority 3: Default to latest
+    echo "latest"
 }
 
 # Download and run installer
