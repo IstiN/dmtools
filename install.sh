@@ -285,35 +285,21 @@ download_file() {
         
         if command -v curl >/dev/null 2>&1; then
             # Use curl with better error handling
-            # First get HTTP status code
-            http_code=$(curl -L -s -o /dev/null -w "%{http_code}" --max-time 30 "$url" 2>/dev/null || echo "000")
-            
-            # Validate http_code is numeric
-            if ! echo "$http_code" | grep -qE '^[0-9]+$'; then
-                http_code="000"
-            fi
-            
-            # Check HTTP status code
-            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 400 ] 2>/dev/null; then
-                # HTTP status is OK, proceed with download
-                if curl -L --progress-bar --max-time 60 --fail "$url" -o "$output" 2>/dev/null; then
-                    download_success=true
-                else
-                    warn "Download failed despite OK HTTP status. Retrying..."
-                fi
+            # For large files (like JAR), skip HTTP code check and download directly
+            # This avoids double download and handles redirects better
+            if curl -L --fail --connect-timeout 30 --max-time 300 "$url" -o "$output" 2>&1 | grep -v "^[[:space:]]*[0-9]"; then
+                download_success=true
             else
-                # Handle HTTP error codes
-                if [ "$http_code" -ge 500 ] 2>/dev/null; then
-                    warn "Server error ($http_code) when downloading $desc. Retrying..."
-                elif [ "$http_code" -eq 404 ] 2>/dev/null; then
-                    warn "File not found (404) when downloading $desc."
-                    rm -f "$output"
-                    return 1
-                elif [ "$http_code" = "000" ] || [ -z "$http_code" ]; then
-                    warn "Network error or timeout when downloading $desc. Retrying..."
-                else
-                    warn "HTTP error ($http_code) when downloading $desc. Retrying..."
-                fi
+                local curl_exit_code=$?
+                # Map curl exit codes to messages
+                case $curl_exit_code in
+                    6|7) warn "Network error or timeout when downloading $desc. Retrying..." ;;
+                    22) warn "HTTP error (404 or similar) when downloading $desc. Retrying..." ;;
+                    23) warn "Write error when saving $desc. Retrying..." ;;
+                    28) warn "Transfer timeout when downloading $desc. Retrying..." ;;
+                    *) warn "Download failed (curl exit code: $curl_exit_code). Retrying..." ;;
+                esac
+                rm -f "$output" 2>/dev/null
             fi
         elif command -v wget >/dev/null 2>&1; then
             # Use wget with better error handling
