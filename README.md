@@ -51,16 +51,16 @@ curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
-**Specific Version (e.g., v1.7.121):**
+**Specific Version (e.g., v1.7.124):**
 
 **macOS / Linux / Git Bash:**
 ```bash
-DMTOOLS_VERSION=v1.7.121 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/$DMTOOLS_VERSION/install.sh | bash
+DMTOOLS_VERSION=v1.7.124 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.124/install.sh | bash
 ```
 
 **Windows:**
 ```cmd
-set DMTOOLS_VERSION=v1.7.121 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/%DMTOOLS_VERSION%/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+set DMTOOLS_VERSION=v1.7.124 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/%DMTOOLS_VERSION%/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
 **Verify installation:**
