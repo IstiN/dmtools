@@ -22,16 +22,6 @@ curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "
 - ✅ Requires only curl (built into Windows 10 1803+)
 - ⚠️ **Windows only** - do not use on macOS/Linux
 
-### Windows PowerShell (Alternative)
-If the universal command doesn't work, try this PowerShell-specific command:
-
-```powershell
-# For PowerShell 5.1+ (works without irm alias)
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& {[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-Expression ((New-Object Net.WebClient).DownloadString('https://github.com/IstiN/dmtools/releases/latest/download/install.ps1'))}"
-```
-
-This works even if `irm` alias is not available.
-
 ---
 
 ## Troubleshooting
@@ -45,20 +35,14 @@ If you use fish shell and get "Unknown command: dmtools" after installation:
    source ~/.config/fish/conf.d/dmtools.fish
    ```
 
-### Windows: "irm is not recognized"
-You're likely running the command in **cmd.exe** instead of **PowerShell**.
+### Windows: Installation Issues
 
-**Solution 1:** Use install.bat (recommended)
+**Solution 1:** Use the universal command (recommended)
 ```cmd
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o install.bat && install.bat
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
-**Solution 2:** Open PowerShell and run:
-```powershell
-Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/latest/download/install.ps1' | Invoke-Expression
-```
-
-**Solution 3:** Use Git Bash (if installed)
+**Solution 2:** Use Git Bash (if installed)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ```
@@ -74,13 +58,30 @@ curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 
 ### macOS / Linux / Git Bash
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.119/install | bash
+# Automatically detects version from URL
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.120/install | bash
+
+# Or use environment variable
+DMTOOLS_VERSION=v1.7.120 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ```
 
-### Windows PowerShell
-```powershell
-Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/download/v1.7.119/install.ps1' | Invoke-Expression
+### Windows (cmd.exe)
+```cmd
+REM Method 1: Set environment variable (recommended)
+set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+
+REM Method 2: Download from specific version tag
+set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.120/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
+
+### Windows (PowerShell - Direct)
+```powershell
+# Set version and run installer
+$env:DMTOOLS_VERSION = "v1.7.120"
+Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/download/v1.7.120/install.ps1' | Invoke-Expression
+```
+
+**Important**: If you don't specify a version, the installer will download the **latest** release.
 
 ---
 
@@ -93,10 +94,9 @@ Install Java 23 locally even if system Java exists:
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | DMTOOLS_FORCE_LOCAL_JAVA=true bash
 ```
 
-```powershell
-# Windows PowerShell
-$env:DMTOOLS_FORCE_LOCAL_JAVA="true"
-Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/latest/download/install.ps1' | Invoke-Expression
+```cmd
+# Windows - Not currently supported for local Java installation
+# Please install Java 23 manually from https://adoptium.net/
 ```
 
 ---

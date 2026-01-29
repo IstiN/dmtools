@@ -4,11 +4,17 @@ Get DMTools CLI installed and ready to use in minutes.
 
 ## Quick Install (Recommended)
 
+### macOS / Linux / Git Bash
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ```
 
-If you use Windows - install GitBash and run command curl.exe -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+### Windows (cmd.exe, PowerShell, Windows Terminal)
+
+```cmd
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+```
 
 This will:
 - ✅ Download the latest DMTools JAR (~50MB)
@@ -138,7 +144,7 @@ source ~/.zshrc
 - name: Install DMTools CLI
   if: steps.cache-dmtools.outputs.cache-hit != 'true'
   run: |
-    curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 
 - name: Add DMTools to PATH
   run: echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
@@ -163,7 +169,7 @@ dmtools-job:
     - apt-get update -qq && apt-get install -y curl
     - |
       if [ ! -f "$HOME/.dmtools/dmtools.jar" ]; then
-        curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+        curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
       fi
     - export PATH="$HOME/.dmtools/bin:$PATH"
   
@@ -221,8 +227,15 @@ Install Java 23 or later. See [Prerequisites](#java-23-or-later-required) above.
 ### "JAR file not found"
 
 Reinstall DMTools:
+
+**macOS / Linux / Git Bash:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
+```
+
+**Windows:**
+```cmd
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
 Or manually download the JAR:
@@ -249,7 +262,7 @@ Ensure Java is set up **before** installing DMTools:
     java-version: '23'
 
 - name: Install DMTools CLI
-  run: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+  run: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ```
 
 ---
