@@ -8,15 +8,16 @@ This release focuses on making DMTools installation seamless across all platform
 
 ## ✨ New Features
 
-### Universal Windows Installation
-- **One command that works everywhere**: Copy and paste a single command that works in cmd.exe, PowerShell, Windows Terminal, and any Windows shell
+### Simplified Windows Installation
+- **One command for all Windows terminals**: Copy and paste a single command that works in cmd.exe, PowerShell, and Windows Terminal
 - Created `install.bat` for native Windows Command Prompt support
-- No need to figure out which shell you're using - the universal command adapts automatically
+- No need to figure out which Windows shell you're using - the command adapts automatically
 
 **Windows Users: Use this single command:**
 ```cmd
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
+*Note: This is Windows-only. macOS/Linux users should use the bash installation command.*
 
 ### Automatic Local Java 23 Installation
 - **No admin/sudo required**: Installs Java 23 JRE locally to `~/.dmtools/jre` if system Java is not found or version < 23
@@ -62,10 +63,11 @@ curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ```
 
-### Windows (Universal - Works Everywhere)
+### Windows (cmd.exe, PowerShell, Windows Terminal)
 ```cmd
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
+*Windows-only command. Do not use on macOS/Linux.*
 
 ### Windows PowerShell (Alternative)
 ```powershell

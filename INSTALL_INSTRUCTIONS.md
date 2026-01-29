@@ -7,19 +7,20 @@
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ```
 
-### Windows (Universal - Works in ANY terminal)
-**Copy and paste this single command** (works in cmd.exe, PowerShell, or any Windows terminal):
+### Windows (All Windows terminals)
+**Copy and paste this single command** (works in cmd.exe, PowerShell, or Windows Terminal):
 
 ```cmd
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
-This command:
+**What this does:**
 - ✅ Works in Command Prompt (cmd.exe)
 - ✅ Works in PowerShell (any version)
 - ✅ Works in Windows Terminal
 - ✅ Downloads and runs installer automatically
 - ✅ Requires only curl (built into Windows 10 1803+)
+- ⚠️ **Windows only** - do not use on macOS/Linux
 
 ### Windows PowerShell (Alternative)
 If the universal command doesn't work, try this PowerShell-specific command:
