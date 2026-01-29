@@ -7,25 +7,29 @@
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ```
 
-### Windows Command Prompt (cmd.exe)
-**Step 1:** Download install.bat
+### Windows (Universal - Works in ANY terminal)
+**Copy and paste this single command** (works in cmd.exe, PowerShell, or any Windows terminal):
+
 ```cmd
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o install.bat
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
-**Step 2:** Run the installer
-```cmd
-install.bat
-```
+This command:
+- ✅ Works in Command Prompt (cmd.exe)
+- ✅ Works in PowerShell (any version)
+- ✅ Works in Windows Terminal
+- ✅ Downloads and runs installer automatically
+- ✅ Requires only curl (built into Windows 10 1803+)
 
-### Windows PowerShell
+### Windows PowerShell (Alternative)
+If the universal command doesn't work, try this PowerShell-specific command:
+
 ```powershell
-# PowerShell 5.1+
-Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/latest/download/install.ps1' | Invoke-Expression
-
-# Short version (PowerShell 7+)
-irm https://github.com/IstiN/dmtools/releases/latest/download/install.ps1 | iex
+# For PowerShell 5.1+ (works without irm alias)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& {[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-Expression ((New-Object Net.WebClient).DownloadString('https://github.com/IstiN/dmtools/releases/latest/download/install.ps1'))}"
 ```
+
+This works even if `irm` alias is not available.
 
 ---
 
