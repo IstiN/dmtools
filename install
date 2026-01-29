@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # DMTools CLI Cross-Platform Installation Wrapper
 # Usage: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
-# For specific version: DMTOOLS_VERSION=v1.7.97 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.97/install | bash
-# Or use install.sh directly: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.97/install.sh | bash
+# For specific version: DMTOOLS_VERSION=v1.7.97 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/$DMTOOLS_VERSION/install | bash
+# Or use install.sh directly: DMTOOLS_VERSION=v1.7.97 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/$DMTOOLS_VERSION/install.sh | bash
 # This script auto-detects the platform and runs the appropriate installer
 # Works even if this file doesn't exist in older releases - falls back to install.sh
 
@@ -100,11 +100,11 @@ download_and_run() {
         return 1
     fi
     
-    # Make executable and run with VERSION environment variable if provided
+    # Make executable and run with DMTOOLS_VERSION environment variable if provided
     chmod +x "$temp_file" 2>/dev/null
     if [ -n "$version" ] && [ "$version" != "latest" ]; then
-        # Pass VERSION to the installer script
-        if ! VERSION="$version" bash "$temp_file"; then
+        # Pass DMTOOLS_VERSION to the installer script
+        if ! DMTOOLS_VERSION="$version" bash "$temp_file"; then
             local exit_code=$?
             echo "Installer script exited with code: $exit_code" >&2
             rm -f "$temp_file" 2>/dev/null

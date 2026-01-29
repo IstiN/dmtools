@@ -57,28 +57,39 @@ curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ## Specific Version Installation
 
 ### macOS / Linux / Git Bash
-```bash
-# Automatically detects version from URL
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.120/install | bash
 
-# Or use environment variable
-DMTOOLS_VERSION=v1.7.120 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
+**Recommended - Set version once, use everywhere:**
+```bash
+DMTOOLS_VERSION=v1.7.120 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/$DMTOOLS_VERSION/install.sh | bash
+```
+
+**Alternative - Pass as argument:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.120/install.sh | bash -s v1.7.120
+```
+
+**Alternative - From main branch:**
+```bash
+DMTOOLS_VERSION=v1.7.120 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 ```
 
 ### Windows (cmd.exe)
-```cmd
-REM Method 1: Set environment variable (recommended)
-set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 
-REM Method 2: Download from specific version tag
-set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.120/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+**Recommended - Set version once, use everywhere:**
+```cmd
+set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/%DMTOOLS_VERSION%/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
-### Windows (PowerShell - Direct)
+**Alternative - From main branch:**
+```cmd
+set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+```
+
+### Windows (PowerShell)
+
 ```powershell
-# Set version and run installer
 $env:DMTOOLS_VERSION = "v1.7.120"
-Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/download/v1.7.120/install.ps1' | Invoke-Expression
+Invoke-RestMethod -Uri "https://github.com/IstiN/dmtools/releases/download/$env:DMTOOLS_VERSION/install.ps1" | Invoke-Expression
 ```
 
 **Important**: If you don't specify a version, the installer will download the **latest** release.

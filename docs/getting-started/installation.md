@@ -4,16 +4,28 @@ Get DMTools CLI installed and ready to use in minutes.
 
 ## Quick Install (Recommended)
 
-### macOS / Linux / Git Bash
+### Latest Version
 
+**macOS / Linux / Git Bash:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 ```
 
-### Windows (cmd.exe, PowerShell, Windows Terminal)
-
+**Windows (cmd.exe, PowerShell, Windows Terminal):**
 ```cmd
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+```
+
+### Specific Version
+
+**macOS / Linux / Git Bash:**
+```bash
+DMTOOLS_VERSION=v1.7.120 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/$DMTOOLS_VERSION/install.sh | bash
+```
+
+**Windows:**
+```cmd
+set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/%DMTOOLS_VERSION%/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
 This will:
