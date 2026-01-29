@@ -58,37 +58,42 @@ curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 
 ### macOS / Linux / Git Bash
 
-**Recommended - Set version once, use everywhere:**
+**Recommended - Pass version to script:**
 ```bash
-DMTOOLS_VERSION=v1.7.120 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/$DMTOOLS_VERSION/install.sh | bash
+DMTOOLS_VERSION=v1.7.124 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.124/install.sh | bash
+```
+
+**Alternative - Using export (allows variable in URL):**
+```bash
+export DMTOOLS_VERSION=v1.7.124 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/$DMTOOLS_VERSION/install.sh | bash
 ```
 
 **Alternative - Pass as argument:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.120/install.sh | bash -s v1.7.120
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.124/install.sh | bash -s v1.7.124
 ```
 
 **Alternative - From main branch:**
 ```bash
-DMTOOLS_VERSION=v1.7.120 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+DMTOOLS_VERSION=v1.7.124 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 ```
 
 ### Windows (cmd.exe)
 
 **Recommended - Set version once, use everywhere:**
 ```cmd
-set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/%DMTOOLS_VERSION%/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+set DMTOOLS_VERSION=v1.7.124 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/%DMTOOLS_VERSION%/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
 **Alternative - From main branch:**
 ```cmd
-set DMTOOLS_VERSION=v1.7.120 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+set DMTOOLS_VERSION=v1.7.124 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-$env:DMTOOLS_VERSION = "v1.7.120"
+$env:DMTOOLS_VERSION = "v1.7.124"
 Invoke-RestMethod -Uri "https://github.com/IstiN/dmtools/releases/download/$env:DMTOOLS_VERSION/install.ps1" | Invoke-Expression
 ```
 
