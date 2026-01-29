@@ -69,12 +69,12 @@ curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 
 ### macOS / Linux / Git Bash
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.118/install | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.119/install | bash
 ```
 
 ### Windows PowerShell
 ```powershell
-Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/download/v1.7.118/install.ps1' | Invoke-Expression
+Invoke-RestMethod -Uri 'https://github.com/IstiN/dmtools/releases/download/v1.7.119/install.ps1' | Invoke-Expression
 ```
 
 ---
