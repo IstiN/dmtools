@@ -43,6 +43,7 @@ get_asset_url() {
 # Download and validate script before executing
 download_and_run() {
     local url="$1"
+    local version="${2:-}"  # Optional version parameter
     local temp_file
     # Cross-platform mktemp: try default mktemp first, then macOS style with -t, then fallback
     temp_file=$(mktemp 2>/dev/null || mktemp -t dmtools-install 2>/dev/null || echo "/tmp/dmtools-install-$$.sh")
@@ -99,13 +100,23 @@ download_and_run() {
         return 1
     fi
     
-    # Make executable and run
+    # Make executable and run with VERSION environment variable if provided
     chmod +x "$temp_file" 2>/dev/null
-    if ! bash "$temp_file"; then
-        local exit_code=$?
-        echo "Installer script exited with code: $exit_code" >&2
-        rm -f "$temp_file" 2>/dev/null
-        return $exit_code
+    if [ -n "$version" ] && [ "$version" != "latest" ]; then
+        # Pass VERSION to the installer script
+        if ! VERSION="$version" bash "$temp_file"; then
+            local exit_code=$?
+            echo "Installer script exited with code: $exit_code" >&2
+            rm -f "$temp_file" 2>/dev/null
+            return $exit_code
+        fi
+    else
+        if ! bash "$temp_file"; then
+            local exit_code=$?
+            echo "Installer script exited with code: $exit_code" >&2
+            rm -f "$temp_file" 2>/dev/null
+            return $exit_code
+        fi
     fi
     rm -f "$temp_file" 2>/dev/null
     return 0
@@ -256,7 +267,7 @@ run_installer() {
                 fi
             fi
 
-            if download_and_run "$install_url"; then
+            if download_and_run "$install_url" "$version"; then
                 return 0
             else
                 echo "Failed to download from: $install_url" >&2
@@ -266,7 +277,7 @@ run_installer() {
             if [ "$version" != "latest" ]; then
                 echo "Trying latest version as fallback..." >&2
                 install_url="https://github.com/${REPO}/releases/latest/download/install.sh"
-                if download_and_run "$install_url"; then
+                if download_and_run "$install_url" "latest"; then
                     return 0
                 else
                     echo "Failed to download from: $install_url" >&2
