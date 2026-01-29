@@ -149,16 +149,115 @@ function Create-InstallDir {
     }
 }
 
+# Detect Windows architecture
+function Get-WindowsArchitecture {
+    $arch = $env:PROCESSOR_ARCHITECTURE
+    if ($arch -eq "AMD64" -or $arch -eq "x86_64") {
+        return "x64"
+    } elseif ($arch -eq "ARM64") {
+        return "arm64"
+    } else {
+        return "x64" # Default to x64
+    }
+}
+
+# Download and install Java 23 locally
+function Install-LocalJava {
+    Write-Info "Java not found. Attempting to install Java 23 locally..."
+
+    $jreDir = "$INSTALL_DIR\jre"
+    $arch = Get-WindowsArchitecture
+
+    # Determine download URL based on architecture
+    if ($arch -eq "arm64") {
+        $javaUrl = "https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_aarch64_windows_hotspot_23.0.1_11.zip"
+        $javaFilename = "openjdk-jre-windows-arm64.zip"
+    } else {
+        $javaUrl = "https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_x64_windows_hotspot_23.0.1_11.zip"
+        $javaFilename = "openjdk-jre-windows-x64.zip"
+    }
+
+    Write-Progress-Message "Downloading Java 23 JRE for Windows ($arch)..."
+    Write-Progress-Message "This may take a few minutes (~40MB download)..."
+
+    $tempFile = "$env:TEMP\$javaFilename"
+
+    try {
+        # Download Java
+        Invoke-WebRequest -Uri $javaUrl -OutFile $tempFile -UseBasicParsing
+
+        # Create JRE directory
+        if (Test-Path $jreDir) {
+            Write-Progress-Message "Cleaning existing JRE directory..."
+            Remove-Item -Path $jreDir -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $jreDir -Force | Out-Null
+
+        # Extract Java
+        Write-Progress-Message "Extracting Java..."
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($tempFile, $jreDir)
+
+        # Find the extracted directory (it's usually named like jdk-23.0.1+11-jre)
+        $extractedDir = Get-ChildItem -Path $jreDir -Directory | Select-Object -First 1
+        if ($extractedDir) {
+            # Move contents up one level
+            $extractedPath = $extractedDir.FullName
+            Get-ChildItem -Path $extractedPath -Force | ForEach-Object {
+                Move-Item -Path $_.FullName -Destination $jreDir -Force
+            }
+            Remove-Item -Path $extractedPath -Force
+        }
+
+        # Clean up temp file
+        Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+
+        # Verify installation
+        $javaExe = "$jreDir\bin\java.exe"
+        if (Test-Path $javaExe) {
+            Write-Info "✅ Java 23 JRE installed successfully to $jreDir"
+
+            # Set DMTOOLS_JAVA_HOME for this session
+            $env:DMTOOLS_JAVA_HOME = $jreDir
+
+            return $true
+        } else {
+            Write-Error-Message "Java installation failed - java.exe not found at $javaExe"
+            return $false
+        }
+    } catch {
+        Write-Error-Message "Failed to download or install Java: $_"
+        Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        return $false
+    }
+}
+
 # Check and install Java
 function Check-Java {
     Write-Progress-Message "Checking Java installation..."
-    
+
+    # First check system Java
     $javaCmd = Get-Command java -ErrorAction SilentlyContinue
     if (-not $javaCmd) {
-        Write-Warn "Java not found. Please install Java 23 or later:"
+        # Check for bundled Java
+        $bundledJava = "$INSTALL_DIR\jre\bin\java.exe"
+        if (Test-Path $bundledJava) {
+            Write-Info "Using bundled Java from $INSTALL_DIR\jre"
+            $env:DMTOOLS_JAVA_HOME = "$INSTALL_DIR\jre"
+            return
+        }
+
+        # Try to install Java locally
+        if (Install-LocalJava) {
+            return
+        }
+
+        # If automatic installation fails, show manual installation instructions
+        Write-Warn "Automatic Java installation failed. Please install Java 23 manually:"
         Write-Host "  - Download from: https://adoptium.net/" -ForegroundColor Cyan
-        Write-Host "  - Or use Chocolatey: choco install temurin23jdk" -ForegroundColor Cyan
-        Write-Error-Message "Java 23 is required but not installed."
+        Write-Host "  - Or use Chocolatey: choco install temurin23" -ForegroundColor Cyan
+        Write-Host "  - Or use Scoop: scoop install temurin23-jre" -ForegroundColor Cyan
+        Write-Error-Message "Java 23 is required but could not be installed automatically."
     }
     
     # Get Java version - suppress errors as java -version writes to stderr
@@ -229,6 +328,15 @@ Please ensure dmtools.sh is included in the GitHub release, or download it manua
     $batchContent = @"
 @echo off
 setlocal enabledelayedexpansion
+
+REM Check for bundled Java first
+set DMTOOLS_DIR=%USERPROFILE%\.dmtools
+if exist "%DMTOOLS_DIR%\jre\bin\java.exe" (
+    set JAVA_EXE=%DMTOOLS_DIR%\jre\bin\java.exe
+    goto :java_found
+)
+
+REM Check JAVA_HOME
 set JAVA_HOME=%JAVA_HOME%
 if "%JAVA_HOME%"=="" (
     for /f "tokens=*" %%i in ('where java 2^>nul') do set JAVA_EXE=%%i
@@ -236,6 +344,8 @@ if "%JAVA_HOME%"=="" (
     set JAVA_EXE=%JAVA_HOME%\bin\java.exe
 )
 if not exist "%JAVA_EXE%" set JAVA_EXE=java
+
+:java_found
 
 REM Check for --debug flag
 set DEBUG_MODE=0
