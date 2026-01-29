@@ -1,0 +1,14 @@
+{
+  "name": "TestCasesGenerator",
+  "params": {
+    "inputJql": "key in (PROJ-123, PROJ-456)",
+    "testCasesPriorities": "Highest, High, Medium, Low",
+    "outputType": "creation",
+    "existingTestCasesJql": "project = PROJ and issueType = 'Test' and status != archived",
+    "testCasesRelatedFields": ["issuetype", "summary", "description", "priority", "labels"],
+    "testCaseIssueType": "Test",
+    "isFindRelated": true,
+    "isGenerateNew": true,
+    "jqlModifierJSAction": "examples/js/jqlModifierByLabels.js"
+  }
+}
