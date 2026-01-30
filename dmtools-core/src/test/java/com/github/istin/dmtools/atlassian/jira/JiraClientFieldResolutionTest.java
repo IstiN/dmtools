@@ -480,7 +480,7 @@ public class JiraClientFieldResolutionTest {
         // Arrange
         String project = "ERROR_PROJECT";
         String fieldName = "TestField";
-        
+
         // Mock getFields to throw exception
         TestableJiraClient errorClient = new TestableJiraClient(mockCacheManager, mockLogger) {
             @Override
@@ -493,5 +493,71 @@ public class JiraClientFieldResolutionTest {
         assertThrows(IOException.class, () -> {
             errorClient.testGetFieldCustomCode(project, fieldName);
         });
+    }
+
+    @Test
+    void testResolveFieldNameToCustomFieldId_SystemFieldsNotResolved() throws IOException {
+        // Arrange
+        String project = "TEST";
+        String[] systemFields = {
+            "labels", "summary", "description", "status", "assignee",
+            "reporter", "priority", "issuetype", "created", "updated"
+        };
+
+        // Setup mock to track that getFields is NOT called for system fields
+        jiraClient.setMockFieldsResponse(project, """
+            [
+              {
+                "id": "customfield_10658",
+                "name": "labels",
+                "custom": true,
+                "orderable": true,
+                "navigable": true,
+                "searchable": true,
+                "clauseNames": ["cf[10658]", "labels"],
+                "schema": {
+                  "type": "array",
+                  "custom": "com.atlassian.jira.plugin.system.customfieldtypes:labels",
+                  "customId": 10658
+                }
+              }
+            ]
+            """);
+
+        int initialCallCount = jiraClient.getGetFieldsCallCount();
+
+        // Act - Try to resolve system fields
+        for (String fieldName : systemFields) {
+            String result = jiraClient.testResolveFieldNameToCustomFieldId(project, fieldName);
+
+            // Assert - System fields should NOT be resolved to custom fields
+            // They should return null because they don't need custom field resolution
+            assertNull(result, "System field '" + fieldName + "' should not be resolved to custom field");
+        }
+
+        // Assert - No API calls should be made for system fields
+        assertEquals(initialCallCount, jiraClient.getGetFieldsCallCount(),
+            "No API calls should be made when resolving system fields");
+    }
+
+    @Test
+    void testResolveFieldNameToCustomFieldId_SystemFieldsCaseInsensitive() throws IOException {
+        // Arrange
+        String project = "TEST";
+        String[] systemFieldVariations = {
+            "Labels", "LABELS", "labels",
+            "Summary", "SUMMARY", "summary"
+        };
+
+        int initialCallCount = jiraClient.getGetFieldsCallCount();
+
+        // Act & Assert - System fields with different cases should not be resolved
+        for (String fieldName : systemFieldVariations) {
+            String result = jiraClient.testResolveFieldNameToCustomFieldId(project, fieldName);
+            assertNull(result, "System field '" + fieldName + "' (case variation) should not be resolved");
+        }
+
+        // No API calls should be made
+        assertEquals(initialCallCount, jiraClient.getGetFieldsCallCount());
     }
 }

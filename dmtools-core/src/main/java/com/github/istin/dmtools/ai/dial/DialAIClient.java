@@ -117,6 +117,39 @@ public class DialAIClient extends AbstractRestClient implements AI {
         return chat(this.model, message);
     }
 
+    @MCPTool(
+        name = "dial_ai_chat_with_files",
+        description = "Send a text message to Dial AI with file attachments. Supports images and documents for analysis and questions.",
+        integration = "ai"
+    )
+    public String chatWithFiles(
+            @MCPParam(
+                name = "message",
+                description = "Text message to send to Dial AI",
+                example = "What is in this image? Please analyze the document content."
+            ) String message,
+            @MCPParam(
+                name = "filePaths",
+                description = "Comma-separated list of file paths to attach (supports images and documents)",
+                example = "/path/to/image.png,/path/to/document.pdf"
+            ) String filePaths
+    ) throws Exception {
+        // Parse file paths and create File objects
+        String[] paths = filePaths.split(",");
+        List<File> files = new java.util.ArrayList<>();
+        for (String path : paths) {
+            path = path.trim();
+            File file = new File(path);
+            if (!file.exists()) {
+                throw new IllegalArgumentException("File not found: " + path);
+            }
+            files.add(file);
+        }
+
+        // Use existing chat method with files
+        return chat(this.model, message, files);
+    }
+
     @Override
     public String chat(String executionModel, String message, File imageFile) throws Exception {
         return chat(executionModel, message, imageFile, (JSONObject) null);

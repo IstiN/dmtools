@@ -502,6 +502,10 @@ public class PropertyReader {
 	}
 
 	public String getDialBathPath() {
+		String value = getValue("DIAL_BASE_PATH", null);
+		if (value != null) {
+			return value;
+		}
 		return getValue("DIAL_BATH_PATH");
 	}
 

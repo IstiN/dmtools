@@ -15,6 +15,7 @@ import com.github.istin.dmtools.estimations.JEstimator;
 import com.github.istin.dmtools.expert.Expert;
 import com.github.istin.dmtools.presale.PreSaleSupport;
 import com.github.istin.dmtools.qa.TestCasesGenerator;
+import com.github.istin.dmtools.qa.InstructionsGenerator;
 import com.github.istin.dmtools.report.productivity.BAProductivityReport;
 import com.github.istin.dmtools.report.productivity.DevProductivityReport;
 import com.github.istin.dmtools.report.productivity.QAProductivityReport;
@@ -22,6 +23,9 @@ import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
 import com.github.istin.dmtools.sm.ScrumMasterDaily;
 import com.github.istin.dmtools.sync.SourceCodeCommitTrackerSyncJob;
 import com.github.istin.dmtools.sync.SourceCodeTrackerSyncJob;
+import com.github.istin.dmtools.teammate.Teammate;
+import com.github.istin.dmtools.js.JSRunner;
+import com.github.istin.dmtools.kb.KBProcessingJob;
 import com.github.istin.dmtools.mcp.cli.McpCliHandler;
 
 import java.io.InputStream;
@@ -53,6 +57,7 @@ public class JobRunner {
             case "requirementscollector": return new RequirementsCollector();
             case "jestimator": return new JEstimator();
             case "testcasesgenerator": return new TestCasesGenerator();
+            case "instructionsgenerator": return new InstructionsGenerator();
             case "solutionarchitecturecreator": return new SolutionArchitectureCreator();
             case "diagramscreator", "diagramcreator": return new DiagramsCreator();
             case "codegenerator": return new CodeGenerator();
@@ -84,6 +89,7 @@ public class JobRunner {
             new RequirementsCollector(),
             new JEstimator(),
             new TestCasesGenerator(),
+            new InstructionsGenerator(),
             new SolutionArchitectureCreator(),
             new DiagramsCreator(),
             new CodeGenerator(),

@@ -456,6 +456,7 @@ dmtools run job.json
 | `gemini_ai_chat` | `message` | Send a text message to Gemini AI and get response |
 | `gemini_ai_chat_with_files` | `message`, `filePaths` | Send a text message to Gemini AI with file attachments |
 | `dial_ai_chat` | `message` | Send a text message to Dial AI and get response |
+| `dial_ai_chat_with_files` | `message`, `filePaths` | Send a text message to Dial AI with file attachments |
 | `bedrock_ai_chat` | `message` | Send a text message to AWS Bedrock AI and get response |
 | `bedrock_ai_chat_with_files` | `message`, `filePaths` | Send a text message to AWS Bedrock AI with file attachments |
 

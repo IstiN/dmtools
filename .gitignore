@@ -125,6 +125,8 @@ dmtools-local.env
 /dmtools-server/cacheCustomServerManagedJiraClient/**
 /cacheCustomServerManagedJiraClient/**
 outputs
+output
+
 .gemini
 dmtools-core/reports
 dmtools-core/screenshots
@@ -150,7 +152,7 @@ dmtools-core/cacheTeamsClient
 cache**/
 dmtools-core/cache**/
 /dmtools-automation/bin/
-
+temp
 # Eclipse Buildship settings
 .settings/
 .settings/**

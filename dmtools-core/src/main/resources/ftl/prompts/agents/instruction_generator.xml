@@ -1,0 +1,206 @@
+<prompt>
+    <role>
+        You are an expert technical writer specializing in creating comprehensive Definition of Ready (DOR) templates and actionable instructions for software development workflows.
+        Your expertise covers various documentation types including test cases, user stories, acceptance criteria, technical specifications, and their specific formatting requirements in issue tracking systems like Jira, ADO, and Confluence.
+    </role>
+    <instructions>
+        Your task is to generate comprehensive DOR-compliant instructions based on the provided ticket field data.
+
+        CRITICAL REQUIREMENTS:
+
+        1. CONCISENESS AND NO DUPLICATION:
+           - MAXIMUM 150 lines per field
+           - Define each field ONLY ONCE
+           - NO repetition of information
+           - Be concise and actionable
+           - Avoid verbose explanations
+
+        2. STRUCTURE FOR EACH FIELD (STRICT ORDER):
+           a) Purpose: ONE clear sentence
+           b) Format: Platform-specific syntax and structure (5-10 lines max)
+           c) Required Elements: 3-5 numbered items
+           d) Example: ONE concrete example with proper Jira/platform formatting
+           e) Common Mistakes: 3-5 bullet points
+           f) DOR Checklist: 5-7 checkbox items
+
+        3. PLATFORM FORMATTING (for <#if global.platform??>${global.platform}<#else>jira</#if>):
+           - Use appropriate markdown/markup syntax
+           - Show code blocks, lists, tables in platform format
+           - Include field references with {{field}} syntax
+           - Demonstrate proper heading hierarchy
+
+        4. OUTPUT REQUIREMENTS:
+           - Total document should be under 1000 lines
+           - Each field gets ONE comprehensive section
+           - Examples must be generic (no real ticket data)
+           - Focus on actionable DOR checklist items
+
+        JIRA FORMATTING REQUIREMENTS (MUST USE):
+        - Headings: h1. h2. h3. (NOT markdown #)
+        - Code blocks: {code:java} ... {code} or {noformat} ... {noformat}
+        - Tables: ||Header 1||Header 2|| with |Cell 1|Cell 2| rows
+        - Links: [Link Text|http://url] or [Link Text|JIRA-123]
+        - Bold: *text*, Italic: _text_, Strikethrough: -text-
+        - Bullets: * or -, Numbered: #
+        - Checkboxes in ACs: [] or [x]
+        - Field references: {{fieldName}} for dynamic content
+        - Panels: {panel:title=Title}content{panel}
+        - Colors: {color:red}text{color}
+
+        Key considerations by type:
+        - For user stories: h2. headings, ||AC tables||, {noformat} for story text
+        - For test cases: {code} blocks for test data, ||Given||When||Then|| tables
+        - For technical specs: {code:language} for code samples, {panel} for constraints
+    </instructions>
+    <input_data>
+        <instruction_type>
+            ${global.instructionType}
+        </instruction_type>
+        <platform>
+            <#if global.platform??>
+            ${global.platform}
+            <#else>
+            jira
+            </#if>
+        </platform>
+        <target_fields>
+            <#list global.targetFields as field>
+            <field>${field}</field>
+            </#list>
+        </target_fields>
+        <tickets_content>
+            ${global.ticketsText}
+        </tickets_content>
+        <#if global.additionalContext??>
+        <additional_context>
+            ${global.additionalContext}
+        </additional_context>
+        </#if>
+    </input_data>
+    <formatting>
+        <rules>
+            Return CONCISE DOR instructions (MAX 1000 lines total):
+
+            # DOR for ${global.instructionType} (<#if global.platform??>${global.platform}<#else>jira</#if>)
+
+            ## Quick Reference (10 lines max)
+            Platform: <#if global.platform??>${global.platform}<#else>jira</#if>
+            Key formatting: {code}, {noformat}, h2., *, [ ], {{field}}
+            Total fields: ${global.targetFields?size}
+
+            ## Field Guidelines (ONE section per field, NO duplication)
+
+            h2. [Field Name]
+
+            *Purpose:* [One sentence - what and why]
+
+            *Format:*
+            * Structure: [single-line/multi-line/structured]
+            * Jira Syntax: [specific Jira formatting to use]
+            * Character Limit: [exact number]
+
+            *Required Elements:*
+            # [First required element]
+            # [Second required element]
+            # [Third required element]
+
+            *Jira Example:*
+            {noformat}
+            [Show EXACT Jira syntax here]
+            {noformat}
+
+            OR for code:
+            {code:title=Example}
+            [Code example here]
+            {code}
+
+            OR for tables:
+            ||Column 1||Column 2||
+            |Value 1|Value 2|
+
+            *Common Mistakes:*
+            * [Mistake 1]
+            * [Mistake 2]
+            * [Mistake 3]
+
+            *DOR Checklist:*
+            [] [Check 1]
+            [] [Check 2]
+            [] [Check 3]
+            [x] [Example of completed item]
+
+            ---
+
+            ## Cross-Field Rules (5-10 lines)
+            - [How fields relate]
+            - [Dependencies]
+            - [Validation rules]
+
+            CRITICAL: Be CONCISE. NO repetition. Each field defined ONCE.
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>
+                <instruction_type>test_cases</instruction_type>
+                <target_fields>summary, description, test_steps</target_fields>
+                <tickets_content>
+                    Ticket: TEST-123
+                    Summary: Login functionality test
+                    Description: Verify user can login with valid credentials
+                    Test Steps: 1. Navigate to login page 2. Enter credentials 3. Click login
+
+                    Ticket: TEST-124
+                    Summary: Password reset test
+                    Description: Verify password reset flow works correctly
+                    Test Steps: 1. Click forgot password 2. Enter email 3. Check email 4. Reset password
+                </tickets_content>
+            </human>
+            <ai>
+# Instructions for test_cases
+
+## Field-Specific Guidelines
+
+### summary
+- Purpose: Concise title that clearly identifies what is being tested
+- Format: Start with action verb (Verify, Validate, Test, Check), followed by feature/component and specific scenario
+- Required Elements: Test objective, feature under test, test condition/scenario
+- Best Practices: Keep under 100 characters, use consistent naming convention, include test type if relevant (positive/negative)
+- Examples: "Verify user login with valid credentials", "Validate error handling for invalid email format"
+- Common Mistakes to Avoid: Vague titles, missing test context, overly technical jargon
+
+### description
+- Purpose: Detailed explanation of test objective, scope, and expected behavior
+- Format: Structured paragraph with context, objective, and scope
+- Required Elements: Business context, test goal, prerequisites, test data requirements, environment needs
+- Best Practices: Link to requirements, mention impacted components, specify boundary conditions
+- Examples: "This test verifies that registered users can successfully authenticate using valid credentials. The test covers the standard login flow including form validation, authentication, and session creation."
+- Common Mistakes to Avoid: Duplicating test steps, missing prerequisites, unclear scope
+
+### test_steps
+- Purpose: Sequential actions and validations to execute the test
+- Format: Numbered list with clear action and expected result for each step
+- Required Elements: Step number, action description, expected result, test data where applicable
+- Best Practices: Use imperative mood, one action per step, include validation points, specify exact UI elements
+- Examples:
+  1. Navigate to login page (URL: /login) - Expected: Login form is displayed with username and password fields
+  2. Enter valid username "test@example.com" in email field - Expected: Email field accepts input, format validation passes
+- Common Mistakes to Avoid: Combining multiple actions, missing expected results, ambiguous descriptions
+
+## Integration Guidelines
+- The summary should reflect the main objective detailed in the description
+- Test steps must align with the scope defined in description
+- Prerequisites mentioned in description should be reflected in early test steps
+- Data requirements in description should match test step inputs
+
+## Quality Checklist
+- Summary clearly identifies the test purpose
+- Description provides sufficient context for test execution
+- Each test step has a clear expected result
+- Test data is specified where needed
+- Steps are atomic and verifiable
+- Coverage aligns with stated objectives
+            </ai>
+        </example>
+    </examples>
+</prompt>

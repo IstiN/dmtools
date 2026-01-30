@@ -1,0 +1,16 @@
+{
+  "name": "InstructionsGenerator",
+  "params": {
+    "inputJql": "project = DMC AND type = Story",
+    "limit": 10,
+    "fields": ["summary", "description", "User Story"],
+    "instructionType": "user_story",
+    "outputDestination": "file",
+    "outputPath": "output/dor-user-story-template.md",
+    "mergeWithExisting": false,
+    "platform": "jira",
+    "additionalContext": "Focus on creating a comprehensive DOR (Definition of Ready) template. Include ALL formatting rules specific to Jira markdown. Never mention texts from tickets in examples! Use generic examples with abstractions. The goal is to build the best DOR template that teams can use as a checklist when creating new user stories. Include platform-specific formatting like {code} blocks, h2 headings, * bullets, [x] checkboxes, {{field references}}, and @mentions.",
+    "generationThreads": 4,
+    "mergingThreads": 2
+  }
+}

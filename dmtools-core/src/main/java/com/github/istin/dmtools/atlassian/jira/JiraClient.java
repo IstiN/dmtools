@@ -312,6 +312,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     ) throws IOException {
         T ticket = performTicket(key, new String[]{Fields.LABELS});
         addLabelIfNotExists(ticket, label);
+        clearCache(createPerformTicketRequest(key, new String[]{Fields.LABELS}));
     }
 
     @Override
@@ -1643,7 +1644,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         if (isCustomFieldId(fieldName)) {
             return fieldName;
         }
-        
+
+        // Skip resolution for system fields - they should never be resolved to custom fields
+        if (SYSTEM_FIELDS.contains(fieldName.toLowerCase())) {
+            return null;
+        }
+
         // Check if this field is already known to not exist (negative cache)
         if (isFieldResolutionCachedAsNotFound(projectKey, fieldName)) {
             log("Field '" + fieldName + "' is cached as not found for project " + projectKey + " - skipping API call");
@@ -1905,20 +1911,26 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         
         // Extract project key from ticket key for field resolution
         String projectKey = parseJiraProject(key);
-        
+
         // Resolve field name to custom field ID if needed
         String resolvedFieldName = field;
-        try {
-            String customFieldId = resolveFieldNameToCustomFieldId(projectKey, field);
-            if (customFieldId != null) {
-                resolvedFieldName = customFieldId;
-                log("Field resolution: '" + field + "' resolved to '" + resolvedFieldName + "' for ticket " + key);
-            } else {
-                log("Field resolution: Using original field name '" + field + "' for ticket " + key + " (no custom field mapping found)");
+
+        // Skip resolution for system fields (like labels, summary, description, etc.)
+        if (!SYSTEM_FIELDS.contains(field.toLowerCase())) {
+            try {
+                String customFieldId = resolveFieldNameToCustomFieldId(projectKey, field);
+                if (customFieldId != null) {
+                    resolvedFieldName = customFieldId;
+                    log("Field resolution: '" + field + "' resolved to '" + resolvedFieldName + "' for ticket " + key);
+                } else {
+                    log("Field resolution: Using original field name '" + field + "' for ticket " + key + " (no custom field mapping found)");
+                }
+            } catch (Exception e) {
+                log("Field resolution failed for '" + field + "', using original field name: " + e.getMessage());
+                // Continue with original field name as fallback
             }
-        } catch (Exception e) {
-            log("Field resolution failed for '" + field + "', using original field name: " + e.getMessage());
-            // Continue with original field name as fallback
+        } else {
+            log("Field resolution: Skipping resolution for system field '" + field + "'");
         }
         
         GenericRequest jiraRequest = getTicket(key);

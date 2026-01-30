@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.job;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -172,7 +173,97 @@ class JavaScriptExecutorTest {
             .mcp(mockTrackerClient, mockAI, mockConfluence, mockSourceCode)
             .withJobContext("params", "ticket", "response")
             .with("extra", "value");
-        
+
+        assertNotNull(executor);
+    }
+
+    @Test
+    void testWithMetadataParameter() {
+        // Create metadata with contextId and agentId
+        Metadata metadata = new Metadata();
+        metadata.setContextId("test-context-123");
+        metadata.setAgentId("test-agent");
+
+        JavaScriptExecutor executor = new JavaScriptExecutor("test")
+            .with(TrackerParams.METADATA, metadata);
+
+        assertNotNull(executor);
+    }
+
+    @Test
+    void testMetadataInJobContext() {
+        // Create params with metadata
+        TrackerParams params = new TrackerParams();
+        Metadata metadata = new Metadata();
+        metadata.setContextId("context-456");
+        metadata.setAgentId("agent-789");
+        params.setMetadata(metadata);
+
+        // Create executor with job context and explicit metadata
+        JavaScriptExecutor executor = new JavaScriptExecutor("test")
+            .withJobContext(params, mockTicket, "response")
+            .with(TrackerParams.METADATA, params.getMetadata());
+
+        assertNotNull(executor);
+    }
+
+    @Test
+    void testMetadataNull() {
+        // Test that null metadata doesn't cause issues
+        JavaScriptExecutor executor = new JavaScriptExecutor("test")
+            .with(TrackerParams.METADATA, null);
+
+        assertNotNull(executor);
+    }
+
+    @Test
+    void testMetadataConversionToJSON() {
+        // Create metadata with contextId and agentId
+        Metadata metadata = new Metadata();
+        metadata.setContextId("test-context-123");
+        metadata.setAgentId("test-agent-456");
+
+        // Create executor that will test metadata conversion
+        String jsCode = """
+            function action(params) {
+                console.log("metadata type:", typeof params.metadata);
+                console.log("contextId:", params.metadata?.contextId);
+                console.log("agentId:", params.metadata?.agentId);
+                return {
+                    contextId: params.metadata?.contextId,
+                    agentId: params.metadata?.agentId
+                };
+            }
+            """;
+
+        JavaScriptExecutor executor = new JavaScriptExecutor(jsCode)
+            .with(TrackerParams.METADATA, metadata);
+
+        assertNotNull(executor);
+        // Note: Actual execution would require MCP setup, but this verifies the API
+    }
+
+    @Test
+    void testMetadataWithOnlyContextId() {
+        // Test metadata with only contextId set
+        Metadata metadata = new Metadata();
+        metadata.setContextId("context-only");
+
+        JavaScriptExecutor executor = new JavaScriptExecutor("test")
+            .with(TrackerParams.METADATA, metadata);
+
+        assertNotNull(executor);
+    }
+
+    @Test
+    void testMetadataWithOnlyAgentId() {
+        // Test metadata with only agentId set
+        Metadata metadata = new Metadata();
+        metadata.setAgentId("agent-only");
+
+        JavaScriptExecutor executor = new JavaScriptExecutor("test")
+            .with(TrackerParams.METADATA, metadata);
+
         assertNotNull(executor);
     }
 }

@@ -1,5 +1,6 @@
 package com.github.istin.dmtools.job;
 
+import com.github.istin.dmtools.ai.model.Metadata;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.common.code.SourceCode;
 import com.github.istin.dmtools.common.model.ITicket;
@@ -117,10 +118,10 @@ public class JavaScriptExecutor {
      */
     private Map<String, Object> convertParametersForJS() {
         Map<String, Object> jsParams = new HashMap<>();
-        
+
         for (Map.Entry<String, Object> entry : parameters.entrySet()) {
             Object value = entry.getValue();
-            
+
             if (value == null ||
                 value instanceof String ||
                 value instanceof Number ||
@@ -128,6 +129,22 @@ public class JavaScriptExecutor {
                 value instanceof JSONObject ||
                 value instanceof JSONArray) {
                 jsParams.put(entry.getKey(), value);
+            } else if (value instanceof Metadata) {
+                // Special handling for Metadata - convert to JSON object for JavaScript access
+                Metadata metadata = (Metadata) value;
+                JSONObject metadataJson = new JSONObject();
+                try {
+                    if (metadata.getContextId() != null) {
+                        metadataJson.put("contextId", metadata.getContextId());
+                    }
+                    if (metadata.getAgentId() != null) {
+                        metadataJson.put("agentId", metadata.getAgentId());
+                    }
+                } catch (Exception e) {
+                    // If any field access fails, create empty object
+                    logger.warn("Failed to convert Metadata to JSON: {}", e.getMessage());
+                }
+                jsParams.put(entry.getKey(), metadataJson);
             } else if (value instanceof ITicket) {
                 // Special handling for ITicket - convert to JSON object for JavaScript access
                 ITicket ticket = (ITicket) value;

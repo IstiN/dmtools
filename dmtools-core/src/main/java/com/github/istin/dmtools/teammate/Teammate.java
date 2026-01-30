@@ -262,6 +262,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                 .mcp(trackerClient, ai, confluence, null) // sourceCode not available in Teammate context
                 .withJobContext(expertParams, ticket, null) // response is null in pre-action
                 .with(TrackerParams.INITIATOR, initiator)
+                .with(TrackerParams.METADATA, expertParams.getMetadata())
                 .execute();
 
             // Check return value to determine if processing should continue
@@ -419,6 +420,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                 .mcp(trackerClient, ai, confluence, null) // sourceCode not available in Teammate context
                 .withJobContext(expertParams, ticket, response)
                 .with(TrackerParams.INITIATOR, initiator)
+                .with(TrackerParams.METADATA, expertParams.getMetadata())
                 .with("systemRequest", systemRequestCommentAlias)
                 .execute();
             if (expertParams.isAttachResponseAsFile()) {
