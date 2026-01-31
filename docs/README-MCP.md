@@ -269,6 +269,30 @@ dmtools run job.json
 
 ## 📋 Available MCP Tools
 
+### ⚠️ Important: Duplicate Field Names
+
+Jira can have multiple custom fields with the same name. DMTools handles this intelligently:
+
+- **Field Updates** (using field name): Updates **ALL** fields with that name
+  ```bash
+  # Updates both customfield_10551 and customfield_10186 if both are named "Dependencies"
+  dmtools jira_update_field PROJ-123 Dependencies "value"
+  ```
+
+- **Field Updates** (using field ID): Updates **only that specific field**
+  ```bash
+  # Updates only customfield_10551
+  dmtools jira_update_field PROJ-123 customfield_10551 "value"
+  ```
+
+- **JQL Searches**: Returns data from **ALL** fields with that name
+  ```bash
+  # Retrieves data from all "Acceptance Criteria" fields
+  dmtools jira_search_by_jql "project = PROJ" "Acceptance Criteria,summary"
+  ```
+
+See [JIRA_DUPLICATE_FIELDS_GUIDE.md](JIRA_DUPLICATE_FIELDS_GUIDE.md) for complete details.
+
 ### Jira Tools
 
 | Tool | Parameters | Description |
@@ -310,7 +334,9 @@ dmtools run job.json
 | `jira_set_fix_version` | `fixVersion`, `key` | Set the fix version for a Jira ticket |
 | `jira_set_priority` | `priority`, `key` | Set the priority for a Jira ticket |
 | `jira_update_description` | `description`, `key` | Update the description of a Jira ticket |
-| `jira_update_field` | `field`, `value`, `key` | Update a specific field value in a Jira ticket |
+| `jira_update_field` | `field`, `value`, `key` | Update field(s) in a ticket. Using field name updates ALL matching fields, using customfield_ID updates only that field |
+| `jira_update_all_fields_with_name` | `key`, `fieldName`, `value` | Explicitly update ALL fields with the same name (same as jira_update_field with name) |
+| `jira_get_all_fields_with_name` | `project`, `fieldName` | Get all custom field IDs that have the same display name |
 | `jira_update_ticket` | `params`, `key` | Update a Jira ticket using JSON parameters following the standard Jira REST API format |
 | `jira_update_ticket_parent` | `key`, `parentKey` | Update the parent of a Jira ticket |
 
