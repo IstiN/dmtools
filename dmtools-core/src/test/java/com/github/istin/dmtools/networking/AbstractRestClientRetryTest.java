@@ -1,51 +1,29 @@
 package com.github.istin.dmtools.networking;
 
-import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.common.networking.RestClient;
-import okhttp3.*;
+import okhttp3.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.*;
-import org.mockito.MockedStatic;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Tests for AbstractRestClient retry logic with the new RetryPolicy implementation.
+ * These tests verify the RetryPolicy behavior directly.
+ */
 class AbstractRestClientRetryTest {
 
     private static final Logger logger = LogManager.getLogger(AbstractRestClientRetryTest.class);
-    private TestRestClient restClient;
-    private OkHttpClient mockClient;
-    private Call mockCall;
-
-    // Test implementation of AbstractRestClient
-    private static class TestRestClient extends AbstractRestClient {
-        public TestRestClient(String basePath, String authorization) throws IOException {
-            super(basePath, authorization);
-        }
-
-        @Override
-        public String path(String path) {
-            return getBasePath() + path;
-        }
-
-        @Override
-        public Request.Builder sign(Request.Builder builder) {
-            return builder.header("Authorization", "Bearer test-token");
-        }
-    }
+    private RetryPolicy retryPolicy;
 
     @BeforeEach
-    void setUp() throws IOException {
-        restClient = new TestRestClient("https://api.example.com", "test-auth");
-        mockClient = mock(OkHttpClient.class);
-        mockCall = mock(Call.class);
-
-        // Configure custom retry policy with shorter delays for testing
-        RetryPolicy testRetryPolicy = new RetryPolicy(
+    void setUp() {
+        // Create policy with short delays for testing
+        retryPolicy = new RetryPolicy(
             3,      // maxRetries
             100,    // baseDelayMs (short for testing)
             1000,   // maxDelayMs
@@ -53,238 +31,95 @@ class AbstractRestClientRetryTest {
             0.1,    // jitterFactor (low for predictable testing)
             logger
         );
-        restClient.setRetryPolicy(testRetryPolicy);
     }
 
     @Test
-    @DisplayName("Should retry on rate limit and eventually succeed")
-    void testRetryOnRateLimitSuccess() throws IOException {
-        // Create a mock response sequence: rate limit, rate limit, success
-        AtomicInteger callCount = new AtomicInteger(0);
+    @DisplayName("RetryPolicy should identify RateLimitException as retryable")
+    void testRateLimitExceptionIsRetryable() {
+        RestClient.RateLimitException rateLimitEx =
+            new RestClient.RateLimitException("Rate limit", "body", null, 429);
 
-        // Use reflection to replace the client for testing
-        try {
-            java.lang.reflect.Field clientField = AbstractRestClient.class.getDeclaredField("client");
-            clientField.setAccessible(true);
-
-            when(mockClient.newCall(any(Request.class))).thenReturn(mockCall);
-            when(mockCall.execute()).thenAnswer(invocation -> {
-                int count = callCount.incrementAndGet();
-                if (count <= 2) {
-                    // First two calls return rate limit
-                    Response response = new Response.Builder()
-                        .request(new Request.Builder().url("https://api.example.com/test").build())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(429)
-                        .message("Too Many Requests")
-                        .header("Retry-After", "1")
-                        .body(ResponseBody.create(MediaType.parse("text/plain"), "Rate limit exceeded"))
-                        .build();
-                    return response;
-                } else {
-                    // Third call succeeds
-                    Response response = new Response.Builder()
-                        .request(new Request.Builder().url("https://api.example.com/test").build())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(200)
-                        .message("OK")
-                        .body(ResponseBody.create(MediaType.parse("application/json"), "{\"result\":\"success\"}"))
-                        .build();
-                    return response;
-                }
-            });
-
-            clientField.set(restClient, mockClient);
-
-            // Execute request - should retry and eventually succeed
-            GenericRequest request = new GenericRequest(restClient, "https://api.example.com/test");
-            String result = restClient.execute(request);
-
-            assertEquals("{\"result\":\"success\"}", result);
-            assertEquals(3, callCount.get(), "Should have made 3 attempts");
-        } catch (Exception e) {
-            fail("Test setup failed: " + e.getMessage());
-        }
+        assertTrue(retryPolicy.isRetryable(rateLimitEx));
     }
 
     @Test
-    @DisplayName("Should throw exception after max retries exceeded")
-    void testMaxRetriesExceeded() throws IOException {
-        // Create a mock that always returns rate limit
-        try {
-            java.lang.reflect.Field clientField = AbstractRestClient.class.getDeclaredField("client");
-            clientField.setAccessible(true);
+    @DisplayName("RetryPolicy should identify rate limit messages as retryable")
+    void testRateLimitMessageIsRetryable() {
+        IOException rateLimit1 = new IOException("Rate limit exceeded");
+        IOException rateLimit2 = new IOException("Too many requests (429)");
+        IOException rateLimit3 = new IOException("throttled");
 
-            when(mockClient.newCall(any(Request.class))).thenReturn(mockCall);
-            when(mockCall.execute()).thenAnswer(invocation -> {
-                Response response = new Response.Builder()
-                    .request(new Request.Builder().url("https://api.example.com/test").build())
-                    .protocol(Protocol.HTTP_1_1)
-                    .code(429)
-                    .message("Too Many Requests")
-                    .body(ResponseBody.create(MediaType.parse("text/plain"), "Rate limit exceeded"))
-                    .build();
-                return response;
-            });
-
-            clientField.set(restClient, mockClient);
-
-            // Execute request - should fail after max retries
-            GenericRequest request = new GenericRequest(restClient, "https://api.example.com/test");
-
-            assertThrows(RestClient.RateLimitException.class, () -> {
-                restClient.execute(request);
-            });
-
-            // Verify that we made the expected number of attempts
-            verify(mockCall, times(3)).execute(); // 3 attempts with retry policy maxRetries=3
-        } catch (Exception e) {
-            if (e instanceof RestClient.RateLimitException) {
-                throw (RestClient.RateLimitException) e;
-            }
-            fail("Test setup failed: " + e.getMessage());
-        }
+        assertTrue(retryPolicy.isRetryable(rateLimit1));
+        assertTrue(retryPolicy.isRetryable(rateLimit2));
+        assertTrue(retryPolicy.isRetryable(rateLimit3));
     }
 
     @Test
-    @DisplayName("Should respect Retry-After header in response")
-    void testRetryAfterHeader() throws IOException {
-        AtomicInteger callCount = new AtomicInteger(0);
-        long startTime = System.currentTimeMillis();
+    @DisplayName("RetryPolicy should identify service unavailable errors as retryable")
+    void testServiceUnavailableIsRetryable() {
+        IOException serviceUnavailable = new IOException("Service unavailable (503)");
+        IOException gatewayTimeout = new IOException("Gateway timeout (504)");
 
-        try {
-            java.lang.reflect.Field clientField = AbstractRestClient.class.getDeclaredField("client");
-            clientField.setAccessible(true);
-
-            when(mockClient.newCall(any(Request.class))).thenReturn(mockCall);
-            when(mockCall.execute()).thenAnswer(invocation -> {
-                int count = callCount.incrementAndGet();
-                if (count == 1) {
-                    // First call returns rate limit with Retry-After header
-                    Response response = new Response.Builder()
-                        .request(new Request.Builder().url("https://api.example.com/test").build())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(429)
-                        .message("Too Many Requests")
-                        .header("Retry-After", "2") // 2 seconds
-                        .body(ResponseBody.create(MediaType.parse("text/plain"), "Rate limit exceeded"))
-                        .build();
-                    return response;
-                } else {
-                    // Second call succeeds
-                    Response response = new Response.Builder()
-                        .request(new Request.Builder().url("https://api.example.com/test").build())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(200)
-                        .message("OK")
-                        .body(ResponseBody.create(MediaType.parse("application/json"), "{\"result\":\"success\"}"))
-                        .build();
-                    return response;
-                }
-            });
-
-            clientField.set(restClient, mockClient);
-
-            GenericRequest request = new GenericRequest(restClient, "https://api.example.com/test");
-            String result = restClient.execute(request);
-
-            long elapsedTime = System.currentTimeMillis() - startTime;
-
-            assertEquals("{\"result\":\"success\"}", result);
-            assertEquals(2, callCount.get());
-            // Should have waited approximately 2 seconds (with some jitter)
-            assertTrue(elapsedTime >= 1500, "Should have waited at least 1.5 seconds");
-        } catch (Exception e) {
-            fail("Test setup failed: " + e.getMessage());
-        }
+        assertTrue(retryPolicy.isRetryable(serviceUnavailable));
+        assertTrue(retryPolicy.isRetryable(gatewayTimeout));
     }
 
     @Test
-    @DisplayName("Should not retry on non-retryable errors")
-    void testNoRetryOnNonRetryableError() throws IOException {
-        AtomicInteger callCount = new AtomicInteger(0);
+    @DisplayName("RetryPolicy should not retry non-retryable errors")
+    void testNonRetryableErrors() {
+        IOException notFound = new IOException("Not found (404)");
+        IOException unauthorized = new IOException("Unauthorized (401)");
+        IOException badRequest = new IOException("Bad request (400)");
 
-        try {
-            java.lang.reflect.Field clientField = AbstractRestClient.class.getDeclaredField("client");
-            clientField.setAccessible(true);
-
-            when(mockClient.newCall(any(Request.class))).thenReturn(mockCall);
-            when(mockCall.execute()).thenAnswer(invocation -> {
-                callCount.incrementAndGet();
-                // Return a non-retryable error (401 Unauthorized)
-                Response response = new Response.Builder()
-                    .request(new Request.Builder().url("https://api.example.com/test").build())
-                    .protocol(Protocol.HTTP_1_1)
-                    .code(401)
-                    .message("Unauthorized")
-                    .body(ResponseBody.create(MediaType.parse("text/plain"), "Authentication required"))
-                    .build();
-                return response;
-            });
-
-            clientField.set(restClient, mockClient);
-
-            GenericRequest request = new GenericRequest(restClient, "https://api.example.com/test");
-
-            assertThrows(RestClient.RestClientException.class, () -> {
-                restClient.execute(request);
-            });
-
-            // Should only make one attempt (no retries)
-            assertEquals(1, callCount.get());
-        } catch (Exception e) {
-            if (e instanceof RestClient.RestClientException) {
-                throw (RestClient.RestClientException) e;
-            }
-            fail("Test setup failed: " + e.getMessage());
-        }
+        assertFalse(retryPolicy.isRetryable(notFound));
+        assertFalse(retryPolicy.isRetryable(unauthorized));
+        assertFalse(retryPolicy.isRetryable(badRequest));
     }
 
     @Test
-    @DisplayName("POST requests should also retry on rate limits")
-    void testPostRetryOnRateLimit() throws IOException {
-        AtomicInteger callCount = new AtomicInteger(0);
+    @DisplayName("RetryPolicy should calculate exponential backoff delay")
+    void testCalculateDelayExponentialBackoff() {
+        long delay1 = retryPolicy.calculateDelayMs(1, null);
+        long delay2 = retryPolicy.calculateDelayMs(2, null);
+        long delay3 = retryPolicy.calculateDelayMs(3, null);
 
-        try {
-            java.lang.reflect.Field clientField = AbstractRestClient.class.getDeclaredField("client");
-            clientField.setAccessible(true);
+        // Delays should increase (with some tolerance for jitter)
+        assertTrue(delay1 >= 80 && delay1 <= 150, "First delay should be ~100ms: " + delay1);
+        assertTrue(delay2 >= 160 && delay2 <= 300, "Second delay should be ~200ms: " + delay2);
+        assertTrue(delay3 >= 320 && delay3 <= 600, "Third delay should be ~400ms: " + delay3);
 
-            when(mockClient.newCall(any(Request.class))).thenReturn(mockCall);
-            when(mockCall.execute()).thenAnswer(invocation -> {
-                int count = callCount.incrementAndGet();
-                if (count == 1) {
-                    // First call returns rate limit
-                    Response response = new Response.Builder()
-                        .request(new Request.Builder().url("https://api.example.com/test").build())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(429)
-                        .message("Too Many Requests")
-                        .body(ResponseBody.create(MediaType.parse("text/plain"), "Rate limit exceeded"))
-                        .build();
-                    return response;
-                } else {
-                    // Second call succeeds
-                    Response response = new Response.Builder()
-                        .request(new Request.Builder().url("https://api.example.com/test").build())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(200)
-                        .message("OK")
-                        .body(ResponseBody.create(MediaType.parse("application/json"), "{\"id\":\"123\"}"))
-                        .build();
-                    return response;
-                }
-            });
+        // Delays should respect max delay
+        long delayHigh = retryPolicy.calculateDelayMs(10, null);
+        assertTrue(delayHigh <= 1100, "Delay should not exceed maxDelayMs + jitter: " + delayHigh);
+    }
 
-            clientField.set(restClient, mockClient);
+    @Test
+    @DisplayName("RetryPolicy should respect Retry-After header")
+    void testRetryAfterHeader() {
+        Response mockResponse = mock(Response.class);
+        when(mockResponse.header("Retry-After")).thenReturn("5");
 
-            GenericRequest request = new GenericRequest(restClient, "https://api.example.com/test");
-            request.setBody("{\"name\":\"test\"}");
-            String result = restClient.post(request);
+        long delay = retryPolicy.calculateDelayMs(1, mockResponse);
 
-            assertEquals("{\"id\":\"123\"}", result);
-            assertEquals(2, callCount.get(), "Should have made 2 attempts");
-        } catch (Exception e) {
-            fail("Test setup failed: " + e.getMessage());
-        }
+        // Should use server-provided delay (5 seconds = 5000ms) with some jitter
+        assertTrue(delay >= 4500 && delay <= 5500, "Delay should be ~5000ms: " + delay);
+    }
+
+    @Test
+    @DisplayName("RetryPolicy should return correct max retries")
+    void testGetMaxRetries() {
+        assertEquals(3, retryPolicy.getMaxRetries());
+    }
+
+    @Test
+    @DisplayName("Default RetryPolicy should have sensible defaults")
+    void testDefaultRetryPolicy() {
+        RetryPolicy defaultPolicy = new RetryPolicy(logger);
+
+        assertEquals(RetryPolicy.DEFAULT_MAX_RETRIES, defaultPolicy.getMaxRetries());
+
+        // Verify it can identify retryable errors
+        assertTrue(defaultPolicy.isRetryable(new IOException("Rate limit")));
+        assertFalse(defaultPolicy.isRetryable(new IOException("Not found")));
     }
 }

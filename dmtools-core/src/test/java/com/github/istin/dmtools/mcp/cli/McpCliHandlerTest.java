@@ -95,8 +95,8 @@ class McpCliHandlerTest {
     }
 
     @Test
-    @DisplayName("Error messages should include stack trace for debugging")
-    void testErrorMessagesIncludeStackTrace() {
+    @DisplayName("Error messages should NOT include stack trace by default")
+    void testErrorMessagesWithoutStackTrace() {
         // Try to execute a non-existent tool
         String[] args = {"mcp", "nonexistent_tool"};
 
@@ -106,9 +106,13 @@ class McpCliHandlerTest {
         assertTrue(response.getBoolean("error"));
         String message = response.getString("message");
 
-        // Error message should now include stack trace for better debugging
-        assertTrue(message.contains("Stack trace:") || message.contains("at "),
-                  "Error message should include stack trace information");
+        // Error message should NOT include stack trace by default (only with --debug)
+        assertFalse(message.contains("Stack trace:") || message.contains("at com.github.istin"),
+                  "Error message should not include stack trace in normal mode");
+
+        // Should contain error message
+        assertTrue(message.contains("Unknown tool") || message.contains("nonexistent_tool"),
+                  "Error message should mention the unknown tool");
     }
 
     @Test
