@@ -200,7 +200,7 @@ Or if you're developing locally, build the project first:
 
 Note: Java 23 is required for DMTools to run."
     fi
-    execute_java_command "\"$JAVA_CMD\" -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner"
+    execute_java_command "\"$JAVA_CMD\" -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner"
     exit 0
 }
 
@@ -270,10 +270,10 @@ case "$COMMAND" in
     "list")
         if [ ${#ARGS[@]} -gt 0 ]; then
             # List with filter
-            execute_java_command "\"$JAVA_CMD\" -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list \"${ARGS[0]}\""
+            execute_java_command "\"$JAVA_CMD\" -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list \"${ARGS[0]}\""
         else
             # List all tools
-            execute_java_command "\"$JAVA_CMD\" -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list"
+            execute_java_command "\"$JAVA_CMD\" -Dlog4j2.configurationFile=classpath:log4j2-cli.xml -Dlog4j.configuration=log4j2-cli.xml -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp \"$JAR_FILE\" com.github.istin.dmtools.job.JobRunner mcp list"
         fi
         exit 0
         ;;
@@ -335,9 +335,9 @@ if [[ "$COMMAND" == -* ]]; then
     
     # Execute directly without mcp prefix
     if [ "$DEBUG" = true ]; then
-        "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner "${CMD_ARGS[@]}"
+        "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner "${CMD_ARGS[@]}"
     else
-        "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner "${CMD_ARGS[@]}" 2>/dev/null
+        "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner "${CMD_ARGS[@]}" 2>/dev/null
     fi
     exit $?
 fi
@@ -381,7 +381,7 @@ fi
 
 # Execute command via JobRunner as MCP tool
 if [ "$DEBUG" = true ]; then
-    "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "${CMD_ARGS[@]}"
+    "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "${CMD_ARGS[@]}"
 else
-    "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "${CMD_ARGS[@]}" 2>/dev/null
+    "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner mcp "${CMD_ARGS[@]}" 2>/dev/null
 fi

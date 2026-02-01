@@ -55,12 +55,13 @@ public class JobJavaScriptBridge {
 
     @Inject
     public JobJavaScriptBridge(TrackerClient<?> trackerClient, AI ai, Confluence confluence, SourceCode sourceCode, com.github.istin.dmtools.common.kb.tool.KBTools kbTools) {
+        logger.info("🏗️  [PERFORMANCE] Creating JobJavaScriptBridge instance (lazy init mode)");
         this.trackerClient = trackerClient;
         this.ai = ai;
         this.confluence = confluence;
         this.sourceCode = sourceCode;
         this.kbTools = kbTools;
-        
+
         // Prepare client instances for MCP executor
         // Note: The MCP system expects specific integration keys regardless of actual implementation
         this.clientInstances = new HashMap<>();
@@ -74,17 +75,17 @@ public class JobJavaScriptBridge {
         this.clientInstances.put("file", new FileTools());  // File operations for reading files from working directory
         this.clientInstances.put("cli", new CliCommandExecutor());  // CLI command execution for automation workflows
         this.clientInstances.put("kb", kbTools);  // Knowledge Base tools for KB management
-        
+
         // Initialize Mermaid Index Tools if available
         try {
-            com.github.istin.dmtools.di.MermaidIndexComponent mermaidComponent = 
+            com.github.istin.dmtools.di.MermaidIndexComponent mermaidComponent =
                 com.github.istin.dmtools.di.DaggerMermaidIndexComponent.create();
             this.clientInstances.put("mermaid", mermaidComponent.mermaidIndexTools());
             logger.debug("MermaidIndexTools initialized for JavaScript bridge");
         } catch (Exception e) {
             logger.debug("MermaidIndexTools not initialized: {}. Mermaid tools will not be available.", e.getMessage());
         }
-        
+
         // Initialize Teams client if configured
         try {
             this.clientInstances.put("teams", BasicTeamsClient.getInstance());
@@ -92,7 +93,7 @@ public class JobJavaScriptBridge {
         } catch (Exception e) {
             logger.debug("BasicTeamsClient not initialized: {}. Teams tools will not be available.", e.getMessage());
         }
-        
+
         // Initialize Azure DevOps client if configured
         try {
             this.clientInstances.put("ado", BasicAzureDevOpsClient.getInstance());
@@ -101,7 +102,23 @@ public class JobJavaScriptBridge {
             logger.debug("BasicAzureDevOpsClient not initialized: {}. ADO tools will not be available.", e.getMessage());
         }
 
-        initializeJavaScriptContext();
+        // Don't initialize JavaScript context in constructor - use lazy initialization instead
+        // This significantly improves startup time for commands that don't need JS execution
+        // initializeJavaScriptContext();
+    }
+
+    /**
+     * Ensure JavaScript context is initialized (lazy initialization).
+     * This method is called before any JS execution to avoid startup overhead.
+     */
+    private synchronized void ensureJavaScriptContext() {
+        if (jsContext == null) {
+            long startTime = System.currentTimeMillis();
+            logger.info("🚀 [PERFORMANCE] Starting lazy JavaScript context initialization...");
+            initializeJavaScriptContext();
+            long duration = System.currentTimeMillis() - startTime;
+            logger.info("✅ [PERFORMANCE] JavaScript context initialized in {}ms", duration);
+        }
     }
 
     /**
@@ -109,6 +126,7 @@ public class JobJavaScriptBridge {
      */
     private void initializeJavaScriptContext() {
         try {
+            logger.debug("Initializing JavaScript context (lazy initialization)");
             jsContext = Context.newBuilder("js")
                     .allowAllAccess(false) // Restricted access for security
                     .build();
@@ -122,6 +140,7 @@ public class JobJavaScriptBridge {
             // Expose MCP tools using generated infrastructure
             exposeMCPToolsUsingGenerated();
 
+            logger.debug("JavaScript context initialized successfully");
         } catch (Exception e) {
             logger.error("Failed to initialize JavaScript context", e);
             throw new RuntimeException("JavaScript bridge initialization failed", e);
@@ -132,10 +151,12 @@ public class JobJavaScriptBridge {
      * Convert Java objects to JavaScript-compatible format
      */
     private Object convertToJSCompatible(Object obj) {
+        ensureJavaScriptContext();
+
         if (obj == null) {
             return null;
         }
-        
+
         if (obj instanceof Map) {
             // Convert Map to JavaScript object that can be accessed with dot notation
             @SuppressWarnings("unchecked")
@@ -542,15 +563,17 @@ public class JobJavaScriptBridge {
      * Execute JavaScript code with dynamic JSON parameters
      */
     public Object executeJavaScript(String jsSourceOrPath, JSONObject parameters) throws Exception {
+        ensureJavaScriptContext();
+
         try {
             // Set current script directory for relative path resolution
             setCurrentScriptDirectory(jsSourceOrPath);
-            
+
             String jsCode = loadJavaScriptCode(jsSourceOrPath);
-            
+
             // Make the tool executor available to JavaScript using ProxyExecutable
             jsContext.getBindings("js").putMember("executeToolViaJava", new ExecuteToolProxy());
-            
+
             // Ensure require function is available for this execution
             jsContext.getBindings("js").putMember("require", new RequireProxy());
             
@@ -743,6 +766,8 @@ public class JobJavaScriptBridge {
      * Convert JSONObject to JavaScript-compatible object using GraalVM's Value system
      */
     private Object convertToJSCompatible(JSONObject jsonObject) {
+        ensureJavaScriptContext();
+
         // Convert JSONObject to a simple string and parse it in JavaScript
         // This ensures proper conversion to JavaScript object
         String jsonString = jsonObject.toString();
@@ -824,8 +849,10 @@ public class JobJavaScriptBridge {
      * Load and execute a JavaScript module, returning its exports
      */
     private Object loadModule(String modulePath) throws IOException {
+        ensureJavaScriptContext();
+
         String resolvedPath = resolveModulePath(modulePath);
-        
+
         // Check module cache first
         if (moduleCache.containsKey(resolvedPath)) {
             logger.debug("Returning cached module: {}", resolvedPath);

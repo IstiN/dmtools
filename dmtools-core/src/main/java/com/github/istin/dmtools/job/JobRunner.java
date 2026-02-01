@@ -82,32 +82,54 @@ public class JobRunner {
     /**
      * Static job instances used only for job listing and name lookup.
      * These should NOT be used for execution to avoid race conditions.
+     * Lazy initialization to avoid startup overhead.
      */
-    protected static List<Job> JOBS = Arrays.asList(
-            new PreSaleSupport(),
-            new DocumentationGenerator(),
-            new RequirementsCollector(),
-            new JEstimator(),
-            new TestCasesGenerator(),
-            new InstructionsGenerator(),
-            new SolutionArchitectureCreator(),
-            new DiagramsCreator(),
-            new CodeGenerator(),
-            new DevProductivityReport(),
-            new BAProductivityReport(),
-            new BusinessAnalyticDORGeneration(),
-            new QAProductivityReport(),
-            new ScrumMasterDaily(),
-            new Expert(),
-            new Teammate(),
-            new SourceCodeTrackerSyncJob(),
-            new SourceCodeCommitTrackerSyncJob(),
-            new UserStoryGenerator(),
-            new UnitTestsGenerator(),
-            new CommitsTriage(),
-            new JSRunner(),
-            new KBProcessingJob()
-    );
+    private static volatile List<Job> JOBS = null;
+
+    /**
+     * Get the list of jobs with lazy initialization.
+     * This method creates job instances only when needed (e.g., for listing).
+     *
+     * @return List of available jobs
+     */
+    private static List<Job> getJobs() {
+        if (JOBS == null) {
+            synchronized (JobRunner.class) {
+                if (JOBS == null) {
+                    logger.info("🚀 [PERFORMANCE] Lazy initialization of JOBS list");
+                    long startTime = System.currentTimeMillis();
+                    JOBS = Arrays.asList(
+                            new PreSaleSupport(),
+                            new DocumentationGenerator(),
+                            new RequirementsCollector(),
+                            new JEstimator(),
+                            new TestCasesGenerator(),
+                            new InstructionsGenerator(),
+                            new SolutionArchitectureCreator(),
+                            new DiagramsCreator(),
+                            new CodeGenerator(),
+                            new DevProductivityReport(),
+                            new BAProductivityReport(),
+                            new BusinessAnalyticDORGeneration(),
+                            new QAProductivityReport(),
+                            new ScrumMasterDaily(),
+                            new Expert(),
+                            new Teammate(),
+                            new SourceCodeTrackerSyncJob(),
+                            new SourceCodeCommitTrackerSyncJob(),
+                            new UserStoryGenerator(),
+                            new UnitTestsGenerator(),
+                            new CommitsTriage(),
+                            new JSRunner(),
+                            new KBProcessingJob()
+                    );
+                    long duration = System.currentTimeMillis() - startTime;
+                    logger.info("✅ [PERFORMANCE] JOBS list initialized in {}ms ({} jobs)", duration, JOBS.size());
+                }
+            }
+        }
+        return JOBS;
+    }
 
     public static void main(String[] args) throws Exception {
         // Handle special arguments
@@ -266,13 +288,14 @@ public class JobRunner {
     }
 
     private static void listJobs() {
+        List<Job> jobs = getJobs();
         System.out.println("Available Jobs:");
         System.out.println("===============");
-        for (Job job : JOBS) {
+        for (Job job : jobs) {
             System.out.println("- " + job.getName());
         }
         System.out.println();
-        System.out.println("Total: " + JOBS.size() + " jobs available");
+        System.out.println("Total: " + jobs.size() + " jobs available");
     }
 
     public static void initMetadata(Job job, Object paramsByClass) {
