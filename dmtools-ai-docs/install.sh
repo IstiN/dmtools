@@ -190,8 +190,19 @@ install_to_directory() {
         rm -rf "$TARGET_DIR/$SKILL_NAME"
     fi
 
-    # Copy skill
-    cp -r "$SKILL_SOURCE" "$TARGET_DIR/$SKILL_NAME"
+    # Copy skill files (exclude installation artifacts)
+    mkdir -p "$TARGET_DIR/$SKILL_NAME"
+
+    # Copy only necessary files
+    for item in "$SKILL_SOURCE"/*; do
+        item_name=$(basename "$item")
+        # Skip installation artifacts
+        if [ "$item_name" = "install.sh" ] || [ "$item_name" = "dmtools-skill.zip" ] || [[ "$item_name" == *.tar.gz ]]; then
+            continue
+        fi
+        cp -r "$item" "$TARGET_DIR/$SKILL_NAME/"
+    done
+
     print_success "Installed to $TARGET_DIR/$SKILL_NAME"
 }
 

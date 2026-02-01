@@ -59,22 +59,24 @@ jobs:
           echo "📦 Creating DMtools Agent Skill package..."
           cd dmtools-ai-docs
 
-          # Create ZIP archive
+          # Create ZIP archive (exclude install.sh - it's a separate release asset)
           zip -r ../$DIST_DIR/dmtools-skill-v${VERSION}.zip . \
             -x "*.git*" \
             -x ".DS_Store" \
             -x "node_modules/*" \
             -x "*.swp" \
             -x ".cursorrules" \
-            -x ".github/*"
+            -x ".github/*" \
+            -x "install.sh"
 
-          # Create tarball for *nix systems
+          # Create tarball for *nix systems (exclude install.sh - it's a separate release asset)
           tar -czf ../$DIST_DIR/dmtools-skill-v${VERSION}.tar.gz \
             --exclude='.git*' \
             --exclude='.DS_Store' \
             --exclude='node_modules' \
             --exclude='.cursorrules' \
             --exclude='.github' \
+            --exclude='install.sh' \
             .
 
           cd ..
