@@ -271,22 +271,14 @@ main() {
             local INDEX=$((CHOICE - 1))
             if [ $INDEX -ge 0 ] && [ $INDEX -lt ${#DIRS[@]} ]; then
                 SELECTED_DIR="${DIRS[$INDEX]}"
+                # Create directory if needed
+                mkdir -p "$SELECTED_DIR"
                 install_to_directory "$SKILL_SOURCE" "$SELECTED_DIR"
             else
                 print_error "Invalid choice: $CHOICE"
                 exit 1
             fi
         fi
-    fi
-
-    # If single directory selected and it doesn't exist, create it
-    if [ "$SELECTED_DIR" != "multiple locations" ] && [ ! -d "$SELECTED_DIR" ]; then
-        mkdir -p "$SELECTED_DIR"
-    fi
-
-    # Install to single directory if not "all"
-    if [ "$SELECTED_DIR" != "multiple locations" ]; then
-        install_to_directory "$SKILL_SOURCE" "$SELECTED_DIR"
     fi
 
     # Cleanup
