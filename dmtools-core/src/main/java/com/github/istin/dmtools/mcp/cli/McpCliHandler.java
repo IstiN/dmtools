@@ -41,14 +41,46 @@ public class McpCliHandler {
 
     private static final Logger logger = LogManager.getLogger(McpCliHandler.class);
 
-    private final Map<String, Object> clientInstances;
-    private final Map<String, AI> availableAIClients;
+    private volatile Map<String, Object> clientInstances;
+    private volatile Map<String, AI> availableAIClients;
 
     public McpCliHandler() {
         // Configure logging for CLI usage - suppress all logs except errors
         configureCLILogging();
-        this.availableAIClients = createAllAIClients();
-        this.clientInstances = createClientInstances();
+        // Don't initialize clients in constructor - use lazy initialization
+        // This significantly improves startup time for list commands
+    }
+
+    /**
+     * Ensure client instances are initialized (lazy initialization).
+     * Clients are only created when needed for tool execution.
+     */
+    private void ensureClientInstances() {
+        if (clientInstances == null) {
+            synchronized (this) {
+                if (clientInstances == null) {
+                    logger.debug("🚀 [PERFORMANCE] Lazy initialization of client instances");
+                    long startTime = System.currentTimeMillis();
+                    this.availableAIClients = createAllAIClients();
+                    this.clientInstances = createClientInstances();
+                    long duration = System.currentTimeMillis() - startTime;
+                    logger.debug("✅ [PERFORMANCE] Client instances initialized in {}ms ({} clients)", duration, clientInstances.size());
+                }
+            }
+        }
+    }
+
+    /**
+     * Ensure AI clients are initialized (lazy initialization).
+     */
+    private void ensureAIClients() {
+        if (availableAIClients == null) {
+            synchronized (this) {
+                if (availableAIClients == null) {
+                    this.availableAIClients = createAllAIClients();
+                }
+            }
+        }
     }
 
     /**
@@ -110,6 +142,9 @@ public class McpCliHandler {
             Map<String, Object> arguments = parseToolArguments(args);
 
             logger.info("Executing MCP tool: {} with arguments: {}", toolName, arguments);
+
+            // Lazy initialization: Ensure client instances are created before execution
+            ensureClientInstances();
 
             // Set the appropriate AI client for this tool
             AI appropriateAIClient = getAIClientForTool(toolName);
@@ -544,18 +579,20 @@ public class McpCliHandler {
             return null;
         }
         
+        ensureAIClients();
+
         String toolLower = toolName.toLowerCase();
         String[] parts = toolLower.split("_");
         if (parts.length > 0) {
             String agentType = parts[0];
-            
+
             // Check if the agent type is available in our map
             AI client = availableAIClients.get(agentType);
             if (client != null) {
                 return client;
             }
         }
-        
+
         // For other AI tools, return the first available client
         if (!availableAIClients.isEmpty()) {
             return availableAIClients.values().iterator().next();
@@ -565,7 +602,8 @@ public class McpCliHandler {
     }
 
     /**
-     * Gets available integrations based on successfully created clients.
+     * Gets available integrations based on configuration, WITHOUT creating clients.
+     * This is important for fast 'list' command execution.
      */
     private Set<String> getAvailableIntegrations() {
         Set<String> integrations = new HashSet<>();
@@ -575,16 +613,19 @@ public class McpCliHandler {
         if (envIntegrations != null && !envIntegrations.trim().isEmpty()) {
             String[] parts = envIntegrations.split(",");
             for (String part : parts) {
-                String integration = part.trim();
-                if (clientInstances.containsKey(integration)) {
-                    integrations.add(integration);
-                }
+                integrations.add(part.trim());
             }
         }
 
-        // If no environment variable or no valid integrations, use all available clients
+        // If no environment variable, return all possible integrations
+        // Do NOT create clients just to check - this is for listing only
         if (integrations.isEmpty()) {
-            integrations.addAll(clientInstances.keySet());
+            // Return all known integration types without creating clients
+            integrations.addAll(Arrays.asList(
+                "jira", "jira_xray", "ado", "confluence", "figma",
+                "teams", "teams_auth", "sharepoint", "ai", "cli",
+                "file", "kb", "mermaid"
+            ));
         }
         logger.debug("Available integrations: {}", integrations);
         return integrations;
@@ -805,8 +846,10 @@ public class McpCliHandler {
 
     /**
      * Gets the client instances map (for testing).
+     * Ensures clients are initialized before returning.
      */
     public Map<String, Object> getClientInstances() {
+        ensureClientInstances();
         return Collections.unmodifiableMap(clientInstances);
     }
 }
