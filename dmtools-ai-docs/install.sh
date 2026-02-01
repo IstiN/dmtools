@@ -129,11 +129,13 @@ detect_skill_dirs() {
 download_skill() {
     print_info "Downloading DMtools skill..."
 
-    local DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/latest/download/dmtools-skill.zip"
+    # Get latest release download URL from GitHub API
+    local API_URL="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    local DOWNLOAD_URL=$(curl -s "$API_URL" | grep "browser_download_url.*\.zip" | head -1 | cut -d '"' -f 4)
     local FALLBACK_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/main.zip"
 
     # Try latest release first
-    if curl -L -f -o "$TEMP_DIR/dmtools-skill.zip" "$DOWNLOAD_URL" 2>/dev/null; then
+    if [ -n "$DOWNLOAD_URL" ] && curl -L -f -o "$TEMP_DIR/dmtools-skill.zip" "$DOWNLOAD_URL" 2>/dev/null; then
         print_success "Downloaded latest release"
     else
         # Fallback to main branch
@@ -153,13 +155,19 @@ download_skill() {
     # Find the skill directory
     local SKILL_SOURCE=""
     if [ -f "$TEMP_DIR/SKILL.md" ]; then
+        # Direct extraction (from release ZIP)
         SKILL_SOURCE="$TEMP_DIR"
-    elif [ -f "$TEMP_DIR/dmtools-ai-docs-main/SKILL.md" ]; then
-        SKILL_SOURCE="$TEMP_DIR/dmtools-ai-docs-main"
+    elif [ -f "$TEMP_DIR/dmtools-main/dmtools-ai-docs/SKILL.md" ]; then
+        # From GitHub main branch archive
+        SKILL_SOURCE="$TEMP_DIR/dmtools-main/dmtools-ai-docs"
     elif [ -f "$TEMP_DIR/dmtools-ai-docs/SKILL.md" ]; then
+        # Legacy: direct dmtools-ai-docs folder
         SKILL_SOURCE="$TEMP_DIR/dmtools-ai-docs"
     else
+        # Debug: show what we found
         print_error "SKILL.md not found in package"
+        print_info "Contents of temp dir:"
+        ls -la "$TEMP_DIR" | head -10
         return 1
     fi
 
