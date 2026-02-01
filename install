@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # DMTools CLI Cross-Platform Installation Wrapper
 # Usage: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
-# For specific version: DMTOOLS_VERSION=v1.7.124 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.124/install | bash
-# Or use install.sh directly: DMTOOLS_VERSION=v1.7.124 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.124/install.sh | bash
+# For specific version: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.126/install | bash -s v1.7.126
+# Or use install.sh directly: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.126/install.sh | bash -s v1.7.126
 # This script auto-detects the platform and runs the appropriate installer
-# Works even if this file doesn't exist in older releases - falls back to install.sh
 
 set -e
 
@@ -180,7 +179,7 @@ detect_version_from_url() {
             # Get parent process command line
             local parent_cmd
             if parent_cmd=$(ps -p "$ppid" -o args= 2>/dev/null | head -1); then
-                # Extract version from curl URL: .../v1.7.124/install
+                # Extract version from curl URL: .../v1.7.126/install
                 local detected_version
                 detected_version=$(echo "$parent_cmd" | grep -oE '/(v[0-9]+\.[0-9]+\.[0-9]+)/' | head -1 | sed 's/\///g')
                 if [ -n "$detected_version" ]; then

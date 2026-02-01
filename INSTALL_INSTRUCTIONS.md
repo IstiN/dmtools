@@ -58,43 +58,49 @@ curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install | bash
 
 ### macOS / Linux / Git Bash
 
-**Recommended - Pass version to script:**
+**Method 1 - Version-pinned via raw.githubusercontent (recommended, faster, no breaking changes):**
 ```bash
-DMTOOLS_VERSION=v1.7.124 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.124/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.126/install.sh | bash -s v1.7.126
 ```
 
-**Alternative - Using export (allows variable in URL):**
+**Method 2 - From main branch (always latest script):**
 ```bash
-export DMTOOLS_VERSION=v1.7.124 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/$DMTOOLS_VERSION/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash -s v1.7.126
 ```
 
-**Alternative - Pass as argument:**
+**Method 3 - Pass environment variable to bash:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.124/install.sh | bash -s v1.7.124
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | DMTOOLS_VERSION=v1.7.126 bash
 ```
 
-**Alternative - From main branch:**
+**Method 4 - Using export:**
 ```bash
-DMTOOLS_VERSION=v1.7.124 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+export DMTOOLS_VERSION=v1.7.126
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+```
+
+**⚠️ This does NOT work** (environment variable doesn't cross pipe):
+```bash
+DMTOOLS_VERSION=v1.7.126 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 ```
 
 ### Windows (cmd.exe)
 
-**Recommended - Set version once, use everywhere:**
+**Version-pinned via raw.githubusercontent (recommended, faster, no breaking changes):**
 ```cmd
-set DMTOOLS_VERSION=v1.7.124 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/%DMTOOLS_VERSION%/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+set DMTOOLS_VERSION=v1.7.126 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v1.7.126/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
-**Alternative - From main branch:**
+**From main branch (always latest script):**
 ```cmd
-set DMTOOLS_VERSION=v1.7.124 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
+set DMTOOLS_VERSION=v1.7.126 && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-$env:DMTOOLS_VERSION = "v1.7.124"
-Invoke-RestMethod -Uri "https://github.com/IstiN/dmtools/releases/download/$env:DMTOOLS_VERSION/install.ps1" | Invoke-Expression
+$env:DMTOOLS_VERSION = "v1.7.126"
+Invoke-RestMethod -Uri "https://raw.githubusercontent.com/IstiN/dmtools/v1.7.126/install.ps1" | Invoke-Expression
 ```
 
 **Important**: If you don't specify a version, the installer will download the **latest** release.
