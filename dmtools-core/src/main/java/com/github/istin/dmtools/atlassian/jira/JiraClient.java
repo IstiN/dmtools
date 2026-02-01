@@ -414,12 +414,17 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             integration = "jira",
             category = "search"
     )
-    public List<T> searchAndPerform(String searchQueryJQL, String[] fields) throws Exception {
+    public List<T> searchAndPerform(
+            @MCPParam(name = "jql", description = "JQL query string to search tickets", required = true, example = "project = DEMO AND status = Open", aliases = {"searchQueryJQL"})
+            String jql,
+            @MCPParam(name = "fields", description = "Optional array of field names to include in response", required = false, example = "[\"summary\", \"status\", \"assignee\"]")
+            String[] fields
+    ) throws Exception {
         List<T> tickets = new ArrayList<>();
         searchAndPerform(ticket -> {
             tickets.add(ticket);
             return false;
-        }, searchQueryJQL, fields);
+        }, jql, fields);
         return tickets;
     }
 

@@ -15,9 +15,15 @@ public class MCPParameterDefinition {
     private final String type;
     private final String javaType;
     private final int parameterIndex;
-    
-    public MCPParameterDefinition(String name, String description, boolean required, 
+    private final String[] aliases;
+
+    public MCPParameterDefinition(String name, String description, boolean required,
                                 String example, String type, String javaType, int parameterIndex) {
+        this(name, description, required, example, type, javaType, parameterIndex, new String[0]);
+    }
+
+    public MCPParameterDefinition(String name, String description, boolean required,
+                                String example, String type, String javaType, int parameterIndex, String[] aliases) {
         this.name = name;
         this.description = description;
         this.required = required;
@@ -25,6 +31,7 @@ public class MCPParameterDefinition {
         this.type = type;
         this.javaType = javaType;
         this.parameterIndex = parameterIndex;
+        this.aliases = aliases != null ? aliases : new String[0];
     }
     
     public String getName() {
@@ -54,7 +61,11 @@ public class MCPParameterDefinition {
     public int getParameterIndex() {
         return parameterIndex;
     }
-    
+
+    public String[] getAliases() {
+        return aliases;
+    }
+
     /**
      * Infer MCP type from Java type if not explicitly specified.
      */
