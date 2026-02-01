@@ -104,7 +104,7 @@ jobs:
 
           ### Automatic Installation (Recommended)
           ```bash
-          curl -fsSL https://github.com/IstiN/dmtools-ai-docs/releases/download/skill-v$VERSION/install.sh | bash
+          curl -fsSL https://github.com/IstiN/dmtools/releases/download/skill-v$VERSION/install.sh | bash
           ```
 
           ### Manual Installation
@@ -143,12 +143,12 @@ jobs:
 
           Re-run the installer to update:
           ```bash
-          curl -fsSL https://github.com/IstiN/dmtools-ai-docs/releases/latest/download/install.sh | bash
+          curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
           ```
 
           ## 📝 Changelog
 
-          See [CHANGELOG.md](https://github.com/IstiN/dmtools-ai-docs/blob/main/CHANGELOG.md) for changes.
+          See [CHANGELOG.md](https://github.com/IstiN/dmtools/blob/main/CHANGELOG.md) for changes.
 
           ## 🐛 Support
 
@@ -253,10 +253,10 @@ jobs:
 
           if [ "$STATUS" = "success" ]; then
             echo "✅ DMtools Agent Skill v$VERSION released successfully!"
-            echo "📦 Available at: https://github.com/IstiN/dmtools-ai-docs/releases/tag/skill-v$VERSION"
+            echo "📦 Available at: https://github.com/IstiN/dmtools/releases/tag/skill-v$VERSION"
             echo ""
             echo "Install with:"
-            echo "curl -fsSL https://github.com/IstiN/dmtools-ai-docs/releases/download/skill-v$VERSION/install.sh | bash"
+            echo "curl -fsSL https://github.com/IstiN/dmtools/releases/download/skill-v$VERSION/install.sh | bash"
           else
             echo "❌ Release failed for version $VERSION"
           fi

@@ -35,7 +35,7 @@ bash install.sh --help                # Show help
 
 ## 📦 Manual Installation
 
-1. Download the latest release from [Releases](https://github.com/IstiN/dmtools-ai-docs/releases)
+1. Download the latest release from [Releases](https://github.com/IstiN/dmtools/releases)
 2. Extract to one of these directories:
 
 | Location | Scope | Platform |
@@ -102,7 +102,7 @@ dmtools/
 To update to the latest version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools-ai-docs/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 ```
 
 ## 🤝 Compatibility

@@ -4,7 +4,7 @@
 # Works with Cursor, Claude, Codex, and any Agent Skills compatible system
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools-ai-docs/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 #   INSTALL_LOCATION=all bash install.sh        # Install to all locations
 #   INSTALL_LOCATION=1 bash install.sh          # Install to first location
 #   bash install.sh --all                       # Install to all locations
@@ -51,7 +51,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 SKILL_NAME="dmtools"
-GITHUB_REPO="IstiN/dmtools-ai-docs"
+GITHUB_REPO="IstiN/dmtools"
 TEMP_DIR=$(mktemp -d)
 
 # Skill directories to check (in order of preference)

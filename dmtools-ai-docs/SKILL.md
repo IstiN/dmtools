@@ -9,7 +9,7 @@ metadata:
   version: 1.0.0
   author: DMtools Team
   repository: https://github.com/IstiN/dmtools
-  documentation: https://github.com/IstiN/dmtools-ai-docs
+  documentation: https://github.com/IstiN/dmtools
 ---
 
 # DMtools Development Assistant

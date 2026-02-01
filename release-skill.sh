@@ -120,10 +120,10 @@ if [ "$CONFIRM" = "y" ] || [ "$CONFIRM" = "Y" ]; then
     echo "https://github.com/IstiN/dmtools/actions"
     echo ""
     echo "Once released, users can install with:"
-    echo -e "${CYAN}curl -fsSL https://github.com/IstiN/dmtools-ai-docs/releases/download/$TAG/install.sh | bash${NC}"
+    echo -e "${CYAN}curl -fsSL https://github.com/IstiN/dmtools/releases/download/$TAG/install.sh | bash${NC}"
     echo ""
     echo "Release will be available at:"
-    echo "https://github.com/IstiN/dmtools-ai-docs/releases/tag/$TAG"
+    echo "https://github.com/IstiN/dmtools/releases/tag/$TAG"
 else
     echo "Release cancelled"
     echo ""
