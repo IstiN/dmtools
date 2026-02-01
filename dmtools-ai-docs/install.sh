@@ -66,23 +66,23 @@ SKILL_DIRS=(
 
 # Functions
 print_header() {
-    echo ""
-    echo -e "${CYAN}╔════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║      DMtools Agent Skill Installer        ║${NC}"
-    echo -e "${CYAN}╚════════════════════════════════════════════╝${NC}"
-    echo ""
+    echo "" >&2
+    echo -e "${CYAN}╔════════════════════════════════════════════╗${NC}" >&2
+    echo -e "${CYAN}║      DMtools Agent Skill Installer        ║${NC}" >&2
+    echo -e "${CYAN}╚════════════════════════════════════════════╝${NC}" >&2
+    echo "" >&2
 }
 
 print_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    echo -e "${GREEN}✓${NC} $1" >&2
 }
 
 print_error() {
-    echo -e "${RED}✗${NC} $1"
+    echo -e "${RED}✗${NC} $1" >&2
 }
 
 print_info() {
-    echo -e "${YELLOW}ℹ${NC} $1"
+    echo -e "${YELLOW}ℹ${NC} $1" >&2
 }
 
 # Detect available skill directories
@@ -122,7 +122,7 @@ detect_skill_dirs() {
         fi
     fi
 
-    echo "${found_dirs[@]}"
+    echo "${found_dirs[@]}" >&2
 }
 
 # Download skill package
@@ -171,7 +171,7 @@ download_skill() {
         return 1
     fi
 
-    echo "$SKILL_SOURCE"
+    echo "$SKILL_SOURCE" >&2
 }
 
 # Install skill to a directory
@@ -214,21 +214,21 @@ main() {
     fi
 
     # Show found directories
-    echo ""
-    echo "Found skill directories:"
+    echo "" >&2
+    echo "Found skill directories:" >&2
     for i in "${!DIRS[@]}"; do
-        echo "  $((i+1)). ${DIRS[$i]}"
+        echo "  $((i+1)). ${DIRS[$i]}" >&2
     done
 
     # Determine installation choice
-    echo ""
+    echo "" >&2
     local CHOICE=""
 
     if [ ${#DIRS[@]} -eq 1 ]; then
         # Only one option, use it
         CHOICE="1"
         local SELECTED_DIR="${DIRS[0]}"
-        echo "Installing to: $SELECTED_DIR"
+        echo "Installing to: $SELECTED_DIR" >&2
     else
         # Multiple options - check for non-interactive mode
         if [ "$INSTALL_ALL" = true ] || [ "${INSTALL_LOCATION}" = "all" ] || [ "${INSTALL_LOCATION}" = "ALL" ]; then
@@ -242,13 +242,13 @@ main() {
             CHOICE="1"
         else
             # Interactive mode - ask user
-            echo "Where would you like to install? (Enter number or 'all' for all locations)"
+            echo "Where would you like to install? (Enter number or 'all' for all locations)" >&2
             read -r CHOICE
         fi
 
         if [ "$CHOICE" = "all" ] || [ "$CHOICE" = "ALL" ]; then
             # Install to all directories
-            echo "Installing to all locations..."
+            echo "Installing to all locations..." >&2
             for DIR in "${DIRS[@]}"; do
                 install_to_directory "$SKILL_SOURCE" "$DIR"
             done
@@ -280,38 +280,38 @@ main() {
     rm -rf "$TEMP_DIR"
 
     # Success message
-    echo ""
-    echo -e "${GREEN}════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}        DMtools Skill Installed Successfully!       ${NC}"
-    echo -e "${GREEN}════════════════════════════════════════════════════${NC}"
-    echo ""
-    echo "The DMtools skill is now available in your AI assistant!"
-    echo ""
-    echo -e "${CYAN}You can now:${NC}"
-    echo "  • Type /dmtools in chat to invoke the skill"
-    echo "  • Ask about DMtools and the assistant will use the skill automatically"
-    echo ""
-    echo -e "${BLUE}Example questions:${NC}"
-    echo "  • How do I install DMtools?"
-    echo "  • Help me configure Jira integration"
-    echo "  • Show me how to create JavaScript agents"
-    echo "  • Generate test cases from user story PROJ-123"
-    echo ""
+    echo "" >&2
+    echo -e "${GREEN}════════════════════════════════════════════════════${NC}" >&2
+    echo -e "${GREEN}        DMtools Skill Installed Successfully!       ${NC}" >&2
+    echo -e "${GREEN}════════════════════════════════════════════════════${NC}" >&2
+    echo "" >&2
+    echo "The DMtools skill is now available in your AI assistant!" >&2
+    echo "" >&2
+    echo -e "${CYAN}You can now:${NC}" >&2
+    echo "  • Type /dmtools in chat to invoke the skill" >&2
+    echo "  • Ask about DMtools and the assistant will use the skill automatically" >&2
+    echo "" >&2
+    echo -e "${BLUE}Example questions:${NC}" >&2
+    echo "  • How do I install DMtools?" >&2
+    echo "  • Help me configure Jira integration" >&2
+    echo "  • Show me how to create JavaScript agents" >&2
+    echo "  • Generate test cases from user story PROJ-123" >&2
+    echo "" >&2
 
     # Platform-specific instructions
     if [[ "$SELECTED_DIR" == *"cursor"* ]]; then
-        echo -e "${YELLOW}For Cursor:${NC}"
-        echo "  • Open Cursor Settings (Cmd+Shift+J or Ctrl+Shift+J)"
-        echo "  • Navigate to Rules → Agent Decides"
-        echo "  • You should see 'dmtools' in the skills list"
+        echo -e "${YELLOW}For Cursor:${NC}" >&2
+        echo "  • Open Cursor Settings (Cmd+Shift+J or Ctrl+Shift+J)" >&2
+        echo "  • Navigate to Rules → Agent Decides" >&2
+        echo "  • You should see 'dmtools' in the skills list" >&2
     elif [[ "$SELECTED_DIR" == *"claude"* ]]; then
-        echo -e "${YELLOW}For Claude:${NC}"
-        echo "  • The skill is available in your Claude desktop app"
-        echo "  • Type /dmtools or mention DMtools in your questions"
+        echo -e "${YELLOW}For Claude:${NC}" >&2
+        echo "  • The skill is available in your Claude desktop app" >&2
+        echo "  • Type /dmtools or mention DMtools in your questions" >&2
     fi
 
-    echo ""
-    echo "For more information: https://github.com/IstiN/dmtools"
+    echo "" >&2
+    echo "For more information: https://github.com/IstiN/dmtools" >&2
 }
 
 # Handle arguments
