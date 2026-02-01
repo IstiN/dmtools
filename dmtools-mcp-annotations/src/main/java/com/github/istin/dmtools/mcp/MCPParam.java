@@ -44,8 +44,17 @@ public @interface MCPParam {
     /**
      * The expected type of the parameter (e.g., "string", "number", "boolean", "array").
      * If not specified, will be inferred from the Java type.
-     * 
+     *
      * @return the parameter type
      */
     String type() default "";
+
+    /**
+     * Alternative names (aliases) for this parameter to support backward compatibility.
+     * When a parameter is renamed, the old name can be added as an alias.
+     * The tool will accept both the current name and any aliases.
+     *
+     * @return array of alias names
+     */
+    String[] aliases() default {};
 } 

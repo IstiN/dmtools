@@ -114,17 +114,18 @@ public class MCPToolProcessor extends AbstractProcessor {
         for (int i = 0; i < methodParams.size(); i++) {
             VariableElement param = methodParams.get(i);
             MCPParam paramAnnotation = param.getAnnotation(MCPParam.class);
-            
+
             if (paramAnnotation != null) {
                 String paramName = paramAnnotation.name();
                 String description = paramAnnotation.description();
                 boolean required = paramAnnotation.required();
                 String example = paramAnnotation.example();
                 String type = paramAnnotation.type();
+                String[] aliases = paramAnnotation.aliases();
                 String javaType = param.asType().toString();
 
                 MCPParameterDefinition paramDef = new MCPParameterDefinition(
-                    paramName, description, required, example, type, javaType, i
+                    paramName, description, required, example, type, javaType, i, aliases
                 );
                 parameters.add(paramDef);
             } else {
@@ -132,7 +133,7 @@ public class MCPToolProcessor extends AbstractProcessor {
                 String paramName = param.getSimpleName().toString();
                 String javaType = param.asType().toString();
                 MCPParameterDefinition paramDef = new MCPParameterDefinition(
-                    paramName, "Parameter " + paramName, true, "", "", javaType, i
+                    paramName, "Parameter " + paramName, true, "", "", javaType, i, new String[0]
                 );
                 parameters.add(paramDef);
             }
@@ -228,7 +229,15 @@ public class MCPToolProcessor extends AbstractProcessor {
             sb.append("\"").append(escapeJavaString(param.getExample())).append("\", ");
             sb.append("\"").append(param.getType()).append("\", ");
             sb.append("\"").append(param.getJavaType()).append("\", ");
-            sb.append(param.getParameterIndex());
+            sb.append(param.getParameterIndex()).append(", ");
+            // Generate aliases array
+            sb.append("new String[]{");
+            String[] aliases = param.getAliases();
+            for (int j = 0; j < aliases.length; j++) {
+                if (j > 0) sb.append(", ");
+                sb.append("\"").append(escapeJavaString(aliases[j])).append("\"");
+            }
+            sb.append("}");
             sb.append(")");
         }
         
@@ -275,9 +284,12 @@ public class MCPToolProcessor extends AbstractProcessor {
                 generateToolExecutionMethod(out, tool);
             }
             
+            // Generate parameter value getter with alias support
+            generateGetParameterValueMethod(out);
+
             // Generate parameter conversion helper method
             generateParameterConversionMethod(out);
-            
+
             out.println("}");
         }
     }
@@ -286,27 +298,40 @@ public class MCPToolProcessor extends AbstractProcessor {
         String methodName = "execute" + toCamelCase(tool.getName());
         out.println("    private static Object " + methodName + "(Map<String, Object> args, Object clientInstance) throws Exception {");
         out.println("        " + tool.getClassName() + " client = (" + tool.getClassName() + ") clientInstance;");
-        
+
         // Generate parameter extraction and conversion
         for (MCPParameterDefinition param : tool.getParameters()) {
             String paramName = param.getName();
             String javaType = param.getJavaType();
             boolean isPrimitive = isPrimitiveType(javaType);
-            
+            String[] aliases = param.getAliases();
+
+            // Generate code to get parameter value (checking aliases)
+            if (aliases != null && aliases.length > 0) {
+                out.println("        // Check parameter '" + paramName + "' and its aliases");
+                out.print("        Object " + paramName + "Value = getParameterValue(args, \"" + paramName + "\"");
+                for (String alias : aliases) {
+                    out.print(", \"" + alias + "\"");
+                }
+                out.println(");");
+            } else {
+                out.println("        Object " + paramName + "Value = args.get(\"" + paramName + "\");");
+            }
+
             if (param.isRequired()) {
                 if (isPrimitive) {
-                    out.println("        " + javaType + " " + paramName + " = convertParameter(args.get(\"" + paramName + "\"), \"" + javaType + "\", \"" + paramName + "\");");
-                    out.println("        if (args.get(\"" + paramName + "\") == null) {");
+                    out.println("        " + javaType + " " + paramName + " = convertParameter(" + paramName + "Value, \"" + javaType + "\", \"" + paramName + "\");");
+                    out.println("        if (" + paramName + "Value == null) {");
                     out.println("            throw new IllegalArgumentException(\"Required parameter '" + paramName + "' is missing\");");
                     out.println("        }");
                 } else {
-                    out.println("        " + javaType + " " + paramName + " = convertParameter(args.get(\"" + paramName + "\"), \"" + javaType + "\", \"" + paramName + "\");");
+                    out.println("        " + javaType + " " + paramName + " = convertParameter(" + paramName + "Value, \"" + javaType + "\", \"" + paramName + "\");");
                     out.println("        if (" + paramName + " == null) {");
                     out.println("            throw new IllegalArgumentException(\"Required parameter '" + paramName + "' is missing\");");
                     out.println("        }");
                 }
             } else {
-                out.println("        " + javaType + " " + paramName + " = convertParameter(args.get(\"" + paramName + "\"), \"" + javaType + "\", \"" + paramName + "\");");
+                out.println("        " + javaType + " " + paramName + " = convertParameter(" + paramName + "Value, \"" + javaType + "\", \"" + paramName + "\");");
             }
         }
         
@@ -464,6 +489,27 @@ public class MCPToolProcessor extends AbstractProcessor {
         out.println("                \"required\", required");
         out.println("            )");
         out.println("        );");
+        out.println("    }");
+        out.println();
+    }
+
+    private void generateGetParameterValueMethod(PrintWriter out) {
+        out.println("    /**");
+        out.println("     * Get parameter value from args map, checking primary name and aliases.");
+        out.println("     * Returns the first non-null value found.");
+        out.println("     *");
+        out.println("     * @param args the arguments map");
+        out.println("     * @param names parameter name and aliases (first is primary name)");
+        out.println("     * @return the parameter value, or null if not found");
+        out.println("     */");
+        out.println("    private static Object getParameterValue(Map<String, Object> args, String... names) {");
+        out.println("        for (String name : names) {");
+        out.println("            Object value = args.get(name);");
+        out.println("            if (value != null) {");
+        out.println("                return value;");
+        out.println("            }");
+        out.println("        }");
+        out.println("        return null;");
         out.println("    }");
         out.println();
     }

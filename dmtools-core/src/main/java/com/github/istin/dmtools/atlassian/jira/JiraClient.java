@@ -415,7 +415,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             category = "search"
     )
     public List<T> searchAndPerform(
-            @MCPParam(name = "jql", description = "JQL query string to search tickets", required = true, example = "project = DEMO AND status = Open")
+            @MCPParam(name = "jql", description = "JQL query string to search tickets", required = true, example = "project = DEMO AND status = Open", aliases = {"searchQueryJQL"})
             String jql,
             @MCPParam(name = "fields", description = "Optional array of field names to include in response", required = false, example = "[\"summary\", \"status\", \"assignee\"]")
             String[] fields
