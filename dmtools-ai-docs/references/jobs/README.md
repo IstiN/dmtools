@@ -71,21 +71,67 @@ dmtools run agents/xray_test_cases_generator.json
   "name": "TestCasesGenerator",
   "params": {
     "inputJql": "project = PROJ AND type = Story",
-    "aiProvider": "gemini",
+    "existingTestCasesJql": "project = PROJ AND type = Test",
+    "testCasesPriorities": "High,Medium,Low",
+    "testCaseIssueType": "Test",
     "outputType": "creation",
-    "outputJiraIssueType": "Test",
+    "isConvertToJiraMarkdown": true,
+    "isFindRelated": true,
+    "isLinkRelated": true,
+    "isGenerateNew": true,
     "preprocessJSAction": "agents/js/preprocessXrayTestCases.js"
   }
 }
 ```
 
-**Parameters**:
+**Core Parameters** (from TestCasesGeneratorParams):
+- `existingTestCasesJql` - JQL to find existing test cases for deduplication
+- `testCasesPriorities` - Comma-separated priority list (e.g., "High,Medium,Low")
+- `testCaseIssueType` - Jira issue type for created tests (default: "Test Case")
+- `relatedTestCasesRules` - Additional rules for finding related test cases (URL or text)
+- `examples` - Examples for AI: text, URL, or `ql(JQL query)` to fetch from Jira
+- `testCasesCustomFields` - Array of custom field names to include (e.g., Xray fields)
+- `customFieldsRules` - Rules for custom fields (URL or text)
+
+**Behavior Flags**:
+- `isFindRelated` - Find and link existing related test cases (default: true)
+- `isLinkRelated` - Actually link found test cases (default: true)
+- `isGenerateNew` - Generate new test cases (default: true)
+- `isConvertToJiraMarkdown` - Convert output to Jira markdown (default: true)
+- `includeOtherTicketReferences` - Include linked tickets in context (default: true)
+- `isOverridePromptExamples` - Override default prompt examples (default: false)
+
+**Relationships**:
+- `testCaseLinkRelationship` - Default relationship type (default: "is tested by")
+- `testCaseLinkRelationshipForNew` - Relationship for new test cases (overrides default)
+- `testCaseLinkRelationshipForExisting` - Relationship for existing test cases (overrides default)
+
+**AI Models** (optional, defaults from config):
+- `modelTestCasesCreation` - Model for generating test cases
+- `modelTestCasesRelation` - Model for finding related test cases
+- `modelTestCaseRelation` - Model for verifying individual test case relevance
+- `modelTestCaseDeduplication` - Model for deduplication
+
+**JavaScript Actions**:
+- `preprocessJSAction` - JS file to preprocess test cases (e.g., handle preconditions)
+- `postJSAction` - JS file to run after test case creation
+- `jqlModifierJSAction` - JS file to dynamically modify existingTestCasesJql based on story
+
+**Performance Tuning**:
+- `enableParallelTestCaseCheck` - Enable parallel processing of test case chunks (default: false)
+- `parallelTestCaseCheckThreads` - Thread count for parallel checks (default: 5)
+- `enableParallelPostVerification` - Enable parallel verification (default: false)
+- `parallelPostVerificationThreads` - Thread count for verification (default: 3)
+
+**Inherited from TrackerParams**:
 - `inputJql` - JQL query to find stories
-- `aiProvider` - AI provider (gemini, openai, claude, etc.)
-- `outputType` - Output format: `creation` (create Jira tickets), `field` (update field), `none` (dry run)
-- `outputJiraIssueType` - Jira issue type for created tests (Test, Sub-task, etc.)
-- `preprocessJSAction` - Optional JavaScript preprocessing
-- `postprocessJSAction` - Optional JavaScript postprocessing
+- `initiator` - User who initiated the job
+- `targetProject` - Target project code for test creation
+- `outputType` - Output format: `creation` (create tickets), `field` (update field), `comment` (post comment), `none` (dry run)
+- `fieldName` - Field name for `outputType: field`
+- `operationType` - Operation: `Replace` or `Append` (default: Append)
+- `preJSAction` - JavaScript to run before processing each ticket
+- `attachResponseAsFile` - Attach AI response as file (default: false)
 
 **Output Formats**:
 1. **Xray Manual Test** - Step-by-step test cases with expected results
@@ -107,7 +153,7 @@ Flexible AI assistant that can be configured for any task with custom instructio
 dmtools run agents/teammate_config.json
 
 # Direct execution
-dmtools Teammate --inputJql "key = PROJ-123" --aiRole "Solution Architect"
+dmtools Teammate --inputJql "key = PROJ-123"
 ```
 
 **Configuration** (`agents/teammate_config.json`):
@@ -116,29 +162,79 @@ dmtools Teammate --inputJql "key = PROJ-123" --aiRole "Solution Architect"
   "name": "Teammate",
   "params": {
     "inputJql": "project = PROJ AND status = 'To Do'",
-    "aiProvider": "gemini",
-    "aiRole": "Senior Software Engineer",
-    "instructions": "Analyze each ticket and provide implementation suggestions",
-    "formattingRules": "Return JSON with {ticketKey, suggestions, estimatedHours}",
-    "fewShots": [
-      {
-        "input": "Create login page",
-        "output": "{\"suggestions\": [\"Use React\", \"Add validation\"], \"estimatedHours\": 8}"
-      }
-    ],
+    "agentParams": {
+      "aiRole": "Senior Software Engineer",
+      "instructions": "Analyze each ticket and provide implementation suggestions",
+      "formattingRules": "Return JSON with {ticketKey, suggestions, estimatedHours}",
+      "fewShots": "Example: Input: 'Create login page', Output: {\"suggestions\": [\"Use React\", \"Add validation\"], \"estimatedHours\": 8}",
+      "knownInfo": "Project uses React 18 and TypeScript"
+    },
     "outputType": "field",
-    "outputFieldName": "AI Analysis"
+    "fieldName": "AI Analysis",
+    "hooksAsContext": ["build", "test"],
+    "cliCommands": ["cursor-agent --help"],
+    "skipAIProcessing": false
   }
 }
 ```
 
-**Key Parameters**:
-- `aiRole` - Role for the AI (e.g., "Senior Engineer", "QA Lead", "Architect")
-- `instructions` - What the AI should do with each ticket
-- `formattingRules` - How to format the output
-- `fewShots` - Example inputs/outputs for AI training
-- `preprocessJSAction` - JavaScript preprocessing
-- `postprocessJSAction` - JavaScript postprocessing
+**Agent Parameters** (nested in `agentParams` - RequestDecompositionAgent.Result):
+- `aiRole` - Role for the AI (e.g., "Senior Engineer", "QA Lead", "Architect") - can be URL to Confluence
+- `request` - Specific request/question for this ticket (set automatically from ticket text)
+- `instructions` - Array of instruction strings or URL to Confluence page - what the AI should do
+- `tasks` - Array of specific tasks to complete
+- `questions` - Array of questions to answer
+- `knownInfo` - Known information/context - can be URL to Confluence or ticket references
+- `formattingRules` - How to format the output - can be URL to Confluence
+- `fewShots` - Example inputs/outputs for AI training - can be URL or text
+
+**Teammate-Specific Parameters** (from TeammateParams):
+- `hooksAsContext` - Array of hook names to call and include responses as context (e.g., ["build", "test"])
+- `cliCommands` - Array of CLI commands to execute (e.g., ["cursor-agent --help", "npm test"])
+- `skipAIProcessing` - Skip AI processing and use only CLI output (default: false)
+- `indexes` - Array of index configurations for additional context
+  - Each index has `integration` (index name) and `storagePath` (path to index)
+- `systemRequestCommentAlias` - Alias for system request in comments
+
+**Index Configuration** (IndexConfig):
+```json
+{
+  "indexes": [
+    {
+      "integration": "mermaid-architecture",
+      "storagePath": "/path/to/mermaid/index"
+    }
+  ]
+}
+```
+
+**CLI Integration**:
+Teammate can execute CLI commands and include their output in the context:
+- Commands run from project root directory
+- Input context (ticket + params) saved to temp file
+- Output collected and included in AI context or used as final response
+- Clean up happens automatically
+
+**Inherited from TrackerParams**:
+- `inputJql` - JQL query to find tickets
+- `initiator` - User who initiated the job
+- `outputType` - Output format: `field`, `comment`, `none` (default: comment)
+- `fieldName` - Field name for `outputType: field`
+- `operationType` - Operation: `Replace` or `Append` (default: Append)
+- `preJSAction` - JavaScript to run before AI processing (can return false to skip)
+- `postJSAction` - JavaScript to run after AI processing
+- `attachResponseAsFile` - Attach AI response as file (default: false)
+- `ticketContextDepth` - Depth of linked tickets to include (default: 1)
+- `chunkProcessingTimeoutInMinutes` - Timeout for chunk processing (default: 0 = no timeout)
+
+**Inherited from Params** (for code/Confluence search):
+- `isCodeAsSource` - Search codebase for context (default: false)
+- `isConfluenceAsSource` - Search Confluence for context (default: false)
+- `isTrackerAsSource` - Search tracker for context (default: false)
+- `sourceCodeConfig` - Array of source code configurations
+- `filesLimit` - Max files from code search (default: 10)
+- `confluenceLimit` - Max Confluence pages (default: 10)
+- `trackerLimit` - Max tracker tickets (default: 10)
 
 **Common Use Cases**:
 1. **Code Review** - Analyze pull requests and provide feedback
@@ -146,6 +242,8 @@ dmtools Teammate --inputJql "key = PROJ-123" --aiRole "Solution Architect"
 3. **Requirement Analysis** - Extract requirements from stories
 4. **Estimation** - Estimate effort for tickets
 5. **Documentation** - Generate technical documentation
+6. **CLI Tool Integration** - Run tools like cursor-agent and process their output
+7. **Index-Based Analysis** - Analyze using Mermaid diagrams or other indexed data
 
 **See also**: [Teammate Configuration Guide](../agents/teammate-configs.md)
 
@@ -160,10 +258,10 @@ Domain expert that answers questions based on context (tickets, documentation, c
 **Usage**:
 ```bash
 # Ask question about specific tickets
-dmtools Expert --inputJql "key in (PROJ-123, PROJ-456)" --question "What are the main technical challenges?"
+dmtools Expert --inputJql "key in (PROJ-123, PROJ-456)" --request "What are the main technical challenges?"
 
 # Analyze entire feature
-dmtools Expert --inputJql "Epic Link = PROJ-100" --question "What is the overall architecture?"
+dmtools Expert --inputJql "Epic Link = PROJ-100" --systemRequest "What is the overall architecture?"
 
 # Use configuration
 dmtools run agents/expert_config.json
@@ -175,30 +273,73 @@ dmtools run agents/expert_config.json
   "name": "Expert",
   "params": {
     "inputJql": "project = PROJ AND component = Backend",
-    "aiProvider": "gemini",
-    "question": "What are the main API endpoints and their purposes?",
-    "includeComments": true,
-    "includeCode": false
+    "systemRequest": "You are a senior software architect. Analyze the tickets and provide architectural recommendations.",
+    "request": "What are the main API endpoints and their purposes?",
+    "projectContext": "This is a microservices-based system using Spring Boot and PostgreSQL",
+    "outputType": "comment",
+    "isCodeAsSource": true,
+    "isConfluenceAsSource": true,
+    "filesLimit": 20,
+    "requestDecompositionChunkProcessing": false
   }
 }
 ```
 
-**Parameters**:
-- `inputJql` - JQL to gather context tickets
-- `question` - Question to ask
-- `aiProvider` - AI provider to use
-- `includeComments` - Include Jira comments in context
-- `includeCode` - Include source code in context
-- `includeConfluence` - Include Confluence pages
+**Core Parameters** (from ExpertParams):
+- `projectContext` - Overall project context (text or Confluence URL) - describes the project
+- `request` - Specific question or request to analyze each ticket
+- `systemRequest` - System-level instructions (text or Confluence URL) - defines expert role and behavior
+- `systemRequestCommentAlias` - Alias for system request shown in comments
+- `keywordsBlacklist` - Keywords to exclude from search (text or Confluence URL)
+- `requestDecompositionChunkProcessing` - Process context in chunks for large datasets (default: false)
+
+**Context Sources**:
+Expert can gather context from multiple sources using flags from Params:
+- `isCodeAsSource` - Search and include codebase files (default: false)
+- `isConfluenceAsSource` - Search and include Confluence pages (default: false)
+- `isTrackerAsSource` - Search and include related tickets (default: false)
+- `confluencePages` - Array of specific Confluence page URLs to include
+- `transformConfluencePagesToMarkdown` - Convert Confluence to markdown (default: true)
+
+**Search Limits** (when using context sources):
+- `filesLimit` - Max files from code search (default: 10)
+- `filesIterations` - Number of search iterations for code (default: 1)
+- `confluenceLimit` - Max Confluence pages from search (default: 10)
+- `confluenceIterations` - Number of search iterations for Confluence (default: 1)
+- `trackerLimit` - Max tracker tickets from search (default: 10)
+- `trackerIterations` - Number of search iterations for tracker (default: 1)
+
+**Source Code Configuration**:
+- `sourceCodeConfig` - Array of SourceCodeConfig objects for code repositories
+  - Each config specifies repository path, branch, file patterns, etc.
+
+**Inherited from TrackerParams**:
+- `inputJql` - JQL query to find tickets for analysis
+- `initiator` - User who initiated the job
+- `outputType` - Output format: `field`, `comment` (default), `none`
+- `fieldName` - Field name for `outputType: field`
+- `operationType` - Operation: `Replace` or `Append` (default: Append)
+- `preJSAction` - JavaScript to run before AI processing (can return false to skip)
+- `postJSAction` - JavaScript to run after AI processing
+- `attachResponseAsFile` - Attach AI response as file (default: false)
+- `ticketContextDepth` - Depth of linked tickets to include (default: 1)
+- `chunkProcessingTimeoutInMinutes` - Timeout for chunk processing (default: 0 = no timeout)
 
 **Use Cases**:
-1. **Onboarding** - "What does this project do?"
-2. **Technical Debt** - "What are the main technical debt items?"
-3. **Dependencies** - "What external services does this feature depend on?"
+1. **Onboarding** - "What does this project do?" with codebase and Confluence context
+2. **Technical Debt** - "What are the main technical debt items?" across tickets and code
+3. **Dependencies** - "What external services does this feature depend on?" with code analysis
 4. **Testing Strategy** - "What should be our testing approach for this feature?"
-5. **Architecture Questions** - "How does authentication work?"
+5. **Architecture Questions** - "How does authentication work?" with code and documentation context
+6. **Impact Analysis** - "What will be affected by this change?" with codebase search
 
-**Output**: Returns AI-generated answer based on all provided context.
+**Output**: Returns AI-generated answer based on all provided context (tickets, code, Confluence).
+
+**How It Works**:
+1. Loads tickets from `inputJql`
+2. Optionally searches codebase, Confluence, or tracker for additional context
+3. Processes all context through AI with `systemRequest` and `request`
+4. Returns structured answer based on all gathered information
 
 ---
 
