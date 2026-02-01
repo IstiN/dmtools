@@ -4,14 +4,34 @@ Universal AI assistant skill for DMtools - works with Cursor, Claude, Codex, and
 
 ## 🚀 Quick Install
 
+### Interactive Installation
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools-ai-docs/main/install.sh | bash
+curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
 ```
 
 The installer will:
 1. Detect your AI assistant (Cursor, Claude, Codex)
 2. Download the latest DMtools skill
-3. Install to the appropriate skills directory
+3. Let you choose where to install (or auto-select in non-interactive mode)
+
+### Non-Interactive Installation
+
+For CI/CD, automation, or scripting:
+
+```bash
+# Auto-install to first detected location (when piped)
+curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash
+
+# Install to all detected locations
+curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | INSTALL_LOCATION=all bash
+
+# With downloaded script
+INSTALL_LOCATION=all bash install.sh  # All locations
+INSTALL_LOCATION=1 bash install.sh    # First location
+bash install.sh --all                 # All locations (flag)
+bash install.sh --help                # Show help
+```
 
 ## 📦 Manual Installation
 

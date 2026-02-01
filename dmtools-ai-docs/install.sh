@@ -2,9 +2,44 @@
 
 # DMtools Agent Skill Installer
 # Works with Cursor, Claude, Codex, and any Agent Skills compatible system
-# Usage: curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools-ai-docs/main/install.sh | bash
+#
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools-ai-docs/main/install.sh | bash
+#   INSTALL_LOCATION=all bash install.sh        # Install to all locations
+#   INSTALL_LOCATION=1 bash install.sh          # Install to first location
+#   bash install.sh --all                       # Install to all locations
 
 set -e
+
+# Parse command line arguments
+INSTALL_ALL=false
+for arg in "$@"; do
+    case $arg in
+        --all|-a)
+            INSTALL_ALL=true
+            shift
+            ;;
+        --help|-h)
+            echo "DMtools Agent Skill Installer"
+            echo ""
+            echo "Usage:"
+            echo "  $0 [options]"
+            echo ""
+            echo "Options:"
+            echo "  --all, -a     Install to all detected locations"
+            echo "  --help, -h    Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  INSTALL_LOCATION  Set to 'all' or number (1,2,3...) to auto-select location"
+            echo ""
+            echo "Examples:"
+            echo "  curl -fsSL https://github.com/IstiN/dmtools/releases/latest/download/install.sh | bash"
+            echo "  INSTALL_LOCATION=all bash install.sh"
+            echo "  INSTALL_LOCATION=1 bash install.sh"
+            exit 0
+            ;;
+    esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -177,19 +212,35 @@ main() {
         echo "  $((i+1)). ${DIRS[$i]}"
     done
 
-    # Ask user where to install
+    # Determine installation choice
     echo ""
+    local CHOICE=""
+
     if [ ${#DIRS[@]} -eq 1 ]; then
         # Only one option, use it
+        CHOICE="1"
         local SELECTED_DIR="${DIRS[0]}"
         echo "Installing to: $SELECTED_DIR"
     else
-        # Multiple options, let user choose
-        echo "Where would you like to install? (Enter number or 'all' for all locations)"
-        read -r CHOICE
+        # Multiple options - check for non-interactive mode
+        if [ "$INSTALL_ALL" = true ] || [ "${INSTALL_LOCATION}" = "all" ] || [ "${INSTALL_LOCATION}" = "ALL" ]; then
+            CHOICE="all"
+        elif [ -n "${INSTALL_LOCATION}" ]; then
+            # Use environment variable
+            CHOICE="${INSTALL_LOCATION}"
+        elif [ ! -t 0 ]; then
+            # Non-interactive (piped input) - default to first location
+            print_info "Non-interactive mode detected, installing to first location"
+            CHOICE="1"
+        else
+            # Interactive mode - ask user
+            echo "Where would you like to install? (Enter number or 'all' for all locations)"
+            read -r CHOICE
+        fi
 
         if [ "$CHOICE" = "all" ] || [ "$CHOICE" = "ALL" ]; then
             # Install to all directories
+            echo "Installing to all locations..."
             for DIR in "${DIRS[@]}"; do
                 install_to_directory "$SKILL_SOURCE" "$DIR"
             done
@@ -201,7 +252,7 @@ main() {
                 SELECTED_DIR="${DIRS[$INDEX]}"
                 install_to_directory "$SKILL_SOURCE" "$SELECTED_DIR"
             else
-                print_error "Invalid choice"
+                print_error "Invalid choice: $CHOICE"
                 exit 1
             fi
         fi
