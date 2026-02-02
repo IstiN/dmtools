@@ -191,6 +191,141 @@ dmtools run agents/xray_test_cases_generator.json
 
 ---
 
+### InstructionsGenerator
+
+Generate standardized instructions and templates by analyzing patterns in existing tickets.
+
+**Purpose**: Extract common patterns from tickets (stories, test cases, specs) and generate reusable instructions/guidelines for creating similar content.
+
+**Usage**:
+```bash
+# Generate story writing instructions from existing stories
+dmtools InstructionsGenerator --inputJql "project = PROJ AND type = Story" \
+  --fields "summary,description,acceptance_criteria" \
+  --instructionType "user_story" \
+  --outputDestination "file" \
+  --outputPath "output/story-instructions.md"
+
+# Generate test case guidelines and output to Confluence
+dmtools InstructionsGenerator --inputJql "project = QA AND type = Test" \
+  --fields "summary,description,test_steps" \
+  --instructionType "test_cases" \
+  --outputDestination "confluence" \
+  --outputPath "https://company.atlassian.net/wiki/spaces/QA/pages/12345/Test+Guidelines"
+
+# Use configuration file
+dmtools run agents/instructions_generator.json
+```
+
+**Configuration** (`agents/instructions_generator_dmc.json`):
+
+**IMPORTANT**: The `"name"` field must exactly match the Job class name. See [JSON Configuration Rules](../configuration/json-config-rules.md).
+
+```json
+{
+  "name": "InstructionsGenerator",
+  "params": {
+    "inputJql": "project = DMC AND type = Story",
+    "fields": ["summary", "description", "diagrams"],
+    "instructionType": "user_story",
+    "outputDestination": "file",
+    "outputPath": "output/dmc-story-instructions.md",
+    "mergeWithExisting": false,
+    "additionalContext": "Focus on story description and diagrams formats. Pay attention to how diagrams are referenced and embedded in stories. Never mention texts from tickets in examples! That must be generic examples. With abstractions."
+  }
+}
+```
+
+**Core Parameters** (from InstructionsGeneratorParams):
+- `fields` - **List of field names** to analyze and generate instructions for
+  - Examples: `["summary", "description", "acceptance_criteria"]` for stories
+  - Examples: `["description", "test_steps", "expected_results"]` for test cases
+- `instructionType` - Type of instructions to generate (e.g., "user_story", "test_cases", "technical_spec")
+- `outputDestination` - Where to write output: `"file"` or `"confluence"`
+- `outputPath` - Output location:
+  - For file: absolute or relative file path (e.g., `"output/instructions.md"`)
+  - For Confluence: full URL to the page (e.g., `"https://company.atlassian.net/wiki/spaces/SPACE/pages/123/Page"`)
+
+**Optional Parameters**:
+- `confluencePages` - Array of Confluence page URLs or local file paths with additional context/rules
+  - Example: `["https://company.atlassian.net/wiki/spaces/QA/pages/456/Test+Standards"]`
+- `mergeWithExisting` - Merge new instructions with existing content (default: `true`)
+  - When `true`, preserves existing content and intelligently merges with new instructions
+  - When `false`, replaces existing content completely
+- `model` - AI model to use (optional, uses default if not specified)
+  - Example: `"gemini-2.0-flash"`, `"gpt-4o"`, `"claude-3-7-sonnet"`
+- `additionalContext` - Custom context or rules for instruction generation
+  - Example: `"Focus on mobile-first design patterns and accessibility"`
+- `platform` - Target platform for formatting rules (default: `"jira"`)
+  - Options: `"jira"`, `"ado"`, `"confluence"`, `"github"`, `"gitlab"`
+
+**Performance Parameters**:
+- `generationThreads` - Number of threads for parallel instruction generation (default: `4`)
+  - Higher values speed up processing of large ticket sets
+  - Recommended: 4-8 threads depending on AI provider rate limits
+- `mergingThreads` - Number of threads for parallel merging of instruction chunks (default: `2`)
+  - Merging is memory-intensive, so lower thread count is recommended
+  - Recommended: 2-4 threads
+
+**Inherited from TrackerParams**:
+- `inputJql` - JQL query to find tickets to analyze
+- `initiator` - User who initiated the job
+- `targetProject` - Target project code
+
+**How It Works**:
+1. **Fetch tickets** - Retrieves all tickets matching `inputJql`
+2. **Chunk preparation** - Splits tickets into manageable chunks based on token limits
+3. **Parallel generation** - Processes chunks in parallel using multiple threads
+4. **Pattern extraction** - AI analyzes specified fields to identify common patterns
+5. **Instruction creation** - Generates standardized instructions based on patterns
+6. **Merging** - Combines instructions from all chunks, removing duplicates
+7. **Optional merge with existing** - If enabled, merges with existing content in output location
+8. **Output** - Writes final instructions to file or Confluence page
+
+**Output Format**:
+Generated instructions typically include:
+- **Field definitions** - What each field should contain
+- **Format guidelines** - Structure and formatting rules
+- **Best practices** - Quality criteria and common patterns
+- **Examples** - Abstract examples (not actual ticket data)
+- **Anti-patterns** - What to avoid
+
+**Use Cases**:
+1. **Story Writing Guidelines** - Generate instructions for writing user stories based on best examples from the project
+2. **Test Case Templates** - Extract test case patterns to standardize test documentation
+3. **Technical Spec Standards** - Create technical specification guidelines from existing specs
+4. **Acceptance Criteria Patterns** - Generate AC writing instructions based on high-quality examples
+5. **Bug Report Templates** - Create bug reporting standards from well-written bug reports
+6. **Documentation Standards** - Extract documentation patterns for consistency
+
+**Example Workflow**:
+```bash
+# Step 1: Generate initial instructions from 50 best stories
+dmtools run agents/instructions_generator.json
+
+# Step 2: Review and manually refine the generated instructions
+
+# Step 3: Update instructions as project evolves (merges with existing)
+# Edit config: "mergeWithExisting": true
+dmtools run agents/instructions_generator.json
+```
+
+**Integration with Confluence**:
+- Can read additional context from Confluence pages via `confluencePages` parameter
+- Can write output directly to Confluence via `outputDestination: "confluence"`
+- Automatically updates existing Confluence pages when `mergeWithExisting: true`
+- Requires `CONFLUENCE_URL` and `CONFLUENCE_TOKEN` environment variables
+
+**Tips**:
+- Use high-quality tickets in your JQL query (e.g., add `AND status = Done AND labels = "best-practice"`)
+- Start with `mergeWithExisting: false` for initial generation, then switch to `true` for updates
+- Include diverse examples in your query to capture different patterns
+- Use `additionalContext` to guide the AI toward specific aspects you want to emphasize
+- For large datasets (100+ tickets), increase `generationThreads` to 6-8 for faster processing
+- Review generated instructions before deploying to team - AI provides a starting point that benefits from human refinement
+
+---
+
 ### Teammate
 
 Flexible AI assistant that can be configured for any task with custom instructions.
