@@ -32,16 +32,44 @@ Use this skill when:
 
 ### Installation
 ```bash
+# Step 1: Install DMtools
 curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
 ```
 
+**⚠️ CRITICAL**: After installation, you **must** configure `dmtools.env` file:
+
 ### Basic Configuration
+
+Create `dmtools.env` in your project or home directory:
+
 ```bash
-# dmtools.env
+# dmtools.env - NEVER commit this file (contains secrets)
+
+# Jira (Required for Jira tools)
 JIRA_BASE_PATH=https://company.atlassian.net
-JIRA_LOGIN_PASS_TOKEN=base64(email:token)
-GEMINI_API_KEY=your-api-key
+JIRA_EMAIL=your-email@company.com
+JIRA_API_TOKEN=your-jira-api-token
+JIRA_AUTH_TYPE=Basic
+
+# AI Provider (Required for AI features - choose one)
+GEMINI_API_KEY=your-gemini-api-key    # Free tier: 15 req/min
+# OR
+OPEN_AI_API_KEY=your-openai-api-key
+# OR
+BEDROCK_ACCESS_KEY_ID=your-aws-key
+BEDROCK_SECRET_ACCESS_KEY=your-aws-secret
+
+# Defaults
+DEFAULT_LLM=gemini
+DEFAULT_TRACKER=jira
 ```
+
+**Get API tokens**:
+- Jira: https://id.atlassian.com/manage-profile/security/api-tokens
+- Gemini: https://aistudio.google.com/app/apikey (free tier available)
+- OpenAI: https://platform.openai.com/api-keys
+
+See [Installation Guide](references/installation/README.md#️-configuration-setup) for complete setup.
 
 ### Common Commands
 ```bash

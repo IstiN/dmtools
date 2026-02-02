@@ -15,6 +15,8 @@ This script will:
 4. ✅ Create the `dmtools` command alias
 5. ✅ Set up shell integration (bash/zsh)
 
+**⚠️ IMPORTANT**: After installation, you **must** configure `dmtools.env` file. See [Configuration Setup](#-configuration-setup) below.
+
 ## 📦 Installation Methods
 
 ### Method 1: Automatic Installation (Recommended)
@@ -139,6 +141,135 @@ dmtools help
 # Test MCP tool (if configured)
 dmtools cli_execute_command "echo 'DMtools is working!'"
 ```
+
+## ⚙️ Configuration Setup
+
+**CRITICAL: DMtools requires configuration before use.**
+
+After installation, create a `dmtools.env` file to configure integrations:
+
+### Step 1: Create Configuration File
+
+Create `dmtools.env` in your project directory or home directory:
+
+```bash
+# In your project directory
+touch dmtools.env
+
+# Or globally in home directory
+touch ~/dmtools.env
+```
+
+**⚠️ SECURITY**: Never commit `dmtools.env` to git - it contains sensitive API keys and tokens. This file is already in `.gitignore`.
+
+### Step 2: Configure Integrations
+
+Add your integration credentials to `dmtools.env`:
+
+```bash
+# Jira Configuration (Required for Jira tools)
+JIRA_BASE_PATH=https://your-company.atlassian.net
+JIRA_EMAIL=your-email@company.com
+JIRA_API_TOKEN=your-jira-api-token
+JIRA_AUTH_TYPE=Basic
+
+# AI Provider (Required for AI features)
+# Choose one or more:
+GEMINI_API_KEY=your-gemini-api-key          # Free tier available
+OPEN_AI_API_KEY=your-openai-api-key        # OpenAI
+BEDROCK_ACCESS_KEY_ID=your-aws-key          # AWS Bedrock (Claude)
+BEDROCK_SECRET_ACCESS_KEY=your-aws-secret
+BEDROCK_REGION=us-east-1
+BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
+
+# Confluence (Optional)
+CONFLUENCE_BASE_PATH=https://your-company.atlassian.net/wiki
+CONFLUENCE_EMAIL=your-email@company.com
+CONFLUENCE_API_TOKEN=your-confluence-token
+CONFLUENCE_DEFAULT_SPACE=TEAM
+
+# Figma (Optional)
+FIGMA_TOKEN=your-figma-personal-access-token
+FIGMA_BASE_PATH=https://api.figma.com
+
+# Azure DevOps (Optional)
+ADO_BASE_PATH=https://dev.azure.com/your-organization
+ADO_PAT=your-personal-access-token
+ADO_PROJECT=your-project-name
+
+# GitHub (Optional)
+SOURCE_GITHUB_TOKEN=your-github-pat
+
+# Configuration
+DEFAULT_LLM=gemini
+DEFAULT_TRACKER=jira
+```
+
+### Step 3: Generate API Tokens
+
+#### Jira API Token
+1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
+2. Click "Create API token"
+3. Give it a name (e.g., "DMtools")
+4. Copy the token immediately (it won't be shown again)
+5. Add to `dmtools.env`: `JIRA_API_TOKEN=<your-token>`
+
+#### Gemini API Key (Free Tier)
+1. Go to https://aistudio.google.com/app/apikey
+2. Click "Get API key"
+3. Create a new key or use existing
+4. Copy the key
+5. Add to `dmtools.env`: `GEMINI_API_KEY=<your-key>`
+
+**Note**: Gemini offers free tier with 15 requests/minute - perfect for getting started.
+
+#### OpenAI API Key
+1. Go to https://platform.openai.com/api-keys
+2. Create new secret key
+3. Copy immediately (shown only once)
+4. Add to `dmtools.env`: `OPEN_AI_API_KEY=<your-key>`
+
+#### AWS Bedrock (Claude)
+1. Create IAM user with Bedrock permissions
+2. Generate access key and secret
+3. Add to `dmtools.env`:
+   ```
+   BEDROCK_ACCESS_KEY_ID=<your-key>
+   BEDROCK_SECRET_ACCESS_KEY=<your-secret>
+   ```
+
+### Step 4: Configuration Hierarchy
+
+DMtools searches for configuration in this order:
+
+1. **Environment variables** (highest priority)
+2. **`dmtools.env`** in current directory
+3. **`dmtools-local.env`** in current directory
+4. **`dmtools.env`** in dmtools.sh script directory
+5. **`dmtools-local.env`** in dmtools.sh script directory
+
+**Tip**: Use `dmtools-local.env` for local overrides that won't be committed to git.
+
+### Step 5: Verify Configuration
+
+```bash
+# Test Jira connection (if configured)
+dmtools jira_get_ticket PROJ-1
+
+# Test AI provider (if configured)
+dmtools gemini_ai_chat "Hello, are you working?"
+
+# List all available tools
+dmtools list
+```
+
+### Configuration Examples
+
+See complete configuration examples:
+- [Jira Configuration](../configuration/integrations/jira.md)
+- [Gemini AI](../configuration/ai-providers/gemini.md)
+- [AWS Bedrock](../configuration/ai-providers/bedrock-claude.md)
+- [All Integrations](../configuration/README.md)
 
 ## 🗂️ Installation Structure
 

@@ -34,7 +34,6 @@ file_write("output.txt", "content");
     "name": "cli_execute_command",
     "inputSchema": {
       "type": "object",
-      "required": ["command"],
       "properties": {
         "workingDirectory": {
           "type": "string",
@@ -46,7 +45,8 @@ file_write("output.txt", "content");
           "description": "CLI command to execute. Must start with whitelisted command (git, gh, dmtools, npm, yarn, docker, kubectl, terraform, ansible, aws, gcloud, az).",
           "example": "git commit -m 'Automated update'"
         }
-      }
+      },
+      "required": ["command"]
     },
     "description": "Execute CLI commands (git, gh, dmtools, npm, yarn, docker, kubectl, terraform, ansible, aws, gcloud, az) from JavaScript post-actions. Returns command output as string. Commands execute synchronously with environment variables inherited from workflow context. Only whitelisted commands allowed for security."
   },
@@ -54,12 +54,12 @@ file_write("output.txt", "content");
     "name": "teams_chats_raw",
     "inputSchema": {
       "type": "object",
-      "required": [],
       "properties": {"limit": {
         "type": "number",
         "description": "Maximum number of chats (0 for all, default: 50)",
         "example": "50"
-      }}
+      }},
+      "required": []
     },
     "description": "List chats for the current user with topic, type, and participant information (returns raw JSON)"
   },
@@ -67,12 +67,12 @@ file_write("output.txt", "content");
     "name": "teams_chats",
     "inputSchema": {
       "type": "object",
-      "required": [],
       "properties": {"limit": {
         "type": "number",
         "description": "Maximum number of chats (0 for all, default: 50)",
         "example": "50"
-      }}
+      }},
+      "required": []
     },
     "description": "List chats showing only chat/contact names, last message (truncated to 100 chars), and date"
   },
@@ -80,7 +80,6 @@ file_write("output.txt", "content");
     "name": "teams_recent_chats",
     "inputSchema": {
       "type": "object",
-      "required": [],
       "properties": {
         "limit": {
           "type": "number",
@@ -92,7 +91,8 @@ file_write("output.txt", "content");
           "description": "Filter by chat type: 'oneOnOne', 'group', 'meeting', or 'all' (default: 'all')",
           "example": "oneOnOne"
         }
-      }
+      },
+      "required": []
     },
     "description": "Get recent chats sorted by last activity showing chat/contact names, last message with author, and date. Shows 'new: true' for unread messages. Filter by type: 'oneOnOne' for 1-on-1 chats, 'group' for group chats, 'meeting' for meeting chats, or 'all' (default). Only shows chats with activity in the last 90 days."
   },
@@ -100,7 +100,6 @@ file_write("output.txt", "content");
     "name": "teams_messages_by_chat_id_raw",
     "inputSchema": {
       "type": "object",
-      "required": ["chatId"],
       "properties": {
         "chatId": {
           "type": "string",
@@ -116,7 +115,8 @@ file_write("output.txt", "content");
           "description": "Optional OData filter (e.g., 'lastModifiedDateTime gt 2025-01-01T00:00:00Z')",
           "example": "lastModifiedDateTime gt 2025-01-01T00:00:00Z"
         }
-      }
+      },
+      "required": ["chatId"]
     },
     "description": "Get messages from a chat by ID with optional server-side filtering. Use $filter syntax with lastModifiedDateTime: 'lastModifiedDateTime gt 2025-01-01T00:00:00Z' (returns raw JSON). Note: createdDateTime is not supported in filters."
   },
@@ -124,11 +124,11 @@ file_write("output.txt", "content");
     "name": "teams_chat_by_name_raw",
     "inputSchema": {
       "type": "object",
-      "required": ["chatName"],
       "properties": {"chatName": {
         "type": "string",
         "description": "The chat topic or participant name to search for"
-      }}
+      }},
+      "required": ["chatName"]
     },
     "description": "Find a chat by topic/name or participant name (case-insensitive partial match). Works for group chats and 1-on-1 chats. (returns raw JSON)"
   },
@@ -136,7 +136,6 @@ file_write("output.txt", "content");
     "name": "teams_messages_raw",
     "inputSchema": {
       "type": "object",
-      "required": ["chatName"],
       "properties": {
         "limit": {
           "type": "number",
@@ -147,7 +146,8 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The chat name to search for"
         }
-      }
+      },
+      "required": ["chatName"]
     },
     "description": "Get messages from a chat by name (combines find + get messages) (returns raw JSON)"
   },
@@ -155,7 +155,6 @@ file_write("output.txt", "content");
     "name": "teams_messages",
     "inputSchema": {
       "type": "object",
-      "required": ["chatName"],
       "properties": {
         "limit": {
           "type": "number",
@@ -171,7 +170,8 @@ file_write("output.txt", "content");
           "description": "Sort order: 'asc' for oldest first, 'desc' for newest first (default: 'desc')",
           "example": "desc"
         }
-      }
+      },
+      "required": ["chatName"]
     },
     "description": "Get messages from a chat with simplified output showing only: author, body, date, reactions, mentions, and attachments"
   },
@@ -179,10 +179,6 @@ file_write("output.txt", "content");
     "name": "teams_messages_since_by_id",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "chatId",
-        "sinceDate"
-      ],
       "properties": {
         "chatId": {
           "type": "string",
@@ -198,7 +194,11 @@ file_write("output.txt", "content");
           "description": "Sort order: 'asc' for oldest first, 'desc' for newest first (default: 'desc')",
           "example": "desc"
         }
-      }
+      },
+      "required": [
+        "chatId",
+        "sinceDate"
+      ]
     },
     "description": "Get messages from a chat starting from a specific date (ISO 8601 format, e.g., '2025-10-08T00:00:00Z'). Returns simplified format. Uses smart pagination with early exit for performance."
   },
@@ -206,10 +206,6 @@ file_write("output.txt", "content");
     "name": "teams_messages_since",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "chatName",
-        "sinceDate"
-      ],
       "properties": {
         "chatName": {
           "type": "string",
@@ -225,7 +221,11 @@ file_write("output.txt", "content");
           "description": "Sort order: 'asc' for oldest first, 'desc' for newest first (default: 'desc')",
           "example": "desc"
         }
-      }
+      },
+      "required": [
+        "chatName",
+        "sinceDate"
+      ]
     },
     "description": "Get messages from a chat by name starting from a specific date (ISO 8601 format). Returns simplified format. Uses smart pagination with early exit for performance."
   },
@@ -233,10 +233,6 @@ file_write("output.txt", "content");
     "name": "teams_send_message_by_id",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "chatId",
-        "content"
-      ],
       "properties": {
         "chatId": {
           "type": "string",
@@ -246,7 +242,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Message content (plain text or HTML)"
         }
-      }
+      },
+      "required": [
+        "chatId",
+        "content"
+      ]
     },
     "description": "Send a message to a chat by ID (returns raw JSON)"
   },
@@ -254,10 +254,6 @@ file_write("output.txt", "content");
     "name": "teams_send_message",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "chatName",
-        "content"
-      ],
       "properties": {
         "chatName": {
           "type": "string",
@@ -267,7 +263,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Message content (plain text or HTML)"
         }
-      }
+      },
+      "required": [
+        "chatName",
+        "content"
+      ]
     },
     "description": "Send a message to a chat by name or participant name (finds chat, then sends message)"
   },
@@ -275,12 +275,12 @@ file_write("output.txt", "content");
     "name": "teams_myself_messages_raw",
     "inputSchema": {
       "type": "object",
-      "required": [],
       "properties": {"limit": {
         "type": "number",
         "description": "Maximum number of messages (0 for all, default: 100)",
         "example": "100"
-      }}
+      }},
+      "required": []
     },
     "description": "Get messages from your personal self chat (notes to yourself) with full raw data"
   },
@@ -288,12 +288,12 @@ file_write("output.txt", "content");
     "name": "teams_myself_messages",
     "inputSchema": {
       "type": "object",
-      "required": [],
       "properties": {"limit": {
         "type": "number",
         "description": "Maximum number of messages (0 for all, default: 100)",
         "example": "100"
-      }}
+      }},
+      "required": []
     },
     "description": "Get messages from your personal self chat (notes to yourself) with simplified output"
   },
@@ -301,11 +301,11 @@ file_write("output.txt", "content");
     "name": "teams_send_myself_message",
     "inputSchema": {
       "type": "object",
-      "required": ["content"],
       "properties": {"content": {
         "type": "string",
         "description": "Message content (plain text or HTML)"
-      }}
+      }},
+      "required": ["content"]
     },
     "description": "Send a message to your personal self chat (notes to yourself)"
   },
@@ -313,10 +313,6 @@ file_write("output.txt", "content");
     "name": "teams_download_file",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "url",
-        "outputPath"
-      ],
       "properties": {
         "url": {
           "type": "string",
@@ -328,7 +324,11 @@ file_write("output.txt", "content");
           "description": "Local file path to save to",
           "example": "/tmp/file.ext"
         }
-      }
+      },
+      "required": [
+        "url",
+        "outputPath"
+      ]
     },
     "description": "Download a file from Teams (Graph API hostedContents or SharePoint sharing URL). Auto-detects URL type and uses appropriate method."
   },
@@ -336,10 +336,6 @@ file_write("output.txt", "content");
     "name": "teams_get_message_hosted_contents",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "chatId",
-        "messageId"
-      ],
       "properties": {
         "chatId": {
           "type": "string",
@@ -349,7 +345,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Message ID"
         }
-      }
+      },
+      "required": [
+        "chatId",
+        "messageId"
+      ]
     },
     "description": "Get hosted contents (files/transcripts) for a specific message. Returns list of files with download URLs."
   },
@@ -357,11 +357,11 @@ file_write("output.txt", "content");
     "name": "teams_get_call_transcripts",
     "inputSchema": {
       "type": "object",
-      "required": ["callId"],
       "properties": {"callId": {
         "type": "string",
         "description": "Call ID from the meeting"
-      }}
+      }},
+      "required": ["callId"]
     },
     "description": "Get transcripts for a call/meeting using Call Records API. Returns list of transcripts with download URLs."
   },
@@ -369,10 +369,6 @@ file_write("output.txt", "content");
     "name": "teams_search_user_drive_files",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "userId",
-        "searchQuery"
-      ],
       "properties": {
         "userId": {
           "type": "string",
@@ -382,7 +378,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Search term (meeting name, 'transcript', '.vtt', etc.)"
         }
-      }
+      },
+      "required": [
+        "userId",
+        "searchQuery"
+      ]
     },
     "description": "Search for files in a user's OneDrive (e.g., meeting transcripts/recordings). Returns list of files with download URLs."
   },
@@ -390,10 +390,6 @@ file_write("output.txt", "content");
     "name": "teams_get_recording_transcripts",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "driveId",
-        "itemId"
-      ],
       "properties": {
         "itemId": {
           "type": "string",
@@ -403,7 +399,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Drive ID from the recording file"
         }
-      }
+      },
+      "required": [
+        "driveId",
+        "itemId"
+      ]
     },
     "description": "Get transcript metadata for a recording file. Returns list of available transcripts with download URLs."
   },
@@ -411,10 +411,6 @@ file_write("output.txt", "content");
     "name": "teams_list_recording_transcripts",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "driveId",
-        "itemId"
-      ],
       "properties": {
         "itemId": {
           "type": "string",
@@ -424,7 +420,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Drive ID"
         }
-      }
+      },
+      "required": [
+        "driveId",
+        "itemId"
+      ]
     },
     "description": "List available transcripts for a recording file. Returns transcript IDs that can be downloaded."
   },
@@ -432,11 +432,11 @@ file_write("output.txt", "content");
     "name": "teams_extract_transcript_from_sharepoint",
     "inputSchema": {
       "type": "object",
-      "required": ["webUrl"],
       "properties": {"webUrl": {
         "type": "string",
         "description": "SharePoint webUrl of the recording"
-      }}
+      }},
+      "required": ["webUrl"]
     },
     "description": "Extract transcript information by parsing SharePoint HTML page. Useful for finding transcript IDs."
   },
@@ -444,12 +444,6 @@ file_write("output.txt", "content");
     "name": "teams_download_recording_transcript",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "driveId",
-        "itemId",
-        "transcriptId",
-        "outputPath"
-      ],
       "properties": {
         "itemId": {
           "type": "string",
@@ -467,7 +461,13 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Transcript ID (UUID)"
         }
-      }
+      },
+      "required": [
+        "driveId",
+        "itemId",
+        "transcriptId",
+        "outputPath"
+      ]
     },
     "description": "Download transcript (VTT) file from a Teams recording using SharePoint API. Requires driveId, itemId, and transcriptId."
   },
@@ -475,8 +475,8 @@ file_write("output.txt", "content");
     "name": "teams_get_joined_teams_raw",
     "inputSchema": {
       "type": "object",
-      "required": [],
-      "properties": {}
+      "properties": {},
+      "required": []
     },
     "description": "List teams the user is a member of (returns raw JSON)"
   },
@@ -484,11 +484,11 @@ file_write("output.txt", "content");
     "name": "teams_get_team_channels_raw",
     "inputSchema": {
       "type": "object",
-      "required": ["teamId"],
       "properties": {"teamId": {
         "type": "string",
         "description": "The team ID"
-      }}
+      }},
+      "required": ["teamId"]
     },
     "description": "Get channels in a specific team (returns raw JSON)"
   },
@@ -496,11 +496,11 @@ file_write("output.txt", "content");
     "name": "teams_find_team_by_name_raw",
     "inputSchema": {
       "type": "object",
-      "required": ["teamName"],
       "properties": {"teamName": {
         "type": "string",
         "description": "The team name to search for"
-      }}
+      }},
+      "required": ["teamName"]
     },
     "description": "Find a team by display name (case-insensitive partial match) (returns raw JSON)"
   },
@@ -508,10 +508,6 @@ file_write("output.txt", "content");
     "name": "teams_find_channel_by_name_raw",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "teamId",
-        "channelName"
-      ],
       "properties": {
         "channelName": {
           "type": "string",
@@ -521,7 +517,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The team ID"
         }
-      }
+      },
+      "required": [
+        "teamId",
+        "channelName"
+      ]
     },
     "description": "Find a channel by name within a team (case-insensitive partial match) (returns raw JSON)"
   },
@@ -529,10 +529,6 @@ file_write("output.txt", "content");
     "name": "teams_get_channel_messages_by_name_raw",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "teamName",
-        "channelName"
-      ],
       "properties": {
         "teamName": {
           "type": "string",
@@ -547,7 +543,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The channel name to search for"
         }
-      }
+      },
+      "required": [
+        "teamName",
+        "channelName"
+      ]
     },
     "description": "Get messages from a channel by team and channel names (returns raw JSON)"
   },
@@ -555,10 +555,6 @@ file_write("output.txt", "content");
     "name": "jira_xray_create_precondition",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "project",
-        "summary"
-      ],
       "properties": {
         "summary": {
           "type": "string",
@@ -579,7 +575,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Optional JSON array of steps in format [{\"action\": \"...\", \"data\": \"...\", \"result\": \"...\"}]. Will be converted to definition format."
         }
-      }
+      },
+      "required": [
+        "project",
+        "summary"
+      ]
     },
     "description": "Create a Precondition issue in Xray with optional steps (converted to definition). Returns the created ticket key."
   },
@@ -587,7 +587,6 @@ file_write("output.txt", "content");
     "name": "jira_xray_search_tickets",
     "inputSchema": {
       "type": "object",
-      "required": ["searchQueryJQL"],
       "properties": {
         "fields": {
           "type": "array",
@@ -599,7 +598,8 @@ file_write("output.txt", "content");
           "description": "JQL search query (e.g., 'project = TP AND issueType = Test')",
           "example": "project = TP AND issueType = Test"
         }
-      }
+      },
+      "required": ["searchQueryJQL"]
     },
     "description": "Search for Jira tickets using JQL query and enrich Test/Precondition issues with X-ray test steps and preconditions. Returns list of tickets with X-ray data."
   },
@@ -607,12 +607,12 @@ file_write("output.txt", "content");
     "name": "jira_xray_get_test_details",
     "inputSchema": {
       "type": "object",
-      "required": ["testKey"],
       "properties": {"testKey": {
         "type": "string",
         "description": "Jira ticket key (e.g., 'TP-909')",
         "example": "TP-909"
-      }}
+      }},
+      "required": ["testKey"]
     },
     "description": "Get test details including steps and preconditions using X-ray GraphQL API. Returns JSONObject with test details."
   },
@@ -620,12 +620,12 @@ file_write("output.txt", "content");
     "name": "jira_xray_get_test_steps",
     "inputSchema": {
       "type": "object",
-      "required": ["testKey"],
       "properties": {"testKey": {
         "type": "string",
         "description": "Jira ticket key (e.g., 'TP-909')",
         "example": "TP-909"
-      }}
+      }},
+      "required": ["testKey"]
     },
     "description": "Get test steps for a test issue using X-ray GraphQL API. Returns JSONArray of test steps."
   },
@@ -633,12 +633,12 @@ file_write("output.txt", "content");
     "name": "jira_xray_get_preconditions",
     "inputSchema": {
       "type": "object",
-      "required": ["testKey"],
       "properties": {"testKey": {
         "type": "string",
         "description": "Jira ticket key (e.g., 'TP-909')",
         "example": "TP-909"
-      }}
+      }},
+      "required": ["testKey"]
     },
     "description": "Get preconditions for a test issue using X-ray GraphQL API. Returns JSONArray of precondition objects."
   },
@@ -646,12 +646,12 @@ file_write("output.txt", "content");
     "name": "jira_xray_get_precondition_details",
     "inputSchema": {
       "type": "object",
-      "required": ["preconditionKey"],
       "properties": {"preconditionKey": {
         "type": "string",
         "description": "Jira ticket key (e.g., 'TP-910')",
         "example": "TP-910"
-      }}
+      }},
+      "required": ["preconditionKey"]
     },
     "description": "Get Precondition details including definition using X-ray GraphQL API. Returns JSONObject with precondition details."
   },
@@ -659,10 +659,6 @@ file_write("output.txt", "content");
     "name": "jira_xray_add_test_step",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "issueId",
-        "action"
-      ],
       "properties": {
         "result": {
           "type": "string",
@@ -684,7 +680,11 @@ file_write("output.txt", "content");
           "description": "Step data (e.g., 'test_user')",
           "example": "test_user"
         }
-      }
+      },
+      "required": [
+        "issueId",
+        "action"
+      ]
     },
     "description": "Add a single test step to a test issue using X-ray GraphQL API. Returns JSONObject with created step details."
   },
@@ -692,10 +692,6 @@ file_write("output.txt", "content");
     "name": "jira_xray_add_test_steps",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "issueId",
-        "steps"
-      ],
       "properties": {
         "steps": {
           "type": "object",
@@ -707,7 +703,11 @@ file_write("output.txt", "content");
           "description": "Jira issue ID (e.g., '12345')",
           "example": "12345"
         }
-      }
+      },
+      "required": [
+        "issueId",
+        "steps"
+      ]
     },
     "description": "Add multiple test steps to a test issue using X-ray GraphQL API. Returns JSONArray of created step objects."
   },
@@ -715,10 +715,6 @@ file_write("output.txt", "content");
     "name": "jira_xray_add_precondition_to_test",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "testIssueId",
-        "preconditionIssueId"
-      ],
       "properties": {
         "testIssueId": {
           "type": "string",
@@ -730,7 +726,11 @@ file_write("output.txt", "content");
           "description": "Jira issue ID of the precondition (e.g., '12346')",
           "example": "12346"
         }
-      }
+      },
+      "required": [
+        "testIssueId",
+        "preconditionIssueId"
+      ]
     },
     "description": "Add a single precondition to a test issue using X-ray GraphQL API. Returns JSONObject with result."
   },
@@ -738,10 +738,6 @@ file_write("output.txt", "content");
     "name": "jira_xray_add_preconditions_to_test",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "testIssueId",
-        "preconditionIssueIds"
-      ],
       "properties": {
         "preconditionIssueIds": {
           "type": "object",
@@ -753,7 +749,11 @@ file_write("output.txt", "content");
           "description": "Jira issue ID of the test (e.g., '12345')",
           "example": "12345"
         }
-      }
+      },
+      "required": [
+        "testIssueId",
+        "preconditionIssueIds"
+      ]
     },
     "description": "Add multiple preconditions to a test issue using X-ray GraphQL API. Returns JSONArray of results."
   },
@@ -761,12 +761,12 @@ file_write("output.txt", "content");
     "name": "file_read",
     "inputSchema": {
       "type": "object",
-      "required": ["path"],
       "properties": {"path": {
         "type": "string",
         "description": "File path relative to working directory or absolute path within working directory",
         "example": "outputs/response.md"
-      }}
+      }},
+      "required": ["path"]
     },
     "description": "Read file content from working directory (supports input/ and outputs/ folders). Returns file content as string or null if file doesn't exist or is inaccessible. All file formats supported as UTF-8 text."
   },
@@ -774,10 +774,6 @@ file_write("output.txt", "content");
     "name": "file_write",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "path",
-        "content"
-      ],
       "properties": {
         "path": {
           "type": "string",
@@ -789,7 +785,11 @@ file_write("output.txt", "content");
           "description": "Content to write to the file as UTF-8 string",
           "example": "{\"messages\": []}"
         }
-      }
+      },
+      "required": [
+        "path",
+        "content"
+      ]
     },
     "description": "Write content to file in working directory. Creates parent directories automatically. Returns success message or null on failure."
   },
@@ -797,12 +797,12 @@ file_write("output.txt", "content");
     "name": "file_validate_json",
     "inputSchema": {
       "type": "object",
-      "required": ["json"],
       "properties": {"json": {
         "type": "string",
         "description": "JSON string to validate",
         "example": "{\"key\": \"value\"}"
-      }}
+      }},
+      "required": ["json"]
     },
     "description": "Validate JSON string and return detailed error information if invalid. Returns JSON string with validation result: {\"valid\": true} for valid JSON, or {\"valid\": false, \"error\": \"error message\", \"line\": line_number, \"column\": column_number, \"position\": character_position, \"context\": \"context around error\"} for invalid JSON."
   },
@@ -810,12 +810,12 @@ file_write("output.txt", "content");
     "name": "file_validate_json_file",
     "inputSchema": {
       "type": "object",
-      "required": ["path"],
       "properties": {"path": {
         "type": "string",
         "description": "File path relative to working directory or absolute path within working directory",
         "example": "outputs/response.json"
-      }}
+      }},
+      "required": ["path"]
     },
     "description": "Validate JSON file and return detailed error information if invalid. Reads file from working directory and validates its JSON content. Returns JSON string with validation result including file path."
   },
@@ -823,12 +823,12 @@ file_write("output.txt", "content");
     "name": "figma_get_screen_source",
     "inputSchema": {
       "type": "object",
-      "required": ["url"],
       "properties": {"url": {
         "type": "string",
         "description": "Figma design URL with node-id parameter",
         "example": "https://www.figma.com/file/abc123/Design?node-id=1%3A2"
-      }}
+      }},
+      "required": ["url"]
     },
     "description": "Get screen source content by URL. Returns the image URL for the specified Figma design node."
   },
@@ -836,10 +836,6 @@ file_write("output.txt", "content");
     "name": "figma_download_node_image",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "href",
-        "nodeId"
-      ],
       "properties": {
         "format": {
           "type": "string",
@@ -857,7 +853,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Node ID to download"
         }
-      }
+      },
+      "required": [
+        "href",
+        "nodeId"
+      ]
     },
     "description": "Download image of specific node/component. Useful for visual preview of design pieces before processing structure."
   },
@@ -865,12 +865,12 @@ file_write("output.txt", "content");
     "name": "figma_download_image_of_file",
     "inputSchema": {
       "type": "object",
-      "required": ["href"],
       "properties": {"href": {
         "type": "string",
         "description": "Figma design URL to download as image file",
         "example": "https://www.figma.com/file/abc123/Design?node-id=1%3A2"
-      }}
+      }},
+      "required": ["href"]
     },
     "description": "Download image by URL as File type. Converts Figma design URL to downloadable image file."
   },
@@ -878,12 +878,12 @@ file_write("output.txt", "content");
     "name": "figma_get_icons",
     "inputSchema": {
       "type": "object",
-      "required": ["href"],
       "properties": {"href": {
         "type": "string",
         "description": "Figma design URL to extract visual elements from",
         "example": "https://www.figma.com/file/abc123/Design"
-      }}
+      }},
+      "required": ["href"]
     },
     "description": "Find and extract all exportable visual elements (vectors, shapes, graphics, text) from Figma design by URL. Focuses on actual visual elements to avoid complex component references."
   },
@@ -891,11 +891,6 @@ file_write("output.txt", "content");
     "name": "figma_download_image_as_file",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "href",
-        "nodeId",
-        "format"
-      ],
       "properties": {
         "format": {
           "type": "string",
@@ -912,7 +907,12 @@ file_write("output.txt", "content");
           "description": "Figma design URL to extract file ID from",
           "example": "https://www.figma.com/file/abc123/Design"
         }
-      }
+      },
+      "required": [
+        "href",
+        "nodeId",
+        "format"
+      ]
     },
     "description": "Download image as file by node ID and format. Use this after figma_get_icons to download actual icon files."
   },
@@ -920,10 +920,6 @@ file_write("output.txt", "content");
     "name": "figma_get_svg_content",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "href",
-        "nodeId"
-      ],
       "properties": {
         "nodeId": {
           "type": "string",
@@ -935,7 +931,11 @@ file_write("output.txt", "content");
           "description": "Figma design URL to extract file ID from",
           "example": "https://www.figma.com/file/abc123/Design"
         }
-      }
+      },
+      "required": [
+        "href",
+        "nodeId"
+      ]
     },
     "description": "Get SVG content as text by node ID. Use this after figma_get_icons to get SVG code for vector icons."
   },
@@ -943,10 +943,6 @@ file_write("output.txt", "content");
     "name": "figma_get_node_details",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "href",
-        "nodeIds"
-      ],
       "properties": {
         "nodeIds": {
           "type": "string",
@@ -956,7 +952,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Figma design URL"
         }
-      }
+      },
+      "required": [
+        "href",
+        "nodeIds"
+      ]
     },
     "description": "Get detailed properties for specific node(s) including colors, fonts, text, dimensions, and styles. Returns small focused response."
   },
@@ -964,10 +964,6 @@ file_write("output.txt", "content");
     "name": "figma_get_text_content",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "href",
-        "nodeIds"
-      ],
       "properties": {
         "nodeIds": {
           "type": "string",
@@ -977,7 +973,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Figma design URL"
         }
-      }
+      },
+      "required": [
+        "href",
+        "nodeIds"
+      ]
     },
     "description": "Extract text content from text nodes. Returns map of nodeId to text content."
   },
@@ -985,11 +985,11 @@ file_write("output.txt", "content");
     "name": "figma_get_styles",
     "inputSchema": {
       "type": "object",
-      "required": ["href"],
       "properties": {"href": {
         "type": "string",
         "description": "Figma design URL"
-      }}
+      }},
+      "required": ["href"]
     },
     "description": "Get design tokens (colors, text styles) defined in Figma file."
   },
@@ -997,11 +997,11 @@ file_write("output.txt", "content");
     "name": "figma_get_layers",
     "inputSchema": {
       "type": "object",
-      "required": ["href"],
       "properties": {"href": {
         "type": "string",
         "description": "Figma design URL with node-id"
-      }}
+      }},
+      "required": ["href"]
     },
     "description": "Get first-level layers (direct children) to understand structure. Returns layer names, IDs, types, sizes. Essential first step before getting details."
   },
@@ -1009,10 +1009,6 @@ file_write("output.txt", "content");
     "name": "figma_get_layers_batch",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "href",
-        "nodeIds"
-      ],
       "properties": {
         "nodeIds": {
           "type": "string",
@@ -1022,7 +1018,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "Figma design URL"
         }
-      }
+      },
+      "required": [
+        "href",
+        "nodeIds"
+      ]
     },
     "description": "Get layers for multiple nodes at once. More efficient for analyzing multiple screens/containers. Returns map of nodeId to layers."
   },
@@ -1030,11 +1030,11 @@ file_write("output.txt", "content");
     "name": "figma_get_node_children",
     "inputSchema": {
       "type": "object",
-      "required": ["href"],
       "properties": {"href": {
         "type": "string",
         "description": "Figma design URL with node-id"
-      }}
+      }},
+      "required": ["href"]
     },
     "description": "Get immediate children IDs and basic info for a node. Non-recursive, returns only direct children."
   },
@@ -1042,12 +1042,12 @@ file_write("output.txt", "content");
     "name": "jira_delete_ticket",
     "inputSchema": {
       "type": "object",
-      "required": ["key"],
       "properties": {"key": {
         "type": "string",
         "description": "The Jira ticket key to delete",
         "example": "PRJ-123"
-      }}
+      }},
+      "required": ["key"]
     },
     "description": "Delete a Jira ticket by key"
   },
@@ -1055,12 +1055,12 @@ file_write("output.txt", "content");
     "name": "jira_get_account_by_email",
     "inputSchema": {
       "type": "object",
-      "required": ["email"],
       "properties": {"email": {
         "type": "string",
         "description": "The Jira Email",
         "example": "email@email.com"
-      }}
+      }},
+      "required": ["email"]
     },
     "description": "Gets account details by email"
   },
@@ -1068,10 +1068,6 @@ file_write("output.txt", "content");
     "name": "jira_assign_ticket_to",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "accountId"
-      ],
       "properties": {
         "accountId": {
           "type": "string",
@@ -1083,7 +1079,11 @@ file_write("output.txt", "content");
           "description": "The Jira ticket key to assign",
           "example": "PRJ-123"
         }
-      }
+      },
+      "required": [
+        "key",
+        "accountId"
+      ]
     },
     "description": "Assigns a Jira ticket to user"
   },
@@ -1091,10 +1091,6 @@ file_write("output.txt", "content");
     "name": "jira_add_label",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "label"
-      ],
       "properties": {
         "key": {
           "type": "string",
@@ -1106,7 +1102,11 @@ file_write("output.txt", "content");
           "description": "The label to be added to ticket",
           "example": "custom_label"
         }
-      }
+      },
+      "required": [
+        "key",
+        "label"
+      ]
     },
     "description": "Adding label to specific ticket key"
   },
@@ -1114,7 +1114,6 @@ file_write("output.txt", "content");
     "name": "jira_search_by_jql",
     "inputSchema": {
       "type": "object",
-      "required": ["jql"],
       "properties": {
         "jql": {
           "type": "string",
@@ -1126,7 +1125,8 @@ file_write("output.txt", "content");
           "description": "Optional array of field names to include in response",
           "example": "[\"summary\", \"status\", \"assignee\"]"
         }
-      }
+      },
+      "required": ["jql"]
     },
     "description": "Search for Jira tickets using JQL and returns all results"
   },
@@ -1134,11 +1134,6 @@ file_write("output.txt", "content");
     "name": "jira_search_with_pagination",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "jql",
-        "startAt",
-        "fields"
-      ],
       "properties": {
         "jql": {
           "type": "string",
@@ -1155,7 +1150,12 @@ file_write("output.txt", "content");
           "description": "Starting index for pagination (0-based)",
           "example": "0"
         }
-      }
+      },
+      "required": [
+        "jql",
+        "startAt",
+        "fields"
+      ]
     },
     "description": "[Deprecated] Search for Jira tickets using JQL with pagination support"
   },
@@ -1163,11 +1163,6 @@ file_write("output.txt", "content");
     "name": "jira_search_by_page",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "jql",
-        "nextPageToken",
-        "fields"
-      ],
       "properties": {
         "jql": {
           "type": "string",
@@ -1184,7 +1179,12 @@ file_write("output.txt", "content");
           "description": "Next Page Token from previous response, empty by default for 1 page",
           "example": "AasvvasasaSASdada"
         }
-      }
+      },
+      "required": [
+        "jql",
+        "nextPageToken",
+        "fields"
+      ]
     },
     "description": "Search for Jira tickets using JQL with paging support"
   },
@@ -1192,8 +1192,8 @@ file_write("output.txt", "content");
     "name": "jira_get_my_profile",
     "inputSchema": {
       "type": "object",
-      "required": [],
-      "properties": {}
+      "properties": {},
+      "required": []
     },
     "description": "Get the current user's profile information from Jira"
   },
@@ -1201,11 +1201,11 @@ file_write("output.txt", "content");
     "name": "jira_get_user_profile",
     "inputSchema": {
       "type": "object",
-      "required": ["userId"],
       "properties": {"userId": {
         "type": "string",
         "description": "The user ID to get profile for"
-      }}
+      }},
+      "required": ["userId"]
     },
     "description": "Get a specific user's profile information from Jira"
   },
@@ -1213,7 +1213,6 @@ file_write("output.txt", "content");
     "name": "jira_get_ticket",
     "inputSchema": {
       "type": "object",
-      "required": ["key"],
       "properties": {
         "fields": {
           "type": "array",
@@ -1223,7 +1222,8 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to retrieve"
         }
-      }
+      },
+      "required": ["key"]
     },
     "description": "Get a specific Jira ticket by key with optional field filtering"
   },
@@ -1231,11 +1231,11 @@ file_write("output.txt", "content");
     "name": "jira_get_subtasks",
     "inputSchema": {
       "type": "object",
-      "required": ["key"],
       "properties": {"key": {
         "type": "string",
         "description": "The parent ticket key to get subtasks for"
-      }}
+      }},
+      "required": ["key"]
     },
     "description": "Get all subtasks of a specific Jira ticket using jql: parent = PRJ-123 and issueType in (subtask, sub-task, 'sub task')"
   },
@@ -1243,10 +1243,6 @@ file_write("output.txt", "content");
     "name": "jira_post_comment_if_not_exists",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "comment"
-      ],
       "properties": {
         "key": {
           "type": "string",
@@ -1256,7 +1252,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The comment text to post (supports Jira markup: h2. headings, *bold*, {code}code{code}, * lists)"
         }
-      }
+      },
+      "required": [
+        "key",
+        "comment"
+      ]
     },
     "description": "Post a comment to a Jira ticket only if it doesn't already exist. Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists"
   },
@@ -1264,7 +1264,6 @@ file_write("output.txt", "content");
     "name": "jira_get_comments",
     "inputSchema": {
       "type": "object",
-      "required": ["key"],
       "properties": {
         "ticket": {
           "type": "object",
@@ -1274,7 +1273,8 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to get comments for"
         }
-      }
+      },
+      "required": ["key"]
     },
     "description": "Get all comments for a specific Jira ticket"
   },
@@ -1282,10 +1282,6 @@ file_write("output.txt", "content");
     "name": "jira_post_comment",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "comment"
-      ],
       "properties": {
         "key": {
           "type": "string",
@@ -1295,7 +1291,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The comment text to post (supports Jira markup: h2. headings, *bold*, {code}code{code}, * lists)"
         }
-      }
+      },
+      "required": [
+        "key",
+        "comment"
+      ]
     },
     "description": "Post a comment to a Jira ticket. Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists"
   },
@@ -1303,11 +1303,11 @@ file_write("output.txt", "content");
     "name": "jira_get_fix_versions",
     "inputSchema": {
       "type": "object",
-      "required": ["project"],
       "properties": {"project": {
         "type": "string",
         "description": "The Jira project key to get fix versions for"
-      }}
+      }},
+      "required": ["project"]
     },
     "description": "Get all fix versions for a specific Jira project"
   },
@@ -1315,11 +1315,11 @@ file_write("output.txt", "content");
     "name": "jira_get_components",
     "inputSchema": {
       "type": "object",
-      "required": ["project"],
       "properties": {"project": {
         "type": "string",
         "description": "The Jira project key to get components for"
-      }}
+      }},
+      "required": ["project"]
     },
     "description": "Get all components for a specific Jira project"
   },
@@ -1327,11 +1327,11 @@ file_write("output.txt", "content");
     "name": "jira_get_project_statuses",
     "inputSchema": {
       "type": "object",
-      "required": ["project"],
       "properties": {"project": {
         "type": "string",
         "description": "The Jira project key to get statuses for"
-      }}
+      }},
+      "required": ["project"]
     },
     "description": "Get all statuses for a specific Jira project"
   },
@@ -1339,13 +1339,6 @@ file_write("output.txt", "content");
     "name": "jira_create_ticket_with_parent",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "project",
-        "issueType",
-        "summary",
-        "description",
-        "parentKey"
-      ],
       "properties": {
         "issueType": {
           "type": "string",
@@ -1367,7 +1360,14 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The key of the parent ticket"
         }
-      }
+      },
+      "required": [
+        "project",
+        "issueType",
+        "summary",
+        "description",
+        "parentKey"
+      ]
     },
     "description": "Create a new Jira ticket with a parent relationship"
   },
@@ -1375,12 +1375,6 @@ file_write("output.txt", "content");
     "name": "jira_create_ticket_basic",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "project",
-        "issueType",
-        "summary",
-        "description"
-      ],
       "properties": {
         "issueType": {
           "type": "string",
@@ -1398,7 +1392,13 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The ticket description. Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists"
         }
-      }
+      },
+      "required": [
+        "project",
+        "issueType",
+        "summary",
+        "description"
+      ]
     },
     "description": "Create a new Jira ticket with basic fields (project, issue type, summary, description)"
   },
@@ -1406,10 +1406,6 @@ file_write("output.txt", "content");
     "name": "jira_create_ticket_with_json",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "project",
-        "fieldsJson"
-      ],
       "properties": {
         "project": {
           "type": "string",
@@ -1419,7 +1415,11 @@ file_write("output.txt", "content");
           "type": "object",
           "description": "JSON object containing ticket fields in Jira format (e.g., {\"summary\": \"Ticket Summary\", \"description\": \"Ticket Description\", \"issuetype\": {\"name\": \"Task\"}, \"priority\": {\"name\": \"High\"}}), Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists"
         }
-      }
+      },
+      "required": [
+        "project",
+        "fieldsJson"
+      ]
     },
     "description": "Create a new Jira ticket with custom fields using JSON configuration"
   },
@@ -1427,10 +1427,6 @@ file_write("output.txt", "content");
     "name": "jira_update_description",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "description"
-      ],
       "properties": {
         "description": {
           "type": "string",
@@ -1440,7 +1436,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to update"
         }
-      }
+      },
+      "required": [
+        "key",
+        "description"
+      ]
     },
     "description": "Update the description of a Jira ticket. Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists"
   },
@@ -1448,10 +1448,6 @@ file_write("output.txt", "content");
     "name": "jira_update_ticket_parent",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "parentKey"
-      ],
       "properties": {
         "key": {
           "type": "string",
@@ -1461,7 +1457,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The key of the new parent ticket"
         }
-      }
+      },
+      "required": [
+        "key",
+        "parentKey"
+      ]
     },
     "description": "Update the parent of a Jira ticket. Can be used for setting up epic relationships and parent-child relationships for subtasks"
   },
@@ -1469,10 +1469,6 @@ file_write("output.txt", "content");
     "name": "jira_update_ticket",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "params"
-      ],
       "properties": {
         "params": {
           "type": "object",
@@ -1482,7 +1478,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to update"
         }
-      }
+      },
+      "required": [
+        "key",
+        "params"
+      ]
     },
     "description": "Update a Jira ticket using JSON parameters following the standard Jira REST API format"
   },
@@ -1490,11 +1490,6 @@ file_write("output.txt", "content");
     "name": "jira_update_field",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "field",
-        "value"
-      ],
       "properties": {
         "field": {
           "type": "string",
@@ -1508,7 +1503,12 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to update"
         }
-      }
+      },
+      "required": [
+        "key",
+        "field",
+        "value"
+      ]
     },
     "description": "Update field(s) in a Jira ticket. When using field names (e.g., 'Dependencies'), updates ALL fields with that name. When using custom field IDs (e.g., 'customfield_10091'), updates only that specific field."
   },
@@ -1516,11 +1516,6 @@ file_write("output.txt", "content");
     "name": "jira_update_all_fields_with_name",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "fieldName",
-        "value"
-      ],
       "properties": {
         "value": {
           "type": "object",
@@ -1534,7 +1529,12 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The user-friendly field name (e.g., 'Dependencies')"
         }
-      }
+      },
+      "required": [
+        "key",
+        "fieldName",
+        "value"
+      ]
     },
     "description": "Update ALL fields with the same name in a Jira ticket. Useful when there are multiple custom fields with the same display name."
   },
@@ -1542,10 +1542,6 @@ file_write("output.txt", "content");
     "name": "jira_get_all_fields_with_name",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "project",
-        "fieldName"
-      ],
       "properties": {
         "project": {
           "type": "string",
@@ -1555,7 +1551,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The user-friendly field name"
         }
-      }
+      },
+      "required": [
+        "project",
+        "fieldName"
+      ]
     },
     "description": "Get all custom field IDs that have the same display name in a Jira project"
   },
@@ -1563,11 +1563,11 @@ file_write("output.txt", "content");
     "name": "jira_execute_request",
     "inputSchema": {
       "type": "object",
-      "required": ["url"],
       "properties": {"url": {
         "type": "string",
         "description": "The Jira API URL to execute"
-      }}
+      }},
+      "required": ["url"]
     },
     "description": "Execute a custom HTTP GET request to Jira API with auth. Can be used to perform any jira get requests which are required auth."
   },
@@ -1575,11 +1575,6 @@ file_write("output.txt", "content");
     "name": "jira_attach_file_to_ticket",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "ticketKey",
-        "name",
-        "filePath"
-      ],
       "properties": {
         "name": {
           "type": "string",
@@ -1601,7 +1596,12 @@ file_write("output.txt", "content");
           "description": "Absolute path to the file on disk",
           "example": "/tmp/document.pdf"
         }
-      }
+      },
+      "required": [
+        "ticketKey",
+        "name",
+        "filePath"
+      ]
     },
     "description": "Attach a file to a Jira ticket from a local file path. The file will only be attached if a file with the same name doesn't already exist"
   },
@@ -1609,11 +1609,11 @@ file_write("output.txt", "content");
     "name": "jira_get_transitions",
     "inputSchema": {
       "type": "object",
-      "required": ["key"],
       "properties": {"key": {
         "type": "string",
         "description": "The Jira ticket key to get transitions for"
-      }}
+      }},
+      "required": ["key"]
     },
     "description": "Get all available transitions(statuses, workflows) for a Jira ticket"
   },
@@ -1621,10 +1621,6 @@ file_write("output.txt", "content");
     "name": "jira_move_to_status",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "statusName"
-      ],
       "properties": {
         "statusName": {
           "type": "string",
@@ -1634,7 +1630,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to move"
         }
-      }
+      },
+      "required": [
+        "key",
+        "statusName"
+      ]
     },
     "description": "Move a Jira ticket to a specific status (workflow, transition)"
   },
@@ -1642,11 +1642,6 @@ file_write("output.txt", "content");
     "name": "jira_move_to_status_with_resolution",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "statusName",
-        "resolution"
-      ],
       "properties": {
         "statusName": {
           "type": "string",
@@ -1660,7 +1655,12 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to move"
         }
-      }
+      },
+      "required": [
+        "key",
+        "statusName",
+        "resolution"
+      ]
     },
     "description": "Move a Jira ticket to a specific status (workflow, transition) with resolution"
   },
@@ -1668,10 +1668,6 @@ file_write("output.txt", "content");
     "name": "jira_clear_field",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "field"
-      ],
       "properties": {
         "field": {
           "type": "string",
@@ -1681,7 +1677,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to clear field from"
         }
-      }
+      },
+      "required": [
+        "key",
+        "field"
+      ]
     },
     "description": "Clear (delete value) a specific field value in a Jira ticket"
   },
@@ -1689,10 +1689,6 @@ file_write("output.txt", "content");
     "name": "jira_set_fix_version",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "fixVersion"
-      ],
       "properties": {
         "fixVersion": {
           "type": "string",
@@ -1702,7 +1698,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to set fix version for"
         }
-      }
+      },
+      "required": [
+        "key",
+        "fixVersion"
+      ]
     },
     "description": "Set the fix version for a Jira ticket"
   },
@@ -1710,10 +1710,6 @@ file_write("output.txt", "content");
     "name": "jira_add_fix_version",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "fixVersion"
-      ],
       "properties": {
         "fixVersion": {
           "type": "string",
@@ -1723,7 +1719,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to add fix version to"
         }
-      }
+      },
+      "required": [
+        "key",
+        "fixVersion"
+      ]
     },
     "description": "Add a fix version to a Jira ticket (without removing existing ones)"
   },
@@ -1731,10 +1731,6 @@ file_write("output.txt", "content");
     "name": "jira_set_priority",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "priority"
-      ],
       "properties": {
         "priority": {
           "type": "string",
@@ -1744,7 +1740,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to set priority for"
         }
-      }
+      },
+      "required": [
+        "key",
+        "priority"
+      ]
     },
     "description": "Set the priority for a Jira ticket"
   },
@@ -1752,10 +1752,6 @@ file_write("output.txt", "content");
     "name": "jira_remove_fix_version",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "key",
-        "fixVersion"
-      ],
       "properties": {
         "fixVersion": {
           "type": "string",
@@ -1765,7 +1761,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The Jira ticket key to remove fix version from"
         }
-      }
+      },
+      "required": [
+        "key",
+        "fixVersion"
+      ]
     },
     "description": "Remove a fix version from a Jira ticket"
   },
@@ -1773,11 +1773,11 @@ file_write("output.txt", "content");
     "name": "jira_download_attachment",
     "inputSchema": {
       "type": "object",
-      "required": ["href"],
       "properties": {"href": {
         "type": "string",
         "description": "The attachment URL to download"
-      }}
+      }},
+      "required": ["href"]
     },
     "description": "Download a Jira attachment by URL and save it as a file"
   },
@@ -1785,11 +1785,11 @@ file_write("output.txt", "content");
     "name": "jira_get_fields",
     "inputSchema": {
       "type": "object",
-      "required": ["project"],
       "properties": {"project": {
         "type": "string",
         "description": "The Jira project key to get fields for"
-      }}
+      }},
+      "required": ["project"]
     },
     "description": "Get all available fields for a Jira project"
   },
@@ -1797,11 +1797,11 @@ file_write("output.txt", "content");
     "name": "jira_get_issue_types",
     "inputSchema": {
       "type": "object",
-      "required": ["project"],
       "properties": {"project": {
         "type": "string",
         "description": "The Jira project key to get issue types for"
-      }}
+      }},
+      "required": ["project"]
     },
     "description": "Get all available issue types for a specific Jira project"
   },
@@ -1809,10 +1809,6 @@ file_write("output.txt", "content");
     "name": "jira_get_field_custom_code",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "project",
-        "fieldName"
-      ],
       "properties": {
         "project": {
           "type": "string",
@@ -1822,7 +1818,11 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The human-readable field name"
         }
-      }
+      },
+      "required": [
+        "project",
+        "fieldName"
+      ]
     },
     "description": "Get the custom field code for a human friendly field name in a Jira project"
   },
@@ -1830,8 +1830,8 @@ file_write("output.txt", "content");
     "name": "jira_get_issue_link_types",
     "inputSchema": {
       "type": "object",
-      "required": [],
-      "properties": {}
+      "properties": {},
+      "required": []
     },
     "description": "Get all available issue link types/relationships in Jira"
   },
@@ -1839,11 +1839,6 @@ file_write("output.txt", "content");
     "name": "jira_link_issues",
     "inputSchema": {
       "type": "object",
-      "required": [
-        "sourceKey",
-        "anotherKey",
-        "relationship"
-      ],
       "properties": {
         "sourceKey": {
           "type": "string",
@@ -1857,7 +1852,12 @@ file_write("output.txt", "content");
           "type": "string",
           "description": "The target issue key"
         }
-      }
+      },
+      "required": [
+        "sourceKey",
+        "anotherKey",
+        "relationship"
+      ]
     },
     "description": "Link two Jira issues with a specific relationship type"
   }

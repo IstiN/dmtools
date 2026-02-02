@@ -161,6 +161,21 @@ jobs:
 
 ## Configuration
 
+**⚠️ IMPORTANT**: For GitHub Actions, use **GitHub Secrets** instead of `dmtools.env` file. The workflow passes secrets as environment variables.
+
+### Local vs CI/CD Configuration
+
+#### Local Development (dmtools.env)
+```bash
+# dmtools.env - For local CLI usage
+JIRA_EMAIL=user@company.com
+JIRA_API_TOKEN=your-token
+GEMINI_API_KEY=your-key
+```
+
+#### GitHub Actions (GitHub Secrets)
+Secrets are configured in GitHub repository settings and passed as environment variables in the workflow. **Never commit dmtools.env to repository.**
+
 ### 1. Required Secrets
 
 Configure these in **Settings → Secrets and variables → Actions → Repository secrets**:
