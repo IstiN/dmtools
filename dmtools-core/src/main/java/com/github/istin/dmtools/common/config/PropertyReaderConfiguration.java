@@ -450,7 +450,37 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     public double getBedrockTemperature() {
         return propertyReader.getBedrockTemperature();
     }
-    
+
+    @Override
+    public String getOpenAIApiKey() {
+        return propertyReader.getOpenAIApiKey();
+    }
+
+    @Override
+    public String getOpenAIBasePath() {
+        return propertyReader.getOpenAIBasePath();
+    }
+
+    @Override
+    public String getOpenAIModel() {
+        return propertyReader.getOpenAIModel();
+    }
+
+    @Override
+    public int getOpenAIMaxTokens() {
+        return propertyReader.getOpenAIMaxTokens();
+    }
+
+    @Override
+    public double getOpenAITemperature() {
+        return propertyReader.getOpenAITemperature();
+    }
+
+    @Override
+    public String getOpenAIMaxTokensParamName() {
+        return propertyReader.getOpenAIMaxTokensParamName();
+    }
+
     @Override
     public String getDefaultLLM() {
         return propertyReader.getDefaultLLM();

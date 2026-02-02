@@ -54,32 +54,99 @@ public class McpCliHandler {
     /**
      * Ensure client instances are initialized (lazy initialization).
      * Clients are only created when needed for tool execution.
+     * AI clients are created separately on demand via getOrCreateAIClient().
      */
     private void ensureClientInstances() {
         if (clientInstances == null) {
             synchronized (this) {
                 if (clientInstances == null) {
-                    logger.debug("🚀 [PERFORMANCE] Lazy initialization of client instances");
+                    logger.debug("🚀 [PERFORMANCE] Lazy initialization of non-AI client instances");
                     long startTime = System.currentTimeMillis();
-                    this.availableAIClients = createAllAIClients();
+                    // Don't create AI clients here - they're created on demand
+                    ensureAIClientsMap();
                     this.clientInstances = createClientInstances();
                     long duration = System.currentTimeMillis() - startTime;
-                    logger.debug("✅ [PERFORMANCE] Client instances initialized in {}ms ({} clients)", duration, clientInstances.size());
+                    logger.debug("✅ [PERFORMANCE] Non-AI client instances initialized in {}ms ({} clients)", duration, clientInstances.size());
                 }
             }
         }
     }
 
     /**
-     * Ensure AI clients are initialized (lazy initialization).
+     * Ensure AI clients map is initialized (creates empty map, not clients).
      */
-    private void ensureAIClients() {
+    private void ensureAIClientsMap() {
         if (availableAIClients == null) {
             synchronized (this) {
                 if (availableAIClients == null) {
-                    this.availableAIClients = createAllAIClients();
+                    this.availableAIClients = new HashMap<>();
                 }
             }
+        }
+    }
+
+    /**
+     * Get or create a specific AI client by type (true lazy initialization).
+     * Only creates the requested client, not all clients.
+     *
+     * @param clientType Type of AI client (openai, gemini, anthropic, etc.)
+     * @return AI client instance or null if not available
+     */
+    private AI getOrCreateAIClient(String clientType) {
+        ensureAIClientsMap();
+
+        // Return cached client if already created
+        if (availableAIClients.containsKey(clientType)) {
+            return availableAIClients.get(clientType);
+        }
+
+        // Create client on demand
+        synchronized (this) {
+            // Double-check after acquiring lock
+            if (availableAIClients.containsKey(clientType)) {
+                return availableAIClients.get(clientType);
+            }
+
+            logger.debug("🔧 [LAZY] Creating AI client on demand: {}", clientType);
+            long startTime = System.currentTimeMillis();
+
+            ConversationObserver observer = new ConversationObserver();
+            ApplicationConfiguration configuration = new PropertyReaderConfiguration();
+            AI client = null;
+
+            switch (clientType.toLowerCase()) {
+                case "ollama":
+                    client = AIComponentsModule.createOllamaAI(observer, configuration);
+                    break;
+                case "anthropic":
+                    client = AIComponentsModule.createAnthropicAI(observer, configuration);
+                    break;
+                case "gemini":
+                    client = AIComponentsModule.createGeminiAI(observer, configuration);
+                    break;
+                case "bedrock":
+                    client = AIComponentsModule.createBedrockAI(observer, configuration);
+                    break;
+                case "openai":
+                    client = AIComponentsModule.createOpenAIAI(observer, configuration);
+                    break;
+                case "dial":
+                    client = AIComponentsModule.createDialAI(observer, configuration);
+                    break;
+                default:
+                    logger.warn("Unknown AI client type: {}", clientType);
+                    return null;
+            }
+
+            if (client != null) {
+                availableAIClients.put(clientType, client);
+                long duration = System.currentTimeMillis() - startTime;
+                logger.debug("✅ [LAZY] AI client '{}' created in {}ms", clientType, duration);
+            } else {
+                logger.warn("Failed to create AI client: {}", clientType);
+            }
+
+            return client;
         }
     }
 
@@ -450,14 +517,10 @@ public class McpCliHandler {
             logger.warn("Failed to create BasicFigmaClient: {}", e.getMessage());
         }
 
-        // AI clients are created separately and selected based on tool name
-        // See createAllAIClients() and getAIClientForTool()
-        // Put default AI client for tools that don't require specific types
-        if (!availableAIClients.isEmpty()) {
-            AI defaultAI = availableAIClients.values().iterator().next();
-            clients.put("ai", defaultAI);
-            logger.debug("Created default AI client instance: {}", defaultAI.getClass().getSimpleName());
-        }
+        // AI clients are now created on demand via getOrCreateAIClient()
+        // No need to create default AI client here - it will be created when needed
+        // See getAIClientForTool() and handleToolExecutionCommand()
+        logger.debug("AI clients will be created on demand when tools are executed");
 
         try {
             // Create CLI executor
@@ -559,13 +622,20 @@ public class McpCliHandler {
             logger.debug("Created BasicBedrockAI instance");
         }
         
+        // Try to create OpenAI client using AIComponentsModule
+        AI openai = AIComponentsModule.createOpenAIAI(observer, configuration);
+        if (openai != null) {
+            aiClients.put("openai", openai);
+            logger.debug("Created BasicOpenAI instance");
+        }
+
         // Try to create Dial client (fallback) using AIComponentsModule
         AI dial = AIComponentsModule.createDialAI(observer, configuration);
         if (dial != null) {
             aiClients.put("dial", dial);
             logger.debug("Created BasicDialAI instance");
         }
-        
+
         logger.debug("Created {} AI client instances", aiClients.size());
         return aiClients;
     }
@@ -578,26 +648,34 @@ public class McpCliHandler {
         if (toolName == null) {
             return null;
         }
-        
-        ensureAIClients();
 
         String toolLower = toolName.toLowerCase();
         String[] parts = toolLower.split("_");
         if (parts.length > 0) {
             String agentType = parts[0];
 
-            // Check if the agent type is available in our map
-            AI client = availableAIClients.get(agentType);
+            // Try to create/get the specific AI client for this tool
+            // e.g., "openai_ai_chat" -> create OpenAI client only
+            AI client = getOrCreateAIClient(agentType);
             if (client != null) {
                 return client;
             }
         }
 
-        // For other AI tools, return the first available client
-        if (!availableAIClients.isEmpty()) {
-            return availableAIClients.values().iterator().next();
+        // Fallback: try to get or create default client (openai)
+        AI defaultClient = getOrCreateAIClient("openai");
+        if (defaultClient != null) {
+            return defaultClient;
         }
-        
+
+        // Last resort: try other providers
+        for (String providerType : new String[]{"gemini", "anthropic", "ollama", "bedrock", "dial"}) {
+            AI client = getOrCreateAIClient(providerType);
+            if (client != null) {
+                return client;
+            }
+        }
+
         return null;
     }
 

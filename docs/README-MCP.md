@@ -238,7 +238,7 @@ function action(params) {
 | **Confluence** | `confluence_content_by_title()`, `confluence_search_content_by_text()`, `confluence_create_page()` | Page content, search, and management |
 | **Figma** | `figma_get_layers()`, `figma_get_icons()` | Design file analysis |
 | **Teams** | `teams_send_message()`, `teams_get_messages()` | Chat and messaging |
-| **AI** | `gemini_ai_chat()`, `ollama_ai_chat()`, `anthropic_ai_chat()` | AI-powered analysis |
+| **AI** | `gemini_ai_chat()`, `ollama_ai_chat()`, `anthropic_ai_chat()`, `openai_ai_chat()` | AI-powered analysis |
 | **File** | `file_read()`, `file_write()`, `file_validate_json()` | File system operations |
 | **CLI** | `cli_execute_command()` | Execute system commands |
 
@@ -485,8 +485,10 @@ See [JIRA_DUPLICATE_FIELDS_GUIDE.md](JIRA_DUPLICATE_FIELDS_GUIDE.md) for complet
 | `dial_ai_chat_with_files` | `message`, `filePaths` | Send a text message to Dial AI with file attachments |
 | `bedrock_ai_chat` | `message` | Send a text message to AWS Bedrock AI and get response |
 | `bedrock_ai_chat_with_files` | `message`, `filePaths` | Send a text message to AWS Bedrock AI with file attachments |
+| `openai_ai_chat` | `message` | Send a text message to OpenAI and get response |
+| `openai_ai_chat_with_files` | `message`, `filePaths` | Send a text message to OpenAI with file attachments (images for vision models) |
 
-**Note**: AI tools require proper API key configuration to be available. If you don't see these tools in `dmtools list`, ensure the appropriate environment variables are set (OLLAMA_BASE_PATH, ANTHROPIC_API_KEY, GEMINI_API_KEY, DIAL_API_KEY, AWS credentials, etc.).
+**Note**: AI tools require proper API key configuration to be available. If you don't see these tools in `dmtools list`, ensure the appropriate environment variables are set (OLLAMA_BASE_PATH, ANTHROPIC_API_KEY, GEMINI_API_KEY, DIAL_API_KEY, OPENAI_API_KEY, AWS credentials, etc.).
 
 ## 💻 Input Methods
 

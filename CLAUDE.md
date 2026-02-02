@@ -113,8 +113,8 @@ Tool invocation supports: JSON via `--data`, stdin via `--stdin-data`, positiona
 
 #### 3. AI Integration (`com.github.istin.dmtools.ai`)
 - **Interface**: `AI.java` - `chat(model, message)`, supports multi-turn conversations
-- **Providers**: OpenAI, Gemini, Claude, DIAL, Bedrock (AWS)
-- **Configuration**: Runtime provider selection via env vars (OPEN_AI_API_KEY, GEMINI_API_KEY, DIAL_API_KEY)
+- **Providers**: OpenAI, Gemini, Claude, DIAL, Bedrock (AWS), Anthropic, Ollama
+- **Configuration**: Runtime provider selection via env vars (OPENAI_API_KEY, GEMINI_API_KEY, DIAL_API_KEY, ANTHROPIC_API_KEY)
 - **Observer**: `ConversationObserver` pattern for monitoring
 - **Token Counter**: `Claude35TokenCounter` for context management
 
@@ -180,10 +180,23 @@ JIRA_LOGIN_PASS_TOKEN=base64(email:token)
 JIRA_AUTH_TYPE=Bearer
 
 # AI Providers
-OPEN_AI_API_KEY=sk-...
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4-turbo
+OPENAI_BASE_PATH=https://api.openai.com/v1/chat/completions  # Optional
+OPENAI_MAX_TOKENS=4096  # Optional, default: 4096
+OPENAI_TEMPERATURE=0.7  # Optional, default: -1 (don't send, use model default)
+                        # Set to -1 or negative to skip sending temperature parameter
+                        # Some models (o1, o3) don't support custom temperature
+OPENAI_MAX_TOKENS_PARAM_NAME=max_completion_tokens  # Optional, default: "max_completion_tokens"
+                                                     # Use "max_tokens" for older models (gpt-3.5-turbo)
+                                                     # Use empty string to skip sending this parameter
+
 GEMINI_API_KEY=...
 DIAL_API_KEY=...
 DIAL_MODEL=gpt-4
+
+ANTHROPIC_API_KEY=...
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 
 # GitHub/GitLab
 SOURCE_GITHUB_TOKEN=...

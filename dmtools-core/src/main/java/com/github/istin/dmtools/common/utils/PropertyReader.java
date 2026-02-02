@@ -776,6 +776,12 @@ public class PropertyReader {
 	public static final String BEDROCK_SESSION_TOKEN = "BEDROCK_SESSION_TOKEN";
 	public static final String BEDROCK_MAX_TOKENS = "BEDROCK_MAX_TOKENS";
 	public static final String BEDROCK_TEMPERATURE = "BEDROCK_TEMPERATURE";
+	public static final String OPENAI_API_KEY = "OPENAI_API_KEY";
+	public static final String OPENAI_BASE_PATH = "OPENAI_BASE_PATH";
+	public static final String OPENAI_MODEL = "OPENAI_MODEL";
+	public static final String OPENAI_MAX_TOKENS = "OPENAI_MAX_TOKENS";
+	public static final String OPENAI_TEMPERATURE = "OPENAI_TEMPERATURE";
+	public static final String OPENAI_MAX_TOKENS_PARAM_NAME = "OPENAI_MAX_TOKENS_PARAM_NAME";
 	public static final String DEFAULT_LLM = "DEFAULT_LLM";
 	public static final String DEFAULT_TRACKER = "DEFAULT_TRACKER";
 	public static final String IMAGE_MAX_DIMENSION = "IMAGE_MAX_DIMENSION";
@@ -1004,6 +1010,62 @@ public class PropertyReader {
 			logger.warn("Invalid BEDROCK_TEMPERATURE value: {}, using default 1.0", value);
 			return 1.0;
 		}
+	}
+
+	// OpenAI configuration
+	public String getOpenAIApiKey() {
+		return getValue(OPENAI_API_KEY);
+	}
+
+	public String getOpenAIBasePath() {
+		return getValue(OPENAI_BASE_PATH, "https://api.openai.com/v1/chat/completions");
+	}
+
+	public String getOpenAIModel() {
+		return getValue(OPENAI_MODEL);
+	}
+
+	public int getOpenAIMaxTokens() {
+		String value = getValue(OPENAI_MAX_TOKENS);
+		if (value == null || value.trim().isEmpty()) {
+			return 4096; // Default max tokens for OpenAI
+		}
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid OPENAI_MAX_TOKENS value: {}, using default 4096", value);
+			return 4096;
+		}
+	}
+
+	public double getOpenAITemperature() {
+		String value = getValue(OPENAI_TEMPERATURE);
+		if (value == null || value.trim().isEmpty()) {
+			return -1; // Default: don't send temperature (let model use its default)
+		}
+		try {
+			double temperature = Double.parseDouble(value.trim());
+			// Allow negative values as a signal to skip sending temperature parameter
+			// -1 means "don't send temperature, use model default"
+			if (temperature < 0.0) {
+				return temperature; // Return as-is (will be checked in OpenAIClient)
+			}
+			if (temperature > 2.0) {
+				logger.warn("OPENAI_TEMPERATURE value {} exceeds maximum 2.0, using 2.0", value);
+				return 2.0;
+			}
+			return temperature;
+		} catch (NumberFormatException e) {
+			logger.warn("Invalid OPENAI_TEMPERATURE value: {}, using default -1 (skip)", value);
+			return -1;
+		}
+	}
+
+	public String getOpenAIMaxTokensParamName() {
+		// Default to max_completion_tokens for newer models (gpt-4-turbo, gpt-4o, o1-*, etc.)
+		// Use "max_tokens" for older models (gpt-3.5-turbo, gpt-4 base)
+		// Use empty string to skip sending the parameter
+		return getValue(OPENAI_MAX_TOKENS_PARAM_NAME, "max_completion_tokens");
 	}
 
 	public String getDefaultLLM() {

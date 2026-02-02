@@ -4,7 +4,7 @@ package com.github.istin.dmtools.common.config;
  * Main configuration interface that combines all specific configuration interfaces.
  * This is the interface that should be used by most components.
  */
-public interface ApplicationConfiguration extends 
+public interface ApplicationConfiguration extends
     Configuration,
     JiraConfiguration,
     AIConfiguration,
@@ -21,6 +21,7 @@ public interface ApplicationConfiguration extends
     OllamaConfiguration,
     AnthropicConfiguration,
     BedrockConfiguration,
+    OpenAIConfiguration,
     TrackerConfiguration {
     
     /**

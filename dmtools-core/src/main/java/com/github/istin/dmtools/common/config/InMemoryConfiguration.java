@@ -436,7 +436,67 @@ public class InMemoryConfiguration implements ApplicationConfiguration {
             return 1.0;
         }
     }
-    
+
+    // OpenAIConfiguration
+
+    @Override
+    public String getOpenAIApiKey() {
+        return getValue("OPENAI_API_KEY");
+    }
+
+    @Override
+    public String getOpenAIBasePath() {
+        return getValue("OPENAI_BASE_PATH", "https://api.openai.com/v1/chat/completions");
+    }
+
+    @Override
+    public String getOpenAIModel() {
+        return getValue("OPENAI_MODEL");
+    }
+
+    @Override
+    public int getOpenAIMaxTokens() {
+        String value = getValue("OPENAI_MAX_TOKENS");
+        if (value == null || value.trim().isEmpty()) {
+            return 4096;
+        }
+        try {
+            int maxTokens = Integer.parseInt(value.trim());
+            if (maxTokens < 1) {
+                return 4096;
+            }
+            return maxTokens;
+        } catch (NumberFormatException e) {
+            return 4096;
+        }
+    }
+
+    @Override
+    public double getOpenAITemperature() {
+        String value = getValue("OPENAI_TEMPERATURE");
+        if (value == null || value.trim().isEmpty()) {
+            return -1; // Default: don't send temperature
+        }
+        try {
+            double temperature = Double.parseDouble(value.trim());
+            // Allow negative values to skip sending temperature
+            if (temperature < 0.0) {
+                return temperature;
+            }
+            if (temperature > 2.0) {
+                return 2.0;
+            }
+            return temperature;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    @Override
+    public String getOpenAIMaxTokensParamName() {
+        return getValue("OPENAI_MAX_TOKENS_PARAM_NAME", "max_completion_tokens");
+    }
+
     // JSAIConfiguration
     
     @Override

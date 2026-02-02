@@ -6,6 +6,7 @@ import com.github.istin.dmtools.ai.anthropic.BasicAnthropicAI;
 import com.github.istin.dmtools.ai.bedrock.BasicBedrockAI;
 import com.github.istin.dmtools.ai.google.BasicGeminiAI;
 import com.github.istin.dmtools.ai.js.JSAIClient;
+import com.github.istin.dmtools.ai.openai.BasicOpenAI;
 import com.github.istin.dmtools.bridge.DMToolsBridge;
 import com.github.istin.dmtools.common.config.ApplicationConfiguration;
 import com.github.istin.dmtools.common.utils.SecurityUtils;
@@ -49,6 +50,7 @@ public class AIComponentsModule {
         boolean geminiAttempted = false;
         boolean anthropicAttempted = false;
         boolean bedrockAttempted = false;
+        boolean openaiAttempted = false;
         
         // Check if a specific default LLM is configured
         String defaultLLM = configuration.getDefaultLLM();
@@ -124,9 +126,24 @@ public class AIComponentsModule {
                             "Authentication: BEDROCK_BEARER_TOKEN, or (BEDROCK_ACCESS_KEY_ID and BEDROCK_SECRET_ACCESS_KEY), or Default Credentials with BEDROCK_REGION.");
                 }
                 bedrockAttempted = true;
+            } else if ("openai".equalsIgnoreCase(defaultLLM.trim())) {
+                if (isOpenAIConfigured(configuration)) {
+                    try {
+                        logger.debug("Attempting to initialize AI via BasicOpenAI as DEFAULT_LLM=openai...");
+                        AI openai = new BasicOpenAI(observer, configuration);
+                        logger.debug("BasicOpenAI initialized successfully.");
+                        return openai;
+                    } catch (Exception e) {
+                        logger.error("Failed to initialize BasicOpenAI (DEFAULT_LLM=openai): " + e.getMessage());
+                    }
+                } else {
+                    logger.warn("DEFAULT_LLM is set to 'openai' but OpenAI is not properly configured. " +
+                            "Required: OPENAI_API_KEY and OPENAI_MODEL.");
+                }
+                openaiAttempted = true;
             }
         }
-        
+
         // If DEFAULT_LLM is not set or initialization failed, use auto-detection based on available configuration
         // Check for Ollama configuration (skip if already attempted)
         if (!ollamaAttempted) {
@@ -171,7 +188,21 @@ public class AIComponentsModule {
                 }
             }
         }
-        
+
+        // Check for OpenAI configuration (skip if already attempted)
+        if (!openaiAttempted) {
+            if (isOpenAIConfigured(configuration)) {
+                try {
+                    logger.debug("Attempting to initialize AI via BasicOpenAI as OpenAI is configured...");
+                    AI openai = new BasicOpenAI(observer, configuration);
+                    logger.debug("BasicOpenAI initialized successfully.");
+                    return openai;
+                } catch (Exception e) {
+                    logger.error("Failed to initialize BasicOpenAI, trying fallback options. Error: " + e.getMessage());
+                }
+            }
+        }
+
         // 1. Attempt to initialize AI via BasicGeminiAI if GEMINI_API_KEY is configured
         // Skip Gemini if DialAI is explicitly preferred or if Gemini has known issues
         String geminiApiKey = configuration.getGeminiApiKey();
@@ -408,6 +439,45 @@ public class AIComponentsModule {
                 return new BasicBedrockAI(observer, configuration);
             } catch (Exception e) {
                 logger.debug("Failed to create BasicBedrockAI: {}", e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Checks if OpenAI is configured with required API key and model.
+     *
+     * @param configuration The application configuration
+     * @return true if OpenAI is properly configured, false otherwise
+     */
+    private static boolean isOpenAIConfigured(ApplicationConfiguration configuration) {
+        String apiKey = configuration.getOpenAIApiKey();
+        String model = configuration.getOpenAIModel();
+
+        // Check required fields: API key and model
+        if (apiKey == null || apiKey.trim().isEmpty() || apiKey.startsWith("$")) {
+            return false;
+        }
+
+        if (model == null || model.trim().isEmpty() || model.startsWith("$")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Creates an OpenAI client if configuration is available.
+     * @param observer The conversation observer
+     * @param configuration The application configuration
+     * @return OpenAI AI instance or null if not configured
+     */
+    public static AI createOpenAIAI(ConversationObserver observer, ApplicationConfiguration configuration) {
+        if (isOpenAIConfigured(configuration)) {
+            try {
+                return new BasicOpenAI(observer, configuration);
+            } catch (Exception e) {
+                logger.debug("Failed to create BasicOpenAI: {}", e.getMessage());
             }
         }
         return null;
