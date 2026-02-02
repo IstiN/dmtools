@@ -80,26 +80,35 @@ dmtools run agents/config.json        # Run configuration
 
 ## Core Capabilities
 
-### 96+ MCP Tools Available
+### 152+ MCP Tools Available
 
 **Complete Reference**: [references/mcp-tools/README.md](references/mcp-tools/README.md) - Auto-generated from actual DMtools build
 
-Current breakdown:
+Current breakdown (16 integrations):
 - **Jira** (52 tools): Ticket management, search, comments, Xray test management
-- **Teams** (27 tools): Messages, chats, files, transcripts
-- **Figma**: Design extraction, icons, layers, styles
-- **Confluence**: Page management, search, content access
-- **Teams**: Messages, chats, files, transcripts
-- **AI**: Gemini, OpenAI, Claude (Bedrock), DIAL, Ollama
-- **File & CLI**: File operations, command execution
-- **SharePoint, KB, and more**
+- **Teams** (30 tools): Messages, chats, files, transcripts, meetings
+- **Confluence** (17 tools): Page management, search, content access, attachments
+- **ADO** (14 tools): Azure DevOps work items, queries, comments, attachments
+- **Figma** (12 tools): Design extraction, icons, layers, styles, components
+- **AI Providers** (12 tools):
+  - Gemini (2): Chat, multimodal
+  - OpenAI (2): Chat, vision models with files
+  - Anthropic (2): Claude chat
+  - Bedrock (2): AWS Claude
+  - DIAL (2): Enterprise AI
+  - Ollama (2): Local models
+- **Knowledge Base** (5 tools): Document search, indexing, RAG
+- **File** (4 tools): File operations, read/write
+- **Mermaid** (3 tools): Diagram generation
+- **SharePoint** (2 tools): Document management
+- **CLI** (1 tool): Command execution
 
 **Example tools**:
 - `jira_get_ticket`, `jira_search_by_jql`, `jira_xray_create_test`
 - `ado_get_work_item`, `ado_move_to_state`, `ado_add_comment`
 - `figma_get_layers`, `figma_get_icons`, `figma_download_node_image`
 - `teams_send_message`, `teams_messages_since`, `teams_download_file`
-- `gemini_ai_chat`, `openai_ai_chat`, `bedrock_ai_chat`
+- `gemini_ai_chat`, `openai_ai_chat`, `openai_ai_chat_with_files`, `bedrock_ai_chat`
 
 ### JavaScript Agent Pattern
 

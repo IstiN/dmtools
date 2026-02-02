@@ -1,6 +1,6 @@
 # TEAMS MCP Tools
 
-**Total Tools**: 27
+**Total Tools**: 30
 
 ## Quick Reference
 
@@ -25,6 +25,9 @@ const result = teams_recent_chats(...);
 
 | Tool Name | Description | Parameters |
 |-----------|-------------|------------|
+| `teams_auth_complete` | Complete device code authentication after user approval. Polls for tokens and saves refresh token. | None |
+| `teams_auth_start` | Start device code authentication for Microsoft Teams. Returns URL and code for user to authenticate. | None |
+| `teams_auth_status` | Check current Microsoft Teams authentication status and configuration. | None |
 | `teams_chat_by_name_raw` | Find a chat by topic/name or participant name (case-insensitive partial match). Works for group chats and 1-on-1 chats. (returns raw JSON) | `chatName` (string, **required**) |
 | `teams_chats` | List chats showing only chat/contact names, last message (truncated to 100 chars), and date | `limit` (number, optional) |
 | `teams_chats_raw` | List chats for the current user with topic, type, and participant information (returns raw JSON) | `limit` (number, optional) |
@@ -54,6 +57,60 @@ const result = teams_recent_chats(...);
 | `teams_send_myself_message` | Send a message to your personal self chat (notes to yourself) | `content` (string, **required**) |
 
 ## Detailed Parameter Information
+
+### `teams_auth_complete`
+
+Complete device code authentication after user approval. Polls for tokens and saves refresh token.
+
+**Parameters:** None
+
+**Example:**
+```bash
+dmtools teams_auth_complete
+```
+
+```javascript
+// In JavaScript agent
+const result = teams_auth_complete();
+```
+
+---
+
+### `teams_auth_start`
+
+Start device code authentication for Microsoft Teams. Returns URL and code for user to authenticate.
+
+**Parameters:** None
+
+**Example:**
+```bash
+dmtools teams_auth_start
+```
+
+```javascript
+// In JavaScript agent
+const result = teams_auth_start();
+```
+
+---
+
+### `teams_auth_status`
+
+Check current Microsoft Teams authentication status and configuration.
+
+**Parameters:** None
+
+**Example:**
+```bash
+dmtools teams_auth_status
+```
+
+```javascript
+// In JavaScript agent
+const result = teams_auth_status();
+```
+
+---
 
 ### `teams_chat_by_name_raw`
 

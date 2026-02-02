@@ -2,10 +2,10 @@
 
 Complete reference for all MCP tools available in DMtools.
 
-**Total Integrations**: 5
-**Total Tools**: 96
+**Total Integrations**: 16
+**Total Tools**: 152
 
-*Auto-generated from `dmtools list` on: 2026-02-01 21:38:49*
+*Auto-generated from `dmtools list` on: 2026-02-02 09:33:29*
 
 ## Quick Start
 
@@ -24,11 +24,22 @@ dmtools <tool_name> [arguments]
 
 | Integration | Tools | Documentation |
 |-------------|-------|---------------|
+| **ADO** | 14 | [ado-tools.md](ado-tools.md) |
+| **ANTHROPIC** | 2 | [anthropic-tools.md](anthropic-tools.md) |
+| **BEDROCK** | 2 | [bedrock-tools.md](bedrock-tools.md) |
 | **CLI** | 1 | [cli-tools.md](cli-tools.md) |
+| **CONFLUENCE** | 17 | [confluence-tools.md](confluence-tools.md) |
+| **DIAL** | 2 | [dial-tools.md](dial-tools.md) |
 | **FIGMA** | 12 | [figma-tools.md](figma-tools.md) |
 | **FILE** | 4 | [file-tools.md](file-tools.md) |
+| **GEMINI** | 2 | [gemini-tools.md](gemini-tools.md) |
 | **JIRA** | 52 | [jira-tools.md](jira-tools.md) |
-| **TEAMS** | 27 | [teams-tools.md](teams-tools.md) |
+| **KB** | 5 | [kb-tools.md](kb-tools.md) |
+| **MERMAID** | 3 | [mermaid-tools.md](mermaid-tools.md) |
+| **OLLAMA** | 2 | [ollama-tools.md](ollama-tools.md) |
+| **OPENAI** | 2 | [openai-tools.md](openai-tools.md) |
+| **SHAREPOINT** | 2 | [sharepoint-tools.md](sharepoint-tools.md) |
+| **TEAMS** | 30 | [teams-tools.md](teams-tools.md) |
 
 ## Usage in JavaScript Agents
 
@@ -47,18 +58,33 @@ file_write('output.txt', 'content');
 ### Issue Tracking
 
 - [JIRA](jira-tools.md) - 52 tools
+- [ADO](ado-tools.md) - 14 tools
 
 ### Communication
 
-- [TEAMS](teams-tools.md) - 27 tools
+- [TEAMS](teams-tools.md) - 30 tools
 
 ### Design
 
 - [FIGMA](figma-tools.md) - 12 tools
 
+### Documentation
+
+- [CONFLUENCE](confluence-tools.md) - 17 tools
+- [SHAREPOINT](sharepoint-tools.md) - 2 tools
+
+### AI Providers
+
+- [GEMINI](gemini-tools.md) - 2 tools
+- [OPENAI](openai-tools.md) - 2 tools
+- [ANTHROPIC](anthropic-tools.md) - 2 tools
+- [OLLAMA](ollama-tools.md) - 2 tools
+- [BEDROCK](bedrock-tools.md) - 2 tools
+- [DIAL](dial-tools.md) - 2 tools
+
 ### Authentication
 
-- [TEAMS](teams-tools.md) - 27 tools
+- [TEAMS](teams-tools.md) - 30 tools
 
 ### File Operations
 
@@ -67,4 +93,8 @@ file_write('output.txt', 'content');
 ### CLI Operations
 
 - [CLI](cli-tools.md) - 1 tools
+
+### Knowledge Base
+
+- [KB](kb-tools.md) - 5 tools
 
