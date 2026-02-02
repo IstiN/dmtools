@@ -59,6 +59,11 @@ The `"name"` field is a **technical identifier** that maps to a Java class in DM
 - [DiagramsCreator](#diagramscreator) - Generate Mermaid diagrams
 - [InstructionsGenerator](#instructionsgenerator) - Generate implementation instructions
 
+### Productivity Reports
+- [QAProductivityReport](#qaproductivityreport) - QA team productivity metrics
+- [DevProductivityReport](#devproductivityreport) - Development team productivity metrics
+- [BAProductivityReport](#baproductivityreport) - Business Analyst team productivity metrics
+
 ### Project Management
 - [JEstimator](#jestimator) - Estimate story points and effort
 - [ScrumMasterDaily](#scrummasterdaily) - Daily scrum reports
@@ -410,6 +415,309 @@ Expert can gather context from multiple sources using flags from Params:
 2. Optionally searches codebase, Confluence, or tracker for additional context
 3. Processes all context through AI with `systemRequest` and `request`
 4. Returns structured answer based on all gathered information
+
+---
+
+### QAProductivityReport
+
+Generate productivity reports for QA team showing test cases created, bugs found, stories moved to done, and other QA metrics.
+
+**Purpose**: Track QA team productivity over time with metrics like test cases created, bugs reported, stories tested, field changes, and comment activity.
+
+**Usage**:
+```bash
+# Generate QA productivity report
+dmtools QAProductivityReport --start_date "01.01.2026" --inputJql "project = QA"
+
+# Use configuration file
+dmtools run reports/qa_productivity.json
+```
+
+**Configuration** (`reports/qa_productivity.json`):
+
+**IMPORTANT**: The `"name"` field must be exactly `"QAProductivityReport"`. See [JSON Configuration Rules](../configuration/json-config-rules.md).
+
+```json
+{
+  "name": "QAProductivityReport",
+  "params": {
+    "start_date": "01.01.2026",
+    "inputJql": "project = QA AND issuetype in ('Test', Story, Task, Bug) AND (created >= 2026-01-01 OR updated >= 2026-01-01)",
+    "report_name": "qa_team_report",
+    "is_weight": true,
+    "test_cases_project_code": "QA",
+    "bugs_project_code": "QA",
+    "statuses_done": ["Done", "Closed"],
+    "statuses_in_testing": ["In Testing", "Testing"],
+    "statuses_in_development": ["In Progress", "In Review"],
+    "ignore_ticket_prefixes": ["[DRAFT]", "[POC]"],
+    "formula": "reports/qa_productivity_formula.js",
+    "employees": "reports/qa_team.json",
+    "comments_regex": ".*tested.*|.*verified.*"
+  }
+}
+```
+
+**Core Parameters** (from QAProductivityReportParams):
+- `bugs_project_code` - Project code where bugs are created (e.g., "QA", "BUGS")
+- `test_cases_project_code` - Project code where test cases are created (e.g., "QA", "TESTS")
+- `statuses_done` - Array of statuses considered "done" (e.g., ["Done", "Closed"])
+- `statuses_in_testing` - Array of statuses for testing phase (e.g., ["In Testing"])
+- `statuses_in_development` - Array of development statuses (e.g., ["In Progress", "In Review"])
+- `comments_regex` - Regex to filter relevant QA comments (optional)
+
+**Common Parameters** (from ProductivityJobParams):
+- `start_date` - Report start date in format "DD.MM.YYYY" (e.g., "01.01.2026")
+- `end_date` - Report end date (optional, defaults to now)
+- `report_name` - Name for generated report file
+- `is_weight` - Use story points for weighting (default: false)
+- `is_dark_mode` - Generate report in dark mode (default: false)
+- `formula` - Path to JavaScript formula file for custom calculations
+- `employees` - Path to JSON file with employee list
+- `ignore_ticket_prefixes` - Array of prefixes to ignore (e.g., ["[DRAFT]", "[POC]"])
+
+**Inherited from BaseJobParams**:
+- `inputJql` - JQL query to find tickets for analysis
+
+**Metrics Tracked**:
+- Created bugs count
+- Created test cases count
+- Stories moved to Done (by responsible QA)
+- Items moved to Reopened (First Time Right failures)
+- Number of attachments added
+- Number of components assigned
+- Ticket fields changed
+- Test ticket links created
+- Comments written (matching regex)
+- Vacation days
+
+**Output**: HTML report file with metrics grouped by employee and time period (weeks by default).
+
+**Employee File Format** (`reports/qa_team.json`):
+```json
+{
+  "testers": [
+    {
+      "name": "John Doe",
+      "jiraName": "john.doe",
+      "email": "john.doe@company.com"
+    },
+    {
+      "name": "Jane Smith",
+      "jiraName": "jane.smith",
+      "email": "jane.smith@company.com"
+    }
+  ]
+}
+```
+
+**Formula File** (`reports/qa_productivity_formula.js`):
+```javascript
+// Custom productivity calculation
+function calculate(metrics) {
+    var score = 0;
+    score += metrics.created_tests * 3;
+    score += metrics.created_bugs * 2;
+    score += metrics.stories_done * 5;
+    return score;
+}
+```
+
+---
+
+### DevProductivityReport
+
+Generate productivity reports for Development team showing stories/bugs moved to testing, pull requests, code changes, and time spent metrics.
+
+**Purpose**: Track developer productivity with metrics like stories completed, bugs fixed, pull requests, code review activity, and time spent in different statuses.
+
+**Usage**:
+```bash
+# Generate Dev productivity report
+dmtools DevProductivityReport --start_date "01.01.2026" --inputJql "project = DEV"
+
+# Use configuration file
+dmtools run reports/dev_productivity.json
+```
+
+**Configuration** (`reports/dev_productivity.json`):
+
+**IMPORTANT**: The `"name"` field must be exactly `"DevProductivityReport"`. See [JSON Configuration Rules](../configuration/json-config-rules.md).
+
+```json
+{
+  "name": "DevProductivityReport",
+  "params": {
+    "start_date": "01.01.2026",
+    "inputJql": "project = DEV AND issuetype in (Story, Bug, Task) AND (created >= 2026-01-01 OR updated >= 2026-01-01)",
+    "report_name": "dev_team_report",
+    "is_weight": true,
+    "statuses_ready_for_testing": ["Ready for Testing", "Code Review Done"],
+    "statuses_in_testing": ["In Testing", "QA"],
+    "statuses_in_development": ["In Progress", "In Review", "Development"],
+    "initial_status": "To Do",
+    "calc_weight_type": "STORY_POINTS",
+    "time_period_type": "WEEKS",
+    "sources": [
+      {
+        "type": "github",
+        "workspace": "my-org",
+        "repository": "my-repo",
+        "branch": "main"
+      }
+    ],
+    "formula": "reports/dev_productivity_formula.js",
+    "employees": "reports/dev_team.json",
+    "ignore_ticket_prefixes": ["[SPIKE]", "[RESEARCH]"],
+    "comment_regex_responsible": "Implemented by:\\s+(\\w+)"
+  }
+}
+```
+
+**Core Parameters** (from DevProductivityReportParams):
+- `statuses_ready_for_testing` - Statuses when work is ready for QA (e.g., ["Ready for Testing"])
+- `statuses_in_testing` - QA/testing statuses (e.g., ["In Testing", "QA"])
+- `statuses_in_development` - Development work statuses (e.g., ["In Progress", "In Review"])
+- `initial_status` - Starting status for time calculation (e.g., "To Do")
+- `calc_weight_type` - How to calculate weight: `TIME_SPENT` or `STORY_POINTS`
+- `time_period_type` - Report grouping: `WEEKS` or `QUARTERS`
+- `sources` - Array of source code repository configurations (GitHub, GitLab, Bitbucket)
+- `comment_regex_responsible` - Regex to extract responsible developer from comments (optional)
+- `excel_metrics_params` - Additional Excel-based metrics (optional)
+
+**Common Parameters** (from ProductivityJobParams):
+- Same as QAProductivityReport (start_date, report_name, is_weight, formula, employees, etc.)
+
+**Metrics Tracked**:
+- Stories moved to Testing (total and First Time Right)
+- Bugs moved to Testing (total and First Time Right)
+- Time spent on story development (in days)
+- Time spent on bugfixing (in days)
+- Pull requests created
+- Pull request changes (lines added/removed)
+- Pull request comments given (positive and negative)
+- Pull request approvals
+- Vacation days
+
+**Source Configuration** for Pull Request Metrics:
+```json
+"sources": [
+  {
+    "type": "github",
+    "workspace": "my-organization",
+    "repository": "backend-service",
+    "branch": "main",
+    "token": "${SOURCE_GITHUB_TOKEN}"
+  }
+]
+```
+
+**CalcWeightType Options**:
+- `TIME_SPENT` - Weight by actual time spent in development statuses
+- `STORY_POINTS` - Weight by story points from ticket
+
+**TimePeriodType Options**:
+- `WEEKS` - Group metrics by weeks
+- `QUARTERS` - Group metrics by quarters
+
+**Output**: HTML report file with developer metrics grouped by time period, including PR activity if source repositories configured.
+
+---
+
+### BAProductivityReport
+
+Generate productivity reports for Business Analyst team showing features/stories created, tickets moved to done, field changes, and Figma activity.
+
+**Purpose**: Track BA team productivity with metrics like features created, stories written, tickets completed, field updates, and design collaboration (Figma comments).
+
+**Usage**:
+```bash
+# Generate BA productivity report
+dmtools BAProductivityReport --start_date "01.01.2026" --inputJql "project = BA"
+
+# Use configuration file
+dmtools run reports/ba_productivity.json
+```
+
+**Configuration** (`reports/ba_productivity.json`):
+
+**IMPORTANT**: The `"name"` field must be exactly `"BAProductivityReport"`. See [JSON Configuration Rules](../configuration/json-config-rules.md).
+
+```json
+{
+  "name": "BAProductivityReport",
+  "params": {
+    "start_date": "01.01.2026",
+    "inputJql": "project = BA AND issuetype in (Feature, Story, Task) AND (created >= 2026-01-01 OR updated >= 2026-01-01)",
+    "report_name": "ba_team_report",
+    "is_weight": true,
+    "feature_project_code": "BA",
+    "story_project_code": "BA",
+    "statuses_done": ["Done", "Closed", "Resolved"],
+    "statuses_in_progress": ["In Progress", "Analysis", "Review"],
+    "figma_files": [
+      "https://www.figma.com/file/abc123/Product-Design",
+      "https://www.figma.com/file/xyz789/UX-Mockups"
+    ],
+    "formula": "reports/ba_productivity_formula.js",
+    "employees": "reports/ba_team.json",
+    "ignore_ticket_prefixes": ["[TEMPLATE]", "[EXAMPLE]"]
+  }
+}
+```
+
+**Core Parameters** (from BAProductivityReportParams):
+- `feature_project_code` - Project code where features are created (e.g., "BA", "FEATURES")
+- `story_project_code` - Project code where stories are created (e.g., "BA", "STORIES")
+- `statuses_done` - Array of completion statuses (e.g., ["Done", "Closed"])
+- `statuses_in_progress` - Array of work-in-progress statuses (e.g., ["In Progress", "Analysis"])
+- `figma_files` - Array of Figma file URLs to track comment activity (optional)
+
+**Common Parameters** (from ProductivityJobParams):
+- Same as QAProductivityReport (start_date, report_name, is_weight, formula, employees, etc.)
+
+**Metrics Tracked**:
+- Created features count
+- Created stories count
+- Tasks moved to Done (by responsible BA)
+- Items moved to Reopened (First Time Right failures)
+- Number of attachments added
+- Number of components assigned
+- Ticket fields changed
+- Figma comments posted (if figma_files configured)
+- Vacation days
+
+**Figma Integration**:
+When `figma_files` is provided, the report includes comments posted by BAs in Figma design files. Requires `FIGMA_TOKEN` environment variable.
+
+**Output**: HTML report file with BA metrics grouped by employee and time period (weeks).
+
+**Employee File Format** (`reports/ba_team.json`):
+```json
+{
+  "businessAnalysts": [
+    {
+      "name": "Alice Johnson",
+      "jiraName": "alice.johnson",
+      "email": "alice.johnson@company.com",
+      "figmaEmail": "alice.johnson@company.com"
+    },
+    {
+      "name": "Bob Williams",
+      "jiraName": "bob.williams",
+      "email": "bob.williams@company.com",
+      "figmaEmail": "bob.williams@company.com"
+    }
+  ]
+}
+```
+
+**Use Cases**:
+1. **Weekly Team Reports** - Track BA team output week by week
+2. **Sprint Reviews** - Show BA contributions per sprint
+3. **Performance Reviews** - Objective metrics for evaluation
+4. **Capacity Planning** - Understand team throughput
+5. **Process Improvement** - Identify bottlenecks and First Time Right rates
 
 ---
 
