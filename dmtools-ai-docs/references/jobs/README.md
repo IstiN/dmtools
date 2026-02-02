@@ -282,11 +282,20 @@ dmtools Teammate --inputJql "key = PROJ-123"
 ```
 
 **CLI Integration**:
-Teammate can execute CLI commands and include their output in the context:
-- Commands run from project root directory
-- Input context (ticket + params) saved to temp file
-- Output collected and included in AI context or used as final response
-- Clean up happens automatically
+
+**IMPORTANT**: When using CLI agents (Cursor, Claude, Copilot, Gemini CLI), set `skipAIProcessing: true`.
+
+Teammate can execute external CLI agents with full workspace context:
+- **Input folder**: Teammate creates `input/` with ticket context
+- **CLI execution**: Agents (cursor-agent, claude, copilot, etc.) run with full codebase access
+- **Output folder**: CLI agents write results to `output/`
+- **Post-processing**: JavaScript post-actions process `output/` files (create PRs, update tickets, etc.)
+
+**Pattern**: Input context → CLI agent → Output files → Post-action processing
+
+**Use cases**: Code generation, bug fixing, test creation where full workspace context is needed.
+
+**See**: [CLI Integration Guide](../agents/cli-integration.md) for complete examples and patterns.
 
 **Inherited from TrackerParams**:
 - `inputJql` - JQL query to find tickets

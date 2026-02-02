@@ -152,6 +152,7 @@ function action(params) {
 ### Development
 - [JavaScript Agents](references/agents/javascript-agents.md) - GraalJS development with MCP tools
 - [Teammate Configs](references/agents/teammate-configs.md) - JSON-based AI workflows
+- **[CLI Integration](references/agents/cli-integration.md)** - Integrate Cursor, Claude, Copilot, Gemini CLI agents
 - [Test Generation](references/test-generation/xray-manual.md) - Xray test case creation
 
 ### CI/CD Workflows
@@ -226,6 +227,32 @@ function action(params) {
     return { processed: tickets.length };
 }
 ```
+
+### Integrate CLI Agents (Cursor, Claude, Copilot)
+
+**Use Case**: Code generation with full workspace context
+
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "agentParams": {
+      "aiRole": "Senior Software Engineer",
+      "instructions": ["Implement ticket from input/ folder"]
+    },
+    "cliCommands": [
+      "./cicd/scripts/run-cursor-agent.sh \"Read from input/, write to output/\""
+    ],
+    "skipAIProcessing": true,
+    "postJSAction": "agents/js/developTicketAndCreatePR.js",
+    "inputJql": "key = PROJ-123"
+  }
+}
+```
+
+**Pattern**: Teammate prepares context → CLI agent processes → Post-action creates PR
+
+See [CLI Integration Guide](references/agents/cli-integration.md) for complete examples.
 
 ## Best Practices
 
