@@ -69,9 +69,9 @@ jobs:
       - name: Setup Cloud SQL database
         run: |
           # Check if Cloud SQL instance exists
-          if ! gcloud sql instances describe dmtools-sandbox --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
+          if ! gcloud sql instances describe ${{ vars.CLOUD_SQL_INSTANCE_NAME }} --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
             echo "Creating Cloud SQL instance..."
-            gcloud sql instances create dmtools-sandbox \
+            gcloud sql instances create ${{ vars.CLOUD_SQL_INSTANCE_NAME }} \
               --database-version=POSTGRES_17 \
               --tier=db-custom-2-8192 \
               --region=us-central1 \
@@ -87,15 +87,15 @@ jobs:
           fi
           
           # Check if database exists
-          if ! gcloud sql databases describe ${{ secrets.DB_NAME }} --instance=dmtools-sandbox --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
+          if ! gcloud sql databases describe ${{ secrets.DB_NAME }} --instance=${{ vars.CLOUD_SQL_INSTANCE_NAME }} --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
             echo "Creating database..."
-            gcloud sql databases create ${{ secrets.DB_NAME }} --instance=dmtools-sandbox --project=${{ vars.GCP_PROJECT_ID }}
+            gcloud sql databases create ${{ secrets.DB_NAME }} --instance=${{ vars.CLOUD_SQL_INSTANCE_NAME }} --project=${{ vars.GCP_PROJECT_ID }}
           else
             echo "Database already exists"
           fi
           
           # Set up authorized networks for database access
-          gcloud sql instances patch dmtools-sandbox --authorized-networks=0.0.0.0/0 --project=${{ vars.GCP_PROJECT_ID }} || echo "Network authorization already configured"
+          gcloud sql instances patch ${{ vars.CLOUD_SQL_INSTANCE_NAME }} --authorized-networks=0.0.0.0/0 --project=${{ vars.GCP_PROJECT_ID }} || echo "Network authorization already configured"
 
       - name: Configure Docker to use gcloud as credential helper
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
@@ -139,7 +139,7 @@ jobs:
           APP_BASE_URL: "https://ai-native.cloud"
           APP_HOST: "ai-native.cloud"
           APP_PORT: "443"
-          CLOUD_SQL_INSTANCE: "${{ vars.GCP_PROJECT_ID }}:us-central1:dmtools-sandbox"
+          CLOUD_SQL_INSTANCE: ""
           DB_HOST: "${{ secrets.DB_HOST }}"
           DB_PORT: "${{ secrets.DB_PORT }}"
           DB_NAME: "${{ secrets.DB_NAME }}"
