@@ -66,37 +66,6 @@ jobs:
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
-      - name: Setup Cloud SQL database
-        run: |
-          # Check if Cloud SQL instance exists
-          if ! gcloud sql instances describe ${{ vars.CLOUD_SQL_INSTANCE_NAME }} --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
-            echo "Creating Cloud SQL instance..."
-            gcloud sql instances create ${{ vars.CLOUD_SQL_INSTANCE_NAME }} \
-              --database-version=POSTGRES_17 \
-              --tier=db-custom-2-8192 \
-              --region=us-central1 \
-              --storage-type=SSD \
-              --storage-size=10GB \
-              --backup \
-              --backup-start-time=02:00 \
-              --maintenance-window-day=SUN \
-              --maintenance-window-hour=02 \
-              --project=${{ vars.GCP_PROJECT_ID }}
-          else
-            echo "Cloud SQL instance already exists"
-          fi
-          
-          # Check if database exists
-          if ! gcloud sql databases describe ${{ secrets.DB_NAME }} --instance=${{ vars.CLOUD_SQL_INSTANCE_NAME }} --project=${{ vars.GCP_PROJECT_ID }} 2>/dev/null; then
-            echo "Creating database..."
-            gcloud sql databases create ${{ secrets.DB_NAME }} --instance=${{ vars.CLOUD_SQL_INSTANCE_NAME }} --project=${{ vars.GCP_PROJECT_ID }}
-          else
-            echo "Database already exists"
-          fi
-          
-          # Set up authorized networks for database access
-          gcloud sql instances patch ${{ vars.CLOUD_SQL_INSTANCE_NAME }} --authorized-networks=0.0.0.0/0 --project=${{ vars.GCP_PROJECT_ID }} || echo "Network authorization already configured"
-
       - name: Configure Docker to use gcloud as credential helper
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
