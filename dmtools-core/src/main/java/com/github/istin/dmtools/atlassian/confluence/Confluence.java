@@ -175,18 +175,20 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
 
     @MCPTool(
         name = "confluence_search_content_by_text",
-        description = "Search Confluence content by text query using CQL (Confluence Query Language). Returns search results with content excerpts.",
+        description = "Search Confluence content by text query using CQL (Confluence Query Language). Returns search results with content excerpts. Default limit is 20 if not specified.",
         integration = "confluence",
         category = "search"
     )
     public List<SearchResult> searchContentByText(
         @MCPParam(name = "query", description = "Search query text to find in Confluence content", required = true, example = "project documentation")
         String query,
-        @MCPParam(name = "limit", description = "Maximum number of search results to return", required = true, example = "10")
-        int limit
+        @MCPParam(name = "limit", description = "Maximum number of search results to return. Default is 20 if not provided.", required = false, example = "10")
+        Integer limit
     ) throws IOException {
+        // Use default limit of 20 if not specified
+        int actualLimit = (limit != null) ? limit : 20;
         if (graphQLPath != null) {
-            JSONArray results = new ConfluenceGraphQLClient(graphQLPath, authorization).search(query, limit);
+            JSONArray results = new ConfluenceGraphQLClient(graphQLPath, authorization).search(query, actualLimit);
             List<SearchResult> searchResults = new ArrayList<>();
             for (int i = 0; i < results.length(); i++) {
                 JSONObject node = results.getJSONObject(i).getJSONObject("node");
@@ -200,7 +202,7 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         // Design a more comprehensive query
         String cqlQuery = String.format("(title ~ \"%s\" OR text ~ \"%s\") ORDER BY lastModified ASC", query, query);
         search.param("cql", cqlQuery);
-        search.param("limit", String.valueOf(limit));
+        search.param("limit", String.valueOf(actualLimit));
         search.param("expand", "title,body.excerpt,history,space,body.storage"); // Include additional fields
 
 //        GenericRequest searchRequest = new GenericRequest(this, path("content"))
