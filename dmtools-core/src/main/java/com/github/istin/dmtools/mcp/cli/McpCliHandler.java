@@ -651,17 +651,33 @@ public class McpCliHandler {
 
         String toolLower = toolName.toLowerCase();
         String[] parts = toolLower.split("_");
-        if (parts.length > 0) {
-            String agentType = parts[0];
 
-            // Try to create/get the specific AI client for this tool
-            // e.g., "openai_ai_chat" -> create OpenAI client only
-            AI client = getOrCreateAIClient(agentType);
-            if (client != null) {
+        // Provider-specific AI tools (e.g., bedrock_ai_chat, openai_ai_chat)
+        Set<String> knownProviders = new HashSet<>(Arrays.asList(
+            "bedrock", "openai", "gemini", "anthropic", "ollama", "dial"
+        ));
+
+        if (parts.length > 0) {
+            String providerName = parts[0];
+
+            // Check if this is a provider-specific tool
+            if (knownProviders.contains(providerName)) {
+                AI client = getOrCreateAIClient(providerName);
+                if (client == null) {
+                    // Provider-specific tool but provider not configured
+                    String errorMsg = String.format(
+                        "Tool '%s' requires %s provider, but it's not configured. " +
+                        "Please check your credentials in dmtools.env",
+                        toolName, providerName.toUpperCase()
+                    );
+                    logger.error(errorMsg);
+                    throw new IllegalStateException(errorMsg);
+                }
                 return client;
             }
         }
 
+        // Generic AI tools - use fallback logic
         // Fallback: try to get or create default client (openai)
         AI defaultClient = getOrCreateAIClient("openai");
         if (defaultClient != null) {

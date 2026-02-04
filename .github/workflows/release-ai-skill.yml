@@ -1,9 +1,15 @@
 name: Release DMtools AI Skill
 
+# ⚠️ DEPRECATED: This workflow is no longer used.
+# Skills are now released automatically with the main DMTools CLI release.
+# See .github/workflows/release.yml for the unified release process.
+# This workflow is kept for reference only.
+
 on:
-  push:
-    tags:
-      - 'skill-v*'
+  # Automatic tag trigger disabled - unified release.yml now handles skill releases
+  # push:
+  #   tags:
+  #     - 'skill-v*'
   workflow_dispatch:
     inputs:
       version:

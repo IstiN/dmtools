@@ -103,7 +103,7 @@ jobs:
     secrets: inherit
     with:
       version: ${{ needs.version-and-tag.outputs.version }}
-  
+
   # package-standalone:
   #   needs: [version-and-tag, build-and-test]
   #   uses: ./.github/workflows/package-standalone.yml
@@ -111,31 +111,116 @@ jobs:
   #   with:
   #     version: ${{ needs.version-and-tag.outputs.version }}
   #     flutter_release_tag: latest
-  
+
+  # Package AI skill
+  package-skill:
+    needs: [version-and-tag, build-and-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update version in skill metadata
+        run: |
+          VERSION="${{ needs.version-and-tag.outputs.version }}"
+
+          # Update version in SKILL.md metadata
+          if [ -f "dmtools-ai-docs/SKILL.md" ]; then
+            sed -i "s/version: .*/version: $VERSION/" dmtools-ai-docs/SKILL.md
+          fi
+
+      - name: Create skill package
+        run: |
+          VERSION="${{ needs.version-and-tag.outputs.version }}"
+          DIST_DIR="dist"
+          mkdir -p $DIST_DIR
+
+          # Create the skill package
+          echo "📦 Creating DMtools Agent Skill package..."
+          cd dmtools-ai-docs
+
+          # Create ZIP archive (exclude install.sh - it's a separate release asset)
+          zip -r ../$DIST_DIR/dmtools-skill-v${VERSION}.zip . \
+            -x "*.git*" \
+            -x ".DS_Store" \
+            -x "node_modules/*" \
+            -x "*.swp" \
+            -x ".cursorrules" \
+            -x ".github/*" \
+            -x "install.sh"
+
+          # Create tarball for *nix systems (exclude install.sh - it's a separate release asset)
+          tar -czf ../$DIST_DIR/dmtools-skill-v${VERSION}.tar.gz \
+            --exclude='.git*' \
+            --exclude='.DS_Store' \
+            --exclude='node_modules' \
+            --exclude='.cursorrules' \
+            --exclude='.github' \
+            --exclude='install.sh' \
+            .
+
+          cd ..
+
+          # Copy install script
+          cp dmtools-ai-docs/install.sh $DIST_DIR/skill-install.sh
+          chmod +x $DIST_DIR/skill-install.sh
+
+          echo "✅ Skill package created:"
+          ls -lh $DIST_DIR/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.zip *.tar.gz > skill-checksums.sha256
+          cat skill-checksums.sha256
+
+      - name: Upload skill artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-package
+          path: |
+            dist/dmtools-skill-*.zip
+            dist/dmtools-skill-*.tar.gz
+            dist/skill-install.sh
+            dist/skill-checksums.sha256
+          retention-days: 7
+
   # Create unified release with all artifacts
   create-unified-release:
-    needs: [version-and-tag, package-cli]
+    needs: [version-and-tag, package-cli, package-skill]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
       - name: Download CLI Package
         uses: actions/download-artifact@v4
         with:
           name: cli-package
           path: cli/
+
+      - name: Download Skill Package
+        uses: actions/download-artifact@v4
+        with:
+          name: skill-package
+          path: skill/
       
       # - name: Download Standalone Package
       #   uses: actions/download-artifact@v4
       #   with:
       #     name: standalone-package
       #     path: standalone/
-      
+
       - name: List Downloaded Artifacts
         run: |
           echo "CLI artifacts:"
           ls -lhR cli/
+          echo ""
+          echo "Skill artifacts:"
+          ls -lhR skill/
           # echo ""
           # echo "Standalone artifacts:"
           # ls -lhR standalone/
@@ -143,10 +228,14 @@ jobs:
       - name: Generate Release Notes
         run: |
           VERSION="${{ needs.version-and-tag.outputs.version }}"
-          
+
           # Get CLI JAR size
           CLI_JAR_SIZE=$(du -h cli/dmtools-v${VERSION}-all.jar | cut -f1)
-          
+
+          # Get Skill package sizes
+          SKILL_ZIP_SIZE=$(du -h skill/dmtools-skill-v${VERSION}.zip | cut -f1)
+          SKILL_TAR_SIZE=$(du -h skill/dmtools-skill-v${VERSION}.tar.gz | cut -f1)
+
           # Standalone artifacts disabled
           # STANDALONE_JAR_SIZE=$(du -h standalone/dmtools-standalone.jar | cut -f1)
           # STANDALONE_WAR_SIZE=$(du -h standalone/dmtools-standalone.war | cut -f1)
@@ -156,23 +245,28 @@ jobs:
           # API_MACOS_ARM_SIZE=$(du -h standalone/api-bundles/dmtools-server-api-macos-aarch64.zip | cut -f1)
           # API_MACOS_X64_SIZE=$(du -h standalone/api-bundles/dmtools-server-api-macos-x64.zip | cut -f1)
           # API_WINDOWS_X64_SIZE=$(du -h standalone/api-bundles/dmtools-server-api-windows-x64.zip | cut -f1)
-          
+
           cat > release_notes.md << EOF
-          # 🚀 DMTools CLI Release v${VERSION}
-          
-          This release includes the **DMTools CLI** for command-line operations.
-          
+          # 🚀 DMTools Release v${VERSION}
+
+          This release includes the **DMTools CLI** and **Agent Skill** for AI assistants.
+
           ## 📦 What's Included
-          
+
           ### 🖥️ DMTools CLI
           - **Command-line interface** for DMTools operations
           - **Java-based** automation and integration tools
           - **Cross-platform install scripts** for easy setup (\`install\`, \`install.sh\`, \`install.bat\`, \`install.ps1\`)
           - **Wrapper script** (\`dmtools.sh\`)
+
+          ### 🤖 DMTools Agent Skill
+          - **Universal AI assistant skill** for Cursor, Claude, Codex, and other Agent Skills compatible systems
+          - **Complete DMtools documentation** (67+ MCP tools, JavaScript agent development, configuration guides)
+          - **Cross-platform support** (works with all major AI coding assistants)
           
           ## 🎯 Quick Start
 
-          ### Install Latest Version
+          ### Install DMTools CLI
 
           **macOS / Linux / Git Bash:**
           \`\`\`bash
@@ -184,27 +278,38 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
           \`\`\`
 
-          ### Install This Specific Version (v${VERSION})
+          ### Install DMTools Agent Skill
 
-          **macOS / Linux / Git Bash:**
+          **Automatic Installation (Recommended):**
+          \`\`\`bash
+          curl -fsSL https://github.com/IstiN/dmtools/releases/download/v${VERSION}/skill-install.sh | bash
+          \`\`\`
+
+          **Manual Installation:**
+          1. Download \`dmtools-skill-v${VERSION}.zip\` or \`dmtools-skill-v${VERSION}.tar.gz\`
+          2. Extract to one of these directories:
+             - \`.cursor/skills/\` (project-level Cursor)
+             - \`.claude/skills/\` (project-level Claude)
+             - \`~/.cursor/skills/\` (global Cursor)
+             - \`~/.claude/skills/\` (global Claude)
+             - \`~/.codex/skills/\` (global Codex)
+
+          ### Install Specific Version (v${VERSION})
+
+          **DMTools CLI - macOS / Linux / Git Bash:**
           \`\`\`bash
           curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v${VERSION}/install.sh | bash -s v${VERSION}
           \`\`\`
 
-          **Windows (cmd.exe):**
+          **DMTools CLI - Windows (cmd.exe):**
           \`\`\`cmd
           set DMTOOLS_VERSION=v${VERSION} && curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/v${VERSION}/install.bat -o "%TEMP%\dmtools-install.bat" && "%TEMP%\dmtools-install.bat"
           \`\`\`
 
-          **Windows (PowerShell):**
+          **DMTools CLI - Windows (PowerShell):**
           \`\`\`powershell
           \$env:DMTOOLS_VERSION = "v${VERSION}"
           Invoke-RestMethod -Uri "https://raw.githubusercontent.com/IstiN/dmtools/v${VERSION}/install.ps1" | Invoke-Expression
-          \`\`\`
-          
-          **Manual download:**
-          \`\`\`bash
-          # Download dmtools-v${VERSION}-all.jar manually and use dmtools.sh
           \`\`\`
           
           ## 📋 System Requirements
@@ -214,10 +319,12 @@ jobs:
           - **1GB disk space** for application and data
           
           ## 📊 Build Information
-          
+
           - **Version:** v${VERSION}
           - **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
           - **CLI JAR Size:** ${CLI_JAR_SIZE}
+          - **Skill ZIP Size:** ${SKILL_ZIP_SIZE}
+          - **Skill TAR Size:** ${SKILL_TAR_SIZE}
           - **Git Commit:** \`${GITHUB_SHA:0:8}\`
           
           ## 🐛 Troubleshooting
@@ -252,6 +359,10 @@ jobs:
             cli/install.bat
             cli/install.ps1
             cli/dmtools.sh
+            skill/dmtools-skill-v${{ needs.version-and-tag.outputs.version }}.zip
+            skill/dmtools-skill-v${{ needs.version-and-tag.outputs.version }}.tar.gz
+            skill/skill-install.sh
+            skill/skill-checksums.sha256
       
       - name: Summary
         run: |
@@ -270,4 +381,10 @@ jobs:
           echo "- install.ps1 (Windows PowerShell)" >> $GITHUB_STEP_SUMMARY
           echo "- dmtools.sh" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ CLI artifacts compiled, tested, and packaged successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "**Agent Skill:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Skill ZIP (dmtools-skill-v${{ needs.version-and-tag.outputs.version }}.zip)" >> $GITHUB_STEP_SUMMARY
+          echo "- Skill TAR (dmtools-skill-v${{ needs.version-and-tag.outputs.version }}.tar.gz)" >> $GITHUB_STEP_SUMMARY
+          echo "- skill-install.sh (automatic installer)" >> $GITHUB_STEP_SUMMARY
+          echo "- skill-checksums.sha256 (checksums)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All artifacts compiled, tested, and packaged successfully!" >> $GITHUB_STEP_SUMMARY

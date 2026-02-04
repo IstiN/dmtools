@@ -310,6 +310,16 @@ public class AnthropicAIClient extends AbstractRestClient implements AI {
         return content;
     }
 
+    @MCPTool(
+            name = "anthropic_list_models",
+            description = "Get a list of available anthropic foundation models",
+            integration = "ai"
+    )
+    public String getAvailableModels() throws IOException {
+        String models = getBasePath().replace("chat/completions", "models");
+        return new GenericRequest(this, models).execute();
+    }
+
     @Override
     public String chat(String model, Message... messages) throws Exception {
         if (model == null) {
