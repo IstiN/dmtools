@@ -1,21 +1,22 @@
 package com.github.istin.dmtools.graphql;
 
+import com.github.istin.dmtools.atlassian.common.networking.AtlassianRestClient;
 import com.github.istin.dmtools.common.networking.GenericRequest;
-import com.github.istin.dmtools.networking.AbstractRestClient;
-import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import java.io.IOException;
 
-public class GraphQLClient extends AbstractRestClient {
+public class GraphQLClient extends AtlassianRestClient {
     private static final Logger logger = LogManager.getLogger(GraphQLClient.class);
 
     public GraphQLClient(String basePath, String authorization) throws IOException {
         super(basePath, authorization);
         setClearCache(true);
         setCacheGetRequestsEnabled(false);
+        // GraphQL uses Bearer token by default
+        setAuthType("Bearer");
     }
 
     @Override
@@ -23,13 +24,8 @@ public class GraphQLClient extends AbstractRestClient {
         return getBasePath() + "/" + path;
     }
 
-    @Override
-    public Request.Builder sign(Request.Builder builder) {
-        return builder
-                .header("Authorization", authorization)
-                .header("X-Atlassian-Token", "nocheck")
-                .header("Content-Type", "application/json");
-    }
+    // Removed sign() method - inherited from AtlassianRestClient
+    // AtlassianRestClient.sign() adds: "Authorization: {authType} {authorization}"
 
     /**
      * Executes a GraphQL query with variables

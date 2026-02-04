@@ -286,39 +286,39 @@ public class ConfluenceTest {
     }
 
     @Test
-    public void testConvertAuthForGraphQL_BasicToBearer() throws Exception {
+    public void testExtractRawToken_BasicWithPrefix() throws Exception {
         Confluence conf = new Confluence("http://example.com", "auth");
 
         // Access private method using reflection
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("convertAuthForGraphQL", String.class);
+        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
         method.setAccessible(true);
 
-        // Test Basic auth conversion
+        // Test Basic auth with prefix
         String basicAuth = "Basic " + java.util.Base64.getEncoder().encodeToString("user@example.com:mytoken123".getBytes());
         String result = (String) method.invoke(conf, basicAuth);
 
-        assertEquals("Should convert Basic to Bearer with token only", "Bearer mytoken123", result);
+        assertEquals("Should extract token from Basic auth", "mytoken123", result);
     }
 
     @Test
-    public void testConvertAuthForGraphQL_BearerPassthrough() throws Exception {
+    public void testExtractRawToken_BearerWithPrefix() throws Exception {
         Confluence conf = new Confluence("http://example.com", "auth");
 
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("convertAuthForGraphQL", String.class);
+        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
         method.setAccessible(true);
 
-        // Test Bearer token passthrough
+        // Test Bearer token with prefix
         String bearerAuth = "Bearer mytoken123";
         String result = (String) method.invoke(conf, bearerAuth);
 
-        assertEquals("Should keep Bearer token as is", "Bearer mytoken123", result);
+        assertEquals("Should strip Bearer prefix and return raw token", "mytoken123", result);
     }
 
     @Test
-    public void testConvertAuthForGraphQL_NullAuth() throws Exception {
+    public void testExtractRawToken_NullAuth() throws Exception {
         Confluence conf = new Confluence("http://example.com", "auth");
 
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("convertAuthForGraphQL", String.class);
+        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
         method.setAccessible(true);
 
         // Test null auth
@@ -328,33 +328,33 @@ public class ConfluenceTest {
     }
 
     @Test
-    public void testConvertAuthForGraphQL_Base64WithoutPrefix() throws Exception {
+    public void testExtractRawToken_Base64WithoutPrefix() throws Exception {
         // Test PropertyReader format: base64(email:token) WITHOUT "Basic " prefix
         Confluence conf = new Confluence("http://example.com", "auth");
 
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("convertAuthForGraphQL", String.class);
+        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
         method.setAccessible(true);
 
         // PropertyReader returns just base64, no "Basic " prefix
         String base64Only = java.util.Base64.getEncoder().encodeToString("user@example.com:mytoken123".getBytes());
         String result = (String) method.invoke(conf, base64Only);
 
-        assertEquals("Should convert base64 without prefix to Bearer token", "Bearer mytoken123", result);
+        assertEquals("Should extract token from base64 without prefix", "mytoken123", result);
     }
 
     @Test
-    public void testConvertAuthForGraphQL_RawToken() throws Exception {
+    public void testExtractRawToken_RawToken() throws Exception {
         // Test case where auth is already a raw token (not base64)
         Confluence conf = new Confluence("http://example.com", "auth");
 
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("convertAuthForGraphQL", String.class);
+        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
         method.setAccessible(true);
 
         // Raw token (not base64 encoded)
         String rawToken = "myRawToken123";
         String result = (String) method.invoke(conf, rawToken);
 
-        assertEquals("Should treat non-base64 value as raw token", "Bearer myRawToken123", result);
+        assertEquals("Should return raw token as is", "myRawToken123", result);
     }
 
 }

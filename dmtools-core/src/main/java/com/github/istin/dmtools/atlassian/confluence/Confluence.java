@@ -191,10 +191,10 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
         // Try GraphQL API first if path is configured
         if (graphQLPath != null) {
             try {
-                // GraphQL requires Bearer token, not Basic auth
-                // Convert Basic auth to Bearer if needed
-                String graphQLAuth = convertAuthForGraphQL(authorization);
-                JSONArray results = new ConfluenceGraphQLClient(graphQLPath, graphQLAuth).search(query, actualLimit);
+                // GraphQLClient automatically uses Bearer auth type
+                // Extract raw token from authorization (without "Basic " prefix)
+                String rawToken = extractRawToken(authorization);
+                JSONArray results = new ConfluenceGraphQLClient(graphQLPath, rawToken).search(query, actualLimit);
                 List<SearchResult> searchResults = new ArrayList<>();
                 for (int i = 0; i < results.length(); i++) {
                     JSONObject node = results.getJSONObject(i).getJSONObject("node");
@@ -628,34 +628,32 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
     }
 
     /**
-     * Converts REST API authorization to GraphQL format (Bearer token).
-     * GraphQL API requires Bearer token, not Basic auth.
+     * Extracts raw API token from authorization value.
      *
-     * PropertyReader returns authorization WITHOUT "Basic " or "Bearer " prefix:
+     * PropertyReader returns authorization WITHOUT prefix:
      * - For Basic auth: returns base64(email:token)
      * - For Bearer auth: returns just the token
      *
-     * @param authorization Authorization value (may or may not have prefix)
-     * @return GraphQL-compatible authorization header (e.g., "Bearer token")
+     * GraphQLClient will add "Bearer " prefix automatically via setAuthType("Bearer").
+     *
+     * @param authorization Authorization value (base64 credentials or raw token)
+     * @return Raw API token for GraphQL
      */
-    private String convertAuthForGraphQL(String authorization) {
+    private String extractRawToken(String authorization) {
         if (authorization == null) {
             return null;
         }
 
-        logger.debug("Converting auth for GraphQL. Original: {}", authorization.substring(0, Math.min(20, authorization.length())) + "...");
+        logger.debug("Extracting raw token for GraphQL. Input length: {}", authorization.length());
 
-        // If already has Bearer prefix, return as is
-        if (authorization.startsWith("Bearer ")) {
-            logger.debug("Auth already has Bearer prefix, using as is");
-            return authorization;
-        }
-
-        // If has Basic prefix, strip it and process
+        // Strip "Basic " or "Bearer " prefix if present
         String authValue = authorization;
         if (authorization.startsWith("Basic ")) {
             authValue = authorization.substring("Basic ".length());
-            logger.debug("Stripped 'Basic ' prefix from auth");
+            logger.debug("Stripped 'Basic ' prefix");
+        } else if (authorization.startsWith("Bearer ")) {
+            authValue = authorization.substring("Bearer ".length());
+            logger.debug("Stripped 'Bearer ' prefix");
         }
 
         // Try to decode as base64 (email:token format)
@@ -668,21 +666,21 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
             if (colonIndex > 0 && colonIndex < credentials.length() - 1) {
                 String token = credentials.substring(colonIndex + 1);
                 logger.debug("Extracted token from base64 credentials, length: {}", token.length());
-                return "Bearer " + token;
+                return token;
             } else {
                 logger.warn("Decoded credentials don't contain colon separator");
             }
         } catch (IllegalArgumentException e) {
-            // Not valid base64, might already be a raw token
-            logger.debug("Auth value is not base64, treating as raw token");
-            return "Bearer " + authValue;
+            // Not valid base64, already a raw token
+            logger.debug("Auth value is not base64, using as raw token");
+            return authValue;
         } catch (Exception e) {
-            logger.warn("Failed to convert auth to Bearer token for GraphQL: " + e.getMessage());
+            logger.warn("Failed to extract token: " + e.getMessage());
         }
 
-        // Fallback: use original value
-        logger.debug("Using original auth value for GraphQL (fallback will trigger)");
-        return authorization;
+        // Fallback: use as is
+        logger.debug("Using auth value as is");
+        return authValue;
     }
 
     /**
