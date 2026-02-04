@@ -193,8 +193,9 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
             try {
                 // GraphQLClient automatically uses Bearer auth type
                 // Extract raw token from authorization (without "Basic " prefix)
-                String rawToken = extractRawToken(authorization);
-                JSONArray results = new ConfluenceGraphQLClient(graphQLPath, rawToken).search(query, actualLimit);
+                ConfluenceGraphQLClient confluenceGraphQLClient = new ConfluenceGraphQLClient(graphQLPath, authorization);
+                confluenceGraphQLClient.setAuthType(getAuthType());
+                JSONArray results = confluenceGraphQLClient.search(query, actualLimit);
                 List<SearchResult> searchResults = new ArrayList<>();
                 for (int i = 0; i < results.length(); i++) {
                     JSONObject node = results.getJSONObject(i).getJSONObject("node");
@@ -625,62 +626,6 @@ public class Confluence extends AtlassianRestClient implements UriToObject {
 
     protected void setGraphQLPath(String graphQLPath) {
         this.graphQLPath = graphQLPath;
-    }
-
-    /**
-     * Extracts raw API token from authorization value.
-     *
-     * PropertyReader returns authorization WITHOUT prefix:
-     * - For Basic auth: returns base64(email:token)
-     * - For Bearer auth: returns just the token
-     *
-     * GraphQLClient will add "Bearer " prefix automatically via setAuthType("Bearer").
-     *
-     * @param authorization Authorization value (base64 credentials or raw token)
-     * @return Raw API token for GraphQL
-     */
-    private String extractRawToken(String authorization) {
-        if (authorization == null) {
-            return null;
-        }
-
-        logger.debug("Extracting raw token for GraphQL. Input length: {}", authorization.length());
-
-        // Strip "Basic " or "Bearer " prefix if present
-        String authValue = authorization;
-        if (authorization.startsWith("Basic ")) {
-            authValue = authorization.substring("Basic ".length());
-            logger.debug("Stripped 'Basic ' prefix");
-        } else if (authorization.startsWith("Bearer ")) {
-            authValue = authorization.substring("Bearer ".length());
-            logger.debug("Stripped 'Bearer ' prefix");
-        }
-
-        // Try to decode as base64 (email:token format)
-        try {
-            byte[] decodedBytes = java.util.Base64.getDecoder().decode(authValue);
-            String credentials = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
-
-            // Extract token (after the colon)
-            int colonIndex = credentials.indexOf(':');
-            if (colonIndex > 0 && colonIndex < credentials.length() - 1) {
-                String token = credentials.substring(colonIndex + 1);
-                logger.debug("Extracted token from base64 credentials, length: {}", token.length());
-                return token;
-            } else {
-                logger.warn("Decoded credentials don't contain colon separator");
-            }
-        } catch (IllegalArgumentException e) {
-            // Not valid base64, already a raw token
-            logger.debug("Auth value is not base64, using as raw token");
-            return authValue;
-        } catch (Exception e) {
-            logger.warn("Failed to extract token: " + e.getMessage());
-        }
-
-        // Fallback: use as is
-        logger.debug("Using auth value as is");
-        return authValue;
     }
 
     /**

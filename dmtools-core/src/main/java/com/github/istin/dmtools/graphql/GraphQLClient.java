@@ -15,8 +15,6 @@ public class GraphQLClient extends AtlassianRestClient {
         super(basePath, authorization);
         setClearCache(true);
         setCacheGetRequestsEnabled(false);
-        // GraphQL uses Bearer token by default
-        setAuthType("Bearer");
     }
 
     @Override

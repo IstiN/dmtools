@@ -177,8 +177,8 @@ jobs:
 
       - name: Clean up old revisions
         run: |
-          # Get all revisions except the latest one
-          OLD_REVISIONS=$(gcloud run revisions list --service=dmtools --region=us-central1 --project=${{ vars.GCP_PROJECT_ID }} --format="value(metadata.name)" --limit=10 | tail -n +2)
+          # Keep only 2 newest revisions
+          OLD_REVISIONS=$(gcloud run revisions list --service=dmtools --region=us-central1 --project=${{ vars.GCP_PROJECT_ID }} --format="value(metadata.name)" --sort-by="~metadata.creationTimestamp" | tail -n +3)
           
           # Delete old revisions
           for revision in $OLD_REVISIONS; do
@@ -187,6 +187,20 @@ jobs:
               gcloud run revisions delete $revision --region=us-central1 --project=${{ vars.GCP_PROJECT_ID }} --quiet || echo "Failed to delete $revision"
             fi
           done
+
+      - name: Clean up old Docker images
+        run: |
+          # Keep only 2 newest Docker images to save storage costs
+          echo "Cleaning old Docker images (keeping last 2)..."
+          OLD_IMAGES=$(gcloud artifacts docker images list us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/dmtools/dmtools --format="value(version)" --sort-by="~createTime" | tail -n +3)
+          
+          for digest in $OLD_IMAGES; do
+            if [ ! -z "$digest" ]; then
+              echo "Deleting old image: $digest"
+              gcloud artifacts docker images delete "us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/dmtools/dmtools@$digest" --quiet --delete-tags || echo "Failed to delete $digest"
+            fi
+          done
+          echo "Docker image cleanup complete!"
 
       - name: Get deployment URL
         run: |
