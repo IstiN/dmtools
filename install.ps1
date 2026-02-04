@@ -31,31 +31,59 @@ $BIN_DIR = "$INSTALL_DIR\bin"
 $JAR_PATH = "$INSTALL_DIR\dmtools.jar"
 $SCRIPT_PATH = "$BIN_DIR\dmtools.cmd"
 
-# Get latest release version
+# Get latest CLI release version (filters out skill releases)
 function Get-LatestVersion {
-    Write-Progress-Message "Fetching latest release information..."
-    
+    Write-Progress-Message "Fetching latest CLI release information..."
+
     try {
-        $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -TimeoutSec 30
-        $version = $response.tag_name
-        if ($version) {
+        # Get all releases (not just latest) to filter CLI releases
+        $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" -TimeoutSec 30
+
+        # Filter only CLI releases (vX.Y.Z pattern, excluding skill- prefix)
+        # CLI releases have format: v1.7.126, v1.7.125, etc.
+        # Skill releases have format: skill-vskill-v1.0.19, etc.
+        $cliRelease = $response | Where-Object { $_.tag_name -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
+
+        if ($cliRelease) {
+            $version = $cliRelease.tag_name
+            Write-Progress-Message "Found latest CLI release: $version"
             return $version
         }
     } catch {
-        Write-Warn "GitHub API failed, trying alternative method..."
+        Write-Warn "GitHub API failed (all releases), trying latest release..."
     }
-    
+
+    try {
+        # Fallback: try /releases/latest and check if it's a CLI release
+        $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -TimeoutSec 30
+        $version = $response.tag_name
+
+        # Check if it's a CLI release (vX.Y.Z format)
+        if ($version -match '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+            Write-Progress-Message "Found CLI release: $version"
+            return $version
+        } else {
+            Write-Warn "Latest release ($version) is not a CLI release, it might be a skill release."
+        }
+    } catch {
+        Write-Warn "GitHub API failed, trying redirect method..."
+    }
+
     try {
         $response = Invoke-WebRequest -Uri "https://github.com/$REPO/releases/latest" -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue
         $location = $response.Headers.Location
         if ($location -match 'tag/([^/]+)') {
-            return $matches[1]
+            $version = $matches[1]
+            # Check if it's a CLI release
+            if ($version -match '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+                return $version
+            }
         }
     } catch {
         # Ignore redirect errors
     }
-    
-    Write-Error-Message "Failed to get latest version from GitHub. Please check your network connection."
+
+    Write-Error-Message "Failed to find latest CLI release from GitHub. Please check your network connection or manually specify version using `$env:DMTOOLS_VERSION='v1.7.126'"
 }
 
 # Validate downloaded file is not HTML (404 error page)

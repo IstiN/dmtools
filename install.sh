@@ -154,56 +154,63 @@ detect_version() {
     return 1
 }
 
-# Get latest release version
+# Get latest CLI release version (filters out skill releases)
 get_latest_version() {
-    progress "Fetching latest release information..." >&2
+    progress "Fetching latest CLI release information..." >&2
     local version
     local api_response
     local curl_exit_code
-    
-    # Try GitHub API with proper error handling
+
+    # Get all releases (not just latest) to filter CLI releases
+    api_response=$(curl -s --connect-timeout 10 --max-time 30 --fail "https://api.github.com/repos/${REPO}/releases" 2>&1)
+    curl_exit_code=$?
+
+    if [ $curl_exit_code -eq 0 ] && [ -n "$api_response" ]; then
+        # Extract all tag names and filter only CLI releases (vX.Y.Z pattern, excluding skill- prefix)
+        # CLI releases have format: v1.7.126, v1.7.125, etc.
+        # Skill releases have format: skill-vskill-v1.0.19, etc.
+        version=$(echo "$api_response" | grep '"tag_name":' | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+
+        if [ -n "$version" ]; then
+            progress "Found latest CLI release: $version" >&2
+            echo "$version"
+            return 0
+        fi
+    fi
+
+    # If GitHub API failed or no CLI release found, try alternative approach
+    progress "GitHub API failed (exit code: $curl_exit_code) or no CLI release found, trying fallback..." >&2
+
+    # Try to get /releases/latest and check if it's a CLI release
     api_response=$(curl -s --connect-timeout 10 --max-time 30 --fail "https://api.github.com/repos/${REPO}/releases/latest" 2>&1)
     curl_exit_code=$?
-    
+
     if [ $curl_exit_code -eq 0 ] && [ -n "$api_response" ]; then
         version=$(echo "$api_response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | head -1)
-        
-        if [ -n "$version" ]; then
+
+        # Check if it's a CLI release (vX.Y.Z format)
+        if [ -n "$version" ] && echo "$version" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            progress "Found CLI release: $version" >&2
             echo "$version"
             return 0
+        else
+            warn "Latest release ($version) is not a CLI release, it might be a skill release." >&2
         fi
     fi
-    
-    # If GitHub API failed, try alternative approach with redirect
-    progress "GitHub API failed (exit code: $curl_exit_code), trying redirect method..." >&2
-    
-    local redirect_response
-    redirect_response=$(curl -s --connect-timeout 10 --max-time 30 --fail -I "https://github.com/${REPO}/releases/latest" 2>&1)
-    curl_exit_code=$?
-    
-    if [ $curl_exit_code -eq 0 ] && [ -n "$redirect_response" ]; then
-        version=$(echo "$redirect_response" | grep -i "location:" | sed -E 's/.*\/tag\/([^\/\r\n]+).*/\1/' | tr -d '\r\n')
-        
-        if [ -n "$version" ]; then
-            echo "$version"
-            return 0
-        fi
-    fi
-    
+
     # Both methods failed - provide detailed error information
-    error "Failed to get latest version from GitHub API and redirect method.
-    
+    error "Failed to find latest CLI release from GitHub API.
+
 Possible causes:
   - Network connectivity issues
   - GitHub API rate limiting
-  - Repository access issues
+  - No CLI releases available (only skill releases found)
   - curl version incompatibility
 
 Debug information:
   - Last curl exit code: $curl_exit_code
   - API response: ${api_response:-'(empty)'}
-  - Redirect response: ${redirect_response:-'(empty)'}
-  
+
 Please check your network connection and try again.
 If the issue persists, you can manually download from:
 https://github.com/${REPO}/releases/latest"
