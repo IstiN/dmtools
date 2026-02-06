@@ -6,7 +6,7 @@ compatibility:
   - Java 23+
   - macOS, Linux, Windows (WSL)
 metadata:
-  version: skill-v1.0.20
+  version: skill-v1.0.21
   author: DMtools Team
   repository: https://github.com/IstiN/dmtools
   documentation: https://github.com/IstiN/dmtools

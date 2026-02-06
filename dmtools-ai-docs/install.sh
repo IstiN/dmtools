@@ -6,9 +6,11 @@
 #
 # Usage:
 #   curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.129/skill-install.sh | bash
-#   INSTALL_LOCATION=all bash install.sh        # Install to all detected project-level locations
-#   INSTALL_LOCATION=1 bash install.sh          # Install to first detected location
+#   # When piped (non-interactive): installs to ALL detected project-level locations automatically
+#
+#   INSTALL_LOCATION=1 bash install.sh          # Install to first detected location only
 #   bash install.sh --all                       # Install to all detected project-level locations
+#   bash install.sh                             # Interactive mode: ask user to choose
 
 set -e
 
@@ -31,12 +33,20 @@ for arg in "$@"; do
             echo "  --help, -h    Show this help message"
             echo ""
             echo "Environment Variables:"
-            echo "  INSTALL_LOCATION  Set to 'all' or number (1,2,3...) to auto-select location"
+            echo "  INSTALL_LOCATION  Set to number (1,2,3...) to select specific location"
             echo ""
             echo "Examples:"
             echo "  curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.129/skill-install.sh | bash"
-            echo "  INSTALL_LOCATION=all bash install.sh"
+            echo "    → Non-interactive mode: installs to ALL detected locations automatically"
+            echo ""
+            echo "  bash install.sh"
+            echo "    → Interactive mode: shows menu to choose location"
+            echo ""
             echo "  INSTALL_LOCATION=1 bash install.sh"
+            echo "    → Install to first location only"
+            echo ""
+            echo "  bash install.sh --all"
+            echo "    → Install to all locations"
             echo ""
             echo "Note: Installs only to project-level directories (.cursor/skills, .claude/skills, .codex/skills)"
             echo "      Run this command from your project root directory."
@@ -234,9 +244,9 @@ main() {
             # Use environment variable
             CHOICE="${INSTALL_LOCATION}"
         elif [ ! -t 0 ]; then
-            # Non-interactive (piped input) - default to first location
-            print_info "Non-interactive mode detected, installing to first location"
-            CHOICE="1"
+            # Non-interactive (piped input) - install to all locations
+            print_info "Non-interactive mode detected, installing to all detected locations"
+            CHOICE="all"
         else
             # Interactive mode - ask user
             echo "Where would you like to install? (Enter number or 'all' for all locations)" >&2
@@ -319,7 +329,11 @@ case "${1:-install}" in
         echo "The installer will:"
         echo "  1. Detect project-level skill directories (.cursor, .claude, .codex)"
         echo "  2. Download the latest DMtools skill"
-        echo "  3. Install to your chosen location(s) in the current project"
+        echo "  3. Install to ALL detected locations (when piped) or ask you to choose"
+        echo ""
+        echo "Behavior:"
+        echo "  - Piped (curl | bash): Installs to ALL detected locations automatically"
+        echo "  - Interactive: Shows menu to choose specific location(s)"
         echo ""
         echo "Note: This installer only works with project-level directories."
         echo "      Run from your project root directory."

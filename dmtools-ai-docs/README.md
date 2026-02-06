@@ -6,7 +6,7 @@ Universal AI assistant skill for DMtools - works with Cursor, Claude, Codex, and
 
 **IMPORTANT**: This installer works with **project-level directories only**. Run it from your project root directory.
 
-### Interactive Installation
+### One-Command Installation (Recommended)
 
 ```bash
 # Run from your project root directory
@@ -16,25 +16,35 @@ curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.129/skill-ins
 The installer will:
 1. Detect project-level skill directories (.cursor/skills, .claude/skills, .codex/skills)
 2. Download the latest DMtools skill
-3. Let you choose where to install (or auto-select in non-interactive mode)
+3. **Automatically install to ALL detected locations** (when piped)
 4. Install only in your current project (no global installation)
 
-### Non-Interactive Installation
+**Example output:**
+```
+Found skill directories:
+  1. .cursor/skills
+  2. .claude/skills
 
-For CI/CD, automation, or scripting:
+Non-interactive mode detected, installing to all detected locations
+✓ Installed to .cursor/skills/dmtools
+✓ Installed to .claude/skills/dmtools
+```
+
+### Advanced Installation Options
 
 ```bash
-# Auto-install to first detected project-level location
-curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.129/skill-install.sh | bash
+# Interactive mode: choose specific location
+bash install.sh
 
-# Install to all detected project-level locations
-curl -fsSL https://github.com/IstiN/dmtools/releases/download/v1.7.129/skill-install.sh | INSTALL_LOCATION=all bash
+# Install to specific location only
+INSTALL_LOCATION=1 bash install.sh    # First location (.cursor)
+INSTALL_LOCATION=2 bash install.sh    # Second location (.claude)
 
-# With downloaded script
-INSTALL_LOCATION=all bash install.sh  # All project-level locations
-INSTALL_LOCATION=1 bash install.sh    # First project-level location
-bash install.sh --all                 # All project-level locations (flag)
-bash install.sh --help                # Show help
+# Install to all locations (explicit)
+bash install.sh --all
+
+# Show help
+bash install.sh --help
 ```
 
 ## 📦 Manual Installation

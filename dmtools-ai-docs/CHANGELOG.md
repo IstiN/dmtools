@@ -1,3 +1,15 @@
+## [skill-v1.0.21] - 2026-02-06
+
+### Fixed
+- **Installer now installs to ALL detected locations in non-interactive mode** (fixes issue where only .cursor was installed when both .cursor and .claude existed)
+- Changed default behavior: `curl | bash` now installs to all detected project-level directories automatically
+- Users no longer need to use `INSTALL_LOCATION=all` when piping the installer
+- Interactive mode still allows choosing specific location
+
+### Changed
+- Updated installer documentation to reflect new automatic multi-location installation behavior
+- Clarified usage examples in README and help messages
+
 ## [skill-v1.0.20] - 2026-02-06
 
 ### Added
