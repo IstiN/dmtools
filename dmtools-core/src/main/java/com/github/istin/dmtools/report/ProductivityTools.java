@@ -29,6 +29,23 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+/**
+ * @deprecated Use {@link com.github.istin.dmtools.reporting.ReportGenerator} instead.
+ * This class will be removed in version 3.0.
+ *
+ * <p>ProductivityTools is being replaced by a new JSON-configurable reporting system
+ * that provides:
+ * <ul>
+ *   <li>Multiple data sources (tracker, pull requests, commits, etc.)</li>
+ *   <li>JavaScript custom metrics alongside Java metrics</li>
+ *   <li>Parallel execution for better performance</li>
+ *   <li>Structured JSON output for easy integration</li>
+ *   <li>Flexible time grouping options</li>
+ * </ul>
+ *
+ * <p>See package {@link com.github.istin.dmtools.reporting} for the new API.
+ */
+@Deprecated(since = "2.0", forRemoval = true)
 public class ProductivityTools {
     private static final Logger logger = LogManager.getLogger(ProductivityTools.class);
     public static final String REPORT_NAME = "Dev Productivity";

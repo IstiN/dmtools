@@ -67,6 +67,10 @@ public class Metric {
         return sourceCollector;
     }
 
+    public boolean isPersonalized() {
+        return isPersonalized;
+    }
+
     public void perform(Map<String, Map<String, List<KeyTime>>> metricAndMap, Set<String> combinedPeople) throws Exception {
         List<KeyTime> keyTimes = getSourceCollector().performSourceCollection(isPersonalized, getName());
         for (KeyTime keyTime : keyTimes) {

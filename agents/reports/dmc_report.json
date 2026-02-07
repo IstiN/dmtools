@@ -1,0 +1,147 @@
+{
+  "name": "ReportGenerator",
+  "params": {
+    "reportName": "DMC Report 2025",
+    "startDate": "2025-01-01",
+    "dataSources": [
+      {
+        "name": "tracker",
+        "params": {
+          "jql": "project = DMC AND issueType in (Story, Task) and status in (Done)"
+        },
+        "metrics": [
+          {
+            "name": "TicketMovedToStatusRule",
+            "params": {
+              "statuses": ["Done"],
+              "label": "Accepted Tickets",
+              "isWeight": true
+            }
+          },
+          {
+            "name": "TicketMovedToStatusRule",
+            "params": {
+              "statuses": ["In Review"],
+              "label": "Task Completed",
+              "isWeight": true
+            }
+          },
+          {
+            "name": "TicketCreatorsRule",
+            "params": {
+              "label": "Task Created",
+              "isWeight": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "tracker",
+        "params": {
+          "jql": "project = DMC AND status in (Done) and issueType in (subtask) and (labels in (q) or summary ~ \"\\\\[Q\\\\]\")"
+        },
+        "metrics": [
+          {
+            "name": "TicketCreatorsRule",
+            "params": {
+              "label": "Questions Created",
+              "isWeight": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "tracker",
+        "params": {
+          "jql": "project = DMC AND status in (Irrelevant) and issueType in (subtask) and (labels in (q) or summary ~ \"\\\\[Q\\\\]\")"
+        },
+        "metrics": [
+          {
+            "name": "TicketCreatorsRule",
+            "params": {
+              "label": "Irrelevant Questions",
+              "isWeight": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "tracker",
+        "params": {
+          "jql": "project = DMC AND status in (Done) and issueType in (subtask) and (labels in (sd_core, sd_api, sd_ui, sd) or summary ~ \"\\\\[SD CORE\\\\]\" or summary ~ \"\\\\[SD API\\\\]\" or summary ~ \"\\\\[SD UI\\\\]\" or summary ~ \"\\\\[SD\\\\]\")"
+        },
+        "metrics": [
+          {
+            "name": "TicketMovedToStatusRule",
+            "params": {
+              "statuses": ["In Review"],
+              "label": "Solution Completed",
+              "isWeight": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "tracker",
+        "params": {
+          "jql": "project = DMC AND status in (Done) and issueType in (subtask) and (labels in (core, api, ui) or summary ~ \"\\\\[CORE\\\\]\" or summary ~ \"\\\\[API\\\\]\" or summary ~ \"\\\\[UI\\\\]\") and (summary !~ \"\\\\[Q\\\\]\" and summary !~ \"\\\\[SD CORE\\\\]\" and summary !~ \"\\\\[SD API\\\\]\" and summary !~ \"\\\\[SD UI\\\\]\")"
+        },
+        "metrics": [
+          {
+            "name": "TicketMovedToStatusRule",
+            "params": {
+              "statuses": ["In Review"],
+              "label": "Dev Completed",
+              "isWeight": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "tracker",
+        "params": {
+          "jql": "project = DMC AND issueType in (Bug)"
+        },
+        "metrics": [
+          {
+            "name": "TicketCreatorsRule",
+            "params": {
+              "label": "Bugs Created",
+              "isWeight": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "tracker",
+        "params": {
+          "jql": "project = DMC AND issueType in ('Test Case')"
+        },
+        "metrics": [
+          {
+            "name": "TicketCreatorsRule",
+            "params": {
+              "label": "Test Cases",
+              "isWeight": true
+            }
+          }
+        ]
+      }
+    ],
+    "timeGrouping": [
+      {"type": "daily"},
+      {"type": "weekly"},
+      {"type": "bi-weekly"},
+      {"type": "monthly"},
+      {"type": "yearly"}
+    ],
+    "aggregation": {
+      "formula": "${Completed Tickets}"
+    },
+    "output": {
+      "mode": "combined",
+      "saveRawMetadata": true,
+      "outputPath": "agents/reports/output"
+    }
+  }
+}
