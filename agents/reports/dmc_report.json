@@ -3,6 +3,14 @@
   "params": {
     "reportName": "DMC Report 2025",
     "startDate": "2025-01-01",
+    "employees": [
+      "Uladzimir Klyshevich",
+      "AI Teammate"
+    ],
+    "aliases": {
+      "Uladzimir Klyshevich": ["IstiN", "uladzimir-klyshevich-epam"],
+      "AI Teammate": ["ai-teammate"]
+    },
     "dataSources": [
       {
         "name": "tracker",
@@ -123,6 +131,104 @@
             "params": {
               "label": "Test Cases",
               "isWeight": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "pullRequests",
+        "params": {
+          "sourceType": "github",
+          "workspace": "IstiN",
+          "repository": "dmtools",
+          "since": "2025-01-01",
+          "branch": "main"
+        },
+        "metrics": [
+          {
+            "name": "PullRequestsMetricSource",
+            "params": {
+              "label": "Pull Requests Merged",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "LinesOfCodeMetricSource",
+            "params": {
+              "label": "Lines Of Code (K)",
+              "isWeight": true,
+              "isPersonalized": true,
+              "divider": 1000
+            }
+          }
+        ]
+      },
+      {
+        "name": "commits",
+        "params": {
+          "sourceType": "github",
+          "workspace": "IstiN",
+          "repository": "dmtools",
+          "since": "2025-01-01",
+          "branch": "main"
+        },
+        "metrics": [
+          {
+            "name": "CommitsMetricSource",
+            "params": {
+              "label": "Commits",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "pullRequests",
+        "params": {
+          "sourceType": "github",
+          "workspace": "IstiN",
+          "repository": "dmtools-flutter",
+          "since": "2025-01-01",
+          "branch": "main"
+        },
+        "metrics": [
+          {
+            "name": "PullRequestsMetricSource",
+            "params": {
+              "label": "Pull Requests Merged",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "LinesOfCodeMetricSource",
+            "params": {
+              "label": "Lines Of Code (K)",
+              "isWeight": true,
+              "isPersonalized": true,
+              "divider": 1000
+            }
+          }
+        ]
+      },
+      {
+        "name": "commits",
+        "params": {
+          "sourceType": "github",
+          "workspace": "IstiN",
+          "repository": "dmtools-flutter",
+          "since": "2025-01-01",
+          "branch": "main"
+        },
+        "metrics": [
+          {
+            "name": "CommitsMetricSource",
+            "params": {
+              "label": "Commits",
+              "isWeight": false,
+              "isPersonalized": true
             }
           }
         ]
