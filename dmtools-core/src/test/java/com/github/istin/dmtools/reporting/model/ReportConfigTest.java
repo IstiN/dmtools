@@ -364,4 +364,84 @@ class ReportConfigTest {
         assertTrue(config.isMultiGrouping());
         assertEquals("weekly", config.getTimeGrouping().getType());
     }
+
+    @Test
+    void testDeserializeCustomCharts() throws Exception {
+        String json = "{\n" +
+            "  \"reportName\": \"Custom Charts Test\",\n" +
+            "  \"startDate\": \"2025-01-01\",\n" +
+            "  \"endDate\": \"2025-12-31\",\n" +
+            "  \"dataSources\": [],\n" +
+            "  \"timeGrouping\": {\"type\": \"monthly\"},\n" +
+            "  \"customCharts\": [\n" +
+            "    {\n" +
+            "      \"title\": \"Questions Quality\",\n" +
+            "      \"type\": \"ratio\",\n" +
+            "      \"metrics\": [\"Questions Created\", \"Irrelevant Questions\"]\n" +
+            "    },\n" +
+            "    {\n" +
+            "      \"title\": \"Dev vs QA Output\",\n" +
+            "      \"type\": \"comparison\",\n" +
+            "      \"metrics\": [\"Dev Completed\", \"Test Cases\", \"Bugs Created\"]\n" +
+            "    }\n" +
+            "  ]\n" +
+            "}";
+
+        ObjectMapper mapper = new ObjectMapper();
+        ReportConfig config = mapper.readValue(json, ReportConfig.class);
+
+        assertNotNull(config);
+        assertNotNull(config.getCustomCharts());
+        assertEquals(2, config.getCustomCharts().size());
+
+        CustomChartConfig chart1 = config.getCustomCharts().get(0);
+        assertEquals("Questions Quality", chart1.getTitle());
+        assertEquals("ratio", chart1.getType());
+        assertEquals(2, chart1.getMetrics().size());
+        assertEquals("Questions Created", chart1.getMetrics().get(0));
+        assertEquals("Irrelevant Questions", chart1.getMetrics().get(1));
+
+        CustomChartConfig chart2 = config.getCustomCharts().get(1);
+        assertEquals("Dev vs QA Output", chart2.getTitle());
+        assertEquals("comparison", chart2.getType());
+        assertEquals(3, chart2.getMetrics().size());
+    }
+
+    @Test
+    void testDeserializeWithoutCustomCharts_backwardCompat() throws Exception {
+        String json = "{\n" +
+            "  \"reportName\": \"No Custom Charts\",\n" +
+            "  \"startDate\": \"2025-01-01\",\n" +
+            "  \"endDate\": \"2025-12-31\",\n" +
+            "  \"dataSources\": [],\n" +
+            "  \"timeGrouping\": {\"type\": \"monthly\"}\n" +
+            "}";
+
+        ObjectMapper mapper = new ObjectMapper();
+        ReportConfig config = mapper.readValue(json, ReportConfig.class);
+
+        assertNotNull(config);
+        assertNull(config.getCustomCharts());
+    }
+
+    @Test
+    void testCustomChartConfig_programmatic() {
+        CustomChartConfig chartConfig = new CustomChartConfig();
+        chartConfig.setTitle("Test Chart");
+        chartConfig.setType("ratio");
+        chartConfig.setMetrics(Arrays.asList("Metric A", "Metric B"));
+
+        assertEquals("Test Chart", chartConfig.getTitle());
+        assertEquals("ratio", chartConfig.getType());
+        assertEquals(2, chartConfig.getMetrics().size());
+    }
+
+    @Test
+    void testCustomChartConfig_constructor() {
+        CustomChartConfig chartConfig = new CustomChartConfig("My Chart", "comparison", Arrays.asList("M1", "M2", "M3"));
+
+        assertEquals("My Chart", chartConfig.getTitle());
+        assertEquals("comparison", chartConfig.getType());
+        assertEquals(3, chartConfig.getMetrics().size());
+    }
 }

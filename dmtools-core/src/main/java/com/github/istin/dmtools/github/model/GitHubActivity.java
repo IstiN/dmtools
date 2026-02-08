@@ -45,32 +45,41 @@ public class GitHubActivity extends JSONModel implements IActivity {
 
     @Override
     public IComment getComment() {
-        return new IComment() {
-            @Override
-            public IUser getAuthor() {
-                return getModel(GitHubUser.class, "user");
-            }
+        String body = getString("body");
+        // Return comment only when there's actual content (non-empty body)
+        // A review with state COMMENTED but empty body is just a container for inline comments
+        if (body != null && !body.trim().isEmpty()) {
+            return new IComment() {
+                @Override
+                public IUser getAuthor() {
+                    return getModel(GitHubUser.class, "user");
+                }
 
-            @Override
-            public String getBody() {
-                return getString("body");
-            }
+                @Override
+                public String getBody() {
+                    return getString("body");
+                }
 
-            @Override
-            public String getId() {
-                return String.valueOf(getLong("id"));
-            }
+                @Override
+                public String getId() {
+                    return String.valueOf(getLong("id"));
+                }
 
-            @Override
-            public Date getCreated() {
-                return null;
-            }
+                @Override
+                public Date getCreated() {
+                    return null;
+                }
 
-        };
+            };
+        }
+        return null;
     }
 
     @Override
     public IUser getApproval() {
-        return getModel(GitHubUser.class, "user");
+        if ("APPROVED".equals(getAction())) {
+            return getModel(GitHubUser.class, "user");
+        }
+        return null;
     }
 }

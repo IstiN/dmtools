@@ -2,6 +2,7 @@ package com.github.istin.dmtools.reporting.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class ReportOutput {
     private String reportName;
@@ -11,7 +12,9 @@ public class ReportOutput {
     private List<TimePeriodResult> timePeriods;
     private AggregatedResult aggregated;
     private List<String> weightMetrics;
-    
+    private Map<String, String> linkTemplates;
+    private List<CustomChartConfig> customCharts;
+
     public ReportOutput() {}
     public ReportOutput(String reportName, String generatedAt, String startDate, String endDate,
                         List<TimePeriodResult> timePeriods, AggregatedResult aggregated) {
@@ -34,4 +37,8 @@ public class ReportOutput {
     public void setAggregated(AggregatedResult aggregated) { this.aggregated = aggregated; }
     public List<String> getWeightMetrics() { return weightMetrics; }
     public void setWeightMetrics(List<String> weightMetrics) { this.weightMetrics = weightMetrics; }
+    public Map<String, String> getLinkTemplates() { return linkTemplates; }
+    public void setLinkTemplates(Map<String, String> linkTemplates) { this.linkTemplates = linkTemplates; }
+    public List<CustomChartConfig> getCustomCharts() { return customCharts; }
+    public void setCustomCharts(List<CustomChartConfig> customCharts) { this.customCharts = customCharts; }
 }

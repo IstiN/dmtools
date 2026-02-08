@@ -32,6 +32,7 @@ public class ReportGenerator {
     private final SourceCode sourceCode;
     private final Set<String> weightMetricLabels = new HashSet<>();
     private final Map<String, Double> metricDividers = new HashMap<>();
+    private final Map<String, String> metricLinkTemplates = new HashMap<>();
 
     public ReportGenerator(TrackerClient trackerClient, SourceCode sourceCode) {
         this.trackerClient = trackerClient;
@@ -60,7 +61,7 @@ public class ReportGenerator {
 
         // Initialize factories
         DataSourceFactory dataSourceFactory = new DataSourceFactory();
-        MetricFactory metricFactory = new MetricFactory(trackerClient, sourceCode, employees);
+        MetricFactory metricFactory = new MetricFactory(trackerClient, sourceCode, employees, config.getStartDate());
 
         // 1. Collect data ONCE (expensive: API calls)
         Map<String, Map<String, DataSourceResult>> dataBySourceAndMetric =
@@ -101,6 +102,12 @@ public class ReportGenerator {
             );
             if (!weightMetricLabels.isEmpty()) {
                 output.setWeightMetrics(new ArrayList<>(weightMetricLabels));
+            }
+            if (!metricLinkTemplates.isEmpty()) {
+                output.setLinkTemplates(new HashMap<>(metricLinkTemplates));
+            }
+            if (config.getCustomCharts() != null && !config.getCustomCharts().isEmpty()) {
+                output.setCustomCharts(config.getCustomCharts());
             }
 
             // Write output with grouping suffix
@@ -173,6 +180,12 @@ public class ReportGenerator {
                 }
                 if (metric.getDivider() != 1.0) {
                     metricDividers.put(metricLabel, metric.getDivider());
+                }
+
+                // Build link template from data source params
+                String linkTemplate = buildLinkTemplate(sourceConfig.getName(), sourceConfig.getParams());
+                if (linkTemplate != null) {
+                    metricLinkTemplates.put(metricLabel, linkTemplate);
                 }
             }
 
@@ -696,6 +709,34 @@ public class ReportGenerator {
         logger.info("Report saved to: {}", path);
 
         return path;
+    }
+
+    private String buildLinkTemplate(String dataSourceType, Map<String, Object> params) {
+        if (params == null) return null;
+        String sourceType = (String) params.getOrDefault("sourceType", "");
+        String workspace = (String) params.get("workspace");
+        String repository = (String) params.get("repository");
+
+        if ("pullRequests".equals(dataSourceType) && workspace != null && repository != null) {
+            String base = getSourceCodeBaseUrl(sourceType, workspace, repository);
+            return base + "/pull/{key}";
+        } else if ("commits".equals(dataSourceType) && workspace != null && repository != null) {
+            String base = getSourceCodeBaseUrl(sourceType, workspace, repository);
+            return base + "/commit/{key}";
+        }
+        // For tracker data sources, use default tracker link (handled in FTL)
+        return null;
+    }
+
+    private String getSourceCodeBaseUrl(String sourceType, String workspace, String repository) {
+        if ("github".equalsIgnoreCase(sourceType)) {
+            return "https://github.com/" + workspace + "/" + repository;
+        } else if ("gitlab".equalsIgnoreCase(sourceType)) {
+            return "https://gitlab.com/" + workspace + "/" + repository;
+        } else if ("bitbucket".equalsIgnoreCase(sourceType)) {
+            return "https://bitbucket.org/" + workspace + "/" + repository;
+        }
+        return "https://github.com/" + workspace + "/" + repository;
     }
 
     /**

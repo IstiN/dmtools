@@ -7,16 +7,24 @@ import java.util.*;
 /**
  * Lightweight IEmployees implementation configured from report JSON config.
  * Supports inline employee list and aliases without external JSON files.
+ *
+ * Behavior:
+ * - employees provided: only listed names are tracked, others become "Unknown"
+ * - employees empty/null but aliases provided: all names are shown, aliases are grouped
+ * - both empty: all names shown as-is
  */
 public class ReportEmployees implements IEmployees {
 
     private final Set<String> employeeNames = new HashSet<>();
-    private final Map<String, List<String>> aliases = new HashMap<>();
-    // Reverse map: alias -> primary name (for fast lookup)
+    // Reverse map: alias (lowercase) -> primary name
     private final Map<String, String> aliasToName = new HashMap<>();
+    // true when the user explicitly provided an employees list
+    private final boolean hasExplicitEmployees;
 
     public ReportEmployees(List<String> employees, Map<String, List<String>> aliases) {
-        if (employees != null) {
+        hasExplicitEmployees = employees != null && !employees.isEmpty();
+
+        if (hasExplicitEmployees) {
             for (String name : employees) {
                 employeeNames.add(name.toLowerCase());
             }
@@ -25,11 +33,14 @@ public class ReportEmployees implements IEmployees {
             for (Map.Entry<String, List<String>> entry : aliases.entrySet()) {
                 String primaryName = entry.getKey();
                 List<String> aliasList = entry.getValue();
-                this.aliases.put(primaryName, aliasList);
-                employeeNames.add(primaryName.toLowerCase());
+                if (hasExplicitEmployees) {
+                    employeeNames.add(primaryName.toLowerCase());
+                }
                 for (String alias : aliasList) {
                     aliasToName.put(alias.toLowerCase(), primaryName);
-                    employeeNames.add(alias.toLowerCase());
+                    if (hasExplicitEmployees) {
+                        employeeNames.add(alias.toLowerCase());
+                    }
                 }
             }
         }
@@ -38,7 +49,8 @@ public class ReportEmployees implements IEmployees {
     @Override
     public boolean contains(String fullName) {
         if (fullName == null) return false;
-        if (employeeNames.isEmpty()) return true;
+        // No explicit employees list → allow everyone (just apply alias grouping)
+        if (!hasExplicitEmployees) return true;
         return employeeNames.contains(fullName.toLowerCase());
     }
 

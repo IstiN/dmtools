@@ -225,4 +225,198 @@ class MetricFactoryTest {
         // Then: Should not throw exception - date was parsed successfully
         assertNotNull(metric);
     }
+
+    @Test
+    void testStartDate_fallbackFromSince() throws Exception {
+        // Given: "since" is used (backward compat)
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "test");
+        params.put("repository", "repo");
+        params.put("since", "2024-06-01");
+        params.put("label", "PRs");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+
+        // When
+        Metric metric = factory.createMetric("PullRequestsMetricSource", params, "pullRequests");
+
+        // Then
+        assertNotNull(metric);
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testStartDate_paramOverridesSince() throws Exception {
+        // Given: Both "startDate" and "since" are present - startDate should win
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "test");
+        params.put("repository", "repo");
+        params.put("startDate", "2024-01-01");
+        params.put("since", "2023-01-01");
+        params.put("label", "PRs");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+
+        // When
+        Metric metric = factory.createMetric("PullRequestsMetricSource", params, "pullRequests");
+
+        // Then: Should create metric successfully using startDate
+        assertNotNull(metric);
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testStartDate_fallbackToReportStartDate() throws Exception {
+        // Given: No startDate or since in params, but reportStartDate is set
+        MetricFactory factoryWithReportDate = new MetricFactory(mockTrackerClient, mockSourceCode, null, "2024-03-01");
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "test");
+        params.put("repository", "repo");
+        params.put("label", "PRs");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+
+        // When
+        Metric metric = factoryWithReportDate.createMetric("PullRequestsMetricSource", params, "pullRequests");
+
+        // Then: Should use reportStartDate as fallback
+        assertNotNull(metric);
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testStartDate_noDateAtAll() throws Exception {
+        // Given: No date params at all
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "test");
+        params.put("repository", "repo");
+        params.put("label", "PRs");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+
+        // When: No date available - should still create metric (null date)
+        Metric metric = factory.createMetric("PullRequestsMetricSource", params, "pullRequests");
+
+        // Then
+        assertNotNull(metric);
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testCreatePullRequestsCommentsMetricSource() throws Exception {
+        // Given: Configuration for PullRequestsCommentsMetricSource
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "IstiN");
+        params.put("repository", "dmtools");
+        params.put("since", "2024-01-01");
+        params.put("label", "PR Comments");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+        params.put("isPositive", true);
+
+        // When
+        Metric metric = factory.createMetric("PullRequestsCommentsMetricSource", params, "pullRequests");
+
+        // Then
+        assertNotNull(metric);
+        assertEquals("PR Comments", metric.getName());
+        assertFalse(metric.isWeight());
+        assertTrue(metric.isPersonalized());
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testCreatePullRequestsCommentsMetricSource_defaultIsPositive() throws Exception {
+        // Given: No isPositive specified - should default to true
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "IstiN");
+        params.put("repository", "dmtools");
+        params.put("label", "PR Comments");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+
+        // When
+        Metric metric = factory.createMetric("PullRequestsCommentsMetricSource", params, "pullRequests");
+
+        // Then
+        assertNotNull(metric);
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testCreatePullRequestsApprovalsMetricSource() throws Exception {
+        // Given: Configuration for PullRequestsApprovalsMetricSource
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "IstiN");
+        params.put("repository", "dmtools");
+        params.put("since", "2024-01-01");
+        params.put("label", "PR Approvals");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+
+        // When
+        Metric metric = factory.createMetric("PullRequestsApprovalsMetricSource", params, "pullRequests");
+
+        // Then
+        assertNotNull(metric);
+        assertEquals("PR Approvals", metric.getName());
+        assertFalse(metric.isWeight());
+        assertTrue(metric.isPersonalized());
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testCreateMetric_dataSourceParamsProvideStartDate() throws Exception {
+        // Given: startDate comes from dataSource params, not metric params
+        Map<String, Object> metricParams = new HashMap<>();
+        metricParams.put("label", "PRs");
+        metricParams.put("isWeight", false);
+        metricParams.put("isPersonalized", true);
+
+        Map<String, Object> dataSourceParams = new HashMap<>();
+        dataSourceParams.put("workspace", "test");
+        dataSourceParams.put("repository", "repo");
+        dataSourceParams.put("startDate", "2024-01-01");
+
+        // When
+        Metric metric = factory.createMetric("PullRequestsMetricSource", metricParams, "pullRequests", dataSourceParams);
+
+        // Then: Should use startDate from dataSource params
+        assertNotNull(metric);
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testCreatePullRequestsMergedByMetricSource() throws Exception {
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "IstiN");
+        params.put("repository", "dmtools");
+        params.put("label", "PRs Merged");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+
+        Metric metric = factory.createMetric("PullRequestsMergedByMetricSource", params, "pullRequests");
+
+        assertNotNull(metric);
+        assertEquals("PRs Merged", metric.getName());
+        assertTrue(metric.isPersonalized());
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testCreatePullRequestsDeclinedMetricSource() throws Exception {
+        Map<String, Object> params = new HashMap<>();
+        params.put("workspace", "IstiN");
+        params.put("repository", "dmtools");
+        params.put("label", "PRs Declined");
+        params.put("isWeight", false);
+        params.put("isPersonalized", true);
+
+        Metric metric = factory.createMetric("PullRequestsDeclinedMetricSource", params, "pullRequests");
+
+        assertNotNull(metric);
+        assertEquals("PRs Declined", metric.getName());
+        assertTrue(metric.isPersonalized());
+        assertNotNull(metric.getSourceCollector());
+    }
 }

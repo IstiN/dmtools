@@ -48,6 +48,10 @@ public class ReportConfig {
     @Getter
     private Map<String, List<String>> aliases;
 
+    @Setter
+    @Getter
+    private List<CustomChartConfig> customCharts;
+
     /**
      * Returns the list of time groupings. For backward compatibility,
      * a single-object JSON value is deserialized as a list with one element.

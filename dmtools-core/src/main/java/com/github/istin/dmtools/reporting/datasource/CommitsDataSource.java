@@ -31,9 +31,14 @@ public class CommitsDataSource extends DataSource {
 
         for (KeyTime kt : keyTimes) {
             JSONObject metadata = new JSONObject();
-            metadata.put("hash", kt.getKey());
-            metadata.put("when", kt.getWhen().getTime());
+            metadata.put("key", kt.getKey());
             metadata.put("who", kt.getWho());
+            if (kt.getLink() != null) {
+                metadata.put("link", kt.getLink());
+            }
+            if (kt.getSummary() != null) {
+                metadata.put("summary", kt.getSummary());
+            }
             collector.collect(Arrays.asList(kt), metadata, kt.getKey());
         }
     }

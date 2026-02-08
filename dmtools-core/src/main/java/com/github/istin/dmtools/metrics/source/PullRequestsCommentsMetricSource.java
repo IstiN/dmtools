@@ -35,7 +35,6 @@ public class PullRequestsCommentsMetricSource extends CommonSourceCollector {
         for (IPullRequest pullRequest : pullRequests) {
 
             String pullRequestAuthorDisplayName = pullRequest.getAuthor().getFullName();
-
             pullRequestAuthorDisplayName = getEmployees().transformName(pullRequestAuthorDisplayName);
 
             if (!isTeamContainsTheName(pullRequestAuthorDisplayName)) {
@@ -43,43 +42,48 @@ public class PullRequestsCommentsMetricSource extends CommonSourceCollector {
             }
 
             String pullRequestIdAsString = pullRequest.getId().toString();
+            String prTitle = pullRequest.getTitle();
+            int commentIndex = 0;
+
             List<IActivity> activities = sourceCode.pullRequestActivities(workspace, repo, pullRequestIdAsString);
             for (IActivity activity : activities) {
                 IComment comment = activity.getComment();
-                String action = null;
-                String commentDisplayName = null;
-                if (comment != null) {
-                    commentDisplayName = comment.getAuthor().getFullName();
-
-                    commentDisplayName = getEmployees().transformName(commentDisplayName);
-
-                    if (getEmployees().isBot(commentDisplayName)) {
-                        continue;
-                    }
-
-                    if (!isTeamContainsTheName(commentDisplayName)) {
-                        commentDisplayName = IEmployees.UNKNOWN;
-                    }
-
-                    if (!pullRequestAuthorDisplayName.equalsIgnoreCase(commentDisplayName)) {
-                        action = "Comments";
-                    }
+                if (comment == null) {
+                    continue;
                 }
 
-                if (action != null) {
-                    Calendar pullRequestClosedDateAsCalendar = IPullRequest.Utils.getClosedDateAsCalendar(pullRequest);
-                    if (!isPositive) {
-                        commentDisplayName = pullRequestAuthorDisplayName;
-                    }
-                    String keyTimeOwner = isPersonalized ? commentDisplayName : metricName;
-                    KeyTime keyTime = new KeyTime(pullRequestIdAsString, pullRequestClosedDateAsCalendar, keyTimeOwner);
+                String commentDisplayName = comment.getAuthor().getFullName();
+                commentDisplayName = getEmployees().transformName(commentDisplayName);
 
-                    data.add(keyTime);
+                if (!isTeamContainsTheName(commentDisplayName)) {
+                    commentDisplayName = IEmployees.UNKNOWN;
                 }
+
+                // Skip self-comments (author commenting on own PR)
+                if (pullRequestAuthorDisplayName.equalsIgnoreCase(commentDisplayName)) {
+                    continue;
+                }
+
+                Calendar pullRequestClosedDateAsCalendar = IPullRequest.Utils.getClosedDateAsCalendar(pullRequest);
+                String owner = isPositive ? commentDisplayName : pullRequestAuthorDisplayName;
+                String keyTimeOwner = isPersonalized ? owner : metricName;
+
+                // Unique key per comment so each appears as a separate dataset entry
+                String uniqueKey = pullRequestIdAsString + "/c" + commentIndex;
+                KeyTime keyTime = new KeyTime(uniqueKey, pullRequestClosedDateAsCalendar, keyTimeOwner);
+
+                // Build summary with PR context and comment body
+                String body = comment.getBody();
+                String summary = "PR #" + pullRequestIdAsString + ": " + prTitle;
+                if (body != null && !body.trim().isEmpty()) {
+                    String truncated = body.length() > 200 ? body.substring(0, 200) + "..." : body;
+                    summary += " | " + commentDisplayName + ": " + truncated;
+                }
+                keyTime.setSummary(summary);
+                data.add(keyTime);
+                commentIndex++;
             }
-
         }
         return data;
     }
-
 }

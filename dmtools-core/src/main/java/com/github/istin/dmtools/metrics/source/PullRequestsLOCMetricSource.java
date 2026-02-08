@@ -61,22 +61,34 @@ public class PullRequestsLOCMetricSource extends CommonSourceCollector {
                 displayName = IEmployees.UNKNOWN;
             }
 
+            String commitKey = model.getHash() != null ? model.getHash() : model.getId();
+            if (commitKey == null || commitKey.isEmpty()) {
+                logger.debug("Skipping commit with null key (no hash or id), author: {}", displayName);
+                continue;
+            }
+
             // Fetch commit diff stats
-            int linesChanged = 0;
+            int additions = 0, deletions = 0;
             try {
-                IDiffStats diffStats = sourceCode.getCommitDiffStat(workspace, repo, model.getHash());
+                IDiffStats diffStats = sourceCode.getCommitDiffStat(workspace, repo, commitKey);
                 if (diffStats != null) {
                     IStats stats = diffStats.getStats();
                     if (stats != null) {
-                        linesChanged = stats.getAdditions() + stats.getDeletions();
+                        additions = stats.getAdditions();
+                        deletions = stats.getDeletions();
                     }
                 }
             } catch (Exception e) {
-                logger.debug("Could not fetch diff stats for commit {}: {}", model.getHash(), e.getMessage());
+                logger.debug("Could not fetch diff stats for commit {}: {}", commitKey, e.getMessage());
             }
 
-            KeyTime keyTime = new KeyTime(model.getId(), model.getCommitterDate(), isPersonalized ? displayName : metricName);
-            keyTime.setWeight(linesChanged);
+            KeyTime keyTime = new KeyTime(commitKey,
+                model.getCommitterDate(), isPersonalized ? displayName : metricName);
+            keyTime.setWeight(additions + deletions);
+            keyTime.setLink(model.getUrl());
+            String msg = model.getMessage();
+            String summary = (msg != null ? msg.split("\\n")[0] : "") + " (+" + additions + " -" + deletions + ")";
+            keyTime.setSummary(summary);
             data.add(keyTime);
         }
         return data;

@@ -9,14 +9,17 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
-public class PullRequestsMetricSource extends CommonSourceCollector {
+/**
+ * Counts declined (closed without merge) PRs, attributed to the PR author.
+ */
+public class PullRequestsDeclinedMetricSource extends CommonSourceCollector {
 
     private final String workspace;
     private final String repo;
     private final SourceCode sourceCode;
     private final Calendar startDate;
 
-    public PullRequestsMetricSource(String workspace, String repo, SourceCode sourceCode, IEmployees employees, Calendar startDate) {
+    public PullRequestsDeclinedMetricSource(String workspace, String repo, SourceCode sourceCode, IEmployees employees, Calendar startDate) {
         super(employees);
         this.workspace = workspace;
         this.repo = repo;
@@ -27,18 +30,20 @@ public class PullRequestsMetricSource extends CommonSourceCollector {
     @Override
     public List<KeyTime> performSourceCollection(boolean isPersonalized, String metricName) throws Exception {
         List<KeyTime> data = new ArrayList<>();
-        List<IPullRequest> pullRequests = sourceCode.pullRequests(workspace, repo, IPullRequest.PullRequestState.STATE_MERGED, true, startDate);
+        List<IPullRequest> pullRequests = sourceCode.pullRequests(workspace, repo, IPullRequest.PullRequestState.STATE_DECLINED, true, startDate);
         for (IPullRequest pullRequest : pullRequests) {
             String displayName = transformName(pullRequest.getAuthor().getFullName());
             if (!isTeamContainsTheName(displayName)) {
                 displayName = IEmployees.UNKNOWN;
             }
             String keyTimeOwner = isPersonalized ? displayName : metricName;
-            KeyTime keyTime = new KeyTime(pullRequest.getId().toString(), IPullRequest.Utils.getClosedDateAsCalendar(pullRequest), keyTimeOwner);
+            Calendar closedDate = pullRequest.getClosedDate() != null
+                    ? IPullRequest.Utils.getClosedDateAsCalendar(pullRequest)
+                    : IPullRequest.Utils.getUpdatedDateAsCalendar(pullRequest);
+            KeyTime keyTime = new KeyTime(pullRequest.getId().toString(), closedDate, keyTimeOwner);
             keyTime.setSummary(pullRequest.getTitle());
             data.add(keyTime);
         }
         return data;
     }
-
 }

@@ -69,4 +69,9 @@ public class GitHubPullRequest extends JSONModel implements IPullRequest {
     public boolean isMerged() {
         return getString("merged_at") != null;
     }
+
+    @Override
+    public IUser getMergedBy() {
+        return getModel(GitHubUser.class, "merged_by");
+    }
 }

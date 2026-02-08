@@ -10,6 +10,10 @@ import com.github.istin.dmtools.metrics.rules.TicketMovedToStatusRule;
 import com.github.istin.dmtools.metrics.rules.TicketCreatorsRule;
 import com.github.istin.dmtools.metrics.source.PullRequestsMetricSource;
 import com.github.istin.dmtools.metrics.source.PullRequestsLOCMetricSource;
+import com.github.istin.dmtools.metrics.source.PullRequestsCommentsMetricSource;
+import com.github.istin.dmtools.metrics.source.PullRequestsApprovalsMetricSource;
+import com.github.istin.dmtools.metrics.source.PullRequestsMergedByMetricSource;
+import com.github.istin.dmtools.metrics.source.PullRequestsDeclinedMetricSource;
 import com.github.istin.dmtools.metrics.source.SourceCodeCommitsMetricSource;
 import com.github.istin.dmtools.team.Employees;
 import com.github.istin.dmtools.team.IEmployees;
@@ -23,15 +27,21 @@ public class MetricFactory {
     private final TrackerClient trackerClient;
     private final SourceCode sourceCode;
     private final IEmployees employees;
+    private final String reportStartDate;
 
     public MetricFactory(TrackerClient trackerClient, SourceCode sourceCode) {
-        this(trackerClient, sourceCode, null);
+        this(trackerClient, sourceCode, null, null);
     }
 
     public MetricFactory(TrackerClient trackerClient, SourceCode sourceCode, IEmployees employees) {
+        this(trackerClient, sourceCode, employees, null);
+    }
+
+    public MetricFactory(TrackerClient trackerClient, SourceCode sourceCode, IEmployees employees, String reportStartDate) {
         this.trackerClient = trackerClient;
         this.sourceCode = sourceCode;
         this.employees = employees != null ? employees : Employees.getInstance();
+        this.reportStartDate = reportStartDate;
     }
 
     public Metric createMetric(String metricName, Map<String, Object> metricParams, String dataSourceType) throws Exception {
@@ -114,18 +124,44 @@ public class MetricFactory {
         String workspace = (String) params.getOrDefault("workspace", sourceCode.getDefaultWorkspace());
         String repository = (String) params.getOrDefault("repository", sourceCode.getDefaultRepository());
         String branch = (String) params.getOrDefault("branch", sourceCode.getDefaultBranch());
-        String since = (String) params.getOrDefault("since", null);
+
+        // Resolve startDate: params["startDate"] -> params["since"] (backward compat) -> reportStartDate
+        String startDateStr = (String) params.getOrDefault("startDate", null);
+        if (startDateStr == null) startDateStr = (String) params.getOrDefault("since", null);
+        if (startDateStr == null) startDateStr = reportStartDate;
 
         switch (metricName) {
-            case "PullRequestsMetricSource":
-                Calendar prStartDate = parseDateParam(params.get("since"));
-                return new PullRequestsMetricSource(workspace, repository, sourceCode, employees, prStartDate);
+            case "PullRequestsMetricSource": {
+                Calendar sd = parseDateParam(startDateStr);
+                return new PullRequestsMetricSource(workspace, repository, sourceCode, employees, sd);
+            }
 
             case "CommitsMetricSource":
-                return new SourceCodeCommitsMetricSource(workspace, repository, branch, since, sourceCode, employees);
+                return new SourceCodeCommitsMetricSource(workspace, repository, branch, startDateStr, sourceCode, employees);
 
             case "LinesOfCodeMetricSource":
-                return new PullRequestsLOCMetricSource(workspace, repository, branch, since, sourceCode, employees);
+                return new PullRequestsLOCMetricSource(workspace, repository, branch, startDateStr, sourceCode, employees);
+
+            case "PullRequestsCommentsMetricSource": {
+                Calendar sd = parseDateParam(startDateStr);
+                boolean isPositive = (boolean) params.getOrDefault("isPositive", true);
+                return new PullRequestsCommentsMetricSource(isPositive, workspace, repository, sourceCode, employees, sd);
+            }
+
+            case "PullRequestsApprovalsMetricSource": {
+                Calendar sd = parseDateParam(startDateStr);
+                return new PullRequestsApprovalsMetricSource(workspace, repository, sourceCode, employees, sd);
+            }
+
+            case "PullRequestsMergedByMetricSource": {
+                Calendar sd = parseDateParam(startDateStr);
+                return new PullRequestsMergedByMetricSource(workspace, repository, sourceCode, employees, sd);
+            }
+
+            case "PullRequestsDeclinedMetricSource": {
+                Calendar sd = parseDateParam(startDateStr);
+                return new PullRequestsDeclinedMetricSource(workspace, repository, sourceCode, employees, sd);
+            }
 
             default:
                 throw new IllegalArgumentException("Unknown source collector: " + metricName);

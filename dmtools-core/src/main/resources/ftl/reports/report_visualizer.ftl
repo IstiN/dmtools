@@ -247,7 +247,7 @@
             <div class="stats-row" id="statsRow"></div>
 
             <!-- Global filters -->
-            <div class="chart-card" id="globalFiltersCard">
+            <div class="chart-card" id="globalFiltersCard" style="position:sticky;top:0;z-index:10;">
                 <div class="chart-title">Filters <span class="hint" id="filterSummary"></span></div>
                 <div style="padding:10px 18px">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
@@ -263,13 +263,21 @@
                         </div>
                         <button class="filter-btn" onclick="resetGlobalPeriod()" style="font-size:0.72em;padding:3px 8px">All periods</button>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+                    <div style="margin-bottom:8px">
                         <span style="font-size:0.78em;color:var(--text3);font-weight:600">People:</span>
-                        <div id="gContributorFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
+                            <button class="filter-btn" onclick="toggleAllContribs(true)" style="font-size:0.68em;padding:2px 7px">All</button>
+                            <button class="filter-btn" onclick="toggleAllContribs(false)" style="font-size:0.68em;padding:2px 7px">None</button>
+                            <div id="gContributorFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+                        </div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <div>
                         <span style="font-size:0.78em;color:var(--text3);font-weight:600">Metrics:</span>
-                        <div id="gMetricFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
+                            <button class="filter-btn" onclick="toggleAllMetrics(true)" style="font-size:0.68em;padding:2px 7px">All</button>
+                            <button class="filter-btn" onclick="toggleAllMetrics(false)" style="font-size:0.68em;padding:2px 7px">None</button>
+                            <div id="gMetricFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -317,6 +325,11 @@
                 </div>
                 <div id="shareGrid" style="display:grid;gap:8px;padding:12px 16px;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));"></div>
             </div>
+
+            <div class="chart-card" id="customChartsCard" style="display:none;grid-column:1/-1;">
+                <div class="chart-title">Custom Charts</div>
+                <div id="customChartsGrid" style="display:grid;gap:8px;padding:12px 16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));"></div>
+            </div>
         </div>
 
         <div class="overlay" id="overlay" onclick="closePanel()"></div>
@@ -339,7 +352,17 @@
         let currentPeriodIdx = null;
         let isDark = false;
         const WEIGHT_METRICS = new Set(R.weightMetrics || []);
+        const LINK_TEMPLATES = R.linkTemplates || {};
         function isWeightMetric(name) { return WEIGHT_METRICS.has(name); }
+        function buildLink(key, metricNames) {
+            // Try to find a link template from any of the metric names
+            for (const mn of metricNames) {
+                const tpl = LINK_TEMPLATES[mn];
+                if (tpl) return tpl.replace('{key}', encodeURIComponent(key));
+            }
+            // Fallback to tracker link
+            return TRACKER ? TRACKER + '/browse/' + key : '#';
+        }
         function mv(metricData, name) {
             if (!metricData) return 0;
             const raw = isWeightMetric(name) ? (metricData.totalWeight || 0) : (metricData.count || 0);
@@ -357,7 +380,7 @@
         document.addEventListener('DOMContentLoaded', init);
         window.addEventListener('resize', () => {
             Object.entries(charts).forEach(([k, c]) => {
-                if (k === '_pies') { (c || []).forEach(p => p?.resize()); }
+                if (k === '_pies' || k === '_custom') { (c || []).forEach(p => p?.resize()); }
                 else { c?.resize(); }
             });
         });
@@ -386,6 +409,7 @@
             renderStacked();
             renderRadar();
             renderContributionShare();
+            renderCustomCharts();
             updateFilterSummary();
         }
 
@@ -524,6 +548,22 @@
         function toggleGMetric(el, name) {
             gMetricEnabled[name] = !gMetricEnabled[name];
             el.classList.toggle('active', gMetricEnabled[name]);
+            renderAllCharts();
+        }
+
+        function toggleAllContribs(enable) {
+            allContributors().forEach(c => { gContribEnabled[c] = enable; });
+            document.querySelectorAll('#gContributorFilters .toggle-chip').forEach(el => {
+                el.classList.toggle('active', enable);
+            });
+            renderAllCharts();
+        }
+
+        function toggleAllMetrics(enable) {
+            allMetricNames().forEach(m => { gMetricEnabled[m] = enable; });
+            document.querySelectorAll('#gMetricFilters .toggle-chip').forEach(el => {
+                el.classList.toggle('active', enable);
+            });
             renderAllCharts();
         }
 
@@ -1011,6 +1051,108 @@
                         animationDuration: 400
                     }]
                 });
+                chart.on('click', function(params) {
+                    openShareDetail(def.title, def.slices, params.name);
+                });
+            });
+        }
+
+        /* --- Custom Charts (ratio / comparison from config) --- */
+        function renderCustomCharts() {
+            const card = document.getElementById('customChartsCard');
+            const grid = document.getElementById('customChartsGrid');
+            if (!card || !grid) return;
+
+            const customCharts = R.customCharts || [];
+            if (customCharts.length === 0) { card.style.display = 'none'; return; }
+            card.style.display = '';
+
+            (charts._custom || []).forEach(c => c.dispose());
+            charts._custom = [];
+
+            const agg = aggregateFiltered();
+            const colors = getColors();
+
+            grid.innerHTML = '';
+            customCharts.forEach(cc => {
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 4px 2px;display:flex;flex-direction:column;align-items:center;';
+                const label = document.createElement('div');
+                label.style.cssText = 'font-size:0.85em;font-weight:600;color:var(--accent2);text-align:center;padding:4px;';
+                label.textContent = cc.title || 'Custom Chart';
+                wrapper.appendChild(label);
+                const chartDiv = document.createElement('div');
+                chartDiv.style.cssText = 'width:100%;height:260px;';
+                wrapper.appendChild(chartDiv);
+                grid.appendChild(wrapper);
+
+                const chart = echarts.init(chartDiv);
+                charts._custom.push(chart);
+
+                const metricNames = cc.metrics || [];
+                const metricValues = metricNames.map(m => agg.total[m] || 0);
+
+                if (cc.type === 'ratio') {
+                    const pieData = metricNames.map((m, i) => ({
+                        name: m, value: metricValues[i],
+                        itemStyle: { color: colors[i % colors.length] }
+                    })).filter(d => d.value > 0);
+
+                    chart.setOption({
+                        backgroundColor: 'transparent',
+                        tooltip: { ...tooltipTheme(),
+                            formatter: function(params) {
+                                return '<b>' + esc(params.name) + '</b><br/>' +
+                                    params.value + ' (' + params.percent + '%)';
+                            }
+                        },
+                        series: [{
+                            type: 'pie', radius: ['30%', '65%'], center: ['50%', '55%'],
+                            data: pieData,
+                            label: {
+                                show: true,
+                                formatter: function(p) { return p.name + '\n' + p.percent.toFixed(0) + '%'; },
+                                fontSize: 10, color: isDark ? '#E8EAED' : '#212529'
+                            },
+                            labelLine: { show: true, length: 8, length2: 6 },
+                            emphasis: {
+                                itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' }
+                            },
+                            animationDuration: 400
+                        }]
+                    });
+                    chart.on('click', function(params) {
+                        openCustomChartDetail(cc.title, metricNames, metricValues, params.name);
+                    });
+                } else if (cc.type === 'comparison') {
+                    chart.setOption({
+                        backgroundColor: 'transparent',
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...tooltipTheme() },
+                        grid: { left: 10, right: 40, top: 8, bottom: 8, containLabel: true },
+                        yAxis: { type: 'category', data: metricNames, inverse: true,
+                            axisLabel: { color: axisLabelColor(), fontSize: 11 },
+                            axisLine: { show: false }, axisTick: { show: false }
+                        },
+                        xAxis: { type: 'value',
+                            axisLabel: { color: axisLabelColor(), fontSize: 9 },
+                            splitLine: { lineStyle: { color: gridLineColor(), type: 'dashed' } },
+                            axisLine: { show: false }
+                        },
+                        series: [{
+                            type: 'bar', barWidth: 22,
+                            data: metricValues.map((v, i) => ({
+                                value: v,
+                                itemStyle: { color: colors[i % colors.length], borderRadius: [0, 4, 4, 0] }
+                            })),
+                            label: { show: true, position: 'right', fontSize: 11, fontWeight: 'bold', color: axisLabelColor() }
+                        }],
+                        animationDuration: 400
+                    });
+                    chart.on('click', function(params) {
+                        const clickedMetric = metricNames[params.dataIndex];
+                        openCustomChartDetail(cc.title, metricNames, metricValues, clickedMetric);
+                    });
+                }
             });
         }
 
@@ -1055,6 +1197,7 @@
         function openPanel() {
             document.getElementById('sidePanel').classList.add('open');
             document.getElementById('overlay').classList.add('visible');
+            document.getElementById('panelBody').scrollTop = 0;
         }
         function closePanel() {
             document.getElementById('sidePanel').classList.remove('open');
@@ -1076,10 +1219,12 @@
             const body = document.getElementById('panelBody');
             let html = '';
 
-            // Mini zoomed chart
+            // Mini zoomed chart - height scales with metric count
+            const metricCount = Object.keys(period.metrics || {}).length;
+            const miniChartHeight = Math.max(180, metricCount * 36 + 40);
             html += '<div class="section-label">Period Detail</div>';
             html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden">';
-            html += '<div class="chart-body-mini" id="miniChart"></div>';
+            html += '<div id="miniChart" style="height:' + miniChartHeight + 'px;padding:4px"></div>';
             html += '</div>';
 
             // Metrics summary as compact grid
@@ -1118,8 +1263,8 @@
                 });
             }
 
-            // Tickets section with contributor + metric filters
-            html += '<div class="section-label" style="margin-top:14px">Tickets</div>';
+            // Dataset section with contributor + metric filters
+            html += '<div class="section-label" style="margin-top:14px">Dataset</div>';
             if (contribs.length > 0) {
                 html += '<div class="filter-row" id="contributorFilters">';
                 html += '<button class="filter-btn active" onclick="filterByContributor(null)">All</button>';
@@ -1239,7 +1384,8 @@
                 const issueType = md.issueType || '';
                 const status = md.status || '';
                 const weight = md.weight;
-                const link = md.link || (TRACKER ? TRACKER + '/browse/' + key : '#');
+                const itemMetricNames = Object.keys(item.metrics || {});
+                const link = md.link || buildLink(key, itemMetricNames);
                 const labels = md.labels || [];
                 const created = md.created;
                 const firstKt = Object.values(item.metrics || {})[0]?.keyTimes?.[0];
@@ -1248,7 +1394,8 @@
 
                 // Header row: key + tags
                 html += '<div class="ticket-header">';
-                html += '<div class="ticket-key">' + esc(key) + '</div>';
+                const displayKey = key.length > 12 ? key.substring(0, 8) + '...' : key;
+                html += '<div class="ticket-key">' + esc(displayKey) + '</div>';
                 html += '<div class="ticket-tags">';
                 if (priority) html += '<span class="tag tag-priority">' + esc(priority) + '</span>';
                 if (issueType) html += '<span class="tag tag-type">' + esc(issueType) + '</span>';
@@ -1281,6 +1428,108 @@
 
             if (tickets.length === 0) html += '<div style="text-align:center;padding:30px;color:var(--text3)">No tickets in this period</div>';
             container.innerHTML = html;
+        }
+
+        /* --- Contribution Share detail panel --- */
+        function openShareDetail(metricTitle, slices, clickedName) {
+            document.getElementById('panelTitle').textContent = metricTitle + ' — Contribution Details';
+            openPanel();
+            currentPeriodIdx = null;
+            const body = document.getElementById('panelBody');
+            const colors = getColors();
+            const allC = allContributors();
+            const agg = aggregateFiltered();
+            const eMetrics = enabledMetrics();
+
+            let html = '';
+            html += '<div class="section-label">Share Breakdown</div>';
+
+            // Sort slices descending
+            const sorted = [...slices].sort((a, b) => b.value - a.value);
+            const totalVal = sorted.reduce((s, d) => s + d.value, 0);
+
+            sorted.forEach(s => {
+                const ci = allC.indexOf(s.name);
+                const pct = totalVal > 0 ? (s.value / totalVal * 100).toFixed(1) : '0.0';
+                const isClicked = s.name === clickedName;
+                html += '<div class="contributor-item' + (isClicked ? ' active' : '') + ' no-click">';
+                html += '<div class="name" style="display:flex;align-items:center;gap:8px">';
+                html += '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + colors[ci % colors.length] + '"></span>';
+                html += esc(s.name);
+                html += '<span style="color:var(--accent);font-weight:700;margin-left:auto">' + pct + '%</span>';
+                html += '</div>';
+                // Show per-metric breakdown for this contributor
+                const contribMetrics = agg.byContributor[s.name] || {};
+                html += '<div class="metrics-grid" style="margin-top:6px">';
+                eMetrics.forEach(m => {
+                    const v = contribMetrics[m] || 0;
+                    if (v > 0) html += chip(m, v);
+                });
+                html += '</div></div>';
+            });
+
+            body.innerHTML = html;
+        }
+
+        /* --- Custom Chart detail panel --- */
+        function openCustomChartDetail(chartTitle, metricNames, metricValues, clickedMetric) {
+            document.getElementById('panelTitle').textContent = chartTitle + ' — Details';
+            openPanel();
+            currentPeriodIdx = null;
+            const body = document.getElementById('panelBody');
+            const colors = getColors();
+            const agg = aggregateFiltered();
+            const eContribs = enabledContributors();
+            const allC = allContributors();
+
+            let html = '';
+
+            // Summary section
+            const totalAll = metricValues.reduce((s, v) => s + v, 0);
+            html += '<div class="section-label">Metrics Summary</div>';
+            html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:14px">';
+            metricNames.forEach((m, i) => {
+                const v = metricValues[i];
+                const pct = totalAll > 0 ? (v / totalAll * 100).toFixed(1) : '0.0';
+                const isClicked = m === clickedMetric;
+                html += '<div style="background:var(--surface2);border:1px solid ' + (isClicked ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;padding:10px;text-align:center">';
+                html += '<div style="font-size:0.82em;font-weight:600;color:' + colors[i % colors.length] + '">' + esc(m) + '</div>';
+                html += '<div style="font-size:1.4em;font-weight:700;color:var(--accent);margin:4px 0">' + v + '</div>';
+                html += '<div style="font-size:0.75em;color:var(--text3)">' + pct + '% of total</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+
+            // Per-contributor breakdown for each metric
+            html += '<div class="section-label">Breakdown by Person</div>';
+            metricNames.forEach((m, i) => {
+                html += '<div style="margin-bottom:12px">';
+                html += '<div style="font-size:0.85em;font-weight:600;color:' + colors[i % colors.length] + ';margin-bottom:6px">' + esc(m) + '</div>';
+                const contribData = [];
+                eContribs.forEach(c => {
+                    const v = (agg.byContributor[c] || {})[m] || 0;
+                    if (v > 0) contribData.push({ name: c, value: v });
+                });
+                contribData.sort((a, b) => b.value - a.value);
+                const metricTotal = metricValues[i];
+                if (contribData.length > 0) {
+                    contribData.forEach(cd => {
+                        const ci = allC.indexOf(cd.name);
+                        const pct = metricTotal > 0 ? (cd.value / metricTotal * 100).toFixed(1) : '0.0';
+                        html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;margin-bottom:3px;background:var(--surface2);border-radius:6px;border:1px solid var(--border)">';
+                        html += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + colors[ci % colors.length] + ';flex-shrink:0"></span>';
+                        html += '<span style="font-size:0.85em;color:var(--text)">' + esc(cd.name) + '</span>';
+                        html += '<span style="margin-left:auto;font-size:0.85em;font-weight:700;color:var(--accent)">' + cd.value + '</span>';
+                        html += '<span style="font-size:0.75em;color:var(--text3);min-width:45px;text-align:right">' + pct + '%</span>';
+                        html += '</div>';
+                    });
+                } else {
+                    html += '<div style="font-size:0.82em;color:var(--text3);padding:4px 8px">No data</div>';
+                }
+                html += '</div>';
+            });
+
+            body.innerHTML = html;
         }
 
         function chip(label, value) {

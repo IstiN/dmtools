@@ -17,6 +17,8 @@ public class KeyTime implements Key {
     private String who;
 
     private double weight = 1;
+    private String link;
+    private String summary;
 
     public KeyTime(String key, Calendar when) {
         this.key = key;
@@ -52,4 +54,10 @@ public class KeyTime implements Key {
     public void setWhen(Calendar when) {
         this.when = when;
     }
+
+    public String getLink() { return link; }
+    public void setLink(String link) { this.link = link; }
+
+    public String getSummary() { return summary; }
+    public void setSummary(String summary) { this.summary = summary; }
 }

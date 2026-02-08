@@ -51,7 +51,15 @@ public class SourceCodeCommitsMetricSource extends CommonSourceCollector {
                 displayName = IEmployees.UNKNOWN;
             }
 
-            KeyTime keyTime = new KeyTime(model.getId(), model.getCommitterDate(), isPersonalized ? displayName : metricName);
+            String commitKey = model.getHash() != null ? model.getHash() : model.getId();
+            if (commitKey == null || commitKey.isEmpty()) {
+                continue;
+            }
+
+            KeyTime keyTime = new KeyTime(commitKey,
+                model.getCommitterDate(), isPersonalized ? displayName : metricName);
+            keyTime.setLink(model.getUrl());
+            keyTime.setSummary(model.getMessage());
             data.add(keyTime);
         }
         return data;

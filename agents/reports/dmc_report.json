@@ -2,14 +2,13 @@
   "name": "ReportGenerator",
   "params": {
     "reportName": "DMC Report 2025",
-    "startDate": "2025-01-01",
+    "startDate": "2024-03-01",
     "employees": [
-      "Uladzimir Klyshevich",
-      "AI Teammate"
     ],
     "aliases": {
       "Uladzimir Klyshevich": ["IstiN", "uladzimir-klyshevich-epam"],
-      "AI Teammate": ["ai-teammate"]
+      "Yauheni Navakolski": ["ajaxspace", "yauheni-navakolski-epam"],
+      "AI Teammate": ["ai-teammate","github-actions[bot]","copilot", "cursor[bot]","copilot-pull-request-reviewer[bot]"]
     },
     "dataSources": [
       {
@@ -141,14 +140,29 @@
           "sourceType": "github",
           "workspace": "IstiN",
           "repository": "dmtools",
-          "since": "2025-01-01",
           "branch": "main"
         },
         "metrics": [
           {
             "name": "PullRequestsMetricSource",
             "params": {
-              "label": "Pull Requests Merged",
+              "label": "PRs Created",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "PullRequestsMergedByMetricSource",
+            "params": {
+              "label": "PRs Merged",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "PullRequestsDeclinedMetricSource",
+            "params": {
+              "label": "PRs Declined",
               "isWeight": false,
               "isPersonalized": true
             }
@@ -161,6 +175,21 @@
               "isPersonalized": true,
               "divider": 1000
             }
+          },
+          {
+            "name": "PullRequestsCommentsMetricSource",
+            "params": {
+              "label": "PR Comments",
+              "isPersonalized": true,
+              "isPositive": true
+            }
+          },
+          {
+            "name": "PullRequestsApprovalsMetricSource",
+            "params": {
+              "label": "PR Approvals",
+              "isPersonalized": true
+            }
           }
         ]
       },
@@ -170,7 +199,6 @@
           "sourceType": "github",
           "workspace": "IstiN",
           "repository": "dmtools",
-          "since": "2025-01-01",
           "branch": "main"
         },
         "metrics": [
@@ -190,14 +218,29 @@
           "sourceType": "github",
           "workspace": "IstiN",
           "repository": "dmtools-flutter",
-          "since": "2025-01-01",
           "branch": "main"
         },
         "metrics": [
           {
             "name": "PullRequestsMetricSource",
             "params": {
-              "label": "Pull Requests Merged",
+              "label": "PRs Created",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "PullRequestsMergedByMetricSource",
+            "params": {
+              "label": "PRs Merged",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "PullRequestsDeclinedMetricSource",
+            "params": {
+              "label": "PRs Declined",
               "isWeight": false,
               "isPersonalized": true
             }
@@ -210,6 +253,21 @@
               "isPersonalized": true,
               "divider": 1000
             }
+          },
+          {
+            "name": "PullRequestsCommentsMetricSource",
+            "params": {
+              "label": "PR Comments",
+              "isPersonalized": true,
+              "isPositive": true
+            }
+          },
+          {
+            "name": "PullRequestsApprovalsMetricSource",
+            "params": {
+              "label": "PR Approvals",
+              "isPersonalized": true
+            }
           }
         ]
       },
@@ -219,7 +277,6 @@
           "sourceType": "github",
           "workspace": "IstiN",
           "repository": "dmtools-flutter",
-          "since": "2025-01-01",
           "branch": "main"
         },
         "metrics": [
@@ -248,6 +305,18 @@
       "mode": "combined",
       "saveRawMetadata": true,
       "outputPath": "agents/reports/output"
-    }
+    },
+    "customCharts": [
+      {
+        "title": "Questions Quality",
+        "type": "ratio",
+        "metrics": ["Questions Created", "Irrelevant Questions"]
+      },
+      {
+        "title": "Dev vs QA Output",
+        "type": "comparison",
+        "metrics": ["Dev Completed", "Test Cases", "Bugs Created"]
+      }
+    ]
   }
 }

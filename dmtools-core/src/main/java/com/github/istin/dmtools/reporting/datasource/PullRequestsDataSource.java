@@ -24,6 +24,9 @@ public class PullRequestsDataSource extends DataSource {
             return;
         }
 
+        // Build base URL for PR links from params
+        String prBaseUrl = buildPrBaseUrl();
+
         List<KeyTime> keyTimes = sourceCollector.performSourceCollection(
             metric.isPersonalized(),
             metric.getName()
@@ -31,10 +34,37 @@ public class PullRequestsDataSource extends DataSource {
 
         for (KeyTime kt : keyTimes) {
             JSONObject metadata = new JSONObject();
-            metadata.put("id", kt.getKey());
-            metadata.put("when", kt.getWhen().getTime());
+            metadata.put("key", kt.getKey());
             metadata.put("who", kt.getWho());
+            if (kt.getSummary() != null) {
+                metadata.put("summary", kt.getSummary());
+            }
+            // Build link: use KeyTime link if set, otherwise build from params
+            String link = kt.getLink();
+            if (link == null && prBaseUrl != null) {
+                link = prBaseUrl + "/pull/" + kt.getKey();
+            }
+            if (link != null) {
+                metadata.put("link", link);
+            }
             collector.collect(Arrays.asList(kt), metadata, kt.getKey());
+        }
+    }
+
+    private String buildPrBaseUrl() {
+        if (params == null) return null;
+        String sourceType = (String) params.getOrDefault("sourceType", "github");
+        String workspace = (String) params.get("workspace");
+        String repository = (String) params.get("repository");
+        if (workspace == null || repository == null) return null;
+
+        switch (sourceType.toLowerCase()) {
+            case "gitlab":
+                return "https://gitlab.com/" + workspace + "/" + repository;
+            case "bitbucket":
+                return "https://bitbucket.org/" + workspace + "/" + repository;
+            default:
+                return "https://github.com/" + workspace + "/" + repository;
         }
     }
 
