@@ -52,6 +52,10 @@ public class ReportConfig {
     @Getter
     private List<CustomChartConfig> customCharts;
 
+    @Setter
+    @Getter
+    private List<ComputedMetricConfig> computedMetrics;
+
     /**
      * Returns the list of time groupings. For backward compatibility,
      * a single-object JSON value is deserialized as a list with one element.

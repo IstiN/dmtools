@@ -37,6 +37,9 @@ public class DataSourceFactory {
             case "commits":
                 return new CommitsDataSource(resolveSourceCode(params, sourceCode), params);
 
+            case "csv":
+                return new CsvDataSource(params);
+
             default:
                 throw new IllegalArgumentException("Unknown data source: " + name);
         }

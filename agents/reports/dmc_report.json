@@ -289,6 +289,45 @@
             }
           }
         ]
+      },
+      {
+        "name": "csv",
+        "params": {
+          "filePath": "agents/reports/cursor_usage.csv",
+          "whenColumn": "Date",
+          "defaultWho": "Uladzimir Klyshevich"
+        },
+        "metrics": [
+          {
+            "name": "CsvMetricSource",
+            "params": {
+              "weightColumn": "Output Tokens",
+              "label": "Output Tokens (M)",
+              "isWeight": true,
+              "isPersonalized": true,
+              "divider": 1000000
+            }
+          },
+          {
+            "name": "CsvMetricSource",
+            "params": {
+              "weightColumn": "Total Tokens",
+              "label": "Total Tokens R/W (M)",
+              "isWeight": true,
+              "isPersonalized": true,
+              "divider": 1000000
+            }
+          },
+          {
+            "name": "CsvMetricSource",
+            "params": {
+              "weightColumn": "Cost",
+              "label": "Cost ($)",
+              "isWeight": true,
+              "isPersonalized": true
+            }
+          }
+        ]
       }
     ],
     "timeGrouping": [
@@ -306,6 +345,14 @@
       "saveRawMetadata": true,
       "outputPath": "agents/reports/output"
     },
+    "computedMetrics": [
+      {
+        "label": "Input Tokens (M)",
+        "formula": "${Total Tokens R/W (M)} - ${Output Tokens (M)}",
+        "isWeight": true,
+        "isPersonalized": true
+      }
+    ],
     "customCharts": [
       {
         "title": "Questions Quality",

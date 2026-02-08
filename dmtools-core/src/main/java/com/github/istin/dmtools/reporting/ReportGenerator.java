@@ -18,6 +18,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -274,10 +275,14 @@ public class ReportGenerator {
             }
         }
 
+        // Apply computed metrics (formula-based) to period totals
+        applyComputedMetrics(config.getComputedMetrics(), metrics);
+
         double score = calculateScore(metrics, config.getAggregation() != null ? config.getAggregation().getFormula() : null);
 
         // Calculate per-period contributor breakdown
         Map<String, ContributorMetrics> contributorBreakdown = calculateContributorBreakdownForPeriod(dataset);
+        applyComputedMetricsPerContributor(config.getComputedMetrics(), contributorBreakdown);
 
         return new TimePeriodResult(
             period.getName(),
@@ -353,6 +358,134 @@ public class ReportGenerator {
         return 0.0;  // TODO: implement proper formula evaluation
     }
 
+    /**
+     * Evaluate a formula string with ${MetricLabel} references resolved from metric values.
+     * Supports +, -, *, / operators. Returns 0 if evaluation fails.
+     */
+    private double evaluateFormula(String formula, Map<String, Double> metricValues) {
+        if (formula == null || formula.isEmpty()) return 0.0;
+
+        // Replace ${MetricLabel} with numeric values
+        Matcher matcher = Pattern.compile("\\$\\{([^}]+)}").matcher(formula);
+        StringBuffer sb = new StringBuffer();
+        while (matcher.find()) {
+            String metricName = matcher.group(1);
+            double value = metricValues.getOrDefault(metricName, 0.0);
+            matcher.appendReplacement(sb, String.valueOf(value));
+        }
+        matcher.appendTail(sb);
+
+        // Simple arithmetic evaluation: supports +, -, *, / with left-to-right precedence
+        try {
+            return evaluateArithmetic(sb.toString().trim());
+        } catch (Exception e) {
+            logger.debug("Failed to evaluate formula '{}': {}", formula, e.getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Simple arithmetic evaluator for expressions like "100.5 - 20.3 + 5".
+     * Handles * and / with higher precedence than + and -.
+     */
+    private double evaluateArithmetic(String expr) {
+        // Tokenize: split into numbers and operators
+        List<Double> numbers = new ArrayList<>();
+        List<Character> operators = new ArrayList<>();
+
+        StringBuilder current = new StringBuilder();
+        for (int i = 0; i < expr.length(); i++) {
+            char c = expr.charAt(i);
+            if (c == ' ') continue;
+            if ((c == '+' || c == '-') && current.length() > 0 && !isOperatorEnd(current)) {
+                numbers.add(Double.parseDouble(current.toString().trim()));
+                current.setLength(0);
+                operators.add(c);
+            } else if ((c == '*' || c == '/') && current.length() > 0) {
+                numbers.add(Double.parseDouble(current.toString().trim()));
+                current.setLength(0);
+                operators.add(c);
+            } else {
+                current.append(c);
+            }
+        }
+        if (current.length() > 0) {
+            numbers.add(Double.parseDouble(current.toString().trim()));
+        }
+
+        // First pass: handle * and /
+        for (int i = 0; i < operators.size(); i++) {
+            char op = operators.get(i);
+            if (op == '*' || op == '/') {
+                double left = numbers.get(i);
+                double right = numbers.get(i + 1);
+                double result = op == '*' ? left * right : (right != 0 ? left / right : 0);
+                numbers.set(i, result);
+                numbers.remove(i + 1);
+                operators.remove(i);
+                i--;
+            }
+        }
+
+        // Second pass: handle + and -
+        double result = numbers.get(0);
+        for (int i = 0; i < operators.size(); i++) {
+            char op = operators.get(i);
+            if (op == '+') result += numbers.get(i + 1);
+            else if (op == '-') result -= numbers.get(i + 1);
+        }
+
+        return result;
+    }
+
+    private boolean isOperatorEnd(StringBuilder sb) {
+        if (sb.length() == 0) return false;
+        char last = sb.charAt(sb.length() - 1);
+        return last == 'E' || last == 'e'; // scientific notation like 1.5E-10
+    }
+
+    /**
+     * Apply computed metrics to a metrics map by evaluating formulas.
+     */
+    private void applyComputedMetrics(List<ComputedMetricConfig> computedMetrics,
+                                       Map<String, MetricSummary> metrics) {
+        if (computedMetrics == null || computedMetrics.isEmpty()) return;
+
+        for (ComputedMetricConfig cm : computedMetrics) {
+            Map<String, Double> values = new HashMap<>();
+            for (Map.Entry<String, MetricSummary> e : metrics.entrySet()) {
+                values.put(e.getKey(), e.getValue().getTotalWeight());
+            }
+            double computed = evaluateFormula(cm.getFormula(), values);
+            MetricSummary summary = new MetricSummary(0, computed, new ArrayList<>());
+            // Collect contributors from referenced metrics
+            Set<String> contributors = new HashSet<>();
+            for (Map.Entry<String, MetricSummary> e : metrics.entrySet()) {
+                if (cm.getFormula().contains("${" + e.getKey() + "}") && e.getValue().getContributors() != null) {
+                    contributors.addAll(e.getValue().getContributors());
+                }
+            }
+            summary.setContributors(new ArrayList<>(contributors));
+            metrics.put(cm.getLabel(), summary);
+
+            if (cm.isWeight()) {
+                weightMetricLabels.add(cm.getLabel());
+            }
+        }
+    }
+
+    /**
+     * Apply computed metrics per-contributor.
+     */
+    private void applyComputedMetricsPerContributor(List<ComputedMetricConfig> computedMetrics,
+                                                     Map<String, ContributorMetrics> contributorBreakdown) {
+        if (computedMetrics == null || computedMetrics.isEmpty()) return;
+
+        for (Map.Entry<String, ContributorMetrics> entry : contributorBreakdown.entrySet()) {
+            applyComputedMetrics(computedMetrics, entry.getValue().getMetrics());
+        }
+    }
+
     private AggregatedResult calculateAggregated(List<TimePeriodResult> periods, ReportConfig config) {
         Map<String, ContributorMetrics> byContributor = new HashMap<>();
         ContributorMetrics total = new ContributorMetrics();
@@ -403,6 +536,10 @@ public class ReportGenerator {
                 }
             }
         }
+
+        // Apply computed metrics to aggregated totals and per-contributor
+        applyComputedMetrics(config.getComputedMetrics(), total.getMetrics());
+        applyComputedMetricsPerContributor(config.getComputedMetrics(), byContributor);
 
         // Calculate scores for each contributor
         String formula = config.getAggregation() != null ? config.getAggregation().getFormula() : null;

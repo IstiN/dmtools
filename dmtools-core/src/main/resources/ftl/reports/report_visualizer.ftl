@@ -76,7 +76,7 @@
         }
         .theme-toggle span.active { background: var(--accent); color: white; }
 
-        .main { flex: 1; overflow: hidden; position: relative; }
+        .main { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
 
         .charts-area { width: 100%; height: 100%; overflow-y: auto; padding: 20px; }
 
@@ -243,44 +243,44 @@
     </div>
 
     <div class="main">
-        <div class="charts-area" id="chartsArea">
-            <div class="stats-row" id="statsRow"></div>
-
-            <!-- Global filters -->
-            <div class="chart-card" id="globalFiltersCard" style="position:sticky;top:0;z-index:10;">
-                <div class="chart-title">Filters <span class="hint" id="filterSummary"></span></div>
-                <div style="padding:10px 18px">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-                        <span style="font-size:0.78em;color:var(--text3);font-weight:600">Period:</span>
-                        <div style="display:flex;flex-direction:column;gap:2px">
-                            <input id="gStartSearch" type="text" placeholder="Search start..." oninput="filterPeriodSelect('gStartPeriod','gStartSearch')" style="font-size:0.72em;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:160px">
-                            <select id="gStartPeriod" onchange="onGlobalFilterChange()" style="font-size:0.78em;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text)"></select>
-                        </div>
-                        <span style="font-size:0.78em;color:var(--text3)">&mdash;</span>
-                        <div style="display:flex;flex-direction:column;gap:2px">
-                            <input id="gEndSearch" type="text" placeholder="Search end..." oninput="filterPeriodSelect('gEndPeriod','gEndSearch')" style="font-size:0.72em;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:160px">
-                            <select id="gEndPeriod" onchange="onGlobalFilterChange()" style="font-size:0.78em;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text)"></select>
-                        </div>
-                        <button class="filter-btn" onclick="resetGlobalPeriod()" style="font-size:0.72em;padding:3px 8px">All periods</button>
+        <!-- Global filters - outside scroll area for sticky behavior -->
+        <div class="chart-card" id="globalFiltersCard" style="flex-shrink:0;z-index:10;border-radius:0;margin-bottom:0;border-left:0;border-right:0;">
+            <div class="chart-title">Filters <span class="hint" id="filterSummary"></span></div>
+            <div style="padding:10px 18px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+                    <span style="font-size:0.78em;color:var(--text3);font-weight:600">Period:</span>
+                    <div style="display:flex;flex-direction:column;gap:2px">
+                        <input id="gStartSearch" type="text" placeholder="Search start..." oninput="filterPeriodSelect('gStartPeriod','gStartSearch')" style="font-size:0.72em;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:160px">
+                        <select id="gStartPeriod" onchange="onGlobalFilterChange()" style="font-size:0.78em;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text)"></select>
                     </div>
-                    <div style="margin-bottom:8px">
-                        <span style="font-size:0.78em;color:var(--text3);font-weight:600">People:</span>
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
-                            <button class="filter-btn" onclick="toggleAllContribs(true)" style="font-size:0.68em;padding:2px 7px">All</button>
-                            <button class="filter-btn" onclick="toggleAllContribs(false)" style="font-size:0.68em;padding:2px 7px">None</button>
-                            <div id="gContributorFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-                        </div>
+                    <span style="font-size:0.78em;color:var(--text3)">&mdash;</span>
+                    <div style="display:flex;flex-direction:column;gap:2px">
+                        <input id="gEndSearch" type="text" placeholder="Search end..." oninput="filterPeriodSelect('gEndPeriod','gEndSearch')" style="font-size:0.72em;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:160px">
+                        <select id="gEndPeriod" onchange="onGlobalFilterChange()" style="font-size:0.78em;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text)"></select>
                     </div>
-                    <div>
-                        <span style="font-size:0.78em;color:var(--text3);font-weight:600">Metrics:</span>
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
-                            <button class="filter-btn" onclick="toggleAllMetrics(true)" style="font-size:0.68em;padding:2px 7px">All</button>
-                            <button class="filter-btn" onclick="toggleAllMetrics(false)" style="font-size:0.68em;padding:2px 7px">None</button>
-                            <div id="gMetricFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-                        </div>
+                    <button class="filter-btn" onclick="resetGlobalPeriod()" style="font-size:0.72em;padding:3px 8px">All periods</button>
+                </div>
+                <div style="margin-bottom:8px">
+                    <span style="font-size:0.78em;color:var(--text3);font-weight:600">People:</span>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
+                        <button class="filter-btn" onclick="toggleAllContribs(true)" style="font-size:0.68em;padding:2px 7px">All</button>
+                        <button class="filter-btn" onclick="toggleAllContribs(false)" style="font-size:0.68em;padding:2px 7px">None</button>
+                        <div id="gContributorFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+                    </div>
+                </div>
+                <div>
+                    <span style="font-size:0.78em;color:var(--text3);font-weight:600">Metrics:</span>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
+                        <button class="filter-btn" onclick="toggleAllMetrics(true)" style="font-size:0.68em;padding:2px 7px">All</button>
+                        <button class="filter-btn" onclick="toggleAllMetrics(false)" style="font-size:0.68em;padding:2px 7px">None</button>
+                        <div id="gMetricFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="charts-area" id="chartsArea">
+            <div class="stats-row" id="statsRow"></div>
 
             <div class="chart-card">
                 <div class="chart-title">
@@ -416,6 +416,10 @@
         function allMetricNames() {
             const s = new Set();
             (R.timePeriods || []).forEach(p => Object.keys(p.metrics || {}).forEach(m => s.add(m)));
+            // Also check aggregated total for computed metrics that may not appear in every period
+            if (R.aggregated && R.aggregated.total && R.aggregated.total.metrics) {
+                Object.keys(R.aggregated.total.metrics).forEach(m => s.add(m));
+            }
             return Array.from(s);
         }
 
@@ -625,7 +629,9 @@
             return {
                 backgroundColor: isDark ? '#2D2E30' : '#fff',
                 borderColor: isDark ? '#5F6368' : '#EAEDF1',
-                textStyle: { color: isDark ? '#E8EAED' : '#212529' }
+                textStyle: { color: isDark ? '#E8EAED' : '#212529' },
+                appendToBody: true,
+                confine: false
             };
         }
         function axisLabelColor() { return isDark ? '#9AA0A6' : '#495057'; }
@@ -1251,6 +1257,7 @@
             const contribs = Object.keys(bd);
             if (contribs.length > 0) {
                 html += '<div class="section-label" style="margin-top:14px">Contributors (' + contribs.length + ')</div>';
+                html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">';
                 contribs.forEach(name => {
                     const cm = bd[name];
                     html += '<div class="contributor-item" onclick="filterTickets(\'' + escAttr(name) + '\')" id="ci-' + escAttr(name) + '">';
@@ -1261,6 +1268,7 @@
                     });
                     html += '</div></div>';
                 });
+                html += '</div>';
             }
 
             // Dataset section with contributor + metric filters

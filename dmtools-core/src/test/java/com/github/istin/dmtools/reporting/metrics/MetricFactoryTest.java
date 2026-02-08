@@ -419,4 +419,68 @@ class MetricFactoryTest {
         assertTrue(metric.isPersonalized());
         assertNotNull(metric.getSourceCollector());
     }
+
+    @Test
+    void testCreateCsvMetricSource() throws Exception {
+        Map<String, Object> params = new HashMap<>();
+        params.put("filePath", "/Test_Csv.csv");
+        params.put("whenColumn", "Date");
+        params.put("weightColumn", "Total Tokens");
+        params.put("defaultWho", "Test Person");
+        params.put("label", "Tokens");
+        params.put("isWeight", true);
+        params.put("isPersonalized", true);
+
+        Metric metric = factory.createMetric("CsvMetricSource", params, "csv");
+
+        assertNotNull(metric);
+        assertEquals("Tokens", metric.getName());
+        assertTrue(metric.isWeight());
+        assertTrue(metric.isPersonalized());
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testCreateCsvMetricSource_withDataSourceParams() throws Exception {
+        Map<String, Object> metricParams = new HashMap<>();
+        metricParams.put("weightColumn", "Cost");
+        metricParams.put("label", "Cost");
+        metricParams.put("isWeight", true);
+        metricParams.put("isPersonalized", true);
+
+        Map<String, Object> dataSourceParams = new HashMap<>();
+        dataSourceParams.put("filePath", "/Test_Csv.csv");
+        dataSourceParams.put("whenColumn", "Date");
+        dataSourceParams.put("defaultWho", "User");
+
+        Metric metric = factory.createMetric("CsvMetricSource", metricParams, "csv", dataSourceParams);
+
+        assertNotNull(metric);
+        assertEquals("Cost", metric.getName());
+        assertNotNull(metric.getSourceCollector());
+    }
+
+    @Test
+    void testCreateCsvMetricSource_missingFilePath() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("weightColumn", "Value");
+        params.put("label", "Test");
+        params.put("isWeight", false);
+        params.put("isPersonalized", false);
+
+        assertThrows(IllegalArgumentException.class,
+            () -> factory.createMetric("CsvMetricSource", params, "csv"));
+    }
+
+    @Test
+    void testCreateCsvMetricSource_missingWeightColumn() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("filePath", "/Test_Csv.csv");
+        params.put("label", "Test");
+        params.put("isWeight", false);
+        params.put("isPersonalized", false);
+
+        assertThrows(IllegalArgumentException.class,
+            () -> factory.createMetric("CsvMetricSource", params, "csv"));
+    }
 }

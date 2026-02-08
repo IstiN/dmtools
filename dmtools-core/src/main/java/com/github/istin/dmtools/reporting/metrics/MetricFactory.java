@@ -15,6 +15,7 @@ import com.github.istin.dmtools.metrics.source.PullRequestsApprovalsMetricSource
 import com.github.istin.dmtools.metrics.source.PullRequestsMergedByMetricSource;
 import com.github.istin.dmtools.metrics.source.PullRequestsDeclinedMetricSource;
 import com.github.istin.dmtools.metrics.source.SourceCodeCommitsMetricSource;
+import com.github.istin.dmtools.csv.CsvMetricSource;
 import com.github.istin.dmtools.team.Employees;
 import com.github.istin.dmtools.team.IEmployees;
 
@@ -67,6 +68,9 @@ public class MetricFactory {
             metric = new Metric(label, isWeight, rule);
         } else if ("pullRequests".equals(dataSourceType) || "commits".equals(dataSourceType)) {
             SourceCollector collector = createSourceCollector(metricName, params);
+            metric = new Metric(label, isWeight, isPersonalized, collector);
+        } else if ("csv".equals(dataSourceType)) {
+            SourceCollector collector = createCsvCollector(params);
             metric = new Metric(label, isWeight, isPersonalized, collector);
         } else {
             throw new IllegalArgumentException("Unknown data source type: " + dataSourceType);
@@ -166,6 +170,22 @@ public class MetricFactory {
             default:
                 throw new IllegalArgumentException("Unknown source collector: " + metricName);
         }
+    }
+
+    private SourceCollector createCsvCollector(Map<String, Object> params) {
+        String filePath = (String) params.get("filePath");
+        if (filePath == null || filePath.isEmpty()) {
+            throw new IllegalArgumentException("CSV data source requires 'filePath' parameter");
+        }
+        String whoColumn = (String) params.getOrDefault("whoColumn", null);
+        String whenColumn = (String) params.getOrDefault("whenColumn", "Date");
+        String weightColumn = (String) params.get("weightColumn");
+        if (weightColumn == null || weightColumn.isEmpty()) {
+            throw new IllegalArgumentException("CSV metric requires 'weightColumn' parameter");
+        }
+        double weightMultiplier = parseDivider(params.get("weightMultiplier"));
+        String defaultWho = (String) params.getOrDefault("defaultWho", null);
+        return new CsvMetricSource(employees, filePath, whoColumn, whenColumn, weightColumn, weightMultiplier, defaultWho);
     }
 
     private Calendar parseDateParam(Object dateParam) {
