@@ -6,6 +6,10 @@ import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.metrics.TrackerRule;
 import com.github.istin.dmtools.metrics.source.SourceCollector;
 import com.github.istin.dmtools.metrics.rules.BugsCreatorsRule;
+import com.github.istin.dmtools.metrics.rules.CommentsWrittenRule;
+import com.github.istin.dmtools.metrics.rules.TicketFieldsChangesRule;
+import com.github.istin.dmtools.metrics.rules.TicketFieldsTokensChangedRule;
+import com.github.istin.dmtools.metrics.rules.TicketFieldsTokensRetainedRule;
 import com.github.istin.dmtools.metrics.rules.TicketMovedToStatusRule;
 import com.github.istin.dmtools.metrics.rules.TicketCreatorsRule;
 import com.github.istin.dmtools.metrics.source.PullRequestsMetricSource;
@@ -98,6 +102,74 @@ public class MetricFactory {
                 String project = (String) params.get("project");
                 return new BugsCreatorsRule(project, employees);
 
+            case "CommentsWrittenRule": {
+                String commentsRegex = (String) params.getOrDefault("commentsRegex", null);
+                return new CommentsWrittenRule(employees, commentsRegex);
+            }
+
+            case "TicketFieldsChangesRule": {
+                Object fieldsObj = params.get("filterFields");
+                String[] filterFields = null;
+                if (fieldsObj instanceof List) {
+                    List<String> list = (List<String>) fieldsObj;
+                    filterFields = list.toArray(new String[0]);
+                } else if (fieldsObj instanceof String[]) {
+                    filterFields = (String[]) fieldsObj;
+                } else if (fieldsObj instanceof String) {
+                    filterFields = new String[]{(String) fieldsObj};
+                }
+                boolean isSimilarity = (boolean) params.getOrDefault("isSimilarity", false);
+                boolean isCollectionIfByCreator = (boolean) params.getOrDefault("isCollectionIfByCreator", false);
+                boolean includeInitial = (boolean) params.getOrDefault("includeInitial", false);
+                boolean useDivider = (boolean) params.getOrDefault("useDivider", true);
+                String creatorFilterMode = (String) params.getOrDefault("creatorFilterMode", null);
+                String customName = (String) params.getOrDefault("label", null);
+                if (customName != null) {
+                    if (creatorFilterMode != null) {
+                        return new TicketFieldsChangesRule(customName, employees, filterFields, isSimilarity, isCollectionIfByCreator, includeInitial, useDivider, creatorFilterMode);
+                    }
+                    return new TicketFieldsChangesRule(customName, employees, filterFields, isSimilarity, isCollectionIfByCreator, includeInitial, useDivider);
+                }
+                if (creatorFilterMode != null) {
+                    return new TicketFieldsChangesRule(null, employees, filterFields, isSimilarity, isCollectionIfByCreator, includeInitial, useDivider, creatorFilterMode);
+                }
+                return new TicketFieldsChangesRule(employees, filterFields, isSimilarity, isCollectionIfByCreator, includeInitial, useDivider);
+            }
+
+            case "TicketFieldsTokensChangedRule": {
+                Object fieldsObj = params.get("filterFields");
+                String[] filterFields = null;
+                if (fieldsObj instanceof List) {
+                    List<String> list = (List<String>) fieldsObj;
+                    filterFields = list.toArray(new String[0]);
+                } else if (fieldsObj instanceof String[]) {
+                    filterFields = (String[]) fieldsObj;
+                } else if (fieldsObj instanceof String) {
+                    filterFields = new String[]{(String) fieldsObj};
+                }
+                boolean isCollectionIfByCreator = (boolean) params.getOrDefault("isCollectionIfByCreator", false);
+                boolean includeInitial = (boolean) params.getOrDefault("includeInitial", false);
+                String mode = (String) params.getOrDefault("mode", "mixed");
+                String creatorFilterMode = (String) params.getOrDefault("creatorFilterMode", null);
+                return new TicketFieldsTokensChangedRule(employees, filterFields, isCollectionIfByCreator, includeInitial, mode, creatorFilterMode);
+            }
+
+            case "TicketFieldsTokensRetainedRule": {
+                Object fieldsObj = params.get("filterFields");
+                String[] filterFields = null;
+                if (fieldsObj instanceof List) {
+                    List<String> list = (List<String>) fieldsObj;
+                    filterFields = list.toArray(new String[0]);
+                } else if (fieldsObj instanceof String[]) {
+                    filterFields = (String[]) fieldsObj;
+                } else if (fieldsObj instanceof String) {
+                    filterFields = new String[]{(String) fieldsObj};
+                }
+                boolean includeInitial = (boolean) params.getOrDefault("includeInitial", false);
+                String creatorFilterMode = (String) params.getOrDefault("creatorFilterMode", "all");
+                return new TicketFieldsTokensRetainedRule(employees, filterFields, includeInitial, creatorFilterMode);
+            }
+
             case "TicketMovedToStatusRule":
                 Object statusesObj = params.get("statuses");
                 String[] statuses;
@@ -185,7 +257,8 @@ public class MetricFactory {
         }
         double weightMultiplier = parseDivider(params.get("weightMultiplier"));
         String defaultWho = (String) params.getOrDefault("defaultWho", null);
-        return new CsvMetricSource(employees, filePath, whoColumn, whenColumn, weightColumn, weightMultiplier, defaultWho);
+        String dateFormat = (String) params.getOrDefault("dateFormat", null);
+        return new CsvMetricSource(employees, filePath, whoColumn, whenColumn, weightColumn, weightMultiplier, defaultWho, dateFormat);
     }
 
     private Calendar parseDateParam(Object dateParam) {

@@ -6,6 +6,8 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.metrics.Metric;
 import com.github.istin.dmtools.report.model.KeyTime;
 import com.github.istin.dmtools.reporting.datasource.*;
+import com.github.istin.dmtools.reporting.formula.ComputedMetricsApplier;
+import com.github.istin.dmtools.reporting.formula.FormulaEvaluator;
 import com.github.istin.dmtools.reporting.metrics.MetricFactory;
 import com.github.istin.dmtools.reporting.model.*;
 import com.github.istin.dmtools.team.IEmployees;
@@ -14,12 +16,13 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -54,6 +57,13 @@ public class ReportGenerator {
             logger.info("No endDate specified, using today: {}", resolvedEndDate);
         }
 
+        // Resolve aggregation formula (inline or file)
+        String resolvedAggregationFormula = resolveAggregationFormula(config);
+        String aggregationLabel = config.getAggregation() != null ? config.getAggregation().getLabel() : null;
+        if (config.getAggregation() != null) {
+            config.getAggregation().setFormula(resolvedAggregationFormula);
+        }
+
         // Build employees from config (if provided)
         IEmployees employees = null;
         if (config.getEmployees() != null || config.getAliases() != null) {
@@ -77,12 +87,8 @@ public class ReportGenerator {
         for (TimeGroupingConfig grouping : groupings) {
             List<TimePeriod> periods = generateTimePeriods(config, grouping);
 
-            // Build time period results
-            List<TimePeriodResult> periodResults = new ArrayList<>();
-            for (TimePeriod period : periods) {
-                TimePeriodResult periodResult = buildPeriodResult(period, dataBySourceAndMetric, config);
-                periodResults.add(periodResult);
-            }
+            // Build time period results (single pass over keyTimes for performance)
+            List<TimePeriodResult> periodResults = buildPeriodResults(periods, dataBySourceAndMetric, config);
 
             // Calculate aggregated results
             AggregatedResult aggregated = calculateAggregated(periodResults, config);
@@ -107,8 +113,17 @@ public class ReportGenerator {
             if (!metricLinkTemplates.isEmpty()) {
                 output.setLinkTemplates(new HashMap<>(metricLinkTemplates));
             }
+            if (!metricDividers.isEmpty()) {
+                output.setMetricDividers(new HashMap<>(metricDividers));
+            }
             if (config.getCustomCharts() != null && !config.getCustomCharts().isEmpty()) {
                 output.setCustomCharts(config.getCustomCharts());
+            }
+            if (resolvedAggregationFormula != null && !resolvedAggregationFormula.isEmpty()) {
+                output.setAggregationFormula(resolvedAggregationFormula);
+                output.setAggregationLabel(aggregationLabel != null && !aggregationLabel.isEmpty()
+                    ? aggregationLabel
+                    : "All Metrics Score");
             }
 
             // Write output with grouping suffix
@@ -120,6 +135,34 @@ public class ReportGenerator {
         }
 
         return results;
+    }
+
+    private String resolveAggregationFormula(ReportConfig config) {
+        if (config == null || config.getAggregation() == null) {
+            return null;
+        }
+        AggregationConfig agg = config.getAggregation();
+        String formula = agg.getFormula();
+        String formulaFile = agg.getFormulaFile();
+        if (formulaFile != null && !formulaFile.trim().isEmpty()) {
+            try {
+                Path path = Paths.get(formulaFile);
+                if (!path.isAbsolute()) {
+                    path = Paths.get(System.getProperty("user.dir")).resolve(path);
+                }
+                if (Files.exists(path)) {
+                    String content = Files.readString(path).trim();
+                    if (!content.isEmpty()) {
+                        return content;
+                    }
+                } else {
+                    logger.warn("Aggregation formula file not found: {}", path);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to read aggregation formula file '{}': {}", formulaFile, e.getMessage());
+            }
+        }
+        return formula;
     }
 
     /**
@@ -200,6 +243,10 @@ public class ReportGenerator {
                     for (Map.Entry<String, List<KeyTime>> ktEntry : incoming.getAllKeyTimes().entrySet()) {
                         existing.mergeKeyTimes(ktEntry.getKey(), ktEntry.getValue());
                     }
+                    // Merge incoming metadata (prevents '?' keys and empty summaries from other repos)
+                    for (Map.Entry<String, JSONObject> mdEntry : incoming.getAllMetadata().entrySet()) {
+                        existing.addMetadata(mdEntry.getKey(), mdEntry.getValue());
+                    }
                     return existing;
                 });
             }
@@ -246,16 +293,18 @@ public class ReportGenerator {
                     String itemKey = itemEntry.getKey();
                     List<KeyTime> allKeyTimes = itemEntry.getValue();
 
-                    if (!allKeyTimes.isEmpty()) {
+                    if (logger.isTraceEnabled() && !allKeyTimes.isEmpty()) {
                         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                         String firstKeyTimeDate = dateFormat.format(allKeyTimes.get(0).getWhen().getTime());
-                        logger.debug("Item {}: {} KeyTimes, first at: {}", itemKey, allKeyTimes.size(), firstKeyTimeDate);
+                        logger.trace("Item {}: {} KeyTimes, first at: {}", itemKey, allKeyTimes.size(), firstKeyTimeDate);
                     }
 
                     List<KeyTime> periodKeyTimes = filterKeyTimesByPeriod(allKeyTimes, periodStart, periodEnd);
 
-                    logger.debug("Item {}: {} KeyTimes after filtering for period {} to {}",
-                        itemKey, periodKeyTimes.size(), period.getStart(), period.getEnd());
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("Item {}: {} KeyTimes after filtering for period {} to {}",
+                            itemKey, periodKeyTimes.size(), period.getStart(), period.getEnd());
+                    }
 
                     if (!periodKeyTimes.isEmpty()) {
                         if (config.getOutput() != null && config.getOutput().isSaveRawMetadata()) {
@@ -276,13 +325,13 @@ public class ReportGenerator {
         }
 
         // Apply computed metrics (formula-based) to period totals
-        applyComputedMetrics(config.getComputedMetrics(), metrics);
+        ComputedMetricsApplier.applyToMetrics(config.getComputedMetrics(), metrics, weightMetricLabels);
 
         double score = calculateScore(metrics, config.getAggregation() != null ? config.getAggregation().getFormula() : null);
 
         // Calculate per-period contributor breakdown
         Map<String, ContributorMetrics> contributorBreakdown = calculateContributorBreakdownForPeriod(dataset);
-        applyComputedMetricsPerContributor(config.getComputedMetrics(), contributorBreakdown);
+        ComputedMetricsApplier.applyToContributors(config.getComputedMetrics(), contributorBreakdown, weightMetricLabels);
 
         return new TimePeriodResult(
             period.getName(),
@@ -293,6 +342,140 @@ public class ReportGenerator {
             dataset,
             contributorBreakdown
         );
+    }
+
+    private List<TimePeriodResult> buildPeriodResults(
+        List<TimePeriod> periods,
+        Map<String, Map<String, DataSourceResult>> dataBySourceAndMetric,
+        ReportConfig config
+    ) throws Exception {
+        int pCount = periods.size();
+        List<Map<String, MetricSummary>> metricsByPeriod = new ArrayList<>(pCount);
+        List<List<DatasetItem>> datasetsByPeriod = new ArrayList<>(pCount);
+        for (int i = 0; i < pCount; i++) {
+            metricsByPeriod.add(new HashMap<>());
+            datasetsByPeriod.add(new ArrayList<>());
+        }
+
+        long[] periodStarts = new long[pCount];
+        long[] periodEnds = new long[pCount];
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        for (int i = 0; i < pCount; i++) {
+            TimePeriod period = periods.get(i);
+            Calendar ps = Calendar.getInstance();
+            ps.setTime(sdf.parse(period.getStart()));
+            ps.set(Calendar.HOUR_OF_DAY, 0);
+            ps.set(Calendar.MINUTE, 0);
+            ps.set(Calendar.SECOND, 0);
+            ps.set(Calendar.MILLISECOND, 0);
+            Calendar pe = Calendar.getInstance();
+            pe.setTime(sdf.parse(period.getEnd()));
+            pe.set(Calendar.HOUR_OF_DAY, 23);
+            pe.set(Calendar.MINUTE, 59);
+            pe.set(Calendar.SECOND, 59);
+            pe.set(Calendar.MILLISECOND, 999);
+            periodStarts[i] = ps.getTimeInMillis();
+            periodEnds[i] = pe.getTimeInMillis();
+        }
+
+        boolean saveRaw = config.getOutput() != null && config.getOutput().isSaveRawMetadata();
+
+        for (Map.Entry<String, Map<String, DataSourceResult>> sourceEntry : dataBySourceAndMetric.entrySet()) {
+            String sourceName = sourceEntry.getKey();
+            Map<String, DataSourceResult> metricResults = sourceEntry.getValue();
+
+            for (Map.Entry<String, DataSourceResult> metricEntry : metricResults.entrySet()) {
+                String metricLabel = metricEntry.getKey();
+                DataSourceResult result = metricEntry.getValue();
+                double divider = metricDividers.getOrDefault(metricLabel, 1.0);
+
+                for (Map.Entry<String, List<KeyTime>> itemEntry : result.getAllKeyTimes().entrySet()) {
+                    String itemKey = itemEntry.getKey();
+                    List<KeyTime> allKeyTimes = itemEntry.getValue();
+                    if (allKeyTimes == null || allKeyTimes.isEmpty()) {
+                        continue;
+                    }
+
+                    Map<Integer, List<KeyTime>> byPeriod = saveRaw ? new HashMap<>() : null;
+
+                    for (KeyTime kt : allKeyTimes) {
+                        int pIdx = findPeriodIndex(kt.getWhen().getTimeInMillis(), periodStarts, periodEnds);
+                        if (pIdx < 0) {
+                            continue;
+                        }
+
+                        Map<String, MetricSummary> metrics = metricsByPeriod.get(pIdx);
+                        MetricSummary summary = metrics.computeIfAbsent(metricLabel, k -> new MetricSummary(0, 0.0, new ArrayList<>()));
+                        aggregateKeyTimeIntoSummary(kt, summary, metricLabel, divider);
+
+                        if (saveRaw) {
+                            byPeriod.computeIfAbsent(pIdx, k -> new ArrayList<>()).add(kt);
+                        }
+                    }
+
+                    if (saveRaw && byPeriod != null && !byPeriod.isEmpty()) {
+                        for (Map.Entry<Integer, List<KeyTime>> e : byPeriod.entrySet()) {
+                            int pIdx = e.getKey();
+                            List<KeyTime> periodKeyTimes = e.getValue();
+                            if (periodKeyTimes.isEmpty()) continue;
+
+                            Map<String, MetricKeyTimes> itemMetrics = new HashMap<>();
+                            itemMetrics.put(metricLabel, convertKeyTimesToMetricKeyTimes(periodKeyTimes));
+                            Map<String, Object> metadata = convertJSONToMap(result.getMetadata(itemKey));
+                            DatasetItem datasetItem = new DatasetItem(sourceName, metadata, itemMetrics);
+                            datasetsByPeriod.get(pIdx).add(datasetItem);
+                        }
+                    }
+                }
+            }
+        }
+
+        List<TimePeriodResult> periodResults = new ArrayList<>(pCount);
+        for (int i = 0; i < pCount; i++) {
+            TimePeriod period = periods.get(i);
+            Map<String, MetricSummary> metrics = metricsByPeriod.get(i);
+            List<DatasetItem> dataset = datasetsByPeriod.get(i);
+
+            ComputedMetricsApplier.applyToMetrics(config.getComputedMetrics(), metrics, weightMetricLabels);
+            double score = calculateScore(metrics, config.getAggregation() != null ? config.getAggregation().getFormula() : null);
+
+            Map<String, ContributorMetrics> contributorBreakdown = calculateContributorBreakdownForPeriod(dataset);
+            ComputedMetricsApplier.applyToContributors(config.getComputedMetrics(), contributorBreakdown, weightMetricLabels);
+
+            periodResults.add(new TimePeriodResult(
+                period.getName(),
+                period.getStart(),
+                period.getEnd(),
+                metrics,
+                score,
+                dataset,
+                contributorBreakdown
+            ));
+        }
+
+        return periodResults;
+    }
+
+    private int findPeriodIndex(long timeMillis, long[] periodStarts, long[] periodEnds) {
+        int idx = Arrays.binarySearch(periodStarts, timeMillis);
+        if (idx >= 0) {
+            return idx;
+        }
+        int insertPoint = -idx - 2;
+        if (insertPoint >= 0 && insertPoint < periodStarts.length) {
+            if (timeMillis <= periodEnds[insertPoint]) {
+                return insertPoint;
+            }
+        }
+        return -1;
+    }
+
+    private void aggregateKeyTimeIntoSummary(KeyTime kt, MetricSummary summary, String metricLabel, double divider) {
+        summary.setCount(summary.getCount() + 1);
+        summary.setTotalWeight(summary.getTotalWeight() + (kt.getWeight() / divider));
+        Set<String> contributors = new HashSet<>(summary.getContributors());
+        contributors.add(kt.getWho());
+        summary.setContributors(new ArrayList<>(contributors));
     }
 
     private List<KeyTime> filterKeyTimesByPeriod(List<KeyTime> keyTimes, Calendar start, Calendar end) {
@@ -344,146 +527,8 @@ public class ReportGenerator {
             return 0.0;
         }
 
-        String evaluatedFormula = formula;
-
-        for (Map.Entry<String, MetricSummary> entry : metrics.entrySet()) {
-            String metricName = entry.getKey();
-            double value = entry.getValue().getTotalWeight();
-            evaluatedFormula = evaluatedFormula.replaceAll(
-                "\\$\\{" + Pattern.quote(metricName) + "}",
-                String.valueOf(value)
-            );
-        }
-
-        return 0.0;  // TODO: implement proper formula evaluation
-    }
-
-    /**
-     * Evaluate a formula string with ${MetricLabel} references resolved from metric values.
-     * Supports +, -, *, / operators. Returns 0 if evaluation fails.
-     */
-    private double evaluateFormula(String formula, Map<String, Double> metricValues) {
-        if (formula == null || formula.isEmpty()) return 0.0;
-
-        // Replace ${MetricLabel} with numeric values
-        Matcher matcher = Pattern.compile("\\$\\{([^}]+)}").matcher(formula);
-        StringBuffer sb = new StringBuffer();
-        while (matcher.find()) {
-            String metricName = matcher.group(1);
-            double value = metricValues.getOrDefault(metricName, 0.0);
-            matcher.appendReplacement(sb, String.valueOf(value));
-        }
-        matcher.appendTail(sb);
-
-        // Simple arithmetic evaluation: supports +, -, *, / with left-to-right precedence
-        try {
-            return evaluateArithmetic(sb.toString().trim());
-        } catch (Exception e) {
-            logger.debug("Failed to evaluate formula '{}': {}", formula, e.getMessage());
-            return 0.0;
-        }
-    }
-
-    /**
-     * Simple arithmetic evaluator for expressions like "100.5 - 20.3 + 5".
-     * Handles * and / with higher precedence than + and -.
-     */
-    private double evaluateArithmetic(String expr) {
-        // Tokenize: split into numbers and operators
-        List<Double> numbers = new ArrayList<>();
-        List<Character> operators = new ArrayList<>();
-
-        StringBuilder current = new StringBuilder();
-        for (int i = 0; i < expr.length(); i++) {
-            char c = expr.charAt(i);
-            if (c == ' ') continue;
-            if ((c == '+' || c == '-') && current.length() > 0 && !isOperatorEnd(current)) {
-                numbers.add(Double.parseDouble(current.toString().trim()));
-                current.setLength(0);
-                operators.add(c);
-            } else if ((c == '*' || c == '/') && current.length() > 0) {
-                numbers.add(Double.parseDouble(current.toString().trim()));
-                current.setLength(0);
-                operators.add(c);
-            } else {
-                current.append(c);
-            }
-        }
-        if (current.length() > 0) {
-            numbers.add(Double.parseDouble(current.toString().trim()));
-        }
-
-        // First pass: handle * and /
-        for (int i = 0; i < operators.size(); i++) {
-            char op = operators.get(i);
-            if (op == '*' || op == '/') {
-                double left = numbers.get(i);
-                double right = numbers.get(i + 1);
-                double result = op == '*' ? left * right : (right != 0 ? left / right : 0);
-                numbers.set(i, result);
-                numbers.remove(i + 1);
-                operators.remove(i);
-                i--;
-            }
-        }
-
-        // Second pass: handle + and -
-        double result = numbers.get(0);
-        for (int i = 0; i < operators.size(); i++) {
-            char op = operators.get(i);
-            if (op == '+') result += numbers.get(i + 1);
-            else if (op == '-') result -= numbers.get(i + 1);
-        }
-
-        return result;
-    }
-
-    private boolean isOperatorEnd(StringBuilder sb) {
-        if (sb.length() == 0) return false;
-        char last = sb.charAt(sb.length() - 1);
-        return last == 'E' || last == 'e'; // scientific notation like 1.5E-10
-    }
-
-    /**
-     * Apply computed metrics to a metrics map by evaluating formulas.
-     */
-    private void applyComputedMetrics(List<ComputedMetricConfig> computedMetrics,
-                                       Map<String, MetricSummary> metrics) {
-        if (computedMetrics == null || computedMetrics.isEmpty()) return;
-
-        for (ComputedMetricConfig cm : computedMetrics) {
-            Map<String, Double> values = new HashMap<>();
-            for (Map.Entry<String, MetricSummary> e : metrics.entrySet()) {
-                values.put(e.getKey(), e.getValue().getTotalWeight());
-            }
-            double computed = evaluateFormula(cm.getFormula(), values);
-            MetricSummary summary = new MetricSummary(0, computed, new ArrayList<>());
-            // Collect contributors from referenced metrics
-            Set<String> contributors = new HashSet<>();
-            for (Map.Entry<String, MetricSummary> e : metrics.entrySet()) {
-                if (cm.getFormula().contains("${" + e.getKey() + "}") && e.getValue().getContributors() != null) {
-                    contributors.addAll(e.getValue().getContributors());
-                }
-            }
-            summary.setContributors(new ArrayList<>(contributors));
-            metrics.put(cm.getLabel(), summary);
-
-            if (cm.isWeight()) {
-                weightMetricLabels.add(cm.getLabel());
-            }
-        }
-    }
-
-    /**
-     * Apply computed metrics per-contributor.
-     */
-    private void applyComputedMetricsPerContributor(List<ComputedMetricConfig> computedMetrics,
-                                                     Map<String, ContributorMetrics> contributorBreakdown) {
-        if (computedMetrics == null || computedMetrics.isEmpty()) return;
-
-        for (Map.Entry<String, ContributorMetrics> entry : contributorBreakdown.entrySet()) {
-            applyComputedMetrics(computedMetrics, entry.getValue().getMetrics());
-        }
+        Map<String, Double> values = ComputedMetricsApplier.buildMetricValues(metrics, weightMetricLabels);
+        return FormulaEvaluator.evaluate(formula, values);
     }
 
     private AggregatedResult calculateAggregated(List<TimePeriodResult> periods, ReportConfig config) {
@@ -538,8 +583,8 @@ public class ReportGenerator {
         }
 
         // Apply computed metrics to aggregated totals and per-contributor
-        applyComputedMetrics(config.getComputedMetrics(), total.getMetrics());
-        applyComputedMetricsPerContributor(config.getComputedMetrics(), byContributor);
+        ComputedMetricsApplier.applyToMetrics(config.getComputedMetrics(), total.getMetrics(), weightMetricLabels);
+        ComputedMetricsApplier.applyToContributors(config.getComputedMetrics(), byContributor, weightMetricLabels);
 
         // Calculate scores for each contributor
         String formula = config.getAggregation() != null ? config.getAggregation().getFormula() : null;
@@ -914,6 +959,10 @@ public class ReportGenerator {
 
         public Map<String, List<KeyTime>> getAllKeyTimes() {
             return keyTimesByItem;
+        }
+
+        public Map<String, JSONObject> getAllMetadata() {
+            return metadataByItem;
         }
 
         public JSONObject getMetadata(String itemKey) {

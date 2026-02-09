@@ -49,7 +49,8 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg); color: var(--text);
-            min-height: 100vh; display: flex; flex-direction: column;
+            min-height: 100vh; height: 100vh; display: flex; flex-direction: column;
+            overflow: hidden;
             transition: background 0.3s, color 0.3s;
         }
 
@@ -78,11 +79,11 @@
 
         .main { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
 
-        .charts-area { width: 100%; height: 100%; overflow-y: auto; padding: 20px; }
+        .charts-area { width: 100%; flex: 1; min-height: 0; overflow-y: auto; padding: 20px; }
 
         /* Side panel - always overlay on top of content */
         .side-panel {
-            position: fixed; top: 0; right: 0; bottom: 0; z-index: 100;
+            position: fixed; top: 0; right: 0; bottom: 0; z-index: 201;
             width: var(--panel-width); max-width: 90vw;
             background: var(--surface);
             border-left: 1px solid var(--border);
@@ -107,7 +108,7 @@
         .panel-close:hover { border-color: var(--accent); color: var(--accent); }
         .panel-body { padding: 16px 18px; flex: 1; overflow-y: auto; }
 
-        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 99; }
+        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; }
         .overlay.visible { display: block; }
 
         .stats-row {
@@ -172,6 +173,8 @@
             cursor: pointer; transition: all 0.15s;
         }
         .ticket-item:hover { border-left-color: var(--green); background: var(--accent-light); }
+        .ticket-item.no-link { cursor: default; }
+        .ticket-item.no-link:hover { border-left-color: var(--accent); background: var(--surface2); }
         .ticket-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .ticket-key { font-weight: 700; color: var(--accent); font-size: 0.88em; white-space: nowrap; }
         .ticket-tags { display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0; }
@@ -244,7 +247,7 @@
 
     <div class="main">
         <!-- Global filters - outside scroll area for sticky behavior -->
-        <div class="chart-card" id="globalFiltersCard" style="flex-shrink:0;z-index:10;border-radius:0;margin-bottom:0;border-left:0;border-right:0;">
+        <div class="chart-card" id="globalFiltersCard" style="flex-shrink:0;position:sticky;top:0;z-index:15;border-radius:0;margin-bottom:0;border-left:0;border-right:0;">
             <div class="chart-title">Filters <span class="hint" id="filterSummary"></span></div>
             <div style="padding:10px 18px">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
@@ -265,6 +268,7 @@
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
                         <button class="filter-btn" onclick="toggleAllContribs(true)" style="font-size:0.68em;padding:2px 7px">All</button>
                         <button class="filter-btn" onclick="toggleAllContribs(false)" style="font-size:0.68em;padding:2px 7px">None</button>
+                        <input id="gContributorSearch" type="text" placeholder="Search people..." oninput="filterContributorChips()" style="font-size:0.7em;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:150px">
                         <div id="gContributorFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
                     </div>
                 </div>
@@ -273,6 +277,7 @@
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
                         <button class="filter-btn" onclick="toggleAllMetrics(true)" style="font-size:0.68em;padding:2px 7px">All</button>
                         <button class="filter-btn" onclick="toggleAllMetrics(false)" style="font-size:0.68em;padding:2px 7px">None</button>
+                        <input id="gMetricSearch" type="text" placeholder="Search metrics..." oninput="filterMetricChips()" style="font-size:0.7em;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:160px">
                         <div id="gMetricFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
                     </div>
                 </div>
@@ -302,6 +307,14 @@
                     <span style="font-size:0.72em;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Contributors:</span>
                 </div>
                 <div class="chart-body" id="stackedChart"></div>
+            </div>
+
+            <div class="chart-card" id="scoreCard" style="display:none;">
+                <div class="chart-title">
+                    <span id="scoreTitle">All Metrics Score</span>
+                    <span class="hint">Formula-based performance score</span>
+                </div>
+                <div class="chart-body" id="scoreChart"></div>
             </div>
 
             <div class="chart-card">
@@ -351,9 +364,15 @@
         let charts = {};
         let currentPeriodIdx = null;
         let isDark = false;
+        let currentDatasetQuery = '';
+        let currentDatasetContext = null;
         const WEIGHT_METRICS = new Set(R.weightMetrics || []);
         const LINK_TEMPLATES = R.linkTemplates || {};
+        const METRIC_DIVIDERS = R.metricDividers || {};
+        const AGG_FORMULA = R.aggregationFormula || '';
+        const AGG_LABEL = R.aggregationLabel || 'All Metrics Score';
         function isWeightMetric(name) { return WEIGHT_METRICS.has(name); }
+        function metricDivider(name) { return METRIC_DIVIDERS[name] || 1; }
         function buildLink(key, metricNames) {
             // Try to find a link template from any of the metric names
             for (const mn of metricNames) {
@@ -367,6 +386,18 @@
             if (!metricData) return 0;
             const raw = isWeightMetric(name) ? (metricData.totalWeight || 0) : (metricData.count || 0);
             return Math.round(raw * 100) / 100;
+        }
+        function formatStatValue(v, name) {
+            if (v === null || v === undefined) return 0;
+            const num = Number(v);
+            if (Number.isNaN(num)) return 0;
+            if (name === 'score') {
+                const roundedScore = Math.round(num * 100) / 100;
+                return roundedScore.toFixed(2).replace(/\.00$/, '');
+            }
+            if (!isWeightMetric(name)) return Math.round(num);
+            const rounded = Math.round(num * 100) / 100;
+            return rounded.toFixed(2).replace(/\.00$/, '');
         }
 
         /* --- Global filter state --- */
@@ -399,18 +430,22 @@
             document.getElementById('reportTitle').textContent = R.reportName || 'Report';
             document.getElementById('reportMeta').textContent =
                 (R.startDate || '') + '  \u2192  ' + (R.endDate || '');
-            renderStats();
             initGlobalFilters();
             renderAllCharts();
         }
 
         function renderAllCharts() {
+            renderStats();
             renderTimeline();
             renderStacked();
+            renderScore();
             renderRadar();
             renderContributionShare();
             renderCustomCharts();
             updateFilterSummary();
+            if (currentPeriodIdx !== null) {
+                renderPanelContent(R.timePeriods[currentPeriodIdx], currentPeriodIdx);
+            }
         }
 
         function allMetricNames() {
@@ -437,6 +472,57 @@
         }
         function enabledContributors() { return allContributors().filter(c => gContribEnabled[c]); }
         function enabledMetrics() { return allMetricNames().filter(m => gMetricEnabled[m]); }
+
+        function evaluateFormulaJs(formula, values) {
+            if (!formula) return 0;
+            const expr = formula.replace(/\$\{([^}]+)\}/g, (match, name) => {
+                const v = values[name];
+                if (v === undefined || v === null || Number.isNaN(Number(v))) return '0';
+                return String(Number(v));
+            });
+            try {
+                const fn = new Function('return (' + expr + ');');
+                const result = fn();
+                if (result === null || result === undefined) return 0;
+                const num = Number(result);
+                if (Number.isNaN(num) || !Number.isFinite(num)) return 0;
+                return num;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function scoreForPeriod(p) {
+            const values = {};
+            const eMetrics = enabledMetrics();
+            const eContribs = enabledContributors();
+            if (eContribs.length === 0) return 0;
+            eMetrics.forEach(mn => {
+                let sum = 0;
+                let hasContribData = false;
+                if (p.contributorBreakdown) {
+                    const allC = Object.keys(p.contributorBreakdown);
+                    allC.forEach(c => {
+                        const md = p.contributorBreakdown?.[c]?.metrics?.[mn];
+                        if (md) hasContribData = true;
+                    });
+                    if (hasContribData) {
+                        eContribs.forEach(c => {
+                            const md = p.contributorBreakdown?.[c]?.metrics?.[mn];
+                            if (md) sum += mv(md, mn);
+                        });
+                    } else {
+                        const md = p.metrics?.[mn];
+                        if (md) sum += mv(md, mn);
+                    }
+                } else {
+                    const md = p.metrics?.[mn];
+                    if (md) sum += mv(md, mn);
+                }
+                values[mn] = sum;
+            });
+            return evaluateFormulaJs(AGG_FORMULA, values);
+        }
 
         /* --- Global Filter Init --- */
         function initGlobalFilters() {
@@ -465,7 +551,7 @@
             // Contributor chips
             let chtml = '';
             contributors.forEach((c, i) => {
-                chtml += '<div class="toggle-chip active" onclick="toggleGContrib(this,\'' + escAttr(c) + '\')">';
+                chtml += '<div class="toggle-chip active" data-name="' + escAttr(c) + '" onclick="toggleGContrib(this,\'' + escAttr(c) + '\')">';
                 chtml += '<span class="dot" style="background:' + colors[i % colors.length] + '"></span>' + esc(c) + '</div>';
             });
             document.getElementById('gContributorFilters').innerHTML = chtml;
@@ -473,7 +559,7 @@
             // Metric chips
             let mhtml = '';
             metrics.forEach((m, i) => {
-                mhtml += '<div class="toggle-chip active" onclick="toggleGMetric(this,\'' + escAttr(m) + '\')">';
+                mhtml += '<div class="toggle-chip active" data-name="' + escAttr(m) + '" onclick="toggleGMetric(this,\'' + escAttr(m) + '\')">';
                 mhtml += '<span class="dot" style="background:' + colors[i % colors.length] + '"></span>' + esc(m) + '</div>';
             });
             document.getElementById('gMetricFilters').innerHTML = mhtml;
@@ -571,6 +657,22 @@
             renderAllCharts();
         }
 
+        function filterContributorChips() {
+            filterChips('gContributorSearch', 'gContributorFilters');
+        }
+
+        function filterMetricChips() {
+            filterChips('gMetricSearch', 'gMetricFilters');
+        }
+
+        function filterChips(inputId, containerId) {
+            const q = (document.getElementById(inputId)?.value || '').toLowerCase().trim();
+            document.querySelectorAll('#' + containerId + ' .toggle-chip').forEach(el => {
+                const name = (el.getAttribute('data-name') || '').toLowerCase();
+                el.style.display = (!q || name.includes(q)) ? '' : 'none';
+            });
+        }
+
         function updateFilterSummary() {
             const totalP = (R.timePeriods || []).length;
             const selP = gEndIdx - gStartIdx + 1;
@@ -610,13 +712,15 @@
 
         /* --- Stats --- */
         function renderStats() {
-            const metrics = allMetricNames();
-            const contributors = allContributors();
-            let html = statBox(R.timePeriods?.length || 0, 'Periods');
+            const periods = filteredPeriods();
+            const metrics = enabledMetrics();
+            const contributors = enabledContributors();
+            const agg = aggregateFiltered();
+            let html = statBox(periods.length, 'Periods');
             html += statBox(contributors.length, 'Contributors');
             metrics.forEach(m => {
-                const t = R.aggregated?.total?.metrics?.[m];
-                if (t) html += statBox(mv(t, m), m);
+                const v = agg.total?.[m] ?? 0;
+                html += statBox(formatStatValue(v, m), m);
             });
             document.getElementById('statsRow').innerHTML = html;
         }
@@ -645,10 +749,33 @@
             const periods = filteredPeriods();
             const eMetrics = enabledMetrics();
             const eContribs = enabledContributors();
+            if (eContribs.length === 0) {
+                return { byContributor, total };
+            }
             periods.forEach(p => {
                 eMetrics.forEach(mn => {
-                    const md = p.metrics?.[mn];
-                    if (md) { total[mn] = (total[mn] || 0) + mv(md, mn); }
+                    let sum = 0;
+                    let hasContribData = false;
+                    if (p.contributorBreakdown) {
+                        const allC = Object.keys(p.contributorBreakdown);
+                        allC.forEach(c => {
+                            const md = p.contributorBreakdown?.[c]?.metrics?.[mn];
+                            if (md) hasContribData = true;
+                        });
+                        eContribs.forEach(c => {
+                            const cd = p.contributorBreakdown?.[c];
+                            const md = cd?.metrics?.[mn];
+                            if (md) {
+                                sum += mv(md, mn);
+                            }
+                        });
+                    }
+                    if (hasContribData) {
+                        total[mn] = (total[mn] || 0) + sum;
+                    } else {
+                        const md = p.metrics?.[mn];
+                        if (md) { total[mn] = (total[mn] || 0) + mv(md, mn); }
+                    }
                 });
                 eContribs.forEach(c => {
                     const cd = p.contributorBreakdown?.[c];
@@ -715,14 +842,25 @@
                     label: {
                         show: periodNames.length <= 16,
                         position: 'top', fontSize: 9, color: axisLabelColor(),
-                        formatter: p => p.value > 0 ? p.value : ''
+                        formatter: p => p.value > 0 ? formatStatValue(p.value, m) : ''
                     }
                 };
             });
 
             charts.timeline.setOption({
                 backgroundColor: 'transparent',
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...tooltipTheme() },
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...tooltipTheme(),
+                    formatter: function(params) {
+                        if (!params || params.length === 0) return '';
+                        let result = '<b>' + esc(params[0].axisValue) + '</b><br/>';
+                        params.forEach(p => {
+                            result += '<span style="display:inline-block;width:10px;height:10px;background:' +
+                                p.color + ';border-radius:50%;margin-right:6px"></span>' +
+                                esc(p.seriesName) + ': <b>' + formatStatValue(p.value, p.seriesName) + '</b><br/>';
+                        });
+                        return result;
+                    }
+                },
                 legend: { data: metrics, textStyle: { color: axisLabelColor() }, top: 4 },
                 grid: { left: 50, right: 20, top: 50, bottom: 60 },
                 xAxis: { type: 'category', data: periodNames,
@@ -826,7 +964,7 @@
                             items.forEach(it => {
                                 result += '<span style="display:inline-block;width:10px;height:10px;background:' +
                                     it.color + ';border-radius:50%;margin-right:6px"></span>' +
-                                    it.metric + ': <b>' + it.value + '</b><br/>';
+                                    it.metric + ': <b>' + formatStatValue(it.value, it.metric) + '</b><br/>';
                             });
                         });
                         return result;
@@ -897,7 +1035,7 @@
             globalMax = Math.max(globalMax * 1.15, 1);
 
             const indicator = metrics.map(m => ({
-                name: m + '\n(' + (agg.total[m] || 0) + ')',
+                name: m + '\n(' + formatStatValue(agg.total[m] || 0, m) + ')',
                 max: globalMax
             }));
 
@@ -920,7 +1058,7 @@
                         if (!params.value) return '';
                         let result = '<b>' + esc(params.name) + '</b><br/>';
                         metrics.forEach((m, i) => {
-                            result += esc(m) + ': <b>' + (params.value[i] || 0) + '</b><br/>';
+                            result += esc(m) + ': <b>' + formatStatValue(params.value[i] || 0, m) + '</b><br/>';
                         });
                         return result;
                     }
@@ -938,6 +1076,62 @@
                     axisName: { color: axisLabelColor(), fontSize: 11 }
                 },
                 series: [{ type: 'radar', data: seriesData }],
+                animationDuration: 500
+            });
+        }
+
+        /* --- All Metrics Score (formula-based) --- */
+        function renderScore() {
+            const card = document.getElementById('scoreCard');
+            const el = document.getElementById('scoreChart');
+            if (!card || !el) return;
+            if (!AGG_FORMULA) {
+                card.style.display = 'none';
+                return;
+            }
+            card.style.display = '';
+            if (document.getElementById('scoreTitle')) {
+                document.getElementById('scoreTitle').textContent = AGG_LABEL || 'All Metrics Score';
+            }
+            if (charts.score) charts.score.dispose();
+
+            const periods = filteredPeriods();
+            const names = periods.map(p => p.name);
+            const scores = periods.map(p => scoreForPeriod(p));
+            const maxVal = Math.max(1, ...scores.map(v => Math.abs(v)));
+
+            charts.score = echarts.init(el);
+            charts.score.setOption({
+                backgroundColor: 'transparent',
+                tooltip: { ...tooltipTheme(),
+                    formatter: function(p) {
+                        return '<b>' + esc(p.name) + '</b><br/>Score: <b>' + formatStatValue(p.value, 'score') + '</b>';
+                    }
+                },
+                grid: { left: 50, right: 18, top: 24, bottom: 30 },
+                xAxis: {
+                    type: 'category',
+                    data: names,
+                    axisLabel: { color: axisLabelColor(), fontSize: 11 },
+                    axisLine: { lineStyle: { color: borderLineColor() } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: axisLabelColor() },
+                    splitLine: { lineStyle: { color: gridLineColor() } },
+                    min: -maxVal,
+                    max: maxVal
+                },
+                series: [{
+                    type: 'line',
+                    data: scores,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    lineStyle: { width: 2, color: '#0EA5E9' },
+                    itemStyle: { color: '#0EA5E9' },
+                    areaStyle: { color: 'rgba(14,165,233,0.12)' }
+                }],
                 animationDuration: 500
             });
         }
@@ -1025,9 +1219,9 @@
                     backgroundColor: 'transparent',
                     tooltip: { ...tooltipTheme(),
                         formatter: function(params) {
+                            const val = def.isOverall ? '' : ' (' + formatStatValue(params.value, def.title) + ')';
                             return '<b>' + esc(params.name) + '</b><br/>' +
-                                esc(def.title) + ': ' + params.percent + '%' +
-                                (def.isOverall ? '' : ' (' + params.value + ')');
+                                esc(def.title) + ': ' + params.percent + '%' + val;
                         }
                     },
                     series: [{
@@ -1078,9 +1272,14 @@
 
             const agg = aggregateFiltered();
             const colors = getColors();
+            const enabledM = new Set(enabledMetrics());
 
             grid.innerHTML = '';
             customCharts.forEach(cc => {
+                const visibleMetrics = (cc.metrics || []).filter(m => enabledM.has(m));
+                if (visibleMetrics.length === 0) {
+                    return;
+                }
                 const wrapper = document.createElement('div');
                 wrapper.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 4px 2px;display:flex;flex-direction:column;align-items:center;';
                 const label = document.createElement('div');
@@ -1095,10 +1294,14 @@
                 const chart = echarts.init(chartDiv);
                 charts._custom.push(chart);
 
-                const metricNames = cc.metrics || [];
+                const metricNames = visibleMetrics;
                 const metricValues = metricNames.map(m => agg.total[m] || 0);
 
                 if (cc.type === 'ratio') {
+                    if (metricNames.length < 2) {
+                        chartDiv.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text3)">Need 2+ enabled metrics</div>';
+                        return;
+                    }
                     const pieData = metricNames.map((m, i) => ({
                         name: m, value: metricValues[i],
                         itemStyle: { color: colors[i % colors.length] }
@@ -1109,7 +1312,7 @@
                         tooltip: { ...tooltipTheme(),
                             formatter: function(params) {
                                 return '<b>' + esc(params.name) + '</b><br/>' +
-                                    params.value + ' (' + params.percent + '%)';
+                                    formatStatValue(params.value, params.name) + ' (' + params.percent + '%)';
                             }
                         },
                         series: [{
@@ -1133,7 +1336,13 @@
                 } else if (cc.type === 'comparison') {
                     chart.setOption({
                         backgroundColor: 'transparent',
-                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...tooltipTheme() },
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...tooltipTheme(),
+                            formatter: function(params) {
+                                const p = (params || [])[0];
+                                if (!p) return '';
+                                return '<b>' + esc(p.name) + '</b><br/>' + formatStatValue(p.value, p.name);
+                            }
+                        },
                         grid: { left: 10, right: 40, top: 8, bottom: 8, containLabel: true },
                         yAxis: { type: 'category', data: metricNames, inverse: true,
                             axisLabel: { color: axisLabelColor(), fontSize: 11 },
@@ -1150,7 +1359,9 @@
                                 value: v,
                                 itemStyle: { color: colors[i % colors.length], borderRadius: [0, 4, 4, 0] }
                             })),
-                            label: { show: true, position: 'right', fontSize: 11, fontWeight: 'bold', color: axisLabelColor() }
+                            label: { show: true, position: 'right', fontSize: 11, fontWeight: 'bold', color: axisLabelColor(),
+                                formatter: function(p) { return formatStatValue(p.value, p.name); }
+                            }
                         }],
                         animationDuration: 400
                     });
@@ -1169,10 +1380,11 @@
             if (charts.mini) charts.mini.dispose();
             charts.mini = echarts.init(el);
 
-            const metrics = allMetricNames();
+            const metrics = enabledMetrics();
             const colors = getColors();
             const period = R.timePeriods[idx];
-            const values = metrics.map(m => mv(period.metrics?.[m], m));
+            const contribs = enabledContributors();
+            const values = metrics.map(m => periodMetricValue(period, m, contribs));
 
             charts.mini.setOption({
                 backgroundColor: 'transparent',
@@ -1223,10 +1435,11 @@
 
         function renderPanelContent(period, idx) {
             const body = document.getElementById('panelBody');
+            currentDatasetQuery = '';
             let html = '';
 
             // Mini zoomed chart - height scales with metric count
-            const metricCount = Object.keys(period.metrics || {}).length;
+            const metricCount = enabledMetrics().length;
             const miniChartHeight = Math.max(180, metricCount * 36 + 40);
             html += '<div class="section-label">Period Detail</div>';
             html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden">';
@@ -1234,18 +1447,18 @@
             html += '</div>';
 
             // Metrics summary as compact grid
-            const metrics = period.metrics || {};
-            const metricKeys = Object.keys(metrics);
+            const metricKeys = enabledMetrics();
+            const contribsEnabled = enabledContributors();
             if (metricKeys.length > 0) {
                 html += '<div class="section-label">Metrics</div>';
                 html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:14px">';
                 metricKeys.forEach(name => {
-                    const data = metrics[name];
+                    const data = periodMetricSummary(period, name, contribsEnabled);
                     html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px">';
                     html += '<div style="font-weight:600;color:var(--accent2);font-size:0.85em;margin-bottom:5px">' + esc(name) + '</div>';
                     html += '<div class="metrics-grid">';
                     html += chip('Count', data.count || 0);
-                    html += chip('Weight', (data.totalWeight || 0).toFixed(1));
+                    html += chip('Weight', formatStatValue(data.totalWeight || 0, name));
                     html += chip('People', (data.contributors || []).length);
                     html += '</div></div>';
                 });
@@ -1254,7 +1467,7 @@
 
             // Contributors
             const bd = period.contributorBreakdown || {};
-            const contribs = Object.keys(bd);
+            const contribs = enabledContributors().filter(c => bd[c]);
             if (contribs.length > 0) {
                 html += '<div class="section-label" style="margin-top:14px">Contributors (' + contribs.length + ')</div>';
                 html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">';
@@ -1263,8 +1476,9 @@
                     html += '<div class="contributor-item" onclick="filterTickets(\'' + escAttr(name) + '\')" id="ci-' + escAttr(name) + '">';
                     html += '<div class="name">' + esc(name) + '</div>';
                     html += '<div class="metrics-grid">';
-                    Object.entries(cm.metrics || {}).forEach(([mn, md]) => {
-                        html += chip(mn, mv(md, mn));
+                    enabledMetrics().forEach(mn => {
+                        const md = cm.metrics?.[mn];
+                        if (md) html += chip(mn, mv(md, mn));
                     });
                     html += '</div></div>';
                 });
@@ -1273,6 +1487,9 @@
 
             // Dataset section with contributor + metric filters
             html += '<div class="section-label" style="margin-top:14px">Dataset</div>';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<input id="datasetSearch" type="text" placeholder="Search dataset..." oninput="onDatasetSearchChange(this.value)" style="font-size:0.78em;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:200px">';
+            html += '</div>';
             if (contribs.length > 0) {
                 html += '<div class="filter-row" id="contributorFilters">';
                 html += '<button class="filter-btn active" onclick="filterByContributor(null)">All</button>';
@@ -1282,13 +1499,13 @@
                 html += '</div>';
             }
             // Metric filter row
-            const periodMetricNames = Object.keys(period.metrics || {});
+            const periodMetricNames = enabledMetrics();
             if (periodMetricNames.length > 1) {
                 html += '<div class="filter-row" id="metricFilters">';
                 html += '<button class="filter-btn active" onclick="filterByMetric(null)">All metrics</button>';
                 periodMetricNames.forEach(mn => {
-                    const cnt = mv(period.metrics[mn], mn);
-                    html += '<button class="filter-btn" onclick="filterByMetric(\'' + escAttr(mn) + '\')">' + esc(mn) + ' (' + cnt + ')</button>';
+                    const cnt = periodMetricValue(period, mn, contribsEnabled);
+                    html += '<button class="filter-btn" onclick="filterByMetric(\'' + escAttr(mn) + '\')">' + esc(mn) + ' (' + formatStatValue(cnt, mn) + ')</button>';
                 });
                 html += '</div>';
             } else {
@@ -1326,15 +1543,21 @@
                 let metricCounts = {};
                 if (contributor) {
                     const cm = (period.contributorBreakdown || {})[contributor];
-                    Object.entries(cm?.metrics || {}).forEach(([mn, md]) => { metricCounts[mn] = mv(md, mn); });
+                    enabledMetrics().forEach(mn => {
+                        const md = cm?.metrics?.[mn];
+                        if (md) metricCounts[mn] = mv(md, mn);
+                    });
                 } else {
-                    Object.entries(period.metrics || {}).forEach(([mn, md]) => { metricCounts[mn] = mv(md, mn); });
+                    enabledMetrics().forEach(mn => {
+                        const v = periodMetricValue(period, mn, enabledContributors());
+                        if (v > 0) metricCounts[mn] = v;
+                    });
                 }
                 const metricNames = Object.keys(metricCounts);
                 if (metricNames.length > 1) {
                     let mhtml = '<button class="filter-btn active" onclick="filterByMetric(null)">All metrics</button>';
                     metricNames.forEach(mn => {
-                        mhtml += '<button class="filter-btn" onclick="filterByMetric(\'' + escAttr(mn) + '\')">' + esc(mn) + ' (' + metricCounts[mn] + ')</button>';
+                        mhtml += '<button class="filter-btn" onclick="filterByMetric(\'' + escAttr(mn) + '\')">' + esc(mn) + ' (' + formatStatValue(metricCounts[mn], mn) + ')</button>';
                     });
                     mfRow.innerHTML = mhtml;
                     mfRow.style.display = '';
@@ -1364,78 +1587,9 @@
         function renderTickets(period, contributor, metricFilter) {
             const container = document.getElementById('ticketList');
             if (!container) return;
-            let tickets = period.dataset || [];
-            if (contributor) {
-                tickets = tickets.filter(item =>
-                    Object.values(item.metrics || {}).some(m =>
-                        (m.keyTimes || []).some(kt => kt.who === contributor)
-                    )
-                );
-            }
-            if (metricFilter) {
-                tickets = tickets.filter(item =>
-                    item.metrics && item.metrics[metricFilter] &&
-                    (item.metrics[metricFilter].keyTimes || []).length > 0
-                );
-            }
-            let filterDesc = '';
-            if (contributor) filterDesc += ' by ' + esc(contributor);
-            if (metricFilter) filterDesc += ' \u2022 ' + esc(metricFilter);
-            let html = '<div class="ticket-count">' + tickets.length + ' ticket' + (tickets.length !== 1 ? 's' : '') +
-                filterDesc + '</div>';
-
-            tickets.forEach(item => {
-                const md = item.metadata || {};
-                const key = md.key || '?';
-                const summary = md.summary || '';
-                const priority = md.priority || '';
-                const issueType = md.issueType || '';
-                const status = md.status || '';
-                const weight = md.weight;
-                const itemMetricNames = Object.keys(item.metrics || {});
-                const link = md.link || buildLink(key, itemMetricNames);
-                const labels = md.labels || [];
-                const created = md.created;
-                const firstKt = Object.values(item.metrics || {})[0]?.keyTimes?.[0];
-
-                html += '<div class="ticket-item" onclick="window.open(\'' + esc(link) + '\',\'_blank\')">';
-
-                // Header row: key + tags
-                html += '<div class="ticket-header">';
-                const displayKey = key.length > 12 ? key.substring(0, 8) + '...' : key;
-                html += '<div class="ticket-key">' + esc(displayKey) + '</div>';
-                html += '<div class="ticket-tags">';
-                if (priority) html += '<span class="tag tag-priority">' + esc(priority) + '</span>';
-                if (issueType) html += '<span class="tag tag-type">' + esc(issueType) + '</span>';
-                if (status) html += '<span class="tag tag-status">' + esc(status) + '</span>';
-                if (weight && weight > 0) html += '<span class="tag tag-weight">SP: ' + weight + '</span>';
-                html += '</div></div>';
-
-                // Summary
-                if (summary) html += '<div class="ticket-summary">' + esc(summary) + '</div>';
-
-                // Labels
-                if (labels.length > 0) {
-                    html += '<div class="ticket-labels">';
-                    (Array.isArray(labels) ? labels : []).forEach(l => {
-                        html += '<span class="ticket-label">' + esc(l) + '</span>';
-                    });
-                    html += '</div>';
-                }
-
-                // Meta row
-                html += '<div class="ticket-meta">';
-                if (firstKt?.who) html += '<span>' + esc(firstKt.who) + '</span>';
-                if (created) html += '<span>' + new Date(created).toLocaleDateString() + '</span>';
-                Object.keys(item.metrics || {}).forEach(mn => {
-                    const ktCount = (item.metrics[mn]?.keyTimes || []).length;
-                    html += '<span style="color:var(--accent)">' + esc(mn) + (ktCount > 1 ? ' x' + ktCount : '') + '</span>';
-                });
-                html += '</div></div>';
-            });
-
-            if (tickets.length === 0) html += '<div style="text-align:center;padding:30px;color:var(--text3)">No tickets in this period</div>';
-            container.innerHTML = html;
+            const periods = period ? [period] : [];
+            currentDatasetContext = { periods, contributor, metricFilter, emptyText: 'No tickets in this period' };
+            container.innerHTML = buildTicketListHtml(periods, contributor, metricFilter, 'No tickets in this period');
         }
 
         /* --- Contribution Share detail panel --- */
@@ -1444,6 +1598,7 @@
             openPanel();
             currentPeriodIdx = null;
             const body = document.getElementById('panelBody');
+            currentDatasetQuery = '';
             const colors = getColors();
             const allC = allContributors();
             const agg = aggregateFiltered();
@@ -1471,12 +1626,208 @@
                 html += '<div class="metrics-grid" style="margin-top:6px">';
                 eMetrics.forEach(m => {
                     const v = contribMetrics[m] || 0;
-                    if (v > 0) html += chip(m, v);
+                    if (v > 0) html += chip(m, formatStatValue(v, m));
                 });
                 html += '</div></div>';
             });
 
+            // Dataset (keys) for clicked contributor and selected filters
+            html += '<div class="section-label" style="margin-top:14px">Dataset</div>';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<input id="datasetSearch" type="text" placeholder="Search dataset..." oninput="onDatasetSearchChange(this.value)" style="font-size:0.78em;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:200px">';
+            html += '</div>';
+            const metricFilter = metricTitle === 'Overall' ? null : metricTitle;
+            html += '<div id="ticketList"></div>';
+
             body.innerHTML = html;
+            currentDatasetContext = { periods: filteredPeriods(), contributor: clickedName, metricFilter, emptyText: 'No tickets for this selection' };
+            renderDatasetFromContext();
+        }
+
+        function hasContributorMetric(period, metricName) {
+            const bd = period.contributorBreakdown || {};
+            return Object.keys(bd).some(c => bd[c]?.metrics?.[metricName]);
+        }
+
+        function periodMetricValue(period, metricName, contribs) {
+            if (!period) return 0;
+            if (hasContributorMetric(period, metricName)) {
+                let sum = 0;
+                (contribs || []).forEach(c => {
+                    const md = period.contributorBreakdown?.[c]?.metrics?.[metricName];
+                    if (md) sum += mv(md, metricName);
+                });
+                return sum;
+            }
+            const md = period.metrics?.[metricName];
+            return md ? mv(md, metricName) : 0;
+        }
+
+        function periodMetricSummary(period, metricName, contribs) {
+            if (!period) return { count: 0, totalWeight: 0, contributors: [] };
+            if (hasContributorMetric(period, metricName)) {
+                let count = 0;
+                let totalWeight = 0;
+                const people = new Set();
+                (contribs || []).forEach(c => {
+                    const md = period.contributorBreakdown?.[c]?.metrics?.[metricName];
+                    if (md) {
+                        count += (md.count || 0);
+                        totalWeight += (md.totalWeight || 0);
+                        people.add(c);
+                    }
+                });
+                return { count, totalWeight, contributors: Array.from(people) };
+            }
+            return period.metrics?.[metricName] || { count: 0, totalWeight: 0, contributors: [] };
+        }
+
+        function collectTicketsFromPeriods(periods, contributor, metricFilter) {
+            const eMetrics = enabledMetrics();
+            const eContribs = enabledContributors();
+            const effectiveContribs = contributor ? [contributor] : eContribs;
+            const effectiveMetrics = metricFilter ? [metricFilter] : eMetrics;
+            if (effectiveContribs.length === 0 || effectiveMetrics.length === 0) return [];
+
+            let tickets = [];
+            (periods || []).forEach(p => { tickets = tickets.concat(p.dataset || []); });
+
+            return tickets.filter(item => {
+                return effectiveMetrics.some(mn => {
+                    const md = item.metrics?.[mn];
+                    if (!md) return false;
+                    const kts = md.keyTimes || [];
+                    return kts.some(kt => effectiveContribs.includes(kt.who));
+                });
+            });
+        }
+
+        function buildTicketListHtml(periods, contributor, metricFilter, emptyText) {
+            let tickets = collectTicketsFromPeriods(periods, contributor, metricFilter);
+            const q = (currentDatasetQuery || '').toLowerCase().trim();
+            if (q) {
+                tickets = tickets.filter(item => {
+                    const md = item.metadata || {};
+                    const labels = md.labels || [];
+                    const parts = [];
+                    parts.push(md.key || '');
+                    parts.push(md.summary || '');
+                    parts.push(md.status || '');
+                    parts.push(md.priority || '');
+                    parts.push(md.issueType || '');
+                    if (Array.isArray(labels)) parts.push(labels.join(' '));
+                    parts.push(JSON.stringify(md));
+                    const metricNames = Object.keys(item.metrics || {});
+                    parts.push(metricNames.join(' '));
+                    metricNames.forEach(mn => {
+                        const kts = item.metrics?.[mn]?.keyTimes || [];
+                        kts.forEach(kt => { if (kt.who) parts.push(kt.who); });
+                    });
+                    const hay = parts.join(' ').toLowerCase();
+                    return hay.includes(q);
+                });
+            }
+            let filterDesc = '';
+            if (contributor) filterDesc += ' by ' + esc(contributor);
+            if (metricFilter) filterDesc += ' \u2022 ' + esc(metricFilter);
+            let html = '<div class="ticket-count">' + tickets.length + ' ticket' + (tickets.length !== 1 ? 's' : '') +
+                filterDesc + '</div>';
+
+            const effectiveContribs = contributor ? [contributor] : enabledContributors();
+            const effectiveMetrics = metricFilter ? [metricFilter] : enabledMetrics();
+
+            tickets.forEach(item => {
+                const md = item.metadata || {};
+                const key = md.key || '';
+                const summary = md.summary || '';
+                const priority = md.priority || '';
+                const issueType = md.issueType || '';
+                const status = md.status || '';
+                const weight = md.weight;
+                const labels = md.labels || [];
+                const created = md.created;
+
+                const itemMetricNames = [];
+                const itemMetricInfo = [];
+                let firstKt = null;
+                effectiveMetrics.forEach(mn => {
+                    const m = item.metrics?.[mn];
+                    if (!m) return;
+                    const kts = (m.keyTimes || []).filter(kt => effectiveContribs.includes(kt.who));
+                    if (kts.length > 0) {
+                        itemMetricNames.push(mn);
+                        const rawSum = kts.reduce((s, kt) => s + (kt.weight || 0), 0);
+                        const div = metricDivider(mn);
+                        const value = isWeightMetric(mn) ? (rawSum / div) : kts.length;
+                        itemMetricInfo.push({ name: mn, value, rawSum, count: kts.length });
+                        if (!firstKt) firstKt = kts[0];
+                    }
+                });
+
+                const hasValidKey = key && key !== '?' && key !== 'null';
+                const isLinkable = item.source !== 'csv';
+                const link = md.link || (hasValidKey && isLinkable ? buildLink(key, itemMetricNames) : null);
+                const itemClass = link ? 'ticket-item' : 'ticket-item no-link';
+                const clickAttr = link ? ' data-link="' + escAttr(link) + '" onclick="openTicketLink(this)"' : '';
+
+                html += '<div class="' + itemClass + '"' + clickAttr + '>';
+                html += '<div class="ticket-header">';
+                const displayKey = key ? (key.length > 12 ? key.substring(0, 8) + '...' : key) : '-';
+                html += '<div class="ticket-key">' + esc(displayKey) + '</div>';
+                html += '<div class="ticket-tags">';
+                if (priority) html += '<span class="tag tag-priority">' + esc(priority) + '</span>';
+                if (issueType) html += '<span class="tag tag-type">' + esc(issueType) + '</span>';
+                if (status) html += '<span class="tag tag-status">' + esc(status) + '</span>';
+                if (weight && weight > 0) html += '<span class="tag tag-weight">SP: ' + weight + '</span>';
+                html += '</div></div>';
+
+                if (summary) html += '<div class="ticket-summary">' + esc(summary) + '</div>';
+
+                if (labels.length > 0) {
+                    html += '<div class="ticket-labels">';
+                    (Array.isArray(labels) ? labels : []).forEach(l => {
+                        html += '<span class="ticket-label">' + esc(l) + '</span>';
+                    });
+                    html += '</div>';
+                }
+
+                html += '<div class="ticket-meta">';
+                if (firstKt?.who) html += '<span>' + esc(firstKt.who) + '</span>';
+                if (created) html += '<span>' + new Date(created).toLocaleDateString() + '</span>';
+                itemMetricInfo.forEach(mi => {
+                    let label = esc(mi.name);
+                    if (mi.name.toLowerCase().includes('similarity') && mi.count > 0) {
+                        const avgSim = Math.max(0, Math.min(1, 1 - (mi.rawSum / mi.count)));
+                        label += ' (avg ' + Math.round(avgSim * 100) + '%)';
+                    }
+                    html += '<span style="color:var(--accent)">' + label + ': ' + formatStatValue(mi.value, mi.name) + '</span>';
+                });
+                html += '</div></div>';
+            });
+
+            if (tickets.length === 0) html += '<div style="text-align:center;padding:30px;color:var(--text3)">' + esc(emptyText || 'No tickets') + '</div>';
+            return html;
+        }
+
+        function onDatasetSearchChange(val) {
+            currentDatasetQuery = val || '';
+            renderDatasetFromContext();
+        }
+
+        function renderDatasetFromContext() {
+            const container = document.getElementById('ticketList');
+            if (!container) return;
+            const ctx = currentDatasetContext || {};
+            const periods = ctx.periods || [];
+            const contributor = ctx.contributor || null;
+            const metricFilter = ctx.metricFilter || null;
+            const emptyText = ctx.emptyText || 'No tickets';
+            container.innerHTML = buildTicketListHtml(periods, contributor, metricFilter, emptyText);
+        }
+
+        function openTicketLink(el) {
+            const link = el?.dataset?.link;
+            if (link) window.open(link, '_blank');
         }
 
         /* --- Custom Chart detail panel --- */
@@ -1485,6 +1836,7 @@
             openPanel();
             currentPeriodIdx = null;
             const body = document.getElementById('panelBody');
+            currentDatasetQuery = '';
             const colors = getColors();
             const agg = aggregateFiltered();
             const eContribs = enabledContributors();
@@ -1502,7 +1854,7 @@
                 const isClicked = m === clickedMetric;
                 html += '<div style="background:var(--surface2);border:1px solid ' + (isClicked ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;padding:10px;text-align:center">';
                 html += '<div style="font-size:0.82em;font-weight:600;color:' + colors[i % colors.length] + '">' + esc(m) + '</div>';
-                html += '<div style="font-size:1.4em;font-weight:700;color:var(--accent);margin:4px 0">' + v + '</div>';
+                html += '<div style="font-size:1.4em;font-weight:700;color:var(--accent);margin:4px 0">' + formatStatValue(v, m) + '</div>';
                 html += '<div style="font-size:0.75em;color:var(--text3)">' + pct + '% of total</div>';
                 html += '</div>';
             });
@@ -1527,7 +1879,7 @@
                         html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;margin-bottom:3px;background:var(--surface2);border-radius:6px;border:1px solid var(--border)">';
                         html += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + colors[ci % colors.length] + ';flex-shrink:0"></span>';
                         html += '<span style="font-size:0.85em;color:var(--text)">' + esc(cd.name) + '</span>';
-                        html += '<span style="margin-left:auto;font-size:0.85em;font-weight:700;color:var(--accent)">' + cd.value + '</span>';
+                        html += '<span style="margin-left:auto;font-size:0.85em;font-weight:700;color:var(--accent)">' + formatStatValue(cd.value, m) + '</span>';
                         html += '<span style="font-size:0.75em;color:var(--text3);min-width:45px;text-align:right">' + pct + '%</span>';
                         html += '</div>';
                     });
@@ -1537,7 +1889,17 @@
                 html += '</div>';
             });
 
+            // Dataset for current filters + clicked metric (if any)
+            html += '<div class="section-label" style="margin-top:14px">Dataset</div>';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<input id="datasetSearch" type="text" placeholder="Search dataset..." oninput="onDatasetSearchChange(this.value)" style="font-size:0.78em;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);width:200px">';
+            html += '</div>';
+            const metricFilter = clickedMetric || null;
+            html += '<div id="ticketList"></div>';
+
             body.innerHTML = html;
+            currentDatasetContext = { periods: filteredPeriods(), contributor: null, metricFilter, emptyText: 'No tickets for this selection' };
+            renderDatasetFromContext();
         }
 
         function chip(label, value) {

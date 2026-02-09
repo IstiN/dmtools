@@ -1,7 +1,7 @@
 {
   "name": "ReportGenerator",
   "params": {
-    "reportName": "DMC Report 2025",
+    "reportName": "My Code Contribution Report",
     "startDate": "2024-03-01",
     "employees": [
     ],
@@ -135,6 +135,116 @@
         ]
       },
       {
+        "name": "tracker",
+        "params": {
+          "jql": "project = DMC"
+        },
+        "metrics": [
+          {
+            "name": "CommentsWrittenRule",
+            "params": {
+              "label": "Comments Written",
+              "isWeight": true
+            }
+          },
+          {
+            "name": "CommentsWrittenRule",
+            "params": {
+              "label": "Test Case Agent Comments",
+              "isWeight": true,
+              "commentsRegex": "Test Case Agent - similar test cases are linked and new test cases are generated"
+            }
+          },
+          {
+            "name": "TicketFieldsChangesRule",
+            "params": {
+              "label": "Description Changes",
+              "isWeight": true,
+              "filterFields": ["description"],
+              "includeInitial": true,
+              "useDivider": false,
+              "creatorFilterMode": "all"
+            }
+          },
+          {
+            "name": "TicketFieldsChangesRule",
+            "params": {
+              "label": "Description Similarity",
+              "isWeight": true,
+              "isSimilarity": true,
+              "filterFields": ["description"],
+              "includeInitial": true,
+              "creatorFilterMode": "all"
+            }
+          },
+          {
+            "name": "TicketFieldsTokensChangedRule",
+            "params": {
+              "label": "Description Tokens Contribution (K)",
+              "divider": 1000,
+              "isWeight": true,
+              "filterFields": ["description"],
+              "includeInitial": true,
+              "mode": "contribution",
+              "creatorFilterMode": "all"
+            }
+          },
+          {
+            "name": "TicketFieldsTokensRetainedRule",
+            "params": {
+              "label": "Description Tokens Retained (K)",
+              "divider": 1000,
+              "isWeight": true,
+              "filterFields": ["description"],
+              "includeInitial": true,
+              "creatorFilterMode": "all"
+            }
+          },
+          {
+            "name": "TicketFieldsChangesRule",
+            "params": {
+              "label": "Status Changes",
+              "isWeight": true,
+              "filterFields": ["status"]
+            }
+          },
+          {
+            "name": "TicketFieldsChangesRule",
+            "params": {
+              "label": "Diagrams Changes",
+              "isWeight": true,
+              "filterFields": ["diagrams"],
+              "includeInitial": true,
+              "useDivider": false,
+              "creatorFilterMode": "all"
+            }
+          },
+          {
+            "name": "TicketFieldsChangesRule",
+            "params": {
+              "label": "Diagrams Similarity",
+              "isWeight": true,
+              "isSimilarity": true,
+              "filterFields": ["diagrams"],
+              "includeInitial": true,
+              "creatorFilterMode": "all"
+            }
+          },
+          {
+            "name": "TicketFieldsTokensChangedRule",
+            "params": {
+              "label": "Diagrams Tokens Contribution (K)",
+              "isWeight": true,
+              "divider": 1000,
+              "filterFields": ["diagrams"],
+              "includeInitial": true,
+              "mode": "contribution",
+              "creatorFilterMode": "all"
+            }
+          }
+        ]
+      },
+      {
         "name": "pullRequests",
         "params": {
           "sourceType": "github",
@@ -165,15 +275,6 @@
               "label": "PRs Declined",
               "isWeight": false,
               "isPersonalized": true
-            }
-          },
-          {
-            "name": "LinesOfCodeMetricSource",
-            "params": {
-              "label": "Lines Of Code (K)",
-              "isWeight": true,
-              "isPersonalized": true,
-              "divider": 1000
             }
           },
           {
@@ -208,6 +309,15 @@
               "label": "Commits",
               "isWeight": false,
               "isPersonalized": true
+            }
+          },
+          {
+            "name": "LinesOfCodeMetricSource",
+            "params": {
+              "label": "Lines Of Code (K)",
+              "isWeight": true,
+              "isPersonalized": true,
+              "divider": 1000
             }
           }
         ]
@@ -246,15 +356,6 @@
             }
           },
           {
-            "name": "LinesOfCodeMetricSource",
-            "params": {
-              "label": "Lines Of Code (K)",
-              "isWeight": true,
-              "isPersonalized": true,
-              "divider": 1000
-            }
-          },
-          {
             "name": "PullRequestsCommentsMetricSource",
             "params": {
               "label": "PR Comments",
@@ -286,6 +387,93 @@
               "label": "Commits",
               "isWeight": false,
               "isPersonalized": true
+            }
+          },
+          {
+            "name": "LinesOfCodeMetricSource",
+            "params": {
+              "label": "Lines Of Code (K)",
+              "isWeight": true,
+              "isPersonalized": true,
+              "divider": 1000
+            }
+          }
+        ]
+      },
+      {
+        "name": "pullRequests",
+        "params": {
+          "sourceType": "github",
+          "workspace": "IstiN",
+          "repository": "learn.ai",
+          "branch": "main"
+        },
+        "metrics": [
+          {
+            "name": "PullRequestsMetricSource",
+            "params": {
+              "label": "PRs Created",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "PullRequestsMergedByMetricSource",
+            "params": {
+              "label": "PRs Merged",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "PullRequestsDeclinedMetricSource",
+            "params": {
+              "label": "PRs Declined",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "PullRequestsCommentsMetricSource",
+            "params": {
+              "label": "PR Comments",
+              "isPersonalized": true,
+              "isPositive": true
+            }
+          },
+          {
+            "name": "PullRequestsApprovalsMetricSource",
+            "params": {
+              "label": "PR Approvals",
+              "isPersonalized": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "commits",
+        "params": {
+          "sourceType": "github",
+          "workspace": "IstiN",
+          "repository": "learn.ai",
+          "branch": "main"
+        },
+        "metrics": [
+          {
+            "name": "CommitsMetricSource",
+            "params": {
+              "label": "Commits",
+              "isWeight": false,
+              "isPersonalized": true
+            }
+          },
+          {
+            "name": "LinesOfCodeMetricSource",
+            "params": {
+              "label": "Lines Of Code (K)",
+              "isWeight": true,
+              "isPersonalized": true,
+              "divider": 1000
             }
           }
         ]
@@ -295,27 +483,27 @@
         "params": {
           "filePath": "agents/reports/cursor_usage.csv",
           "whenColumn": "Date",
-          "defaultWho": "Uladzimir Klyshevich"
+          "defaultWho": "AI Teammate"
         },
         "metrics": [
           {
             "name": "CsvMetricSource",
             "params": {
               "weightColumn": "Output Tokens",
-              "label": "Output Tokens (M)",
+              "label": "Output Tokens (10M)",
               "isWeight": true,
               "isPersonalized": true,
-              "divider": 1000000
+              "divider": 10000000
             }
           },
           {
             "name": "CsvMetricSource",
             "params": {
               "weightColumn": "Total Tokens",
-              "label": "Total Tokens R/W (M)",
+              "label": "Total Tokens R/W (10M)",
               "isWeight": true,
               "isPersonalized": true,
-              "divider": 1000000
+              "divider": 10000000
             }
           },
           {
@@ -338,7 +526,9 @@
       {"type": "yearly"}
     ],
     "aggregation": {
-      "formula": "${Completed Tickets}"
+      "label": "All Metrics Score",
+      "formulaFile": "agents/reports/aggregation_formula.js",
+      "formula": "(((${Completed Tickets} + ${Accepted Tickets} + ${Solution Completed} + ${PRs Merged} + ${PR Approvals}) * 0.3) + (${Commits} * 0.7) + (${Lines Of Code (K)} * 0.3) + (${Output Tokens (10M)} * 0.6) + (${Description Tokens Retained (K)} * 0.2) + (${Test Cases} * 0.3)) - ((${Cost ($)} * 0.1) + (${Total Tokens R/W (10M)} * 0.2) + (${PRs Declined} * 0.4) + (${Irrelevant Questions} * 0.4))"
     },
     "output": {
       "mode": "combined",
@@ -347,8 +537,8 @@
     },
     "computedMetrics": [
       {
-        "label": "Input Tokens (M)",
-        "formula": "${Total Tokens R/W (M)} - ${Output Tokens (M)}",
+        "label": "Input Tokens (10M)",
+        "formula": "${Total Tokens R/W (10M)} - ${Output Tokens (10M)}",
         "isWeight": true,
         "isPersonalized": true
       }

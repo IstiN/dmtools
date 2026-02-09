@@ -484,61 +484,42 @@ class ReportGeneratorTest {
     }
 
     @Test
-    void testEvaluateFormula_subtraction() throws Exception {
-        ReportGenerator generator = new ReportGenerator(null, null);
-        Method method = ReportGenerator.class.getDeclaredMethod(
-            "evaluateFormula", String.class, java.util.Map.class
-        );
-        method.setAccessible(true);
-
+    void testFormulaEvaluator_subtraction() {
         java.util.Map<String, Double> values = new java.util.HashMap<>();
         values.put("Total Tokens (M)", 100.0);
         values.put("Output Tokens (M)", 30.0);
 
-        double result = (double) method.invoke(generator,
-            "${Total Tokens (M)} - ${Output Tokens (M)}", values);
+        double result = com.github.istin.dmtools.reporting.formula.FormulaEvaluator.evaluate(
+            "${Total Tokens (M)} - ${Output Tokens (M)}", values
+        );
         assertEquals(70.0, result, 0.01);
     }
 
     @Test
-    void testEvaluateFormula_multiplication() throws Exception {
-        ReportGenerator generator = new ReportGenerator(null, null);
-        Method method = ReportGenerator.class.getDeclaredMethod(
-            "evaluateFormula", String.class, java.util.Map.class
-        );
-        method.setAccessible(true);
-
+    void testFormulaEvaluator_multiplication() {
         java.util.Map<String, Double> values = new java.util.HashMap<>();
         values.put("A", 5.0);
         values.put("B", 3.0);
 
-        double result = (double) method.invoke(generator, "${A} * ${B}", values);
+        double result = com.github.istin.dmtools.reporting.formula.FormulaEvaluator.evaluate(
+            "${A} * ${B}", values
+        );
         assertEquals(15.0, result, 0.01);
     }
 
     @Test
-    void testEvaluateFormula_missingMetric_defaultsToZero() throws Exception {
-        ReportGenerator generator = new ReportGenerator(null, null);
-        Method method = ReportGenerator.class.getDeclaredMethod(
-            "evaluateFormula", String.class, java.util.Map.class
-        );
-        method.setAccessible(true);
-
+    void testFormulaEvaluator_missingMetric_defaultsToZero() {
         java.util.Map<String, Double> values = new java.util.HashMap<>();
         values.put("A", 50.0);
 
-        double result = (double) method.invoke(generator, "${A} - ${Missing}", values);
+        double result = com.github.istin.dmtools.reporting.formula.FormulaEvaluator.evaluate(
+            "${A} - ${Missing}", values
+        );
         assertEquals(50.0, result, 0.01);
     }
 
     @Test
-    void testApplyComputedMetrics() throws Exception {
-        ReportGenerator generator = new ReportGenerator(null, null);
-        Method method = ReportGenerator.class.getDeclaredMethod(
-            "applyComputedMetrics", List.class, java.util.Map.class
-        );
-        method.setAccessible(true);
-
+    void testApplyComputedMetrics() {
         java.util.Map<String, MetricSummary> metrics = new java.util.HashMap<>();
         metrics.put("Total", new MetricSummary(10, 100.0, new ArrayList<>(List.of("Alice"))));
         metrics.put("Output", new MetricSummary(10, 30.0, new ArrayList<>(List.of("Alice"))));
@@ -547,10 +528,14 @@ class ReportGeneratorTest {
             new ComputedMetricConfig("Input", "${Total} - ${Output}", true, true)
         );
 
-        method.invoke(generator, computed, metrics);
+        java.util.Set<String> weightLabels = new java.util.HashSet<>(List.of("Total", "Output"));
+        com.github.istin.dmtools.reporting.formula.ComputedMetricsApplier.applyToMetrics(
+            computed, metrics, weightLabels
+        );
 
         assertTrue(metrics.containsKey("Input"));
         assertEquals(70.0, metrics.get("Input").getTotalWeight(), 0.01);
+        assertTrue(weightLabels.contains("Input"));
     }
 
     /**

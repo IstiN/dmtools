@@ -7,7 +7,7 @@ import com.github.istin.dmtools.common.tracker.TrackerClient;
 import com.github.istin.dmtools.common.utils.DateUtils;
 import com.github.istin.dmtools.metrics.TrackerRule;
 import com.github.istin.dmtools.report.model.KeyTime;
-import com.github.istin.dmtools.team.Employees;
+import com.github.istin.dmtools.team.IEmployees;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,10 +17,10 @@ import java.util.regex.Pattern;
 public class CommentsWrittenRule implements TrackerRule<ITicket> {
 
     private String customName;
-    private final Employees employees;
+    private final IEmployees employees;
     private final String commentsRegex;
 
-    public CommentsWrittenRule(Employees employees, String commentsRegex) {
+    public CommentsWrittenRule(IEmployees employees, String commentsRegex) {
         this.employees = employees;
         this.commentsRegex = commentsRegex;
     }

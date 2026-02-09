@@ -7,10 +7,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Reads a CSV file and produces KeyTime entries for reporting metrics.
@@ -21,14 +20,14 @@ import java.util.regex.Pattern;
  * - defaultWho: fallback person name when no whoColumn is specified
  * - Quoted numeric values like "79997" or "0.04"
  * - ISO 8601 dates (2026-02-07T13:29:37.369Z) and simple dates (2026-02-07)
+ * - Custom date format override via dateFormat param
  * - Graceful handling of invalid/non-numeric values (skipped)
  * - File path: absolute or relative to working directory
  */
 public class CsvMetricSource extends CommonSourceCollector {
 
     private static final Logger logger = LogManager.getLogger(CsvMetricSource.class);
-
-    private static final Pattern CSV_SPLIT = Pattern.compile(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+    private static final Map<String, CachedCsv> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final String filePath;
     private final String whoColumn;
@@ -36,9 +35,11 @@ public class CsvMetricSource extends CommonSourceCollector {
     private final String weightColumn;
     private final double weightMultiplier;
     private final String defaultWho;
+    private final String dateFormat;
+    private final SimpleDateFormat customDateFormat;
 
     public CsvMetricSource(IEmployees employees, String filePath, String whoColumn, String whenColumn,
-                           String weightColumn, double weightMultiplier, String defaultWho) {
+                           String weightColumn, double weightMultiplier, String defaultWho, String dateFormat) {
         super(employees);
         this.filePath = filePath;
         this.whoColumn = whoColumn;
@@ -46,24 +47,29 @@ public class CsvMetricSource extends CommonSourceCollector {
         this.weightColumn = weightColumn;
         this.weightMultiplier = weightMultiplier;
         this.defaultWho = defaultWho;
+        this.dateFormat = dateFormat;
+        if (dateFormat != null && !dateFormat.isEmpty()) {
+            SimpleDateFormat fmt = new SimpleDateFormat(dateFormat);
+            fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
+            fmt.setLenient(false);
+            this.customDateFormat = fmt;
+        } else {
+            this.customDateFormat = null;
+        }
     }
 
     @Override
     public List<KeyTime> performSourceCollection(boolean isPersonalized, String metricName) throws Exception {
         List<KeyTime> keyTimes = new ArrayList<>();
 
-        try (BufferedReader reader = openReader()) {
-            if (reader == null) {
-                logger.warn("CSV file not found: {}", filePath);
-                return keyTimes;
-            }
+        CachedCsv csv = loadCsv();
+        if (csv == null || csv.headers == null) {
+            logger.warn("CSV file not found or empty: {}", filePath);
+            return keyTimes;
+        }
 
-            // Parse header
-            String headerLine = reader.readLine();
-            if (headerLine == null) {
-                return keyTimes;
-            }
-            String[] headers = parseCsvLine(headerLine);
+        String[] headers = csv.headers;
+        List<String[]> rows = csv.rows;
             int whoIdx = findColumnIndex(headers, whoColumn);
             int whenIdx = findColumnIndex(headers, whenColumn);
             int weightIdx = findColumnIndex(headers, weightColumn);
@@ -77,26 +83,23 @@ public class CsvMetricSource extends CommonSourceCollector {
                 return keyTimes;
             }
 
+            // Precompute summary columns for faster per-row processing
+            int[] summaryIndexes = buildSummaryIndexes(headers, whenIdx, weightIdx, whoIdx);
+            String[] summaryHeaders = buildSummaryHeaders(headers, summaryIndexes);
+
             // Parse rows
-            String line;
-            int rowIndex = 0;
-            while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
-                String[] values = parseCsvLine(line);
+            for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+                String[] values = rows.get(rowIndex);
 
                 // Parse date
-                Calendar cal = parseDate(safeGet(values, whenIdx));
+                Calendar cal = parseDateValue(safeGet(values, whenIdx));
                 if (cal == null) {
-                    rowIndex++;
                     continue;
                 }
 
                 // Parse weight
                 Double weight = parseNumber(safeGet(values, weightIdx));
                 if (weight == null) {
-                    rowIndex++;
                     continue;
                 }
 
@@ -123,49 +126,103 @@ public class CsvMetricSource extends CommonSourceCollector {
                 KeyTime keyTime = new KeyTime(filePath + "_" + rowIndex, cal, who);
                 keyTime.setWeight(weight * weightMultiplier);
 
-                // Build summary from available columns
-                StringBuilder summary = new StringBuilder();
-                for (int i = 0; i < headers.length && i < values.length; i++) {
-                    if (i == whenIdx || i == weightIdx || i == whoIdx) continue;
-                    String v = unquote(values[i]).trim();
-                    if (!v.isEmpty()) {
-                        if (summary.length() > 0) summary.append(" | ");
-                        summary.append(unquote(headers[i]).trim()).append(": ").append(v);
+                // Build summary from available columns (precomputed indexes)
+                if (summaryIndexes.length > 0) {
+                    StringBuilder summary = null;
+                    for (int i = 0; i < summaryIndexes.length; i++) {
+                        int idx = summaryIndexes[i];
+                        if (idx >= values.length) continue;
+                        String v = values[idx].trim();
+                        if (!v.isEmpty()) {
+                            if (summary == null) {
+                                summary = new StringBuilder();
+                            } else {
+                                summary.append(" | ");
+                            }
+                            summary.append(summaryHeaders[i]).append(": ").append(v);
+                        }
                     }
-                }
-                if (summary.length() > 0) {
-                    keyTime.setSummary(summary.toString());
+                    if (summary != null) {
+                        keyTime.setSummary(summary.toString());
+                    }
                 }
 
                 keyTimes.add(keyTime);
-                rowIndex++;
             }
-        }
 
         logger.info("CSV '{}': collected {} entries from column '{}'", filePath, keyTimes.size(), weightColumn);
         return keyTimes;
     }
 
-    BufferedReader openReader() throws IOException {
+    private CachedCsv loadCsv() throws IOException {
         // Try absolute path first, then relative
         File file = new File(filePath);
         if (file.exists()) {
-            return new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+            String key = file.getCanonicalPath();
+            long lastModified = file.lastModified();
+            long length = file.length();
+            CachedCsv cached = CACHE.get(key);
+            if (cached != null && cached.lastModified == lastModified && cached.length == length) {
+                return cached;
+            }
+            CachedCsv fresh = readCsv(new FileInputStream(file), lastModified, length);
+            CACHE.put(key, fresh);
+            return fresh;
         }
         // Try classpath (for tests)
+        String cpKey = "classpath:" + filePath;
+        CachedCsv cached = CACHE.get(cpKey);
+        if (cached != null) return cached;
         InputStream is = getClass().getResourceAsStream(filePath);
         if (is != null) {
-            return new BufferedReader(new InputStreamReader(is, "UTF-8"));
+            CachedCsv fresh = readCsv(is, -1, -1);
+            CACHE.put(cpKey, fresh);
+            return fresh;
         }
         return null;
     }
 
-    static String[] parseCsvLine(String line) {
-        String[] parts = CSV_SPLIT.split(line, -1);
-        for (int i = 0; i < parts.length; i++) {
-            parts[i] = unquote(parts[i]);
+    private CachedCsv readCsv(InputStream is, long lastModified, long length) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8), 64 * 1024)) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) {
+                return new CachedCsv(null, Collections.emptyList(), lastModified, length);
+            }
+            String[] headers = parseCsvLine(headerLine);
+            List<String[]> rows = new ArrayList<>();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                rows.add(parseCsvLine(line));
+            }
+            return new CachedCsv(headers, rows, lastModified, length);
         }
-        return parts;
+    }
+
+    static String[] parseCsvLine(String line) {
+        if (line == null) return new String[0];
+        List<String> parts = new ArrayList<>();
+        StringBuilder current = new StringBuilder(line.length());
+        boolean inQuotes = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') {
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (c == ',' && !inQuotes) {
+                parts.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        parts.add(current.toString());
+        return parts.toArray(new String[0]);
     }
 
     static String unquote(String value) {
@@ -180,7 +237,11 @@ public class CsvMetricSource extends CommonSourceCollector {
     static int findColumnIndex(String[] headers, String columnName) {
         if (columnName == null || columnName.isEmpty()) return -1;
         for (int i = 0; i < headers.length; i++) {
-            if (headers[i].equalsIgnoreCase(columnName)) {
+            String header = headers[i] != null ? headers[i].trim() : "";
+            if (i == 0 && header.startsWith("\uFEFF")) {
+                header = header.replace("\uFEFF", "");
+            }
+            if (header.equalsIgnoreCase(columnName)) {
                 return i;
             }
         }
@@ -242,8 +303,59 @@ public class CsvMetricSource extends CommonSourceCollector {
         return null;
     }
 
+    private Calendar parseDateValue(String value) {
+        if (value == null || value.trim().isEmpty()) return null;
+        if (customDateFormat != null) {
+            try {
+                synchronized (customDateFormat) {
+                    Date date = customDateFormat.parse(value.trim());
+                    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+                    cal.setTime(date);
+                    return cal;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return parseDate(value);
+    }
+
+    private static int[] buildSummaryIndexes(String[] headers, int whenIdx, int weightIdx, int whoIdx) {
+        List<Integer> summaryIndexes = new ArrayList<>();
+        for (int i = 0; i < headers.length; i++) {
+            if (i == whenIdx || i == weightIdx || i == whoIdx) continue;
+            String header = headers[i] != null ? headers[i].trim() : "";
+            if (!header.isEmpty()) {
+                summaryIndexes.add(i);
+            }
+        }
+        return summaryIndexes.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private static String[] buildSummaryHeaders(String[] headers, int[] summaryIndexes) {
+        String[] summaryHeaders = new String[summaryIndexes.length];
+        for (int i = 0; i < summaryIndexes.length; i++) {
+            int idx = summaryIndexes[i];
+            summaryHeaders[i] = headers[idx] != null ? headers[idx].trim() : "";
+        }
+        return summaryHeaders;
+    }
+
     private static String safeGet(String[] arr, int idx) {
         if (idx < 0 || idx >= arr.length) return "";
         return arr[idx];
+    }
+
+    private static class CachedCsv {
+        private final String[] headers;
+        private final List<String[]> rows;
+        private final long lastModified;
+        private final long length;
+
+        private CachedCsv(String[] headers, List<String[]> rows, long lastModified, long length) {
+            this.headers = headers;
+            this.rows = rows;
+            this.lastModified = lastModified;
+            this.length = length;
+        }
     }
 }

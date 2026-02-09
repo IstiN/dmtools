@@ -13,7 +13,10 @@ public class ReportOutput {
     private AggregatedResult aggregated;
     private List<String> weightMetrics;
     private Map<String, String> linkTemplates;
+    private Map<String, Double> metricDividers;
     private List<CustomChartConfig> customCharts;
+    private String aggregationLabel;
+    private String aggregationFormula;
 
     public ReportOutput() {}
     public ReportOutput(String reportName, String generatedAt, String startDate, String endDate,
@@ -39,6 +42,12 @@ public class ReportOutput {
     public void setWeightMetrics(List<String> weightMetrics) { this.weightMetrics = weightMetrics; }
     public Map<String, String> getLinkTemplates() { return linkTemplates; }
     public void setLinkTemplates(Map<String, String> linkTemplates) { this.linkTemplates = linkTemplates; }
+    public Map<String, Double> getMetricDividers() { return metricDividers; }
+    public void setMetricDividers(Map<String, Double> metricDividers) { this.metricDividers = metricDividers; }
     public List<CustomChartConfig> getCustomCharts() { return customCharts; }
     public void setCustomCharts(List<CustomChartConfig> customCharts) { this.customCharts = customCharts; }
+    public String getAggregationLabel() { return aggregationLabel; }
+    public void setAggregationLabel(String aggregationLabel) { this.aggregationLabel = aggregationLabel; }
+    public String getAggregationFormula() { return aggregationFormula; }
+    public void setAggregationFormula(String aggregationFormula) { this.aggregationFormula = aggregationFormula; }
 }

@@ -70,6 +70,9 @@ public class ReportGeneratorJob extends AbstractJob<
         @SerializedName("customCharts")
         private List<CustomChartConfig> customCharts;
 
+        @SerializedName("computedMetrics")
+        private List<ComputedMetricConfig> computedMetrics;
+
         /**
          * Normalizes timeGrouping to a list of TimeGroupingConfig.
          * Handles both single-object and array forms from Gson deserialization.
@@ -126,6 +129,7 @@ public class ReportGeneratorJob extends AbstractJob<
         config.setEmployees(params.getEmployees());
         config.setAliases(params.getAliases());
         config.setCustomCharts(params.getCustomCharts());
+        config.setComputedMetrics(params.getComputedMetrics());
 
         logger.info("Report config ready: {}", config.getReportName());
         logger.debug("Date range: {} to {}", config.getStartDate(), config.getEndDate());

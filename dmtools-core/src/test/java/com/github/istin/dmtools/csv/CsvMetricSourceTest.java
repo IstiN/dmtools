@@ -33,7 +33,7 @@ class CsvMetricSourceTest {
     @Test
     void testPerformSourceCollection_totalTokens() throws Exception {
         CsvMetricSource source = new CsvMetricSource(
-            employees, "/Test_Csv.csv", "Name", "Date", "Total Tokens", 1.0, null
+            employees, "/Test_Csv.csv", "Name", "Date", "Total Tokens", 1.0, null, null
         );
 
         List<KeyTime> result = source.performSourceCollection(true, "Tokens");
@@ -66,7 +66,7 @@ class CsvMetricSourceTest {
     @Test
     void testPerformSourceCollection_cost() throws Exception {
         CsvMetricSource source = new CsvMetricSource(
-            employees, "/Test_Csv.csv", "Name", "Date", "Cost", 1.0, null
+            employees, "/Test_Csv.csv", "Name", "Date", "Cost", 1.0, null, null
         );
 
         List<KeyTime> result = source.performSourceCollection(true, "Cost");
@@ -85,7 +85,7 @@ class CsvMetricSourceTest {
     void testPerformSourceCollection_defaultWho() throws Exception {
         // No whoColumn, use defaultWho
         CsvMetricSource source = new CsvMetricSource(
-            employees, "/Test_Csv.csv", null, "Date", "Total Tokens", 1.0, "Default Person"
+            employees, "/Test_Csv.csv", null, "Date", "Total Tokens", 1.0, "Default Person", null
         );
 
         List<KeyTime> result = source.performSourceCollection(true, "Tokens");
@@ -99,7 +99,7 @@ class CsvMetricSourceTest {
     @Test
     void testPerformSourceCollection_notPersonalized() throws Exception {
         CsvMetricSource source = new CsvMetricSource(
-            employees, "/Test_Csv.csv", "Name", "Date", "Total Tokens", 1.0, null
+            employees, "/Test_Csv.csv", "Name", "Date", "Total Tokens", 1.0, null, null
         );
 
         List<KeyTime> result = source.performSourceCollection(false, "MetricLabel");
@@ -113,7 +113,7 @@ class CsvMetricSourceTest {
     @Test
     void testPerformSourceCollection_weightMultiplier() throws Exception {
         CsvMetricSource source = new CsvMetricSource(
-            employees, "/Test_Csv.csv", "Name", "Date", "Cost", 100.0, null
+            employees, "/Test_Csv.csv", "Name", "Date", "Cost", 100.0, null, null
         );
 
         List<KeyTime> result = source.performSourceCollection(true, "Cost");
@@ -125,7 +125,7 @@ class CsvMetricSourceTest {
     @Test
     void testPerformSourceCollection_datesParsedCorrectly() throws Exception {
         CsvMetricSource source = new CsvMetricSource(
-            employees, "/Test_Csv.csv", "Name", "Date", "Total Tokens", 1.0, null
+            employees, "/Test_Csv.csv", "Name", "Date", "Total Tokens", 1.0, null, null
         );
 
         List<KeyTime> result = source.performSourceCollection(true, "Tokens");
@@ -140,7 +140,7 @@ class CsvMetricSourceTest {
     @Test
     void testPerformSourceCollection_summaryIncludesOtherColumns() throws Exception {
         CsvMetricSource source = new CsvMetricSource(
-            employees, "/Test_Csv.csv", "Name", "Date", "Total Tokens", 1.0, null
+            employees, "/Test_Csv.csv", "Name", "Date", "Total Tokens", 1.0, null, null
         );
 
         List<KeyTime> result = source.performSourceCollection(true, "Tokens");
@@ -155,7 +155,7 @@ class CsvMetricSourceTest {
     @Test
     void testPerformSourceCollection_fileNotFound() throws Exception {
         CsvMetricSource source = new CsvMetricSource(
-            employees, "/nonexistent.csv", null, "Date", "Value", 1.0, null
+            employees, "/nonexistent.csv", null, "Date", "Value", 1.0, null, null
         );
 
         List<KeyTime> result = source.performSourceCollection(true, "Test");
@@ -184,6 +184,8 @@ class CsvMetricSourceTest {
     void testParseNumber_quotedNumber() {
         assertEquals(79997.0, CsvMetricSource.parseNumber("79997"), 0.01);
         assertEquals(0.04, CsvMetricSource.parseNumber("0.04"), 0.001);
+        assertNull(CsvMetricSource.parseNumber("NaN"));
+        assertNull(CsvMetricSource.parseNumber("N/A"));
         assertNull(CsvMetricSource.parseNumber("bad"));
         assertNull(CsvMetricSource.parseNumber(""));
         assertNull(CsvMetricSource.parseNumber(null));
