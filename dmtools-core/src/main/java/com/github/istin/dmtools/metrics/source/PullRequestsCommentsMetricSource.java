@@ -69,8 +69,17 @@ public class PullRequestsCommentsMetricSource extends CommonSourceCollector {
                 String keyTimeOwner = isPersonalized ? owner : metricName;
 
                 // Unique key per comment so each appears as a separate dataset entry
+                // Note: Key includes comment index for uniqueness, but link is set to PR URL
                 String uniqueKey = pullRequestIdAsString + "/c" + commentIndex;
                 KeyTime keyTime = new KeyTime(uniqueKey, pullRequestClosedDateAsCalendar, keyTimeOwner);
+
+                // Explicitly set link to valid PR URL (without comment index suffix)
+                // This prevents PullRequestsDataSource from building invalid URLs like /pull/123/c0
+                // Use SourceCode.getPullRequestUrl() which is implemented by GitHub/GitLab/Bitbucket
+                String prUrl = sourceCode.getPullRequestUrl(workspace, repo, pullRequestIdAsString);
+                if (prUrl != null) {
+                    keyTime.setLink(prUrl);
+                }
 
                 // Build summary with PR context and comment body
                 String body = comment.getBody();

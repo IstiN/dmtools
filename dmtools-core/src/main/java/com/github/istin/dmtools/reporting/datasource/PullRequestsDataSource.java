@@ -24,13 +24,13 @@ public class PullRequestsDataSource extends DataSource {
             return;
         }
 
-        // Build base URL for PR links from params
-        String prBaseUrl = buildPrBaseUrl();
-
         List<KeyTime> keyTimes = sourceCollector.performSourceCollection(
             metric.isPersonalized(),
             metric.getName()
         );
+
+        String workspace = (String) params.get("workspace");
+        String repository = (String) params.get("repository");
 
         for (KeyTime kt : keyTimes) {
             JSONObject metadata = new JSONObject();
@@ -39,10 +39,10 @@ public class PullRequestsDataSource extends DataSource {
             if (kt.getSummary() != null) {
                 metadata.put("summary", kt.getSummary());
             }
-            // Build link: use KeyTime link if set, otherwise build from params
+            // Build link: use KeyTime link if set, otherwise use SourceCode.getPullRequestUrl()
             String link = kt.getLink();
-            if (link == null && prBaseUrl != null) {
-                link = prBaseUrl + "/pull/" + kt.getKey();
+            if (link == null && workspace != null && repository != null) {
+                link = sourceCode.getPullRequestUrl(workspace, repository, kt.getKey());
             }
             if (link != null) {
                 metadata.put("link", link);
@@ -51,22 +51,6 @@ public class PullRequestsDataSource extends DataSource {
         }
     }
 
-    private String buildPrBaseUrl() {
-        if (params == null) return null;
-        String sourceType = (String) params.getOrDefault("sourceType", "github");
-        String workspace = (String) params.get("workspace");
-        String repository = (String) params.get("repository");
-        if (workspace == null || repository == null) return null;
-
-        switch (sourceType.toLowerCase()) {
-            case "gitlab":
-                return "https://gitlab.com/" + workspace + "/" + repository;
-            case "bitbucket":
-                return "https://bitbucket.org/" + workspace + "/" + repository;
-            default:
-                return "https://github.com/" + workspace + "/" + repository;
-        }
-    }
 
     @Override
     public JSONObject extractRawMetadata(Object item) {
