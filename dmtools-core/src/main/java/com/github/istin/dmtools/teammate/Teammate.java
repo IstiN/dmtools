@@ -218,16 +218,26 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
 
     @Override
     protected List<ResultItem> runJobImpl(TeammateParams expertParams) throws Exception {
-        // Validate TrackerClient availability if inputJql is provided
+        // Validate TrackerClient availability
         String inputJQL = expertParams.getInputJql();
-        if (inputJQL != null && !inputJQL.trim().isEmpty() && trackerClient == null) {
-            throw new IllegalStateException(
-                "TrackerClient is not configured, but inputJql is provided. " +
-                "Please configure Jira (JIRA_BASE_PATH + JIRA_EMAIL + JIRA_API_TOKEN) or " +
-                "ADO (ADO_ORGANIZATION + ADO_PROJECT + ADO_PAT_TOKEN) or " +
-                "Rally (RALLY_PATH + RALLY_TOKEN). " +
-                "Alternatively, remove inputJql parameter if tracker integration is not needed."
-            );
+        boolean hasJqlQuery = inputJQL != null && !inputJQL.trim().isEmpty();
+
+        if (trackerClient == null) {
+            if (hasJqlQuery) {
+                // TrackerClient is required when inputJql is provided
+                throw new IllegalStateException(
+                    "TrackerClient is not configured, but inputJql is provided. " +
+                    "Please configure Jira (JIRA_BASE_PATH + JIRA_EMAIL + JIRA_API_TOKEN) or " +
+                    "ADO (ADO_ORGANIZATION + ADO_PROJECT + ADO_PAT_TOKEN) or " +
+                    "Rally (RALLY_PATH + RALLY_TOKEN). " +
+                    "Alternatively, remove inputJql parameter if tracker integration is not needed."
+                );
+            } else {
+                // No tracker and no JQL query - return empty results
+                // (non-tracker execution path - useful for direct AI processing without tickets)
+                logger.info("No TrackerClient configured and no inputJql provided - skipping ticket processing");
+                return new ArrayList<>();
+            }
         }
 
         ExpertParams.OutputType outputType = expertParams.getOutputType();

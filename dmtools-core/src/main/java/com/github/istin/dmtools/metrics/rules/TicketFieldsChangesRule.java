@@ -82,7 +82,22 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
     @Override
     public List<KeyTime> check(TrackerClient trackerClient, ITicket ticket) throws Exception {
         IChangelog changeLog = trackerClient.getChangeLog(ticket.getKey(), ticket);
-        String who = ChangelogAssessment.whoReportedTheTicket((Ticket) ticket, employees);
+
+        // Determine who reported the ticket (works across Jira/ADO/Rally)
+        String who;
+        if (ticket instanceof Ticket) {
+            // Jira-specific logic for better accuracy
+            who = ChangelogAssessment.whoReportedTheTicket((Ticket) ticket, employees);
+        } else {
+            // Generic fallback for non-Jira tickets (ADO, Rally, etc.)
+            IUser creator = ticket.getCreator();
+            if (creator != null && employees != null) {
+                String creatorName = creator.getFullName();
+                who = employees.contains(creatorName) ? creatorName : IEmployees.UNKNOWN;
+            } else {
+                who = IEmployees.UNKNOWN;
+            }
+        }
 
         List<IHistory> histories = (List<IHistory>) changeLog.getHistories();
         String lastAssignee = null;
@@ -140,9 +155,7 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
                             }
                             if (similarityResult < 0f) similarityResult = 0f;
                             if (similarityResult > 1f) similarityResult = 1f;
-                            if (field.equalsIgnoreCase("summary")) {
-                                System.out.println("Similarity Summary: " + similarityResult);
-                            }
+                            // Debug output removed - use logger if needed for troubleshooting
                             weight = 1 - similarityResult;
                             if (weight <= 0) {
                                 continue;
