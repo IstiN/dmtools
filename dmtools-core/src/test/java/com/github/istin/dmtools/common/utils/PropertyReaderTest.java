@@ -13,39 +13,34 @@ class PropertyReaderTest {
     private PropertyReader propertyReader;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         propertyReader = new PropertyReader();
         // Reset static properties to avoid test interference
         PropertyReader.prop = null;
         // Use reflection to reset envFileProps and projectRoot for clean state
-        try {
-            java.lang.reflect.Field envFilePropsField = PropertyReader.class.getDeclaredField("envFileProps");
-            envFilePropsField.setAccessible(true);
-            envFilePropsField.set(null, null);
+        // IMPORTANT: If reflection fails, the test should fail (not silently ignore)
+        // to prevent cross-test contamination from static state
+        java.lang.reflect.Field envFilePropsField = PropertyReader.class.getDeclaredField("envFileProps");
+        envFilePropsField.setAccessible(true);
+        envFilePropsField.set(null, null);
 
-            java.lang.reflect.Field projectRootField = PropertyReader.class.getDeclaredField("projectRoot");
-            projectRootField.setAccessible(true);
-            projectRootField.set(null, null);
-        } catch (Exception e) {
-            // Ignore reflection errors
-        }
+        java.lang.reflect.Field projectRootField = PropertyReader.class.getDeclaredField("projectRoot");
+        projectRootField.setAccessible(true);
+        projectRootField.set(null, null);
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws Exception {
         // Clean up static state
+        // IMPORTANT: If cleanup fails, the test should fail to prevent cross-test interference
         PropertyReader.prop = null;
-        try {
-            java.lang.reflect.Field envFilePropsField = PropertyReader.class.getDeclaredField("envFileProps");
-            envFilePropsField.setAccessible(true);
-            envFilePropsField.set(null, null);
+        java.lang.reflect.Field envFilePropsField = PropertyReader.class.getDeclaredField("envFileProps");
+        envFilePropsField.setAccessible(true);
+        envFilePropsField.set(null, null);
 
-            java.lang.reflect.Field projectRootField = PropertyReader.class.getDeclaredField("projectRoot");
-            projectRootField.setAccessible(true);
-            projectRootField.set(null, null);
-        } catch (Exception e) {
-            // Ignore reflection errors
-        }
+        java.lang.reflect.Field projectRootField = PropertyReader.class.getDeclaredField("projectRoot");
+        projectRootField.setAccessible(true);
+        projectRootField.set(null, null);
     }
 
     @Test
