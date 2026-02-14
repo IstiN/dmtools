@@ -487,8 +487,10 @@ See [JIRA_DUPLICATE_FIELDS_GUIDE.md](JIRA_DUPLICATE_FIELDS_GUIDE.md) for complet
 | `bedrock_ai_chat_with_files` | `message`, `filePaths` | Send a text message to AWS Bedrock AI with file attachments |
 | `openai_ai_chat` | `message` | Send a text message to OpenAI and get response |
 | `openai_ai_chat_with_files` | `message`, `filePaths` | Send a text message to OpenAI with file attachments (images for vision models) |
+| `vertex_ai_gemini_chat` | `message` | Send a text message to Google Vertex AI Gemini (service account auth) |
+| `vertex_ai_gemini_chat_with_files` | `message`, `filePaths` | Send message with file attachments to Vertex AI Gemini |
 
-**Note**: AI tools require proper API key configuration to be available. If you don't see these tools in `dmtools list`, ensure the appropriate environment variables are set (OLLAMA_BASE_PATH, ANTHROPIC_API_KEY, GEMINI_API_KEY, DIAL_API_KEY, OPENAI_API_KEY, AWS credentials, etc.).
+**Note**: AI tools require proper API key configuration to be available. If you don't see these tools in `dmtools list`, ensure the appropriate environment variables are set (OLLAMA_BASE_PATH, ANTHROPIC_API_KEY, GEMINI_API_KEY, DIAL_API_KEY, OPENAI_API_KEY, AWS credentials, etc.). For Vertex AI Gemini, set GEMINI_VERTEX_ENABLED=true and provide either GEMINI_VERTEX_CREDENTIALS_PATH or GEMINI_VERTEX_CREDENTIALS_JSON along with GEMINI_VERTEX_PROJECT_ID and GEMINI_VERTEX_LOCATION.
 
 ## 💻 Input Methods
 
