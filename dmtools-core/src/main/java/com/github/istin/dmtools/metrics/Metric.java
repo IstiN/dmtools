@@ -14,6 +14,7 @@ public class Metric {
     private SourceCollector sourceCollector;
 
     private boolean isWeight = false;
+    private double divider = 1.0;
 
     public Metric(String name, TrackerRule rule) {
         this.name = name;
@@ -65,6 +66,18 @@ public class Metric {
 
     public SourceCollector getSourceCollector() {
         return sourceCollector;
+    }
+
+    public boolean isPersonalized() {
+        return isPersonalized;
+    }
+
+    public double getDivider() {
+        return divider;
+    }
+
+    public void setDivider(double divider) {
+        this.divider = divider;
     }
 
     public void perform(Map<String, Map<String, List<KeyTime>>> metricAndMap, Set<String> combinedPeople) throws Exception {

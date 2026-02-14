@@ -218,13 +218,30 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
 
     @Override
     protected List<ResultItem> runJobImpl(TeammateParams expertParams) throws Exception {
-        ExpertParams.OutputType tempOutputType = expertParams.getOutputType();
-        if (tempOutputType == null) {
-            tempOutputType = ExpertParams.OutputType.comment;
-        }
-        final ExpertParams.OutputType outputType = tempOutputType;
-        String initiator = expertParams.getInitiator();
+        // Validate TrackerClient availability
         String inputJQL = expertParams.getInputJql();
+        boolean hasJqlQuery = inputJQL != null && !inputJQL.trim().isEmpty();
+
+        if (trackerClient == null) {
+            if (hasJqlQuery) {
+                // TrackerClient is required when inputJql is provided
+                throw new IllegalStateException(
+                    "TrackerClient is not configured, but inputJql is provided. " +
+                    "Please configure Jira (JIRA_BASE_PATH + JIRA_EMAIL + JIRA_API_TOKEN) or " +
+                    "ADO (ADO_ORGANIZATION + ADO_PROJECT + ADO_PAT_TOKEN) or " +
+                    "Rally (RALLY_PATH + RALLY_TOKEN). " +
+                    "Alternatively, remove inputJql parameter if tracker integration is not needed."
+                );
+            } else {
+                // No tracker and no JQL query - return empty results
+                // (non-tracker execution path - useful for direct AI processing without tickets)
+                logger.info("No TrackerClient configured and no inputJql provided - skipping ticket processing");
+                return new ArrayList<>();
+            }
+        }
+
+        ExpertParams.OutputType outputType = expertParams.getOutputType();
+        String initiator = expertParams.getInitiator();
         String fieldName = expertParams.getFieldName();
         String systemRequestCommentAlias = expertParams.getSystemRequestCommentAlias();
 
@@ -262,7 +279,6 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                 .mcp(trackerClient, ai, confluence, null) // sourceCode not available in Teammate context
                 .withJobContext(expertParams, ticket, null) // response is null in pre-action
                 .with(TrackerParams.INITIATOR, initiator)
-                .with(TrackerParams.METADATA, expertParams.getMetadata())
                 .execute();
 
             // Check return value to determine if processing should continue
@@ -420,7 +436,6 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
                 .mcp(trackerClient, ai, confluence, null) // sourceCode not available in Teammate context
                 .withJobContext(expertParams, ticket, response)
                 .with(TrackerParams.INITIATOR, initiator)
-                .with(TrackerParams.METADATA, expertParams.getMetadata())
                 .with("systemRequest", systemRequestCommentAlias)
                 .execute();
             if (expertParams.isAttachResponseAsFile()) {

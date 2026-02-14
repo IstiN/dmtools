@@ -1,0 +1,8 @@
+Date,Kind,Model,Name,Total Tokens,Cost
+"2026-02-07T13:29:37.369Z","Included","auto","Alice","79997","0.04"
+"2026-02-04T20:03:00.404Z","Included","auto","Bob","46664","0.02"
+"2026-02-02T13:44:51.919Z","On-Demand","kimi-k2","Alice","8642877","5.22"
+"2026-02-01T22:05:19.864Z","Included","auto","Bob","397279","0.19"
+"invalid-date","Included","auto","Alice","1000","0.01"
+"2026-01-31T20:31:14.039Z","Included","auto","Alice","","0.00"
+"2026-01-30T10:00:00.000Z","Included","auto","Charlie","50000","bad"

@@ -258,103 +258,19 @@ public class ConfluenceTest {
         assertEquals("Should use custom limit", 15, actualLimit);
     }
 
-    @Test
-    public void testSearchContentByText_GraphQLFallbackToREST() throws Exception {
-        // Test that when GraphQL fails, it falls back to REST API
-        // This simulates the scenario where graphQLPath is set but GraphQL API is unavailable (403, 404, etc.)
+    // NOTE: Test for GraphQL fallback to REST API was moved to ConfluenceIntegrationTest
+    // because it makes real HTTP requests to example.com which causes CI failures.
+    // See: dmtools-core/src/integrationTest/java/com/github/istin/dmtools/atlassian/confluence/ConfluenceIntegrationTest.java
+    // Run with: ./gradlew :dmtools-core:integrationTest
 
-        // Create Confluence instance
-        Confluence confluenceWithGraphQL = spy(new Confluence("http://example.com", "auth"));
-
-        // Use reflection to set graphQLPath (simulates environment configuration)
-        java.lang.reflect.Field graphQLPathField = Confluence.class.getDeclaredField("graphQLPath");
-        graphQLPathField.setAccessible(true);
-        graphQLPathField.set(confluenceWithGraphQL, "http://example.com/graphql");
-
-        try {
-            // When GraphQL fails, should fallback to REST API
-            // We expect it to attempt REST API call even if it fails in unit test
-            confluenceWithGraphQL.searchContentByText("test query", 10);
-            // If we get here without exception from GraphQL, fallback worked
-            assertTrue("GraphQL fallback mechanism is in place", true);
-        } catch (Exception e) {
-            // Expected in unit test - REST API will also fail with mock server
-            // But we verify that the code path reached REST API (not stuck on GraphQL error)
-            assertTrue("Exception from REST API fallback, not GraphQL",
-                e.getMessage() == null || !e.getMessage().contains("GraphQL"));
-        }
-    }
-
-    @Test
-    public void testExtractRawToken_BasicWithPrefix() throws Exception {
-        Confluence conf = new Confluence("http://example.com", "auth");
-
-        // Access private method using reflection
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
-        method.setAccessible(true);
-
-        // Test Basic auth with prefix
-        String basicAuth = "Basic " + java.util.Base64.getEncoder().encodeToString("user@example.com:mytoken123".getBytes());
-        String result = (String) method.invoke(conf, basicAuth);
-
-        assertEquals("Should extract token from Basic auth", "mytoken123", result);
-    }
-
-    @Test
-    public void testExtractRawToken_BearerWithPrefix() throws Exception {
-        Confluence conf = new Confluence("http://example.com", "auth");
-
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
-        method.setAccessible(true);
-
-        // Test Bearer token with prefix
-        String bearerAuth = "Bearer mytoken123";
-        String result = (String) method.invoke(conf, bearerAuth);
-
-        assertEquals("Should strip Bearer prefix and return raw token", "mytoken123", result);
-    }
-
-    @Test
-    public void testExtractRawToken_NullAuth() throws Exception {
-        Confluence conf = new Confluence("http://example.com", "auth");
-
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
-        method.setAccessible(true);
-
-        // Test null auth
-        String result = (String) method.invoke(conf, (String) null);
-
-        assertNull("Should return null for null input", result);
-    }
-
-    @Test
-    public void testExtractRawToken_Base64WithoutPrefix() throws Exception {
-        // Test PropertyReader format: base64(email:token) WITHOUT "Basic " prefix
-        Confluence conf = new Confluence("http://example.com", "auth");
-
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
-        method.setAccessible(true);
-
-        // PropertyReader returns just base64, no "Basic " prefix
-        String base64Only = java.util.Base64.getEncoder().encodeToString("user@example.com:mytoken123".getBytes());
-        String result = (String) method.invoke(conf, base64Only);
-
-        assertEquals("Should extract token from base64 without prefix", "mytoken123", result);
-    }
-
-    @Test
-    public void testExtractRawToken_RawToken() throws Exception {
-        // Test case where auth is already a raw token (not base64)
-        Confluence conf = new Confluence("http://example.com", "auth");
-
-        java.lang.reflect.Method method = Confluence.class.getDeclaredMethod("extractRawToken", String.class);
-        method.setAccessible(true);
-
-        // Raw token (not base64 encoded)
-        String rawToken = "myRawToken123";
-        String result = (String) method.invoke(conf, rawToken);
-
-        assertEquals("Should return raw token as is", "myRawToken123", result);
-    }
+    // NOTE: Tests for extractRawToken were removed because the method no longer exists.
+    // The auth logic was refactored in commit ab3aec88 (Feb 4, 2026):
+    // "Refactor GraphQLClient to inherit from AtlassianRestClient for unified auth"
+    //
+    // The extractRawToken private method was removed as part of consolidating auth handling
+    // into AtlassianRestClient. Auth type (Basic/Bearer) is now handled via authType field.
+    //
+    // If token extraction logic needs testing, it should be tested through public API methods
+    // (e.g., Confluence initialization with different auth configs) or via AtlassianRestClient tests.
 
 }

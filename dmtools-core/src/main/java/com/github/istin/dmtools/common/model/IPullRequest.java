@@ -24,6 +24,8 @@ public interface IPullRequest {
 
     Long getUpdatedDate();
 
+    default IUser getMergedBy() { return null; }
+
     class Utils {
 
         public static String upgradeTitleIfWip(IPullRequest pullRequest, String newTitle) {
@@ -79,5 +81,6 @@ public interface IPullRequest {
     class PullRequestState {
         public static String STATE_MERGED = "merged";
         public static String STATE_OPEN = "open";
+        public static String STATE_DECLINED = "declined";
     }
 }

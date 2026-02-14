@@ -14,6 +14,9 @@ import com.github.istin.dmtools.report.freemarker.cells.DevItemsSumCell;
 import com.github.istin.dmtools.report.freemarker.cells.DevProductivityCell;
 import com.github.istin.dmtools.report.freemarker.cells.DevStoriesSPSumCell;
 import com.github.istin.dmtools.report.model.KeyTime;
+import com.github.istin.dmtools.report.productivity.AnalyticsCommentsRule;
+import com.github.istin.dmtools.report.productivity.ProductivityAnalyticsData;
+import com.github.istin.dmtools.report.productivity.ProductivityDataResult;
 import com.github.istin.dmtools.report.productivity.ProductivityUtils;
 import com.github.istin.dmtools.team.Employees;
 import org.apache.logging.log4j.LogManager;
@@ -23,8 +26,26 @@ import org.jetbrains.annotations.NotNull;
 import javax.script.ScriptException;
 import java.io.File;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
+/**
+ * @deprecated Use {@link com.github.istin.dmtools.reporting.ReportGenerator} instead.
+ * This class will be removed in version 3.0.
+ *
+ * <p>ProductivityTools is being replaced by a new JSON-configurable reporting system
+ * that provides:
+ * <ul>
+ *   <li>Multiple data sources (tracker, pull requests, commits, etc.)</li>
+ *   <li>JavaScript custom metrics alongside Java metrics</li>
+ *   <li>Parallel execution for better performance</li>
+ *   <li>Structured JSON output for easy integration</li>
+ *   <li>Flexible time grouping options</li>
+ * </ul>
+ *
+ * <p>See package {@link com.github.istin.dmtools.reporting} for the new API.
+ */
+@Deprecated(since = "2.0", forRemoval = true)
 public class ProductivityTools {
     private static final Logger logger = LogManager.getLogger(ProductivityTools.class);
     public static final String REPORT_NAME = "Dev Productivity";
@@ -242,7 +263,104 @@ public class ProductivityTools {
 
         productivityReport.makeSprintShifts(releaseGenerator.getExtraSprintTimeline());
         productivityReport.shiftTimelineStarts(16);
+        
+        // Calculate all scores for JSON serialization
+        calculateAllScores(productivityReport);
+        
         return productivityReport;
+    }
+    
+    private static void calculateAllScores(DevProductivityReport productivityReport) {
+        if (productivityReport.getListDevCharts() != null) {
+            for (DevChart devChart : productivityReport.getListDevCharts()) {
+                devChart.calculateAllScores();
+            }
+        }
+    }
+
+    @NotNull
+    public static ProductivityDataResult buildReportWithAnalytics(
+            final TrackerClient tracker,
+            IReleaseGenerator releaseGenerator,
+            String team,
+            String formula,
+            String jql,
+            List<Metric> listOfCustomMetrics,
+            Release.Style style,
+            Employees employees,
+            String[] ignorePrefixes,
+            Map<String, String> patternNames,
+            boolean collectRequests,
+            String requestExtractionPattern,
+            Function<String, String> userNameResolver) throws Exception {
+        
+        ProductivityAnalyticsData analyticsData = new ProductivityAnalyticsData();
+        analyticsData.setPatternNames(patternNames != null ? new LinkedHashMap<>(patternNames) : new LinkedHashMap<>());
+        
+        // Create a new list of metrics that includes analytics collection
+        List<Metric> metricsWithAnalytics = new ArrayList<>(listOfCustomMetrics);
+        
+        // Add analytics metrics for each pattern
+        if (patternNames != null && !patternNames.isEmpty() && employees != null) {
+            for (Map.Entry<String, String> patternEntry : patternNames.entrySet()) {
+                String patternRegex = patternEntry.getKey();
+                String patternName = patternEntry.getValue();
+                
+                AnalyticsCommentsRule analyticsRule = new AnalyticsCommentsRule(
+                        employees,
+                        patternRegex,
+                        analyticsData,
+                        patternName,
+                        collectRequests,
+                        requestExtractionPattern,
+                        userNameResolver);
+                
+                // Create metric with analytics rule
+                // Use pattern name as metric name, weight from first metric if available
+                boolean isWeight = !listOfCustomMetrics.isEmpty() && listOfCustomMetrics.get(0).isWeight();
+                Metric analyticsMetric = new Metric(patternName, isWeight, analyticsRule);
+                metricsWithAnalytics.add(analyticsMetric);
+            }
+        }
+        
+        // Build the report using existing method (ensures backward compatibility)
+        DevProductivityReport productivityReport = buildReport(
+                tracker, releaseGenerator, team, formula, jql, metricsWithAnalytics,
+                style, employees, ignorePrefixes);
+        
+        // Count tickets by doing a separate pass (buildReport also counts but doesn't expose it)
+        final int[] ticketCounter = {0};
+        if (jql != null && !jql.isEmpty() && tracker != null) {
+            tracker.searchAndPerform(new JiraClient.Performer<ITicket>() {
+                @Override
+                public boolean perform(ITicket ticket) throws Exception {
+                    if (ProductivityUtils.isIgnoreTask(ignorePrefixes, ticket)) return false;
+                    ticketCounter[0]++;
+                    return false;
+                }
+            }, jql, tracker.getDefaultQueryFields());
+        }
+        int ticketsCount = ticketCounter[0];
+        
+        // Ensure all scores are calculated for JSON serialization
+        calculateAllScores(productivityReport);
+        
+        // Build filter string from tracker and jql
+        String filter = "";
+        if (tracker != null && jql != null && !jql.isEmpty()) {
+            String basePath = tracker.getBasePath();
+            filter = basePath + "/issues/?jql=" + jql;
+        }
+        
+        // Create result object
+        ProductivityDataResult result = new ProductivityDataResult();
+        result.setAnalytics(analyticsData);
+        result.setProductivityReport(productivityReport);
+        result.setTicketsCount(ticketsCount);
+        result.setReportName(team);
+        result.setFilter(filter);
+        
+        return result;
     }
 
     protected static void checkEmployees(Employees employees, List<KeyTime> productivityItem) {

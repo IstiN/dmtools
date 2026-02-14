@@ -19,6 +19,7 @@ import com.github.istin.dmtools.qa.InstructionsGenerator;
 import com.github.istin.dmtools.report.productivity.BAProductivityReport;
 import com.github.istin.dmtools.report.productivity.DevProductivityReport;
 import com.github.istin.dmtools.report.productivity.QAProductivityReport;
+import com.github.istin.dmtools.reporting.ReportGeneratorJob;
 import com.github.istin.dmtools.sa.SolutionArchitectureCreator;
 import com.github.istin.dmtools.sm.ScrumMasterDaily;
 import com.github.istin.dmtools.sync.SourceCodeCommitTrackerSyncJob;
@@ -65,6 +66,8 @@ public class JobRunner {
             case "baproductivityreport": return new BAProductivityReport();
             case "businessanalyticdorgeneration": return new BusinessAnalyticDORGeneration();
             case "qaproductivityreport": return new QAProductivityReport();
+            case "reportgenerator": return new ReportGeneratorJob();
+            case "reportvisualizer": return new com.github.istin.dmtools.reporting.ReportVisualizerJob();
             case "scrummasterdaily": return new ScrumMasterDaily();
             case "expert": return new Expert();
             case "teammate": return new Teammate();
@@ -112,6 +115,8 @@ public class JobRunner {
                             new BAProductivityReport(),
                             new BusinessAnalyticDORGeneration(),
                             new QAProductivityReport(),
+                            new ReportGeneratorJob(),
+                            new com.github.istin.dmtools.reporting.ReportVisualizerJob(),
                             new ScrumMasterDaily(),
                             new Expert(),
                             new Teammate(),

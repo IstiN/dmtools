@@ -108,7 +108,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
     @Override
     public List<IPullRequest> pullRequests(String workspace, String repository, String state, boolean checkAllRequests, Calendar startDate) throws IOException {
         boolean isMerged = state.equalsIgnoreCase(IPullRequest.PullRequestState.STATE_MERGED);
-        if (isMerged) {
+        boolean isDeclined = state.equalsIgnoreCase(IPullRequest.PullRequestState.STATE_DECLINED);
+        if (isMerged || isDeclined) {
             state = "closed";
         } else if (state.equalsIgnoreCase(IPullRequest.PullRequestState.STATE_OPEN)) {
             state = "open";
@@ -133,6 +134,10 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
                 pullRequests = pullRequests.stream()
                         .filter(GitHubPullRequest::isMerged)
                         .collect(Collectors.toList());
+            } else if (isDeclined) {
+                pullRequests = pullRequests.stream()
+                        .filter(pr -> !pr.isMerged())
+                        .collect(Collectors.toList());
             }
             allPullRequests.addAll(pullRequests);
 
@@ -141,11 +146,9 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             }
 
             if (!checkAllRequests || pullRequestsInResponse.length() < perPage) {
-                // If not checking all requests, or if fewer entries than the max per page are returned, we're done
                 break;
             }
 
-            // Move to next page
             currentPage++;
         }
 
@@ -206,13 +209,45 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
 
     @Override
     public List<IActivity> pullRequestActivities(String workspace, String repository, String pullRequestId) throws IOException {
-        String path = path(String.format("repos/%s/%s/pulls/%s/reviews", workspace, repository, pullRequestId));
-        GenericRequest getRequest = new GenericRequest(this, path);
-        String response = execute(getRequest);
-        if (response == null) {
-            return new ArrayList<>();
+        // Fetch review-level activities (approvals, review comments, change requests)
+        String reviewsPath = path(String.format("repos/%s/%s/pulls/%s/reviews", workspace, repository, pullRequestId));
+        GenericRequest reviewsRequest = new GenericRequest(this, reviewsPath);
+        String reviewsResponse = execute(reviewsRequest);
+        List<IActivity> activities = new ArrayList<>();
+        if (reviewsResponse != null) {
+            activities.addAll(JSONModel.convertToModels(GitHubActivity.class, new JSONArray(reviewsResponse)));
         }
-        return JSONModel.convertToModels(GitHubActivity.class, new JSONArray(response));
+
+        // Also fetch inline review comments (/pulls/{id}/comments)
+        // These are code-level comments left during reviews
+        try {
+            String commentsPath = path(String.format("repos/%s/%s/pulls/%s/comments", workspace, repository, pullRequestId));
+            GenericRequest commentsRequest = new GenericRequest(this, commentsPath);
+            String commentsResponse = execute(commentsRequest);
+            if (commentsResponse != null) {
+                List<GitHubComment> inlineComments = JSONModel.convertToModels(GitHubComment.class, new JSONArray(commentsResponse));
+                for (GitHubComment comment : inlineComments) {
+                    activities.add(new GitHubCommentActivity(comment));
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to fetch inline PR comments for PR {}: {}", pullRequestId, e.getMessage());
+        }
+
+        // Also fetch issue-level comments (/issues/{id}/comments)
+        // These are general conversation comments on the PR
+        try {
+            List<IComment> issueComments = pullRequestCommentsFromIssue(workspace, repository, pullRequestId);
+            for (IComment comment : issueComments) {
+                if (comment instanceof GitHubComment) {
+                    activities.add(new GitHubCommentActivity((GitHubComment) comment));
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to fetch issue-level PR comments for PR {}: {}", pullRequestId, e.getMessage());
+        }
+
+        return activities;
     }
 
     @Override

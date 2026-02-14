@@ -1,0 +1,6 @@
+{
+  "name": "ReportVisualizer",
+  "params": {
+    "jsonReportPath": "agents/reports/output/DMC_Bi-Weekly_2025.json"
+  }
+}

@@ -35,6 +35,7 @@ public class PullRequestsMetricSource extends CommonSourceCollector {
             }
             String keyTimeOwner = isPersonalized ? displayName : metricName;
             KeyTime keyTime = new KeyTime(pullRequest.getId().toString(), IPullRequest.Utils.getClosedDateAsCalendar(pullRequest), keyTimeOwner);
+            keyTime.setSummary(pullRequest.getTitle());
             data.add(keyTime);
         }
         return data;
