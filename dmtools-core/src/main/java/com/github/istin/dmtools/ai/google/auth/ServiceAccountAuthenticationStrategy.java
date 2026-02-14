@@ -156,8 +156,15 @@ public class ServiceAccountAuthenticationStrategy implements GeminiAuthenticatio
         }
 
         cachedAccessToken = token.getTokenValue();
-        tokenExpirationTime = token.getExpirationTime().getTime();
 
-        logger.info("Access token obtained, expires at: {}", token.getExpirationTime());
+        // Check if expiration time is available (can be null for some token types)
+        if (token.getExpirationTime() != null) {
+            tokenExpirationTime = token.getExpirationTime().getTime();
+            logger.info("Access token obtained, expires at: {}", token.getExpirationTime());
+        } else {
+            // Default to 1 hour expiration if not provided (standard OAuth2 token lifetime)
+            tokenExpirationTime = System.currentTimeMillis() + 3600000; // 1 hour
+            logger.warn("Access token expiration time not provided, defaulting to 1 hour from now");
+        }
     }
 }
