@@ -318,25 +318,61 @@ public class CliExecutionHelper {
     }
     
     /**
+     * Appends processed prompt to each CLI command as a shell-escaped parameter.
+     *
+     * @param commands Original CLI commands array
+     * @param prompt Processed prompt content to append
+     * @return New array with prompt appended to each command
+     */
+    public static String[] appendPromptToCommands(String[] commands, String prompt) {
+        if (commands == null || commands.length == 0) {
+            return commands;
+        }
+
+        if (prompt == null || prompt.trim().isEmpty()) {
+            return commands;
+        }
+
+        // Escape prompt for shell: replace " with \" and wrap in quotes
+        String escapedPrompt = prompt.replace("\\", "\\\\")  // Escape backslashes first
+                                      .replace("\"", "\\\"")   // Escape double quotes
+                                      .replace("$", "\\$")     // Escape dollar signs
+                                      .replace("`", "\\`");    // Escape backticks
+
+        String[] modifiedCommands = new String[commands.length];
+        for (int i = 0; i < commands.length; i++) {
+            String command = commands[i];
+            if (command != null && !command.trim().isEmpty()) {
+                // Append escaped prompt as quoted parameter
+                modifiedCommands[i] = command + " \"" + escapedPrompt + "\"";
+            } else {
+                modifiedCommands[i] = command;
+            }
+        }
+
+        return modifiedCommands;
+    }
+
+    /**
      * Result container for CLI execution that includes both command responses and output response.
      */
     public static class CliExecutionResult {
         private final StringBuilder commandResponses;
         private final String outputResponse;
-        
+
         public CliExecutionResult(StringBuilder commandResponses, String outputResponse) {
             this.commandResponses = commandResponses;
             this.outputResponse = outputResponse;
         }
-        
+
         public StringBuilder getCommandResponses() {
             return commandResponses;
         }
-        
+
         public String getOutputResponse() {
             return outputResponse;
         }
-        
+
         public boolean hasOutputResponse() {
             return outputResponse != null && !outputResponse.trim().isEmpty();
         }

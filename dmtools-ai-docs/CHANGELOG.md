@@ -1,3 +1,83 @@
+## [skill-v1.0.23] - 2026-02-15
+
+### Added
+- **CLI Output Safety Parameters for Teammate** - Two new safety parameters protect against data loss when CLI commands fail
+  - **`requireCliOutputFile`** (boolean, default: `true`) - Strict mode requires `outputs/response.md` before updating fields
+    - ✅ If output file exists → Process normally (update field/post comment/create ticket)
+    - ❌ If output file missing → Skip field update, post error comment instead
+    - **Prevents data loss** - won't overwrite critical fields with error messages
+    - Permissive mode (`false`) uses command output as fallback (backwards compatible)
+
+  - **`cleanupInputFolder`** (boolean, default: `true`) - Controls cleanup of temporary input context folders
+    - Enabled (default): Automatically deletes `input/[TICKET-KEY]/` folder after processing
+    - Disabled: Keeps folder for debugging CLI issues (manual cleanup required)
+
+  **Production-Safe Example:**
+  ```json
+  {
+    "skipAIProcessing": true,
+    "requireCliOutputFile": true,   // Strict mode (default)
+    "cleanupInputFolder": true,     // Cleanup (default)
+    "outputType": "field",
+    "fieldName": "Description"
+  }
+  ```
+
+  **Debug Mode Example:**
+  ```json
+  {
+    "skipAIProcessing": true,
+    "cleanupInputFolder": false,    // Keep for debugging
+    "outputType": "comment"
+  }
+  ```
+
+### Changed
+- Updated Teammate configuration documentation with CLI safety parameters
+- Updated CLI Integration guide with safety best practices and troubleshooting
+
+### Documentation
+- Added 16 unit tests for CLI safety features (all passing)
+- Updated teammate-configs.md with safety parameter examples
+- Updated cli-integration.md with production-safe and debug mode examples
+
+## [skill-v1.0.22] - 2026-02-15
+
+### Added
+- **`cliPrompt` Field for Teammate Configurations** - New field separates CLI prompts from commands for cleaner, more maintainable configurations
+  - **Multiple Input Types**: Supports plain text, local file paths, and Confluence URLs
+  - **Automatic Processing**: Uses InstructionProcessor to fetch content from files or Confluence
+  - **Shell Escaping**: Automatically escapes special characters (`\`, `"`, `$`, `` ` ``) to prevent injection
+  - **Reusability**: Same prompt file or Confluence page can be used across multiple configurations
+  - **Backwards Compatible**: Existing configs with inline prompts continue to work without changes
+
+  **Example Migration:**
+  ```json
+  // Before (inline)
+  "cliCommands": ["./script.sh \"Long prompt here...\""]
+
+  // After (separate field)
+  "cliPrompt": "Long prompt here...",
+  "cliCommands": ["./script.sh"]
+
+  // Or with file
+  "cliPrompt": "./agents/prompts/dev_prompt.md",
+  "cliCommands": ["./script.sh"]
+
+  // Or with Confluence
+  "cliPrompt": "https://company.atlassian.net/wiki/...",
+  "cliCommands": ["./script.sh"]
+  ```
+
+### Changed
+- Updated CLI Integration documentation with `cliPrompt` examples and migration guide
+- Updated skill description to mention `cliPrompt` feature
+
+### Documentation
+- Added comprehensive `cliPrompt` feature documentation in `docs/CLIPROMPT_FEATURE.md`
+- Updated all CLI integration examples to show new pattern
+- Added 17 unit tests for `cliPrompt` functionality (all passing)
+
 ## [skill-v1.0.21] - 2026-02-06
 
 ### Fixed

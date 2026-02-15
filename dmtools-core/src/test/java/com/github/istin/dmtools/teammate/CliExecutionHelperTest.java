@@ -388,7 +388,7 @@ public class CliExecutionHelperTest {
     void testProcessOutputResponse_NoConcurrencyIssues() throws IOException {
         // This test verifies that processOutputResponse doesn't rely on global working directory
         // and can work correctly even when the JVM working directory is different
-        
+
         // Arrange
         Path workingDir = Files.createTempDirectory(tempDir, "working");
         Path outputDir = workingDir.resolve("outputs");
@@ -396,16 +396,224 @@ public class CliExecutionHelperTest {
         Path responseFile = outputDir.resolve("response.md");
         String expectedContent = "Thread-safe CLI response";
         Files.write(responseFile, expectedContent.getBytes(StandardCharsets.UTF_8));
-        
+
         // Act - call with specific working directory (thread-safe approach)
         String result = cliHelper.processOutputResponse(workingDir);
-        
+
         // Assert
         assertEquals(expectedContent, result);
-        
+
         // Verify that the parameterless version doesn't find the file
         // (since it looks in the current JVM working directory, not our test directory)
         String resultWithoutParam = cliHelper.processOutputResponse();
         assertNull(resultWithoutParam);
+    }
+
+    // ========================================================================
+    // Tests for appendPromptToCommands (cliPrompt feature)
+    // ========================================================================
+
+    @Test
+    void testAppendPromptToCommands_PlainText() {
+        String[] commands = {"echo", "./script.sh"};
+        String prompt = "This is a test prompt";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(2, result.length);
+        assertEquals("echo \"This is a test prompt\"", result[0]);
+        assertEquals("./script.sh \"This is a test prompt\"", result[1]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_NullPrompt() {
+        String[] commands = {"echo", "./script.sh"};
+        String prompt = null;
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertSame(commands, result, "Should return same array reference when prompt is null");
+    }
+
+    @Test
+    void testAppendPromptToCommands_EmptyPrompt() {
+        String[] commands = {"echo", "./script.sh"};
+        String prompt = "";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertSame(commands, result, "Should return same array reference when prompt is empty");
+    }
+
+    @Test
+    void testAppendPromptToCommands_WhitespacePrompt() {
+        String[] commands = {"echo", "./script.sh"};
+        String prompt = "   \t\n  ";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertSame(commands, result, "Should return same array reference when prompt is whitespace");
+    }
+
+    @Test
+    void testAppendPromptToCommands_EmptyArray() {
+        String[] commands = {};
+        String prompt = "Test prompt";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertSame(commands, result, "Should return same array reference when commands are empty");
+    }
+
+    @Test
+    void testAppendPromptToCommands_NullCommands() {
+        String[] commands = null;
+        String prompt = "Test prompt";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNull(result, "Should return null when commands are null");
+    }
+
+    @Test
+    void testAppendPromptToCommands_EscapeDoubleQuotes() {
+        String[] commands = {"echo"};
+        String prompt = "Test \"quoted\" text";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals("echo \"Test \\\"quoted\\\" text\"", result[0]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_EscapeDollarSigns() {
+        String[] commands = {"echo"};
+        String prompt = "Price is $100";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals("echo \"Price is \\$100\"", result[0]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_EscapeBackticks() {
+        String[] commands = {"echo"};
+        String prompt = "Run `ls -la` here";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals("echo \"Run \\`ls -la\\` here\"", result[0]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_EscapeBackslashes() {
+        String[] commands = {"echo"};
+        String prompt = "Path: C:\\Users\\test";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals("echo \"Path: C:\\\\Users\\\\test\"", result[0]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_EscapeMultipleSpecialChars() {
+        String[] commands = {"./script.sh"};
+        String prompt = "Text with \"quotes\", $vars, `commands`, and \\backslashes";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals("./script.sh \"Text with \\\"quotes\\\", \\$vars, \\`commands\\`, and \\\\backslashes\"", result[0]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_MultipleCommands() {
+        String[] commands = {
+            "./script1.sh",
+            "python script2.py",
+            "node script3.js"
+        };
+        String prompt = "Execute with this prompt";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(3, result.length);
+        assertEquals("./script1.sh \"Execute with this prompt\"", result[0]);
+        assertEquals("python script2.py \"Execute with this prompt\"", result[1]);
+        assertEquals("node script3.js \"Execute with this prompt\"", result[2]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_NullCommandElement() {
+        String[] commands = {"echo", null, "./script.sh"};
+        String prompt = "Test prompt";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(3, result.length);
+        assertEquals("echo \"Test prompt\"", result[0]);
+        assertNull(result[1]);
+        assertEquals("./script.sh \"Test prompt\"", result[2]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_EmptyCommandElement() {
+        String[] commands = {"echo", "", "./script.sh"};
+        String prompt = "Test prompt";
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(3, result.length);
+        assertEquals("echo \"Test prompt\"", result[0]);
+        assertEquals("", result[1]);
+        assertEquals("./script.sh \"Test prompt\"", result[2]);
+    }
+
+    @Test
+    void testAppendPromptToCommands_LongPrompt() {
+        String[] commands = {"echo"};
+        // Create a 5000 character prompt
+        StringBuilder longPrompt = new StringBuilder();
+        for (int i = 0; i < 500; i++) {
+            longPrompt.append("This is a long prompt text. ");
+        }
+        String prompt = longPrompt.toString();
+        assertTrue(prompt.length() > 5000, "Prompt should be over 5000 chars");
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertTrue(result[0].startsWith("echo \""));
+        assertTrue(result[0].endsWith("\""));
+        assertTrue(result[0].contains("This is a long prompt text."));
+    }
+
+    @Test
+    void testAppendPromptToCommands_BackwardsCompatibility() {
+        String[] commands = {"./existing-script.sh arg1 arg2"};
+        String prompt = null; // cliPrompt not set in existing configs
+
+        String[] result = CliExecutionHelper.appendPromptToCommands(commands, prompt);
+
+        assertNotNull(result);
+        assertSame(commands, result, "Commands should remain unchanged for backwards compatibility");
     }
 }

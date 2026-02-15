@@ -87,14 +87,214 @@ Teammate supports integration with external CLI agents (Cursor, Claude, Copilot,
 }
 ```
 
+### NEW: Using `cliPrompt` Field (Recommended)
+
+The `cliPrompt` field separates CLI prompts from commands for cleaner configurations and supports multiple input types:
+
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "metadata": {
+      "contextId": "code_generation"
+    },
+    "agentParams": {
+      "aiRole": "Senior Software Engineer",
+      "instructions": [
+        "./agents/instructions/development/implementation_instructions.md"
+      ],
+      "knownInfo": "Project uses Java 23, Spring Boot, and React",
+      "formattingRules": "./agents/instructions/development/formatting_rules.md"
+    },
+    "cliPrompt": "Implement the ticket. Read context from 'input' folder, write results to 'output' folder.",
+    "cliCommands": [
+      "./cicd/scripts/run-cursor-agent.sh"
+    ],
+    "skipAIProcessing": true,
+    "outputType": "none",
+    "preJSAction": "agents/js/checkWipLabel.js",
+    "postJSAction": "agents/js/developTicketAndCreatePR.js",
+    "inputJql": "key = PROJ-123"
+  }
+}
+```
+
+**Benefits of `cliPrompt` field:**
+- ✅ **Cleaner JSON**: Prompts separated from command strings
+- ✅ **Multiple Input Types**: Supports plain text, file paths, and Confluence URLs
+- ✅ **Reusability**: Same prompt file/URL across multiple configurations
+- ✅ **Automatic Processing**: Uses InstructionProcessor for Confluence/file content
+- ✅ **Shell Escaping**: Prevents injection by escaping special characters
+
+**Supported Input Types:**
+
+```json
+// Plain text
+"cliPrompt": "Implement the ticket from input/ folder"
+
+// Local file path
+"cliPrompt": "./agents/prompts/development_prompt.md"
+
+// Confluence URL
+"cliPrompt": "https://company.atlassian.net/wiki/spaces/DEV/pages/123/CLI+Prompt+Template"
+```
+
+**How it works:**
+1. Teammate processes `cliPrompt` (fetches Confluence content or reads file if needed)
+2. Escapes special shell characters (`\`, `"`, `$`, `` ` ``)
+3. Appends as quoted parameter to each CLI command
+4. Example: `./script.sh` becomes `./script.sh "Your prompt content here"`
+
 ### ⚠️ CRITICAL Parameters
 
-| Parameter | Value | Why? |
-|-----------|-------|------|
-| `skipAIProcessing` | **`true`** | CLI agent generates the response, not DMtools AI |
-| `outputType` | `none` or `field` | Usually `none` since post-action handles output |
-| `cliCommands` | Array of commands | Scripts that run CLI agents |
-| `postJSAction` | JS file path | Processes CLI output files |
+| Parameter | Type | Default | Why? |
+|-----------|------|---------|------|
+| `skipAIProcessing` | Boolean | `false` | **CRITICAL**: CLI agent generates the response, not DMtools AI |
+| `outputType` | String | - | Usually `none` since post-action handles output, or `field`/`comment` for direct updates |
+| `cliPrompt` | String | - | **NEW v1.7.130+**: Prompt for CLI agent (plain text, file path, or Confluence URL) |
+| `cliCommands` | Array | - | Scripts that run CLI agents |
+| `requireCliOutputFile` | Boolean | `true` | **NEW v1.7.133+**: Require `outputs/response.md` before updating fields (prevents data loss) |
+| `cleanupInputFolder` | Boolean | `true` | **NEW v1.7.133+**: Cleanup `input/[TICKET-KEY]/` folder after execution |
+| `postJSAction` | String | - | JS file path - processes CLI output files |
+
+### 🛡️ CLI Output Safety (v1.7.133+)
+
+**Problem**: CLI commands can fail or not produce expected output, potentially overwriting critical fields with error messages.
+
+**Solution**: Two safety parameters protect against data loss:
+
+#### `requireCliOutputFile` (default: `true`)
+
+Controls whether `outputs/response.md` must exist before processing output.
+
+**Strict Mode** (recommended - default):
+```json
+{
+  "requireCliOutputFile": true,  // Default - safe mode
+  "skipAIProcessing": true,
+  "outputType": "field",
+  "fieldName": "Description"
+}
+```
+
+**Behavior**:
+- ✅ If `outputs/response.md` exists → Process normally (update field/post comment/create ticket)
+- ❌ If `outputs/response.md` missing → **Skip field update**, post error comment instead
+- **Prevents data loss** - won't overwrite fields with error messages
+
+**Permissive Mode** (use with caution):
+```json
+{
+  "requireCliOutputFile": false,  // Permissive mode
+  "skipAIProcessing": true,
+  "outputType": "field"
+}
+```
+
+**Behavior**:
+- Uses command stdout/stderr as fallback if `response.md` missing
+- Less safe - may update fields with error messages
+- Backwards compatible with pre-v1.7.133 behavior
+
+#### `cleanupInputFolder` (default: `true`)
+
+Controls whether temporary input context folders are cleaned up.
+
+**Cleanup Enabled** (recommended - default):
+```json
+{
+  "cleanupInputFolder": true  // Default - saves disk space
+}
+```
+
+**Behavior**:
+- Automatically deletes `input/[TICKET-KEY]/` folder after processing
+- Removes temporary `request.md` and downloaded attachments
+
+**Cleanup Disabled** (for debugging):
+```json
+{
+  "cleanupInputFolder": false  // Keep for debugging
+}
+```
+
+**Behavior**:
+- Keeps `input/[TICKET-KEY]/` folder for manual inspection
+- Useful for debugging CLI issues
+- Check `request.md` and attachments: `cat input/PROJ-123/request.md`
+- **Must manually cleanup**: `rm -rf input/PROJ-123`
+
+#### Production-Safe Configuration Example
+
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "cliPrompt": "Implement the ticket from input/ folder",
+    "cliCommands": ["./cicd/scripts/run-cursor-agent.sh"],
+    "skipAIProcessing": true,
+    "requireCliOutputFile": true,   // Strict mode (default)
+    "cleanupInputFolder": true,     // Cleanup (default)
+    "outputType": "field",
+    "fieldName": "Description",
+    "operationType": "Replace",
+    "initiator": "automation"
+  }
+}
+```
+
+**What happens on failure**:
+- CLI command fails or doesn't create `outputs/response.md`
+- Field "Description" is **NOT overwritten**
+- Error comment posted: `@automation, ⚠️ CLI command execution issue: ...`
+- Original field value remains intact ✅
+
+#### Debug Mode Configuration Example
+
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "cliCommands": ["./cicd/scripts/run-cursor-agent.sh"],
+    "skipAIProcessing": true,
+    "cleanupInputFolder": false,    // Keep input for debugging
+    "outputType": "comment"
+  }
+}
+```
+
+**What happens**:
+- Input folder kept at `input/PROJ-123/`
+- Can inspect: `cat input/PROJ-123/request.md`
+- Can check attachments: `ls -la input/PROJ-123/`
+- **Remember to cleanup**: `rm -rf input/PROJ-123`
+
+### Migration: Inline Prompt → `cliPrompt` Field
+
+**Before** (inline prompt in command):
+```json
+{
+  "cliCommands": [
+    "./cicd/scripts/run-cursor-agent.sh \"**IMPORTANT** implementation details and development is not part of the task. Main request is in 'input' folder, read all files there and do what is requested following instructions from input. Request.md file contains json with all details.\""
+  ]
+}
+```
+
+**After** (separate `cliPrompt` field):
+```json
+{
+  "cliPrompt": "**IMPORTANT** implementation details and development is not part of the task. Main request is in 'input' folder, read all files there and do what is requested following instructions from input. Request.md file contains json with all details.",
+  "cliCommands": [
+    "./cicd/scripts/run-cursor-agent.sh"
+  ]
+}
+```
+
+Both execute identically, but the second approach is:
+- ✅ Easier to read and maintain
+- ✅ Supports file paths and Confluence URLs
+- ✅ Reusable across configurations
+- ✅ 100% backwards compatible (existing configs still work)
 
 ## Input Folder Structure
 
@@ -161,7 +361,7 @@ cursor-agent "$PROMPT"
 # Output is written to output/response.md by cursor-agent
 ```
 
-**Configuration:**
+**Configuration (old pattern - inline prompt):**
 ```json
 {
   "cliCommands": [
@@ -171,9 +371,31 @@ cursor-agent "$PROMPT"
 }
 ```
 
+**Configuration (NEW - cliPrompt field):**
+```json
+{
+  "cliPrompt": "Read requirements from input/request.md. Implement the feature with tests. Write summary to output/response.md.",
+  "cliCommands": [
+    "./cicd/scripts/run-cursor-agent.sh"
+  ],
+  "skipAIProcessing": true
+}
+```
+
+**Configuration (NEW - with file path):**
+```json
+{
+  "cliPrompt": "./agents/prompts/cursor_implementation_prompt.md",
+  "cliCommands": [
+    "./cicd/scripts/run-cursor-agent.sh"
+  ],
+  "skipAIProcessing": true
+}
+```
+
 ### Claude CLI
 
-**Configuration:**
+**Configuration (old pattern):**
 ```json
 {
   "cliCommands": [
@@ -183,13 +405,35 @@ cursor-agent "$PROMPT"
 }
 ```
 
+**Configuration (NEW - cliPrompt field):**
+```json
+{
+  "cliPrompt": "Implement the ticket requirements",
+  "cliCommands": [
+    "claude --input input/request.md --output output/response.md --prompt"
+  ],
+  "skipAIProcessing": true
+}
+```
+
 ### GitHub Copilot CLI
 
-**Configuration:**
+**Configuration (old pattern):**
 ```json
 {
   "cliCommands": [
-    "gh copilot suggest \"$(cat input/request.md)\" > output/response.md"
+    "gh copilot suggest 'Implement the ticket from input/ folder' > output/response.md"
+  ],
+  "skipAIProcessing": true
+}
+```
+
+**Configuration (NEW - cliPrompt field):**
+```json
+{
+  "cliPrompt": "Implement the ticket from input/ folder. Write results to output/response.md",
+  "cliCommands": [
+    "gh copilot suggest > output/response.md"
   ],
   "skipAIProcessing": true
 }
@@ -197,11 +441,22 @@ cursor-agent "$PROMPT"
 
 ### Gemini CLI (ai CLI)
 
-**Configuration:**
+**Configuration (old pattern):**
 ```json
 {
   "cliCommands": [
-    "ai \"Implement: $(cat input/request.md)\" --model gemini-2.0-flash > output/response.md"
+    "ai 'Implement the ticket from input/ folder' --model gemini-2.0-flash > output/response.md"
+  ],
+  "skipAIProcessing": true
+}
+```
+
+**Configuration (NEW - cliPrompt field):**
+```json
+{
+  "cliPrompt": "./agents/prompts/gemini_implementation_prompt.md",
+  "cliCommands": [
+    "ai --model gemini-2.0-flash > output/response.md"
   ],
   "skipAIProcessing": true
 }
@@ -324,6 +579,7 @@ function parseResponse(content) {
 
 ### Configuration (`agents/story_development.json`)
 
+**NEW: Using `cliPrompt` field (Recommended)**
 ```json
 {
   "name": "Teammate",
@@ -345,8 +601,38 @@ function parseResponse(content) {
       "formattingRules": "./agents/instructions/development/formatting_rules.md",
       "fewShots": "./agents/instructions/development/few_shots.md"
     },
+    "cliPrompt": "User request is in 'input' folder. Implement the ticket requirements including code, tests, and documentation. Compile and run tests. Write comprehensive summary to output/response.md. DO NOT create branches or push.",
     "cliCommands": [
-      "./cicd/scripts/run-cursor-agent.sh \"User request is in 'input' folder. Implement the ticket requirements including code, tests, and documentation. Compile and run tests. Write comprehensive summary to output/response.md. DO NOT create branches or push.\""
+      "./cicd/scripts/run-cursor-agent.sh"
+    ],
+    "skipAIProcessing": true,
+    "outputType": "none",
+    "ticketContextDepth": 1,
+    "preJSAction": "agents/js/checkWipLabel.js",
+    "postJSAction": "agents/js/developTicketAndCreatePR.js",
+    "inputJql": "project = PROJ AND status = 'To Do' AND labels = 'ready-for-dev'"
+  }
+}
+```
+
+**Or use file-based prompt for reusability:**
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "metadata": {
+      "contextId": "story_development"
+    },
+    "agentParams": {
+      "aiRole": "Senior Java Software Engineer",
+      "instructions": [
+        "./agents/instructions/development/implementation_instructions.md"
+      ],
+      "knownInfo": "Project: Spring Boot 3.x, Java 23, PostgreSQL"
+    },
+    "cliPrompt": "./agents/prompts/story_development_prompt.md",
+    "cliCommands": [
+      "./cicd/scripts/run-cursor-agent.sh"
     ],
     "skipAIProcessing": true,
     "outputType": "none",
@@ -428,28 +714,31 @@ function action(params) {
 
 ## Use Cases
 
-### 1. Story Implementation
+### 1. Story Implementation (NEW: with cliPrompt)
 ```json
 {
-  "cliCommands": ["./cicd/scripts/run-cursor-agent.sh \"Implement story from input/\""],
+  "cliPrompt": "Implement story from input/",
+  "cliCommands": ["./cicd/scripts/run-cursor-agent.sh"],
   "skipAIProcessing": true,
   "postJSAction": "agents/js/developTicketAndCreatePR.js"
 }
 ```
 
-### 2. Bug Fixing
+### 2. Bug Fixing (NEW: with file-based prompt)
 ```json
 {
-  "cliCommands": ["./cicd/scripts/run-cursor-agent.sh \"Fix bug described in input/\""],
+  "cliPrompt": "./agents/prompts/bug_fixing_prompt.md",
+  "cliCommands": ["./cicd/scripts/run-cursor-agent.sh"],
   "skipAIProcessing": true,
   "postJSAction": "agents/js/fixBugAndCreatePR.js"
 }
 ```
 
-### 3. Test Generation
+### 3. Test Generation (NEW: with Confluence URL)
 ```json
 {
-  "cliCommands": ["./cicd/scripts/run-cursor-agent.sh \"Generate tests for code in input/\""],
+  "cliPrompt": "https://company.atlassian.net/wiki/spaces/DEV/pages/123/Test+Generation+Guidelines",
+  "cliCommands": ["./cicd/scripts/run-cursor-agent.sh"],
   "skipAIProcessing": true,
   "postJSAction": "agents/js/addTestsAndCommit.js"
 }
@@ -458,7 +747,8 @@ function action(params) {
 ### 4. Documentation Generation
 ```json
 {
-  "cliCommands": ["claude --input input/ --output output/ --prompt 'Generate documentation'"],
+  "cliPrompt": "Generate documentation",
+  "cliCommands": ["claude --input input/ --output output/ --prompt"],
   "skipAIProcessing": true,
   "postJSAction": "agents/js/updateDocumentation.js"
 }
@@ -467,11 +757,14 @@ function action(params) {
 ### 5. Story Description (Without Code Access)
 ```json
 {
-  "cliCommands": ["./cicd/scripts/run-cursor-agent.sh \"Write story description based on input/\""],
+  "cliPrompt": "Write story description based on input/",
+  "cliCommands": ["./cicd/scripts/run-cursor-agent.sh"],
   "skipAIProcessing": true,
   "postJSAction": "agents/js/assignForReview.js"
 }
 ```
+
+**Note**: All examples above use the new `cliPrompt` field. Old inline pattern still works for backwards compatibility.
 
 ## Best Practices
 
@@ -509,13 +802,49 @@ function action(params) {
 "Read from /absolute/path/input/request.md"
 ```
 
-### Output Not Generated
+### Output Not Generated (NEW: v1.7.133+ Safety)
 
-**Problem**: No files in `output/` folder
+**Problem**: No `outputs/response.md` file created, field not updated
 
-**Solution**: Check CLI agent instructions explicitly mention output:
+**Cause**: `requireCliOutputFile: true` (strict mode - default) prevents field updates without output file
+
+**Solution 1** - Fix CLI command to create output file:
 ```bash
-"Write results to output/response.md"
+# Ensure CLI creates outputs/response.md
+"Write results to output/response.md"  # Add to CLI prompt
+```
+
+**Solution 2** - Debug with input folder inspection:
+```json
+{
+  "cleanupInputFolder": false  // Keep input for debugging
+}
+```
+
+Then check:
+```bash
+cat input/PROJ-123/request.md
+ls -la input/PROJ-123/
+```
+
+**Solution 3** - Use permissive mode (not recommended):
+```json
+{
+  "requireCliOutputFile": false  // Use command output as fallback
+}
+```
+
+### Field Updated with Error Message (Pre-v1.7.133)
+
+**Problem**: Field contains error message like "CLI Execution Error: ..."
+
+**Cause**: Old behavior (pre-v1.7.133) allowed error messages in field updates
+
+**Solution**: Update to v1.7.133+ with strict mode (default):
+```json
+{
+  "requireCliOutputFile": true  // Default - prevents this issue
+}
 ```
 
 ### Post-Action Fails
@@ -562,5 +891,37 @@ CLI Integration with Teammate enables:
 - ✅ Complex code generation and analysis tasks
 - ✅ Automated PR creation and ticket updates
 - ✅ Flexible post-processing with JavaScript
+- ✅ **NEW**: Clean configuration with `cliPrompt` field supporting plain text, files, and Confluence URLs
 
 **Key Pattern**: Input folder → CLI agent → Output folder → Post-action processing
+
+## NEW Feature: `cliPrompt` Field
+
+### Overview
+
+The `cliPrompt` field (introduced in v1.7.130+) separates CLI prompts from commands for cleaner configurations.
+
+### Features
+
+- **Multiple Input Types**: Plain text, local file paths, Confluence URLs
+- **Automatic Processing**: Uses InstructionProcessor for content fetching
+- **Shell Escaping**: Prevents injection by escaping `\`, `"`, `$`, `` ` ``
+- **Backwards Compatible**: Existing inline prompts still work
+
+### Quick Reference
+
+| Input Type | Example |
+|------------|---------|
+| **Plain text** | `"cliPrompt": "Implement from input/"` |
+| **File path** | `"cliPrompt": "./agents/prompts/dev.md"` |
+| **Confluence URL** | `"cliPrompt": "https://company.atlassian.net/wiki/..."` |
+
+### Runtime Behavior
+
+1. Teammate processes `cliPrompt` (fetches Confluence/file content if needed)
+2. Escapes shell special characters
+3. Appends as quoted parameter to each CLI command
+
+**Example**: `./script.sh` becomes `./script.sh "Your prompt content"`
+
+See [Complete Documentation](../../docs/CLIPROMPT_FEATURE.md) for detailed usage and examples.
