@@ -238,6 +238,7 @@ function action(params) {
 | **Confluence** | `confluence_content_by_title()`, `confluence_search_content_by_text()`, `confluence_create_page()` | Page content, search, and management |
 | **Figma** | `figma_get_layers()`, `figma_get_icons()` | Design file analysis |
 | **Teams** | `teams_send_message()`, `teams_get_messages()` | Chat and messaging |
+| **TestRail** | `testrail_get_all_cases()`, `testrail_search_cases()`, `testrail_create_case()` | Test case management |
 | **AI** | `gemini_ai_chat()`, `ollama_ai_chat()`, `anthropic_ai_chat()`, `openai_ai_chat()` | AI-powered analysis |
 | **File** | `file_read()`, `file_write()`, `file_validate_json()` | File system operations |
 | **CLI** | `cli_execute_command()` | Execute system commands |
@@ -455,6 +456,170 @@ See [JIRA_DUPLICATE_FIELDS_GUIDE.md](JIRA_DUPLICATE_FIELDS_GUIDE.md) for complet
 | `teams_send_message` | `message`, `chatName` | Send a message to a chat by participant name or topic |
 | `teams_send_message_by_id` | `message`, `chatId` | Send a message to a chat by ID |
 | `teams_send_myself_message` | `message` | Send a message to yourself (personal notes) |
+
+### TestRail Tools
+
+TestRail integration for test management. Configure via `TESTRAIL_BASE_PATH`, `TESTRAIL_USERNAME`, and `TESTRAIL_API_KEY` environment variables.
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `testrail_get_projects` | - | Get list of all projects in TestRail instance |
+| `testrail_get_case` | `case_id` | Get a test case by ID (numeric, without 'C' prefix) |
+| `testrail_get_all_cases` | `project_name` | Get ALL test cases in a project (uses automatic pagination to retrieve all cases) |
+| `testrail_search_cases` | `project_name`, `suite_id`, `section_id` | Search test cases by project and optional filters. Both suite_id and section_id are optional |
+| `testrail_get_cases_by_refs` | `refs`, `project_name` | Get test cases linked to a requirement/story via refs field (e.g., JIRA ticket key) |
+| `testrail_create_case` | `project_name`, `title`, `description`, `priority_id`, `refs` | Create a basic test case. description saved to preconditions field. priority_id (1=Low, 2=Medium, 3=High, 4=Critical) and refs are optional |
+| `testrail_create_case_detailed` | `project_name`, `title`, `preconditions`, `steps`, `expected`, `priority_id`, `type_id`, `refs`, `label_ids` | Create detailed test case. Markdown tables are auto-converted to TestRail format. Use `testrail_get_case_types` for type_id, `testrail_get_labels` for label_ids. All except project_name and title are optional |
+| `testrail_update_case` | `case_id`, `title`, `priority_id`, `refs` | Update a test case. All parameters except case_id are optional |
+| `testrail_link_to_requirement` | `case_id`, `requirement_key` | Link a test case to a requirement by adding requirement key to refs field |
+| `testrail_get_labels` | `project_name` | Get all labels for a project (returns array of {id, title, created_by, created_on}) |
+| `testrail_get_label` | `label_id` | Get a single label by ID |
+| `testrail_update_label` | `label_id`, `project_name`, `title` | Update a label title (max 20 characters) |
+| `testrail_get_case_types` | - | Get all available case types (e.g., Automated, Functionality, Other) |
+
+**Example Usage:**
+```bash
+# Get list of all projects
+dmtools testrail_get_projects
+
+# Get a test case
+dmtools testrail_get_case 123
+
+# Get ALL test cases in a project (with automatic pagination)
+dmtools testrail_get_all_cases "My Project"
+
+# Search test cases in a project
+dmtools testrail_search_cases "My Project"
+
+# Find test cases linked to a Jira ticket
+dmtools testrail_get_cases_by_refs "PROJ-456" "My Project"
+
+# Create a basic test case
+dmtools testrail_create_case "My Project" "Verify login" "User has valid credentials" 3 "PROJ-456"
+
+# Create a detailed test case with type_id and labels
+dmtools testrail_create_case_detailed --data '{
+  "project_name": "My Project",
+  "title": "Update User Profile",
+  "preconditions": "User is logged in",
+  "steps": "1. Navigate to profile page\n\n2. Click Edit\n\n3. Update username\n\n4. Click Save",
+  "expected": "Profile updated with success message",
+  "priority_id": "3",
+  "type_id": "1",
+  "refs": "PROJ-789",
+  "label_ids": "7,8"
+}'
+
+# Link test case to a requirement
+dmtools testrail_link_to_requirement 123 "PROJ-789"
+
+# Get all labels for a project
+dmtools testrail_get_labels "My Project"
+
+# Get a single label
+dmtools testrail_get_label 7
+
+# Update a label title
+dmtools testrail_update_label --data '{"label_id": "7", "project_name": "My Project", "title": "Release 2.0"}'
+
+# Get available case types
+dmtools testrail_get_case_types
+```
+
+**Table Format Note:**
+
+TestRail uses its own table format, not standard Markdown tables. When using `testrail_create_case_detailed`, standard Markdown tables are automatically converted to TestRail format:
+
+```
+Markdown (input):                    TestRail (auto-converted):
+| Col 1 | Col 2 | Col 3 |          |||:Col 1|:Col 2|:Col 3
+|-------|-------|-------|           ||val1|val2|val3
+| val1  | val2  | val3  |          ||val4|val5|val6
+| val4  | val5  | val6  |
+```
+
+You can also write in TestRail format directly — it will be passed through as-is.
+
+**JavaScript Access:**
+
+All TestRail MCP tools are available as direct function calls in JavaScript agents via GraalJS integration.
+
+```javascript
+/**
+ * Example JavaScript agent using TestRail MCP tools
+ */
+function action(params) {
+    // 1. Get list of all projects
+    const projectsJson = testrail_get_projects();
+    const projects = JSON.parse(projectsJson);
+    console.log(`Found ${projects.length} projects`);
+
+    // 2. Get specific test case
+    const testCaseJson = testrail_get_case('123');
+    const testCase = JSON.parse(testCaseJson);
+    console.log(`Test case: ${testCase.title}`);
+
+    // 3. Get ALL test cases in a project (with automatic pagination)
+    const allCasesJson = testrail_get_all_cases('My Project');
+    const allCases = JSON.parse(allCasesJson);
+    console.log(`Found ${allCases.length} total test cases in project`);
+
+    // 4. Search test cases in a project
+    const casesJson = testrail_search_cases('My Project');
+    const cases = JSON.parse(casesJson);
+    console.log(`Found ${cases.length} test cases`);
+
+    // 4. Find test cases linked to JIRA ticket
+    const linkedCasesJson = testrail_get_cases_by_refs('PROJ-456', 'My Project');
+    const linkedCases = JSON.parse(linkedCasesJson);
+
+    // 5. Create new test case
+    const newCaseJson = testrail_create_case(
+        'My Project',
+        'Verify user logout',
+        'Steps:\n1. Click logout button\n2. Verify redirect to login page',
+        '3',  // High priority
+        'PROJ-456'
+    );
+    const newCase = JSON.parse(newCaseJson);
+    console.log(`Created test case C${newCase.id}`);
+
+    // 6. Update test case
+    testrail_update_case('123', 'Updated title', '4', 'PROJ-789');
+
+    // 7. Link test case to requirement
+    testrail_link_to_requirement('123', 'PROJ-999');
+
+    return {
+        success: true,
+        projectsCount: projects.length,
+        testCasesCount: cases.length
+    };
+}
+```
+
+**Running TestRail JavaScript Agent:**
+```bash
+# Create job configuration
+cat > testrail_job.json << 'EOF'
+{
+  "name": "jsrunner",
+  "params": {
+    "jsPath": "examples/testrail_example.js",
+    "jobParams": {
+      "projectName": "My Project",
+      "caseId": "123",
+      "jiraKey": "PROJ-456"
+    }
+  }
+}
+EOF
+
+# Execute the job
+dmtools run testrail_job.json
+```
+
+See `examples/testrail_example.js` for a complete working example.
 
 ### File Tools
 
