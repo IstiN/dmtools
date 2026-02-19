@@ -477,6 +477,7 @@ TestRail integration for test management. Configure via `TESTRAIL_BASE_PATH`, `T
 | `testrail_get_label` | `label_id` | Get a single label by ID |
 | `testrail_update_label` | `label_id`, `project_name`, `title` | Update a label title (max 20 characters) |
 | `testrail_get_case_types` | - | Get all available case types (e.g., Automated, Functionality, Other) |
+| `testrail_delete_case` | `case_id` | Delete a test case by ID (numeric, without 'C' prefix) |
 
 **Example Usage:**
 ```bash
