@@ -13,7 +13,7 @@
             ${global.existingTestCase}
         </existing_test_case>
         <important_rules>
-            ${global.extraRules}
+            ${global.extraRules!""}
         </important_rules>
     </input_data>
     <formatting>

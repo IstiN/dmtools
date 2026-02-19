@@ -564,6 +564,21 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
     }
 
     @MCPTool(
+            name = "testrail_delete_case",
+            description = "Delete a test case in TestRail by case ID",
+            integration = "testrail",
+            category = "test_cases"
+    )
+    public String deleteCase(
+            @MCPParam(name = "case_id", description = "The numeric test case ID to delete (without the C prefix)", required = true, example = "123")
+            String caseId
+    ) throws IOException {
+        GenericRequest request = new GenericRequest(this, path("/delete_case/" + caseId));
+        request.setBody("{}");
+        return request.post();
+    }
+
+    @MCPTool(
             name = "testrail_link_to_requirement",
             description = "Link a test case to a requirement by updating refs field",
             integration = "testrail",
@@ -695,6 +710,46 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
         String response = request.execute();
         log("Retrieved case types");
         return response;
+    }
+
+    /**
+     * Resolves a case type name to its numeric ID.
+     * Example: "Functional" -> "6"
+     */
+    public String resolveTypeIdByName(String typeName) throws IOException {
+        String response = getCaseTypes();
+        JSONArray types = new JSONArray(response);
+        for (int i = 0; i < types.length(); i++) {
+            JSONObject type = types.getJSONObject(i);
+            if (typeName.trim().equalsIgnoreCase(type.optString("name"))) {
+                return String.valueOf(type.getInt("id"));
+            }
+        }
+        throw new IOException("Case type not found: " + typeName);
+    }
+
+    /**
+     * Resolves an array of label names to comma-separated numeric IDs for a project.
+     * Example: ["ai_generated", "Login"] -> "12,7"
+     */
+    public String resolveLabelIdsByNames(String projectName, String[] labelNames) throws IOException {
+        String response = getLabels(projectName);
+        JSONArray labels = new JSONArray(response);
+        List<String> ids = new ArrayList<>();
+        for (String name : labelNames) {
+            String trimmed = name.trim();
+            for (int i = 0; i < labels.length(); i++) {
+                JSONObject label = labels.getJSONObject(i);
+                if (trimmed.equalsIgnoreCase(label.optString("title"))) {
+                    ids.add(String.valueOf(label.getInt("id")));
+                    break;
+                }
+            }
+        }
+        if (ids.isEmpty()) {
+            throw new IOException("No labels found for names: " + String.join(", ", labelNames) + " in project: " + projectName);
+        }
+        return String.join(",", ids);
     }
 
     // ========== TrackerClient Implementation ==========
@@ -833,12 +888,9 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
 
     @Override
     public List<? extends ITicket> getTestCases(ITicket ticket, String testCaseIssueType) throws IOException {
-        // In TestRail, we search by refs field
         String ticketKey = ticket.getTicketKey();
         try {
-            int projectId = getProjectId(PROJECT_NAME);
-            String query = "project_id=" + projectId + "&refs=" + URLEncoder.encode(ticketKey, StandardCharsets.UTF_8);
-            return searchAndPerform(query, null);
+            return getCasesByRefs(ticketKey, PROJECT_NAME);
         } catch (Exception e) {
             throw new IOException("Failed to get test cases for " + ticketKey, e);
         }

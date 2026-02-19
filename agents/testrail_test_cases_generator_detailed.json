@@ -1,0 +1,23 @@
+{
+  "name": "TestCasesGenerator",
+  "params": {
+    "inputJql": "key in (TP-1509)",
+    "outputType": "creation",
+    "customTestCasesTracker": {
+      "type": "testrail",
+      "params": {
+        "projectNames": ["DMTools Tests"],
+        "creationMode": "detailed",
+        "typeName": "Functional",
+        "labelNames": ["ai_generated", "Login"]
+      }
+    },
+    "testCasesPriorities": "Critical, High, Medium, Low",
+    "testCasesCustomFields": ["custom_preconds", "custom_steps", "custom_expected"],
+    "customFieldsRules": "custom_preconds: Write preconditions as plain text (e.g. 'User has a valid account. App is installed.'). custom_steps: Write test steps as plain numbered text (e.g. '1. Open the app\\n2. Navigate to Sign-in screen'). custom_expected: Write expected results as plain text corresponding to each step (e.g. '1. App opens successfully\\n2. Sign-in screen is displayed').",
+    "isFindRelated": true,
+    "isLinkRelated": true,
+    "isGenerateNew": true,
+    "isConvertToJiraMarkdown": false
+  }
+}

@@ -4,6 +4,8 @@ import com.github.istin.dmtools.common.model.JSONModel;
 import com.github.istin.dmtools.documentation.DocumentationGeneratorParams;
 import com.github.istin.dmtools.estimations.JEstimatorParams;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -44,7 +46,16 @@ public class JobParams extends JSONModel {
         if (JSONModel.class.isAssignableFrom(clazz)) {
             return getModel(clazz, PARAMS);
         } else {
-            Gson gson = new Gson();
+            Gson gson = new GsonBuilder()
+                    .registerTypeHierarchyAdapter(JSONObject.class,
+                            (JsonDeserializer<JSONObject>) (json, typeOfT, context) -> {
+                                try {
+                                    return new JSONObject(json.toString());
+                                } catch (Exception e) {
+                                    return new JSONObject();
+                                }
+                            })
+                    .create();
             return gson.fromJson(Objects.requireNonNull(getJSONObject(PARAMS)).toString(), clazz);
         }
     }
