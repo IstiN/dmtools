@@ -2,6 +2,7 @@ package com.github.istin.dmtools.qa;
 
 import com.github.istin.dmtools.ai.agent.TestCaseGeneratorAgent;
 import com.github.istin.dmtools.common.model.ITicket;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,6 +29,13 @@ public interface TestCasesTrackerAdapter {
     List<ITicket> getLinkedCases(String sourceTicketKey) throws Exception;
 
     /**
+     * Search test cases using a tracker-specific query string.
+     * For Jira, {@code query} is a JQL fragment (handled directly by {@code trackerClient}).
+     * For TestRail, {@code query} is a label name — returns all cases tagged with that label.
+     */
+    List<ITicket> searchCases(String query) throws Exception;
+
+    /**
      * Create a single test case and return the created ITicket.
      *
      * @param testCase        AI-generated test case data
@@ -51,5 +59,31 @@ public interface TestCasesTrackerAdapter {
      */
     default String normalizeKeyFromAI(String raw) {
         return raw;
+    }
+
+    /**
+     * Extract custom fields from an existing test case for use as AI examples,
+     * mapping the tracker's internal field names to the config keys defined in
+     * {@code testCasesCustomFields}.
+     *
+     * <p>Default: reads each name directly from {@code ITicket.getFieldsAsJSON()}.
+     * Override when the tracker's internal field names differ from the config keys,
+     * e.g. TestRail stores steps as {@code custom_steps_separated} (JSONArray) but
+     * the config expects {@code custom_steps_json} (JSON string).</p>
+     */
+    default JSONObject extractCustomFieldsForExample(ITicket testCase, String[] customFieldNames) {
+        JSONObject result = new JSONObject();
+        if (customFieldNames == null) return result;
+        JSONObject fields = testCase.getFieldsAsJSON();
+        if (fields == null) return result;
+        for (String name : customFieldNames) {
+            if (fields.has(name)) {
+                Object value = fields.opt(name);
+                if (value != null && !JSONObject.NULL.equals(value)) {
+                    result.put(name, value);
+                }
+            }
+        }
+        return result;
     }
 }

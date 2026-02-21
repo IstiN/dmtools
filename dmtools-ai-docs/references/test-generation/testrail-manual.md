@@ -172,6 +172,61 @@ for (const tc of linkedCases) {
 }
 ```
 
+## 📚 Using Existing TestRail Cases as AI Examples
+
+The `examples` parameter uses the same `ql()` prefix as Jira — when a `customTestCasesTracker` is configured, the query is routed to the TestRail adapter instead of Jira. For TestRail, the value inside `ql(...)` is a **label name**.
+
+### Syntax
+
+```
+"examples": "ql(ai_example)"   // all TestRail cases tagged with label 'ai_example'
+```
+
+### Example Config
+
+```json
+{
+  "name": "TestCasesGenerator",
+  "params": {
+    "inputJql": "key in (PROJ-456)",
+    "outputType": "creation",
+    "customTestCasesTracker": {
+      "type": "testrail",
+      "params": {
+        "projectNames": ["My Project"],
+        "creationMode": "steps"
+      }
+    },
+    "testCasesCustomFields": ["custom_preconds", "custom_steps_json"],
+    "customFieldsRules": "custom_preconds: Write preconditions as plain text. custom_steps_json: Write test steps as a JSON array where each object has 'content' and 'expected'.",
+    "examples": "ql(ai_example)",
+    "isFindRelated": true,
+    "isLinkRelated": true,
+    "isGenerateNew": true,
+    "isConvertToJiraMarkdown": false
+  }
+}
+```
+
+This fetches all TestRail cases in the configured projects that are tagged with the label `ai_example`, extracts their `custom_preconds` and `custom_steps_json` fields (automatically mapping from TestRail's internal `custom_steps_separated`), and provides them to the AI as formatting examples.
+
+To tag cases as examples in TestRail, add an `ai_example` label to them:
+
+```bash
+# List available labels
+dmtools testrail_get_labels "My Project"
+
+# After creating the label in TestRail UI, update a case via MCP tool
+dmtools testrail_update_case 42 '{"label_ids": [<ai_example_label_id>]}'
+```
+
+### Field Mapping
+
+| Config key | TestRail internal field | Conversion |
+|---|---|---|
+| `custom_steps_json` | `custom_steps_separated` (JSONArray) | Each step's `content`/`expected` extracted into JSON string |
+| Other fields | Same name | Copied directly |
+
 ## 🗑️ Cleanup
 
 ```bash

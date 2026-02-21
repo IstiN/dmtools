@@ -49,6 +49,16 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
     }
 
     @Override
+    public List<ITicket> searchCases(String query) throws Exception {
+        List<ITicket> result = new ArrayList<>();
+        for (String projectName : config.getProjectNames()) {
+            List<TestCase> cases = client.getCasesByLabel(projectName, query);
+            result.addAll(cases);
+        }
+        return result;
+    }
+
+    @Override
     public ITicket createTestCase(TestCaseGeneratorAgent.TestCase testCase,
                                   String sourceTicketKey,
                                   TestCasesGeneratorParams params) throws IOException {
@@ -152,6 +162,41 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
         } catch (NumberFormatException e) {
             return raw;
         }
+    }
+
+    /**
+     * Maps TestRail internal field names to the config keys expected by the AI generator.
+     * Specifically converts {@code custom_steps_separated} (TestRail's JSONArray) to
+     * {@code custom_steps_json} (the virtual key used in job configs).
+     */
+    @Override
+    public JSONObject extractCustomFieldsForExample(ITicket testCase, String[] customFieldNames) {
+        JSONObject result = new JSONObject();
+        if (customFieldNames == null) return result;
+        JSONObject fields = testCase.getFieldsAsJSON();
+        if (fields == null) return result;
+        for (String name : customFieldNames) {
+            if ("custom_steps_json".equals(name)) {
+                // TestRail stores steps as custom_steps_separated — convert to content/expected JSON string
+                JSONArray separated = fields.optJSONArray("custom_steps_separated");
+                if (separated != null && separated.length() > 0) {
+                    JSONArray simplified = new JSONArray();
+                    for (int i = 0; i < separated.length(); i++) {
+                        JSONObject step = separated.getJSONObject(i);
+                        simplified.put(new JSONObject()
+                                .put("content", step.optString("content", ""))
+                                .put("expected", step.optString("expected", "")));
+                    }
+                    result.put("custom_steps_json", simplified.toString());
+                }
+            } else if (fields.has(name)) {
+                Object value = fields.opt(name);
+                if (value != null && !JSONObject.NULL.equals(value)) {
+                    result.put(name, value);
+                }
+            }
+        }
+        return result;
     }
 
     // ---- private helpers ----

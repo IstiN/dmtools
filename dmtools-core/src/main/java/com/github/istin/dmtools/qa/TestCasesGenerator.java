@@ -234,7 +234,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
             // Combine example fields with custom fields
             String[] exampleFields = combineFieldsWithCustomFields(params.getTestCasesExampleFields(), params.getTestCasesCustomFields());
-            String examples = unpackExamples(params.getExamples(), exampleFields, params.getTestCasesCustomFields());
+            String examples = unpackExamples(params.getExamples(), exampleFields, params.getTestCasesCustomFields(), customAdapter);
 
             if (!finaResults.isEmpty()) {
                 // Chunk existing test cases for generation
@@ -379,7 +379,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         return testCasesResult;
     }
 
-    public String unpackExamples(String examples, String[] testCasesExamplesFields, String[] testCasesCustomFields) throws Exception {
+    public String unpackExamples(String examples, String[] testCasesExamplesFields, String[] testCasesCustomFields, TestCasesTrackerAdapter customAdapter) throws Exception {
         if (examples == null) {
             return "";
         }
@@ -389,40 +389,23 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             unpackedExamples = unpackedExamplesArray.length > 0 ? unpackedExamplesArray[0] : "";
         } else if (examples.startsWith("ql(")) {
             String ql = examples.substring(3, examples.length() - 1);
-            
-            // testCasesExamplesFields already includes custom fields (combined in generateTestCases)
-            // So we can use it directly
-            List<? extends ITicket> tickets = trackerClient.searchAndPerform(ql, testCasesExamplesFields);
+
+            List<? extends ITicket> tickets;
+            if (customAdapter != null) {
+                tickets = customAdapter.searchCases(ql);
+            } else {
+                // testCasesExamplesFields already includes custom fields (combined in generateTestCases)
+                tickets = trackerClient.searchAndPerform(ql, testCasesExamplesFields);
+            }
 
             JSONArray examplesArray = new JSONArray();
             for (ITicket ticket : tickets) {
-                // Extract custom fields if specified
-                JSONObject customFields = new JSONObject();
-                if (testCasesCustomFields != null && testCasesCustomFields.length > 0) {
-                    JSONObject fieldsJson = ticket.getFieldsAsJSON();
-                    for (String customFieldName : testCasesCustomFields) {
-                        // Check if field exists in JSON first
-                        if (fieldsJson != null && fieldsJson.has(customFieldName)) {
-                            // Extract directly from fields JSONObject to preserve type
-                            // (works for String, JSONArray, JSONObject - xrayDataset, xrayTestSteps, xrayPreconditions, xrayGherkin)
-                            Object fieldObj = fieldsJson.get(customFieldName);
-                            if (fieldObj != null && !JSONObject.NULL.equals(fieldObj)) {
-                                customFields.put(customFieldName, fieldObj);
-                            }
-                        } else {
-                            // Fallback: try standard field access for simple string fields
-                            String fieldValue = ticket.getFieldValueAsString(customFieldName);
-                            if (fieldValue != null && !fieldValue.trim().isEmpty()) {
-                                customFields.put(customFieldName, fieldValue);
-                            }
-                        }
-                    }
-                }
-                
-                // Create test case with custom fields (if any)
+                JSONObject customFields = customAdapter != null
+                    ? customAdapter.extractCustomFieldsForExample(ticket, testCasesCustomFields)
+                    : extractCustomFieldsFromTicket(ticket, testCasesCustomFields);
                 JSONObject testCaseJson = TestCaseGeneratorAgent.createTestCase(
-                    ticket.getPriority(), 
-                    ticket.getTicketTitle(), 
+                    ticket.getPriority(),
+                    ticket.getTicketTitle(),
                     ticket.getTicketDescription(),
                     customFields.length() > 0 ? customFields : null
                 );
@@ -433,6 +416,26 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             unpackedExamples = examples;
         }
         return unpackedExamples;
+    }
+
+    private JSONObject extractCustomFieldsFromTicket(ITicket ticket, String[] customFieldNames) {
+        JSONObject result = new JSONObject();
+        if (customFieldNames == null || customFieldNames.length == 0) return result;
+        JSONObject fieldsJson = ticket.getFieldsAsJSON();
+        for (String name : customFieldNames) {
+            if (fieldsJson != null && fieldsJson.has(name)) {
+                Object value = fieldsJson.get(name);
+                if (value != null && !JSONObject.NULL.equals(value)) {
+                    result.put(name, value);
+                }
+            } else {
+                String value = ticket.getFieldValueAsString(name);
+                if (value != null && !value.trim().isEmpty()) {
+                    result.put(name, value);
+                }
+            }
+        }
+        return result;
     }
 
     private List<TestCaseGeneratorAgent.TestCase> deduplicateInChunks(

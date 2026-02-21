@@ -604,6 +604,40 @@ Job: TestCasesGenerator
 - **Automation**: `dmtools-automation-v{version}-all.jar`
 - **Installation**: `curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash`
 
+## Skill Documentation (`dmtools-ai-docs/`)
+
+The `dmtools-ai-docs/` directory is the **Claude Code skill folder** for this project. It contains ALL end-user documentation on how to use DMtools. When adding new integrations, features, or jobs — the corresponding usage documentation MUST be added here.
+
+### Structure
+
+```
+dmtools-ai-docs/
+├── SKILL.md                          # Main skill entry point for Claude Code
+├── references/
+│   ├── configuration/
+│   │   ├── integrations/             # Per-integration setup guides
+│   │   │   ├── jira.md               # Jira setup, env vars, examples
+│   │   │   ├── ado.md                # Azure DevOps setup
+│   │   │   └── testrail.md           # TestRail setup, env vars, examples
+│   │   └── ai-providers/             # AI provider setup guides
+│   ├── mcp-tools/                    # MCP tool references (one file per integration)
+│   │   ├── jira-tools.md             # All Jira MCP tools with parameters
+│   │   ├── testrail-tools.md         # All TestRail MCP tools with parameters
+│   │   └── ...
+│   ├── test-generation/              # Test case generation guides
+│   │   ├── xray-manual.md            # Xray integration guide
+│   │   └── testrail-manual.md        # TestRail integration guide
+│   ├── jobs/README.md                # Job system reference
+│   └── agents/                       # Agent development guides
+```
+
+### Rules
+
+- **New integration added?** → Add `references/configuration/integrations/<name>.md` + `references/mcp-tools/<name>-tools.md`
+- **New job or generation feature?** → Add or update the relevant guide under `references/`
+- **All URLs in docs must be generic** — use `yourcompany.atlassian.net`, `YOUR_SPACE`, `PAGE_ID` placeholders, never real internal URLs or IDs
+- **Keep docs in sync with code** — when MCP tools are added/removed, update the corresponding `*-tools.md`
+
 ## Key Implementation Patterns
 
 1. **Job Factory Pattern**: Fresh job instances per execution for thread safety

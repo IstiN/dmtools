@@ -161,7 +161,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
     ) throws Exception {
         int projectId = getProjectId(projectName);
         log("Retrieving all test cases for project: " + projectName);
-        return getCasesByProjectId(projectId, null, null);
+        return getCasesByProjectId(projectId, null, null, null);
     }
 
     @MCPTool(
@@ -179,14 +179,25 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             String sectionId
     ) throws Exception {
         int projectId = getProjectId(projectName);
-        return getCasesByProjectId(projectId, suiteId, sectionId);
+        return getCasesByProjectId(projectId, suiteId, sectionId, null);
+    }
+
+    /**
+     * Get test cases filtered by label name across a project.
+     * Resolves the label name to its ID, then filters via the TestRail API.
+     */
+    public List<TestCase> getCasesByLabel(String projectName, String labelName) throws Exception {
+        int projectId = getProjectId(projectName);
+        String labelId = resolveLabelIdsByNames(projectName, new String[]{labelName});
+        log("Retrieving test cases with label '" + labelName + "' for project: " + projectName);
+        return getCasesByProjectId(projectId, null, null, labelId);
     }
 
     /**
      * Get test cases by project ID with optional filters.
      * TestRail API endpoint: GET /get_cases/:project_id
      */
-    private List<TestCase> getCasesByProjectId(int projectId, String suiteId, String sectionId) throws Exception {
+    private List<TestCase> getCasesByProjectId(int projectId, String suiteId, String sectionId, String labelId) throws Exception {
         List<TestCase> results = new ArrayList<>();
         int offset = 0;
         int limit = 250; // TestRail max per request
@@ -197,18 +208,18 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             StringBuilder url = new StringBuilder("/get_cases/" + projectId);
 
             // Add optional filters as query parameters
-            boolean firstParam = true;
             if (suiteId != null && !suiteId.isEmpty()) {
-                url.append(firstParam ? "&" : "&").append("suite_id=").append(suiteId);
-                firstParam = false;
+                url.append("&suite_id=").append(suiteId);
             }
             if (sectionId != null && !sectionId.isEmpty()) {
-                url.append(firstParam ? "&" : "&").append("section_id=").append(sectionId);
-                firstParam = false;
+                url.append("&section_id=").append(sectionId);
+            }
+            if (labelId != null && !labelId.isEmpty()) {
+                url.append("&label_ids=").append(labelId);
             }
 
             // Add pagination
-            url.append(firstParam ? "&" : "&").append("limit=").append(limit).append("&offset=").append(offset);
+            url.append("&limit=").append(limit).append("&offset=").append(offset);
 
             GenericRequest request = new GenericRequest(this, path(url.toString()));
             String response = request.execute();
