@@ -32,7 +32,7 @@
             ${global.existingTestCases}
         </existing_test_cases>
         <important_rules>
-            ${global.extraRules}
+            ${global.extraRules!""}
         </important_rules>
         <#if global.customFieldsRules?? && global.customFieldsRules?has_content>
         <custom_fields_rules>

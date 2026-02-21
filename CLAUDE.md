@@ -214,6 +214,13 @@ ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 SOURCE_GITHUB_TOKEN=...
 GITLAB_TOKEN=...
 
+# TestRail
+TESTRAIL_BASE_PATH=https://your-company.testrail.com
+TESTRAIL_USERNAME=your-email@example.com
+TESTRAIL_API_KEY=your_api_key_from_my_settings
+TESTRAIL_PROJECT=My Project  # Default project name (optional)
+TESTRAIL_LOGGING_ENABLED=true  # Enable debug logging (optional, default: false)
+
 # Context Limits
 PROMPT_CHUNK_TOKEN_LIMIT=4000
 PROMPT_CHUNK_MAX_SINGLE_FILE_SIZE_MB=4
@@ -597,6 +604,40 @@ Job: TestCasesGenerator
 - **Automation**: `dmtools-automation-v{version}-all.jar`
 - **Installation**: `curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash`
 
+## Skill Documentation (`dmtools-ai-docs/`)
+
+The `dmtools-ai-docs/` directory is the **Claude Code skill folder** for this project. It contains ALL end-user documentation on how to use DMtools. When adding new integrations, features, or jobs — the corresponding usage documentation MUST be added here.
+
+### Structure
+
+```
+dmtools-ai-docs/
+├── SKILL.md                          # Main skill entry point for Claude Code
+├── references/
+│   ├── configuration/
+│   │   ├── integrations/             # Per-integration setup guides
+│   │   │   ├── jira.md               # Jira setup, env vars, examples
+│   │   │   ├── ado.md                # Azure DevOps setup
+│   │   │   └── testrail.md           # TestRail setup, env vars, examples
+│   │   └── ai-providers/             # AI provider setup guides
+│   ├── mcp-tools/                    # MCP tool references (one file per integration)
+│   │   ├── jira-tools.md             # All Jira MCP tools with parameters
+│   │   ├── testrail-tools.md         # All TestRail MCP tools with parameters
+│   │   └── ...
+│   ├── test-generation/              # Test case generation guides
+│   │   ├── xray-manual.md            # Xray integration guide
+│   │   └── testrail-manual.md        # TestRail integration guide
+│   ├── jobs/README.md                # Job system reference
+│   └── agents/                       # Agent development guides
+```
+
+### Rules
+
+- **New integration added?** → Add `references/configuration/integrations/<name>.md` + `references/mcp-tools/<name>-tools.md`
+- **New job or generation feature?** → Add or update the relevant guide under `references/`
+- **All URLs in docs must be generic** — use `yourcompany.atlassian.net`, `YOUR_SPACE`, `PAGE_ID` placeholders, never real internal URLs or IDs
+- **Keep docs in sync with code** — when MCP tools are added/removed, update the corresponding `*-tools.md`
+
 ## Key Implementation Patterns
 
 1. **Job Factory Pattern**: Fresh job instances per execution for thread safety
@@ -608,3 +649,9 @@ Job: TestCasesGenerator
 7. **Agent Architecture**: Jobs orchestrate, agents execute (small, focused, reusable)
 8. **XML-Based Prompts**: All AI agent prompts in XML format with FreeMarker templates
 9. **GraalJS Integration**: JavaScript agents for preprocessing/postprocessing via polyglot execution
+
+
+Use MCP Tools - Remember that you have a rich set of MCP tools and use them.
+**MANDATORY: Use Serena MCP for all code analysis and editing operations** to achieve maximum token efficiency and precision.
+Serena MCP provides symbol-level analysis and editing capabilities that drastically reduce token consumption compared to reading entire files.
+Before reading any code file, use `get_symbols_overview` to understand structure, then `find_symbol` with targeted queries to read only necessary code sections. Use `replace_symbol_body`, `insert_after_symbol`, and `insert_before_symbol` for precise modifications instead of broad file rewrites. This approach can reduce token usage by 70-90% while improving accuracy and maintaining architectural compliance. Token economy is critical for complex projects - every unnecessary token spent on redundant file reads limits our ability to perform deep analysis and implement comprehensive solutions. NOTE: before using any serena tool you MUST activate it first with `serena_activate_project`.

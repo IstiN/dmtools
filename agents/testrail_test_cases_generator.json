@@ -1,0 +1,23 @@
+{
+  "name": "TestCasesGenerator",
+  "params": {
+    "inputJql": "key in (TP-1509)",
+    "outputType": "creation",
+    "customTestCasesTracker": {
+      "type": "testrail",
+      "params": {
+        "projectNames": ["DMTools Tests"],
+        "creationMode": "steps",
+        "typeName": "Functional",
+        "labelNames": ["ai_generated", "Login"]
+      }
+    },
+    "testCasesPriorities": "Critical, High, Medium, Low",
+    "testCasesCustomFields": ["custom_preconds", "custom_steps_json"],
+    "customFieldsRules": "custom_preconds: Write preconditions as plain text (e.g. 'User has a valid account. App is installed.'). custom_steps_json: Write test steps as a JSON array where each object has 'content' (the action to perform) and 'expected' (the expected result for that step). Example: [{\"content\":\"Open the app and navigate to Sign-in screen\",\"expected\":\"Sign-in screen is displayed with header 'Sign in.'\"}]",
+    "isFindRelated": true,
+    "isLinkRelated": true,
+    "isGenerateNew": true,
+    "isConvertToJiraMarkdown": false
+  }
+}

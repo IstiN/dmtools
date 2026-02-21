@@ -40,6 +40,7 @@ public class TestCasesGeneratorParams extends Params {
     public static final String ENABLE_PARALLEL_POST_VERIFICATION = "enableParallelPostVerification";
     public static final String PARALLEL_POST_VERIFICATION_THREADS = "parallelPostVerificationThreads";
     public static final String JQL_MODIFIER_JS_ACTION = "jqlModifierJSAction";
+    public static final String CUSTOM_TEST_CASES_TRACKER = "customTestCasesTracker";
 
     @SerializedName(EXISTING_TEST_CASES_JQL)
     private String existingTestCasesJql;
@@ -97,4 +98,7 @@ public class TestCasesGeneratorParams extends Params {
 
     @SerializedName(JQL_MODIFIER_JS_ACTION)
     private String jqlModifierJSAction;
+
+    @SerializedName(CUSTOM_TEST_CASES_TRACKER)
+    private CustomTestCasesTrackerParams customTestCasesTracker;
 }

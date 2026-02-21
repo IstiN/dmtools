@@ -36,7 +36,7 @@
         </existing_test_cases>
         <important_rules>
             **IMPORTANT** follow the rules to find related testcases:
-            ${global.extraRules}
+            ${global.extraRules!""}
         </important_rules>
     </input_data>
     <formatting>
