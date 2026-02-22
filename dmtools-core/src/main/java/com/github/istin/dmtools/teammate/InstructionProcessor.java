@@ -87,7 +87,7 @@ public class InstructionProcessor {
      * Overridable in tests to avoid real network calls.
      */
     protected GitHub createGithubClient() throws IOException {
-        return new BasicGithub();
+        return (BasicGithub) BasicGithub.getInstance();
     }
 
     private String processGithubUrl(String url) {
@@ -97,6 +97,7 @@ public class InstructionProcessor {
                 logger.info("Successfully fetched GitHub content from: {}", url);
                 return content;
             }
+            logger.warn("GitHub returned null content for '{}'. Using URL as fallback.", url);
         } catch (Exception e) {
             logger.warn("Error fetching GitHub content from '{}': {}. Using URL as fallback.", url, e.getMessage());
         }

@@ -143,7 +143,7 @@ The `cliPrompt` field separates CLI prompts from commands for cleaner configurat
 ```
 
 **How it works:**
-1. Teammate processes `cliPrompt` (fetches Confluence content or reads file if needed)
+1. Teammate processes `cliPrompt` (fetches GitHub/Confluence content or reads file if needed)
 2. Creates temporary file with prompt content (UTF-8 encoded)
 3. Passes file path as quoted parameter to each CLI command
 4. Example: `./script.sh` becomes `./script.sh "/tmp/dmtools_cli_prompt_12345.txt"`

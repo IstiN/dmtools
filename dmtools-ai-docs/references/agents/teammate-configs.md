@@ -203,7 +203,7 @@ SOURCE_GITHUB_TOKEN=ghp_your_token_here
 ```
 
 **How it works:**
-1. Teammate processes `cliPrompt` (fetches Confluence/file content if needed)
+1. Teammate processes `cliPrompt` (fetches GitHub/Confluence/file content if needed)
 2. Escapes shell special characters (`\`, `"`, `$`, `` ` ``)
 3. Appends as quoted parameter to each CLI command
 4. Example: `./script.sh` becomes `./script.sh "Your prompt content"`

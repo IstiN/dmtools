@@ -412,4 +412,41 @@ class InstructionProcessorTest {
 
         verifyNoInteractions(confluence);
     }
+
+    @Test
+    void testRawGithubUrlFetchesContent() throws IOException {
+        String rawUrl = "https://raw.githubusercontent.com/IstiN/dmtools/main/CLAUDE.md";
+        String expectedContent = "# CLAUDE.md content";
+        GitHub mockGithub = mock(GitHub.class);
+        when(mockGithub.getFileContent(rawUrl)).thenReturn(expectedContent);
+
+        InstructionProcessor p = new InstructionProcessor(null, tempDir.toString()) {
+            @Override
+            protected GitHub createGithubClient() {
+                return mockGithub;
+            }
+        };
+
+        String[] result = p.extractIfNeeded(rawUrl);
+
+        assertEquals(1, result.length);
+        assertEquals(expectedContent, result[0]);
+    }
+
+    @Test
+    void testRawGithubUrlNotRoutedToConfluence() throws IOException {
+        GitHub mockGithub = mock(GitHub.class);
+        when(mockGithub.getFileContent(anyString())).thenReturn("raw content");
+
+        InstructionProcessor p = new InstructionProcessor(confluence, tempDir.toString()) {
+            @Override
+            protected GitHub createGithubClient() {
+                return mockGithub;
+            }
+        };
+
+        p.extractIfNeeded("https://raw.githubusercontent.com/IstiN/dmtools/main/CLAUDE.md");
+
+        verifyNoInteractions(confluence);
+    }
 }
