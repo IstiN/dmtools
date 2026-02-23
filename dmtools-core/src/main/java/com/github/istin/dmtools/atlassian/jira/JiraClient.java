@@ -33,6 +33,7 @@ import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import java.io.File;
 import java.io.IOException;
@@ -1828,94 +1829,51 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return ticketKey.substring(0, ticketKey.indexOf("-"));
     }
     
+
     /**
-     * Extracts project key from JQL query for field resolution
-     * Looks for "project = PROJECTKEY" or "project in (PROJECTKEY)" patterns
-     * 
-     * @param jql The JQL query string
-     * @return The project key if found, empty string otherwise
+     * Fetches all project keys from this Jira instance and caches them.
+     * Used by extractProjectKeyFromJQL to identify project context without fragile regex parsing.
      */
+    protected List<String> getKnownProjectKeys() {
+        List<String> cached = cacheManager.getOrComputeSimple("allProjectKeys", () -> {
+            try {
+                GenericRequest req = new GenericRequest(this, path("project"));
+                String response = req.execute();
+                JSONArray projects = new JSONArray(response);
+                List<String> keys = new ArrayList<>();
+                for (int i = 0; i < projects.length(); i++) {
+                    keys.add(projects.getJSONObject(i).getString("key"));
+                }
+                logger.debug("Loaded {} Jira project keys", keys.size());
+                return keys;
+            } catch (Exception e) {
+                logger.warn("Failed to fetch project list: {}", e.getMessage());
+                return new ArrayList<>();
+            }
+        });
+        return cached != null ? cached : new ArrayList<>();
+    }
+
     private String extractProjectKeyFromJQL(String jql) {
-        if (jql == null) {
+        if (jql == null || jql.trim().isEmpty()) {
             return "";
         }
-        
-        // Convert to lowercase for pattern matching, but keep original for extraction
-        String lowerJql = jql.toLowerCase();
-        
-        // Pattern 1: "project = PROJECTKEY" (with or without spaces)
-        String[] patterns = {"project=", "project =", "project in ("};
 
-        for (String pattern : patterns) {
-            int patternIndex = lowerJql.indexOf(pattern);
-            if (patternIndex >= 0) {
-                int startIndex = patternIndex + pattern.length();
-                
-                // Skip any additional whitespace after the pattern
-                while (startIndex < jql.length() && Character.isWhitespace(jql.charAt(startIndex))) {
-                    startIndex++;
-                }
-                
-                if (startIndex < jql.length()) {
-                    // Extract from the original JQL (preserve case) starting from startIndex
-                    String remainder = jql.substring(startIndex);
-                    
-                    // Find the end of the project key (stop at whitespace, AND, OR, etc.)
-                    int endIndex = 0;
-                    for (int i = 0; i < remainder.length(); i++) {
-                        char c = remainder.charAt(i);
-                        if (Character.isWhitespace(c) || c == '(' || c == ')') {
-                            break;
-                        }
-                        endIndex = i + 1;
-                    }
-                    
-                    if (endIndex > 0) {
-                        String projectKey = remainder.substring(0, endIndex).trim();
-                        if (logger != null) {
-                            logger.debug("Extracted project key '{}' from JQL: {}", projectKey, jql);
-                        }
-                        return projectKey;
-                    }
-                }
-            }
-        }
+        String upperJql = jql.toUpperCase();
+        // Sort by length descending so longer keys (e.g. "MYPROJ") are checked before shorter ones (e.g. "MY")
+        Optional<String> match = getKnownProjectKeys().stream()
+                .sorted(Comparator.comparingInt(String::length).reversed())
+                .filter(key -> {
+                    String upperKey = key.toUpperCase();
+                    return upperJql.contains(upperKey + "-")
+                            || Pattern.compile("\\b" + Pattern.quote(upperKey) + "\\b").matcher(upperJql).find();
+                })
+                .findFirst();
 
-        // Pattern 2: "key in (...)" - extract project key from first ticket key
-        int keyInIndex = lowerJql.indexOf("key in");
-        if (keyInIndex >= 0) {
-            int startIndex = keyInIndex + "key in".length();
-            // Skip whitespace after "key in"
-            while (startIndex < jql.length() && Character.isWhitespace(jql.charAt(startIndex))) {
-                startIndex++;
-            }
-            if (startIndex < jql.length() && jql.charAt(startIndex) == '(') {
-                startIndex++; // Skip opening parenthesis
-                int endIndex = jql.indexOf(')', startIndex);
-                if (endIndex > startIndex) {
-                    String keyList = jql.substring(startIndex, endIndex);
-                    // Extract first ticket key from the list
-                    String[] keys = keyList.split(",");
-                    if (keys.length > 0) {
-                        String firstKey = keys[0].trim().replaceAll("'", "").replaceAll("\"", "");
-                        if (!firstKey.isEmpty() && firstKey.contains("-")) {
-                            String projectKey = firstKey.substring(0, firstKey.indexOf("-"));
-                            if (logger != null) {
-                                logger.debug("Extracted project key '{}' from key in (...) pattern in JQL: {}", projectKey, jql);
-                            }
-                            return projectKey;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (logger != null) {
-            //logger.debug("Could not extract project key from JQL: {}", jql);
-        }
-        return ""; // Return empty string if no project found
+        match.ifPresent(key -> logger.debug("Extracted project key '{}' from JQL: {}", key, jql));
+        return match.orElse("");
     }
-    
+
     /**
      * Resolves field names for search operations by extracting project context from JQL
      * 
@@ -1956,6 +1914,11 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
      * Coerces a field value received as a String (e.g. from CLI positional args) to the
      * appropriate JSON-compatible type.  Without this, numeric fields like Story Points
      * receive "8" (JSON string) and Jira responds with HTTP 400.
+     *
+     * IMPORTANT: JSON object/array detection uses JSONTokener to verify the ENTIRE string
+     * is consumed, preventing Jira wiki macros like "{code:mermaid}\n...\n{code}" from
+     * being mis-parsed as {"code":"mermaid"} (org.json accepts unquoted keys and stops
+     * at the first closing brace, silently ignoring the rest of the content).
      */
     static Object coerceFieldValue(Object value) {
         if (!(value instanceof String)) {
@@ -1980,16 +1943,24 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         try {
             return Double.parseDouble(str);
         } catch (NumberFormatException ignored) {}
-        // JSON object
+        // JSON object — require the FULL string to be consumed (nextClean()==0 means end-of-input)
         if (str.startsWith("{") && str.endsWith("}")) {
             try {
-                return new JSONObject(str);
+                JSONTokener tokener = new JSONTokener(str);
+                JSONObject obj = new JSONObject(tokener);
+                if (tokener.nextClean() == 0) {
+                    return obj;
+                }
             } catch (Exception ignored) {}
         }
-        // JSON array
+        // JSON array — same strict full-consumption check
         if (str.startsWith("[") && str.endsWith("]")) {
             try {
-                return new JSONArray(str);
+                JSONTokener tokener = new JSONTokener(str);
+                JSONArray arr = new JSONArray(tokener);
+                if (tokener.nextClean() == 0) {
+                    return arr;
+                }
             } catch (Exception ignored) {}
         }
         return value;

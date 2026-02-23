@@ -128,4 +128,32 @@ public class JiraClientUpdateFieldTest {
     public void testCoerceFieldValue_null_unchanged() {
         assertNull(JiraClient.coerceFieldValue(null));
     }
+
+    // --- Jira wiki-macro regression: {code:mermaid}...{code} must NOT be parsed as JSONObject ---
+
+    @Test
+    public void testCoerceFieldValue_jiraCodeMacro_unchanged() {
+        // Regression: org.json accepts unquoted keys, so {code:mermaid} was silently parsed
+        // as {"code":"mermaid"}, dropping the entire diagram content.
+        String wikidiagram = "{code:mermaid}\nflowchart TD\n    A --> B\n{code}";
+        Object result = JiraClient.coerceFieldValue(wikidiagram);
+        assertInstanceOf(String.class, result, "Jira wiki macro must not be converted to JSONObject");
+        assertEquals(wikidiagram, result);
+    }
+
+    @Test
+    public void testCoerceFieldValue_jiraInfoMacro_unchanged() {
+        String macro = "{info}\nSome text here\n{info}";
+        Object result = JiraClient.coerceFieldValue(macro);
+        assertInstanceOf(String.class, result);
+        assertEquals(macro, result);
+    }
+
+    @Test
+    public void testCoerceFieldValue_properJson_stillConverted() {
+        // Proper JSON with quoted keys must still be converted (existing behaviour must not regress)
+        Object result = JiraClient.coerceFieldValue("{\"name\":\"High\"}");
+        assertInstanceOf(JSONObject.class, result);
+        assertEquals("High", ((JSONObject) result).getString("name"));
+    }
 }

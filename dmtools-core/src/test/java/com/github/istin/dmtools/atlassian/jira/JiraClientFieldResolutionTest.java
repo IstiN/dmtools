@@ -46,26 +46,36 @@ public class JiraClientFieldResolutionTest {
     private static class TestableJiraClient extends JiraClient<Ticket> {
         private final Map<String, String> mockResponses = new ConcurrentHashMap<>();
         private int getFieldsCallCount = 0;
-        
+        private List<String> mockProjectKeys = new ArrayList<>();
+
         public TestableJiraClient(CacheManager cacheManager, Logger logger) throws IOException {
             super("https://test.atlassian.net", "test-token", logger);
         }
-        
+
         // Override getFields to track calls and return mock responses
         @Override
         public String getFields(String project) throws IOException {
             getFieldsCallCount++;
             return mockResponses.getOrDefault(project, createDefaultFieldsResponse());
         }
-        
+
+        @Override
+        protected List<String> getKnownProjectKeys() {
+            return mockProjectKeys;
+        }
+
+        public void setMockProjectKeys(String... keys) {
+            mockProjectKeys = new ArrayList<>(java.util.Arrays.asList(keys));
+        }
+
         public void setMockFieldsResponse(String project, String response) {
             mockResponses.put(project, response);
         }
-        
+
         public int getGetFieldsCallCount() {
             return getFieldsCallCount;
         }
-        
+
         @SuppressWarnings("unused")
         public void resetCallCount() {
             getFieldsCallCount = 0;
@@ -187,6 +197,16 @@ public class JiraClientFieldResolutionTest {
                 return (String) method.invoke(this, projectKey, fieldName);
             } catch (Exception e) {
                 throw new IOException("Failed to call resolveFieldNameToCustomFieldId", e);
+            }
+        }
+
+        public String testExtractProjectKeyFromJQL(String jql) throws IOException {
+            try {
+                Method method = JiraClient.class.getDeclaredMethod("extractProjectKeyFromJQL", String.class);
+                method.setAccessible(true);
+                return (String) method.invoke(this, jql);
+            } catch (Exception e) {
+                throw new IOException("Failed to call extractProjectKeyFromJQL", e);
             }
         }
     }
@@ -559,5 +579,62 @@ public class JiraClientFieldResolutionTest {
 
         // No API calls should be made
         assertEquals(initialCallCount, jiraClient.getGetFieldsCallCount());
+    }
+
+    // --- extractProjectKeyFromJQL tests ---
+
+    @Test
+    void testExtractProjectKeyFromJQL_projectEquals() throws IOException {
+        jiraClient.setMockProjectKeys("TEST", "JD", "TP");
+        assertEquals("TEST", jiraClient.testExtractProjectKeyFromJQL("project = TEST"));
+        assertEquals("TEST", jiraClient.testExtractProjectKeyFromJQL("project=TEST"));
+        assertEquals("JD", jiraClient.testExtractProjectKeyFromJQL("project = JD AND status = Open"));
+    }
+
+    @Test
+    void testExtractProjectKeyFromJQL_keyIn() throws IOException {
+        jiraClient.setMockProjectKeys("JD", "TP");
+        assertEquals("JD", jiraClient.testExtractProjectKeyFromJQL("key in (JD-123, JD-124)"));
+        assertEquals("TP", jiraClient.testExtractProjectKeyFromJQL("key in (TP-1)"));
+    }
+
+    @Test
+    void testExtractProjectKeyFromJQL_parentEquals() throws IOException {
+        // Core use case: parent = TICKET-KEY — previously failed with regex approach
+        jiraClient.setMockProjectKeys("JD", "TP");
+        assertEquals("JD", jiraClient.testExtractProjectKeyFromJQL("parent = JD-82"));
+        assertEquals("JD", jiraClient.testExtractProjectKeyFromJQL("parent=JD-82"));
+        assertEquals("TP", jiraClient.testExtractProjectKeyFromJQL("parent = TP-100 AND status = Open"));
+    }
+
+    @Test
+    void testExtractProjectKeyFromJQL_anyFieldWithTicketKey() throws IOException {
+        jiraClient.setMockProjectKeys("JD", "TP");
+        assertEquals("JD", jiraClient.testExtractProjectKeyFromJQL("sprint = JD-5"));
+        assertEquals("JD", jiraClient.testExtractProjectKeyFromJQL("issueType = Bug AND parent = JD-82"));
+    }
+
+    @Test
+    void testExtractProjectKeyFromJQL_noProjectContext() throws IOException {
+        jiraClient.setMockProjectKeys("JD", "TP");
+        // JQL contains no ticket key references belonging to known projects
+        assertEquals("", jiraClient.testExtractProjectKeyFromJQL("status = Open"));
+        assertEquals("", jiraClient.testExtractProjectKeyFromJQL("assignee = currentUser()"));
+        assertEquals("", jiraClient.testExtractProjectKeyFromJQL(null));
+    }
+
+    @Test
+    void testExtractProjectKeyFromJQL_noKnownProjects_returnsEmpty() throws IOException {
+        // When project list is empty (API unavailable), return empty — field resolution is skipped gracefully
+        jiraClient.setMockProjectKeys();
+        assertEquals("", jiraClient.testExtractProjectKeyFromJQL("parent = JD-82"));
+        assertEquals("", jiraClient.testExtractProjectKeyFromJQL("project = TEST"));
+    }
+
+    @Test
+    void testExtractProjectKeyFromJQL_longerKeyWinsOverShorterPrefix() throws IOException {
+        // "MYPROJ" and "MY" are both in the instance — longer match should win
+        jiraClient.setMockProjectKeys("MY", "MYPROJ");
+        assertEquals("MYPROJ", jiraClient.testExtractProjectKeyFromJQL("parent = MYPROJ-10"));
     }
 }
