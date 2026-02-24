@@ -1,6 +1,6 @@
 ---
 name: dmtools
-description: Comprehensive documentation and assistance for DMtools - AI-powered development toolkit with 96+ MCP tools for Jira, Azure DevOps, Figma, Confluence, Teams, and test automation. Use when working with DMtools, configuring integrations, developing JavaScript agents, generating test cases, building reports (ReportGenerator/dmc_report), or creating CLI agent workflows with the new cliPrompt field for cleaner configurations.
+description: Comprehensive documentation and assistance for DMtools - AI-powered development toolkit with 96+ MCP tools for Jira, Azure DevOps, Figma, Confluence, Teams, and test automation. Use when working with DMtools, configuring integrations, developing JavaScript agents, generating test cases, building reports (ReportGenerator/dmc_report), creating CLI agent workflows, or setting up CI/CD run tracing (ciRunUrl) for Teammate/Expert/TestCasesGenerator jobs.
 license: Apache-2.0
 compatibility:
   - Java 23+
@@ -145,6 +145,7 @@ Use this skill when:
 - Troubleshooting DMtools issues
 - Working with dmtools.env configuration
 - Creating AI teammate configurations
+- Setting up CI/CD run tracing (`ciRunUrl`) for ticket traceability
 
 ## Quick Reference
 
@@ -179,6 +180,8 @@ See [Installation Guide](references/installation/README.md#️-configuration-set
 dmtools list                          # List all 96+ MCP tools
 dmtools jira_get_ticket PROJ-123      # Get Jira ticket
 dmtools run agents/config.json        # Run configuration
+dmtools run agents/config.json --ciRunUrl "https://ci.example.com/runs/42"  # With CI tracing
+dmtools run agents/config.json "${ENCODED_CONFIG}" --inputJql "key=PROJ-1"  # With overrides
 ```
 
 ## Core Capabilities
@@ -255,7 +258,7 @@ function action(params) {
 | | [CLI Integration](references/agents/cli-integration.md) | Cursor, Claude, Copilot, Gemini CLI agents |
 | **Testing** | [Test Generation](references/test-generation/xray-manual.md) | Xray test case creation |
 | **MCP Tools** | [MCP Tools Reference](references/mcp-tools/README.md) | Auto-generated list of 152+ tools (16 integrations) |
-| **CI/CD** | [GitHub Actions](references/workflows/github-actions-teammate.md) | Automated ticket processing in GitHub Actions |
+| **CI/CD** | [GitHub Actions](references/workflows/github-actions-teammate.md) | Automated ticket processing + CI run tracing |
 
 ## ⚠️ CRITICAL: JSON Configuration "name" Field
 
@@ -326,6 +329,34 @@ function action(params) {
     return { processed: tickets.length };
 }
 ```
+
+### CI Run Tracing (GitHub Actions / Azure DevOps)
+
+When running `Expert`, `Teammate`, or `TestCasesGenerator` from CI/CD, pass `--ciRunUrl` to link every ticket comment to the pipeline run.
+
+**The workflow `ai-teammate.yml` does this automatically** — no extra config needed. For other pipelines:
+
+```bash
+# GitHub Actions
+CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+dmtools run agents/teammate.json --ciRunUrl "${CI_RUN_URL}"
+
+# Azure DevOps
+CI_RUN_URL="$(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
+dmtools run agents/teammate.json --ciRunUrl "${CI_RUN_URL}"
+```
+
+**What happens on the ticket**:
+1. `Processing started. CI Run: https://...` — posted immediately when the job picks up the ticket
+2. Normal result comment posted when job finishes
+
+**CLI overrides** — any `--key value` after the config file patches the `params` block:
+```bash
+# Override any param at runtime without editing the JSON
+dmtools run agents/config.json "${ENCODED_CONFIG}" --inputJql "key=PROJ-42" --ciRunUrl "${CI_RUN_URL}"
+```
+
+See [CI Run Tracing](references/jobs/README.md#ci-run-tracing) and [GitHub Actions](references/workflows/github-actions-teammate.md) for full details.
 
 ### Integrate CLI Agents (Cursor, Claude, Copilot)
 

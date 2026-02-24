@@ -374,4 +374,92 @@ class RunCommandProcessorTest {
         assertEquals("expert", result.getName());
         verifyNoInteractions(mockEncodingDetector);
     }
+
+    // -----------------------------------------------------------------------
+    // CLI override (--key value) tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testProcessRunCommand_singleCliOverride() throws IOException {
+        String jsonContent = "{\"name\":\"teammate\",\"params\":{\"inputJql\":\"project = ORIG\"}}";
+        Path jsonFile = tempDir.resolve("job.json");
+        Files.write(jsonFile, jsonContent.getBytes());
+
+        String[] args = {"run", jsonFile.toString(), "--ciRunUrl", "https://ci.example.com/runs/42"};
+
+        JobParams result = runCommandProcessor.processRunCommand(args);
+
+        assertNotNull(result);
+        assertEquals("teammate", result.getName());
+        assertEquals("https://ci.example.com/runs/42", result.getParams().getString("ciRunUrl"));
+        // Original params field must not be touched
+        assertEquals("project = ORIG", result.getParams().getString("inputJql"));
+    }
+
+    @Test
+    void testProcessRunCommand_multipleCliOverrides() throws IOException {
+        String jsonContent = "{\"name\":\"expert\",\"params\":{}}";
+        Path jsonFile = tempDir.resolve("job.json");
+        Files.write(jsonFile, jsonContent.getBytes());
+
+        String[] args = {"run", jsonFile.toString(),
+                "--ciRunUrl", "https://ci.example.com/runs/7",
+                "--inputJql", "project = OVER"};
+
+        JobParams result = runCommandProcessor.processRunCommand(args);
+
+        assertNotNull(result);
+        assertEquals("https://ci.example.com/runs/7", result.getParams().getString("ciRunUrl"));
+        assertEquals("project = OVER", result.getParams().getString("inputJql"));
+    }
+
+    @Test
+    void testProcessRunCommand_cliOverrideWithEncodedConfig() throws IOException {
+        String jsonContent = "{\"name\":\"expert\",\"params\":{\"inputJql\":\"project = FILE\"}}";
+        Path jsonFile = tempDir.resolve("job.json");
+        Files.write(jsonFile, jsonContent.getBytes());
+
+        // encoded config adds a field, CLI override adds ciRunUrl
+        String encodedJson = "{\"params\":{\"initiator\":\"user@example.com\"}}";
+        String base64 = Base64.getEncoder().encodeToString(encodedJson.getBytes());
+
+        String[] args = {"run", jsonFile.toString(), base64, "--ciRunUrl", "https://ci.example.com/runs/99"};
+
+        JobParams result = runCommandProcessor.processRunCommand(args);
+
+        assertNotNull(result);
+        assertEquals("expert", result.getName());
+        assertEquals("https://ci.example.com/runs/99", result.getParams().getString("ciRunUrl"));
+        assertEquals("user@example.com", result.getParams().getString("initiator"));
+    }
+
+    @Test
+    void testProcessRunCommand_cliOverrideCreatesParamsBlockIfMissing() throws IOException {
+        String jsonContent = "{\"name\":\"expert\"}";
+        Path jsonFile = tempDir.resolve("job.json");
+        Files.write(jsonFile, jsonContent.getBytes());
+
+        String[] args = {"run", jsonFile.toString(), "--ciRunUrl", "https://ci.example.com/runs/1"};
+
+        JobParams result = runCommandProcessor.processRunCommand(args);
+
+        assertNotNull(result);
+        assertNotNull(result.getParams());
+        assertEquals("https://ci.example.com/runs/1", result.getParams().getString("ciRunUrl"));
+    }
+
+    @Test
+    void testProcessRunCommand_noCliOverridesDoesNotAffectParams() throws IOException {
+        String jsonContent = "{\"name\":\"expert\",\"params\":{\"inputJql\":\"project = UNTOUCHED\"}}";
+        Path jsonFile = tempDir.resolve("job.json");
+        Files.write(jsonFile, jsonContent.getBytes());
+
+        String[] args = {"run", jsonFile.toString()};
+
+        JobParams result = runCommandProcessor.processRunCommand(args);
+
+        assertNotNull(result);
+        assertEquals("project = UNTOUCHED", result.getParams().getString("inputJql"));
+        assertFalse(result.getParams().has("ciRunUrl"));
+    }
 }

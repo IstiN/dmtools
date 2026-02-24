@@ -25,6 +25,7 @@ class TrackerParamsTest {
         assertEquals(1, trackerParams.getTicketContextDepth());
         assertEquals(0, trackerParams.getChunkProcessingTimeoutInMinutes());
         assertFalse(trackerParams.isAttachResponseAsFile());
+        assertNull(trackerParams.getCiRunUrl());
     }
 
     @Test
@@ -45,7 +46,8 @@ class TrackerParamsTest {
             TrackerParams.OperationType.Replace,
             2,
             30,
-            customParams
+            customParams,
+            "https://ci.example.com/runs/42"
         );
 
         assertEquals("project = TEST", params.getInputJql());
@@ -61,6 +63,7 @@ class TrackerParamsTest {
         assertEquals(2, params.getTicketContextDepth());
         assertEquals(30, params.getChunkProcessingTimeoutInMinutes());
         assertEquals(customParams, params.getCustomParams());
+        assertEquals("https://ci.example.com/runs/42", params.getCiRunUrl());
     }
 
     @Test
@@ -137,6 +140,21 @@ class TrackerParamsTest {
         assertEquals("ticketContextDepth", TrackerParams.TICKET_CONTEXT_DEPTH);
         assertEquals("chunksProcessingTimeout", TrackerParams.CHUNKS_PROCESSING_TIMEOUT_IN_MINUTES);
         assertEquals("preJSAction", TrackerParams.PRE_ACTION);
+        assertEquals("ciRunUrl", TrackerParams.CI_RUN_URL);
+    }
+
+    @Test
+    void testCiRunUrl_setterAndGetter() {
+        trackerParams.setCiRunUrl("https://ci.example.com/runs/42");
+        assertEquals("https://ci.example.com/runs/42", trackerParams.getCiRunUrl());
+    }
+
+    @Test
+    void testCiRunUrl_deserializedFromJson() {
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        String json = "{\"ciRunUrl\":\"https://ci.example.com/runs/99\"}";
+        TrackerParams params = gson.fromJson(json, TrackerParams.class);
+        assertEquals("https://ci.example.com/runs/99", params.getCiRunUrl());
     }
 
     @Test

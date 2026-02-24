@@ -108,11 +108,14 @@ jobs:
 
       run: |
         echo "Using configuration: ${{ inputs.config_file }}"
+        CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        echo "CI run URL: ${CI_RUN_URL}"
+
         if [ -n "${ENCODED_CONFIG}" ]; then
           echo "Encoded config received (raw):"
           printf '%s\n' "${ENCODED_CONFIG}"
-          dmtools run "${{ inputs.config_file }}" "${ENCODED_CONFIG}"
+          dmtools run "${{ inputs.config_file }}" "${ENCODED_CONFIG}" --ciRunUrl "${CI_RUN_URL}"
         else
           echo "No encoded config provided."
-          dmtools run "${{ inputs.config_file }}"
+          dmtools run "${{ inputs.config_file }}" --ciRunUrl "${CI_RUN_URL}"
         fi

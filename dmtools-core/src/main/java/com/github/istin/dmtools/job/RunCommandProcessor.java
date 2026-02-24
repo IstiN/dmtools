@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Helper class for processing run command arguments.
@@ -43,17 +45,37 @@ public class RunCommandProcessor {
      */
     public JobParams processRunCommand(String[] args) {
         if (args == null || args.length < 2) {
-            throw new IllegalArgumentException("Invalid run command arguments. Expected: run [json-file-path] [optional-encoded-config]");
+            throw new IllegalArgumentException("Invalid run command arguments. Expected: run [json-file-path] [optional-encoded-config] [--key value ...]");
         }
-        
+
         if (!"run".equals(args[0])) {
             throw new IllegalArgumentException("First argument must be 'run'");
         }
-        
-        String filePath = args[1];
-        String encodedConfig = args.length > 2 ? args[2] : null;
 
-        logger.info("Processing run command: file={}, hasEncodedConfig={}", filePath, encodedConfig != null);
+        String filePath = args[1];
+
+        // Parse optional encoded config and --key value overrides from remaining args.
+        // Convention: if args[2] does NOT start with "--" it is treated as the encoded config;
+        // all subsequent "--key value" pairs are param overrides applied to the "params" block.
+        String encodedConfig = null;
+        Map<String, String> cliOverrides = new LinkedHashMap<>();
+
+        int i = 2;
+        if (i < args.length && !args[i].startsWith("--")) {
+            encodedConfig = args[i];
+            i++;
+        }
+        while (i < args.length) {
+            String token = args[i];
+            if (token.startsWith("--") && i + 1 < args.length) {
+                cliOverrides.put(token.substring(2), args[i + 1]);
+                i += 2;
+            } else {
+                i++; // skip unrecognised tokens
+            }
+        }
+
+        logger.info("Processing run command: file={}, hasEncodedConfig={}, cliOverrides={}", filePath, encodedConfig != null, cliOverrides.keySet());
 
         if (filePath.endsWith(".js")) {
             logger.info("Detected JS file, building JSRunner config in memory");
@@ -63,7 +85,7 @@ public class RunCommandProcessor {
         try {
             // Load JSON from file
             String fileJson = loadJsonFromFile(filePath);
-            
+
             // Process encoded configuration if provided
             String finalConfigJson;
             if (encodedConfig != null && !encodedConfig.trim().isEmpty()) {
@@ -74,13 +96,28 @@ public class RunCommandProcessor {
                 finalConfigJson = fileJson;
                 logger.info("Using file configuration only");
             }
-            
+
+            // Apply --key value CLI overrides into the "params" block
+            if (!cliOverrides.isEmpty()) {
+                JSONObject root = new JSONObject(finalConfigJson);
+                JSONObject params = root.optJSONObject(JobParams.PARAMS);
+                if (params == null) {
+                    params = new JSONObject();
+                    root.put(JobParams.PARAMS, params);
+                }
+                for (Map.Entry<String, String> entry : cliOverrides.entrySet()) {
+                    params.put(entry.getKey(), entry.getValue());
+                }
+                finalConfigJson = root.toString();
+                logger.info("Applied {} CLI override(s) to params block: {}", cliOverrides.size(), cliOverrides.keySet());
+            }
+
             // Create JobParams with final merged configuration
             JobParams jobParams = new JobParams(finalConfigJson);
             logger.info("JobParams created successfully for job: {}", jobParams.getName());
-            
+
             return jobParams;
-            
+
         } catch (Exception e) {
             logger.error("Failed to process run command: {}", e.getMessage());
             throw new IllegalArgumentException("Run command processing failed: " + e.getMessage(), e);

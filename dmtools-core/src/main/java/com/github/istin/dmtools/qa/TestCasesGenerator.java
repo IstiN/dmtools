@@ -136,6 +136,13 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
         trackerClient.searchAndPerform(ticket -> {
             try {
+                // Post "processing started" comment so CI run is traceable from the ticket immediately
+                String ciRunUrl = params.getCiRunUrl();
+                if (ciRunUrl != null && !ciRunUrl.isEmpty()
+                        && !getOutputTypeSafe(params).equals(TrackerParams.OutputType.none)) {
+                    trackerClient.postComment(ticket.getTicketKey(), "Processing started. CI Run: " + ciRunUrl);
+                }
+
                 // Combine related fields with custom fields
                 String[] relatedFields = combineFieldsWithCustomFields(params.getTestCasesRelatedFields(), params.getTestCasesCustomFields());
 

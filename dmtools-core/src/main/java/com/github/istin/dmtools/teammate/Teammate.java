@@ -285,7 +285,13 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         trackerClient.searchAndPerform(ticket -> {
             long overallStart = System.currentTimeMillis();
             logger.info("Processing ticket: {}", ticket.getKey());
-            
+
+            // Post "processing started" comment so CI run is traceable from the ticket immediately
+            String ciRunUrl = expertParams.getCiRunUrl();
+            if (ciRunUrl != null && !ciRunUrl.isEmpty() && outputType != Params.OutputType.none) {
+                trackerClient.postComment(ticket.getTicketKey(), "Processing started. CI Run: " + ciRunUrl);
+            }
+
             // Execute pre-action before AI processing
             Object preActionResult = js(expertParams.getPreJSAction())
                 .mcp(trackerClient, ai, confluence, null) // sourceCode not available in Teammate context

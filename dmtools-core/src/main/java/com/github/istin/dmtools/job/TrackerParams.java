@@ -90,4 +90,9 @@ public class TrackerParams {
 
     @SerializedName(CUSTOM_PARAMS)
     private java.util.Map<String, Object> customParams;
+
+    public static final String CI_RUN_URL = "ciRunUrl";
+
+    @SerializedName(CI_RUN_URL)
+    private String ciRunUrl;
 }

@@ -182,6 +182,7 @@ dmtools run agents/xray_test_cases_generator.json
 - `operationType` - Operation: `Replace` or `Append` (default: Append)
 - `preJSAction` - JavaScript to run before processing each ticket
 - `attachResponseAsFile` - Attach AI response as file (default: false)
+- `ciRunUrl` - CI/CD run URL for traceability (see [CI Run Tracing](#ci-run-tracing))
 
 **Output Formats**:
 1. **Xray Manual Test** - Step-by-step test cases with expected results
@@ -443,6 +444,7 @@ Teammate can execute external CLI agents with full workspace context:
 - `attachResponseAsFile` - Attach AI response as file (default: false)
 - `ticketContextDepth` - Depth of linked tickets to include (default: 1)
 - `chunkProcessingTimeoutInMinutes` - Timeout for chunk processing (default: 0 = no timeout)
+- `ciRunUrl` - CI/CD run URL for traceability (see [CI Run Tracing](#ci-run-tracing))
 
 **Inherited from Params** (for code/Confluence search):
 - `isCodeAsSource` - Search codebase for context (default: false)
@@ -543,6 +545,7 @@ Expert can gather context from multiple sources using flags from Params:
 - `attachResponseAsFile` - Attach AI response as file (default: false)
 - `ticketContextDepth` - Depth of linked tickets to include (default: 1)
 - `chunkProcessingTimeoutInMinutes` - Timeout for chunk processing (default: 0 = no timeout)
+- `ciRunUrl` - CI/CD run URL for traceability (see [CI Run Tracing](#ci-run-tracing))
 
 **Use Cases**:
 1. **Onboarding** - "What does this project do?" with codebase and Confluence context
@@ -949,12 +952,77 @@ dmtools <JobName> --help
 
 ---
 
+## 🔗 CI Run Tracing
+
+When running `Expert`, `Teammate`, or `TestCasesGenerator` from a CI/CD pipeline (GitHub Actions, Azure DevOps, etc.), set `ciRunUrl` to link every ticket comment back to the specific pipeline run.
+
+**How it works**:
+1. At the **start** of processing each ticket a comment is posted immediately:
+   ```
+   Processing started. CI Run: https://github.com/org/repo/actions/runs/1234567890
+   ```
+2. At the **end** the normal result comment is posted (without repeating the URL).
+
+This lets anyone watching the ticket follow the live run log without waiting for the job to finish.
+
+### Passing `ciRunUrl` via CLI override
+
+Use the `--key value` syntax after the config file (and optional encoded config):
+
+```bash
+# Without encoded config
+dmtools run agents/expert.json --ciRunUrl "https://github.com/org/repo/actions/runs/42"
+
+# With encoded config + override
+dmtools run agents/expert.json "${ENCODED_CONFIG}" --ciRunUrl "https://github.com/org/repo/actions/runs/42"
+```
+
+Any `--key value` pair is injected into the `params` block of the JSON config, overriding whatever is in the file.
+
+### GitHub Actions (`ai-teammate.yml`)
+
+The built-in `ai-teammate.yml` workflow automatically passes the run URL on every execution — no extra inputs needed:
+
+```yaml
+run: |
+  CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  dmtools run "${{ inputs.config_file }}" "${ENCODED_CONFIG}" --ciRunUrl "${CI_RUN_URL}"
+```
+
+### Azure DevOps equivalent
+
+```yaml
+- script: |
+    CI_RUN_URL="$(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
+    dmtools run agents/teammate.json --ciRunUrl "${CI_RUN_URL}"
+  displayName: 'Run AI Teammate'
+```
+
+### Setting `ciRunUrl` directly in JSON
+
+If you always want the same URL (unusual), you can set it in the config file:
+
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "inputJql": "...",
+    "ciRunUrl": "https://ci.example.com/runs/fixed-url"
+  }
+}
+```
+
+> **Note**: `ciRunUrl` only affects jobs with `outputType != none`. When `outputType` is `none` (dry run), no comments are posted and the URL is ignored.
+
+---
+
 ## 📚 Related Documentation
 
 - [JavaScript Agents](../agents/javascript-agents.md) - Preprocessing/postprocessing
 - [Teammate Configs](../agents/teammate-configs.md) - AI teammate configuration
 - [Test Generation](../test-generation/xray-manual.md) - Test case generation
 - [MCP Tools](../mcp-tools/README.md) - Available MCP tools
+- [GitHub Actions Workflow](../workflows/github-actions-teammate.md) - CI/CD integration
 
 ---
 

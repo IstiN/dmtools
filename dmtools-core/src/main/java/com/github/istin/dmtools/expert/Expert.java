@@ -222,6 +222,12 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
         String finalSystemRequest = systemRequest;
         List<ResultItem> results = new ArrayList<>();
         trackerClient.searchAndPerform(ticket -> {
+            // Post "processing started" comment so CI run is traceable from the ticket immediately
+            String ciRunUrl = expertParams.getCiRunUrl();
+            if (ciRunUrl != null && !ciRunUrl.isEmpty() && outputType != Params.OutputType.none) {
+                trackerClient.postComment(ticket.getTicketKey(), "Processing started. CI Run: " + ciRunUrl);
+            }
+
             // Execute pre-action before AI processing
             Object preActionResult = js(expertParams.getPreJSAction())
                 .mcp(trackerClient, ai, confluence, null) // sourceCode not available in Expert context
