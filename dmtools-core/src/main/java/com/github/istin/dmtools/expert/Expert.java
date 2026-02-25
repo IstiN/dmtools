@@ -225,7 +225,12 @@ public class Expert extends AbstractJob<ExpertParams, List<ResultItem>> {
             // Post "processing started" comment so CI run is traceable from the ticket immediately
             String ciRunUrl = expertParams.getCiRunUrl();
             if (ciRunUrl != null && !ciRunUrl.isEmpty() && outputType != Params.OutputType.none) {
-                trackerClient.postComment(ticket.getTicketKey(), "Processing started. CI Run: " + ciRunUrl);
+                try {
+                    trackerClient.postComment(ticket.getTicketKey(), "Processing started. CI Run: " + ciRunUrl);
+                } catch (Exception e) {
+                    logger.warn("Failed to post CI run trace comment for ticket {} — continuing. Error: {}",
+                            ticket.getTicketKey(), e.getMessage());
+                }
             }
 
             // Execute pre-action before AI processing

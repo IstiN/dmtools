@@ -214,18 +214,22 @@ class ReportGeneratorTest {
         // Exactly on start date
         Calendar onStart = Calendar.getInstance();
         onStart.set(2025, Calendar.JANUARY, 1, 0, 0, 0);
+        onStart.set(Calendar.MILLISECOND, 0);
         keyTimes.add(createKeyTime("START", onStart, "John"));
 
         // Exactly on end date
         Calendar onEnd = Calendar.getInstance();
         onEnd.set(2025, Calendar.JANUARY, 31, 23, 59, 59);
+        onEnd.set(Calendar.MILLISECOND, 0);
         keyTimes.add(createKeyTime("END", onEnd, "Jane"));
 
         Calendar periodStart = Calendar.getInstance();
         periodStart.set(2025, Calendar.JANUARY, 1, 0, 0, 0);
+        periodStart.set(Calendar.MILLISECOND, 0);
 
         Calendar periodEnd = Calendar.getInstance();
         periodEnd.set(2025, Calendar.JANUARY, 31, 23, 59, 59);
+        periodEnd.set(Calendar.MILLISECOND, 0);
 
         // When
         @SuppressWarnings("unchecked")

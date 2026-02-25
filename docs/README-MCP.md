@@ -659,6 +659,25 @@ See `examples/testrail_example.js` for a complete working example.
 
 **Note**: AI tools require proper API key configuration to be available. If you don't see these tools in `dmtools list`, ensure the appropriate environment variables are set (OLLAMA_BASE_PATH, ANTHROPIC_API_KEY, GEMINI_API_KEY, DIAL_API_KEY, OPENAI_API_KEY, AWS credentials, etc.). For Vertex AI Gemini, set GEMINI_VERTEX_ENABLED=true and provide either GEMINI_VERTEX_CREDENTIALS_PATH or GEMINI_VERTEX_CREDENTIALS_JSON along with GEMINI_VERTEX_PROJECT_ID and GEMINI_VERTEX_LOCATION.
 
+### GitHub Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `github_list_prs` | `workspace`, `repository`, `state` | List pull requests by state (`open`, `closed`, `merged`) |
+| `github_get_pr` | `workspace`, `repository`, `pullRequestId` | Get full details of a single pull request |
+| `github_get_pr_comments` | `workspace`, `repository`, `pullRequestId` | Get all comments (inline + discussion) merged and sorted by date |
+| `github_get_pr_conversations` | `workspace`, `repository`, `pullRequestId` | Get inline review comments grouped into conversation threads |
+| `github_get_pr_activities` | `workspace`, `repository`, `pullRequestId` | Get all activities: reviews (approvals, change requests) and all comments |
+| `github_add_pr_comment` | `workspace`, `repository`, `pullRequestId`, `text` | Post a general discussion comment to a pull request |
+| `github_reply_to_pr_thread` | `workspace`, `repository`, `pullRequestId`, `inReplyToId`, `text` | Reply to an existing inline code review comment thread |
+| `github_add_inline_comment` | `workspace`, `repository`, `pullRequestId`, `path`, `line`, `text`, `commitId`(opt), `startLine`(opt), `side`(opt) | Create a new inline code review comment on a specific file and line |
+| `github_get_pr_review_threads` | `workspace`, `repository`, `pullRequestId` | Get all review threads via GraphQL (includes node IDs needed to resolve threads) |
+| `github_resolve_pr_thread` | `threadId` | Resolve a review thread via GraphQL mutation (use node ID from `github_get_pr_review_threads`) |
+| `github_add_pr_label` | `workspace`, `repository`, `pullRequestId`, `label` | Add a label to a pull request (label must exist in the repo) |
+| `github_get_pr_diff` | `workspace`, `repository`, `pullRequestID` | Get diff statistics for a pull request (requires `IS_READ_PULL_REQUEST_DIFF=true`) |
+
+**Note**: GitHub tools require `SOURCE_GITHUB_TOKEN` environment variable. Add `github` to `DMTOOLS_INTEGRATIONS` if using that env var.
+
 ## 💻 Input Methods
 
 DMTools supports multiple input methods with this priority:
