@@ -431,11 +431,18 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             String inReplyToId,
             @MCPParam(name = "text", description = "The reply text (Markdown supported)", required = true, example = "Fixed in the latest commit.")
             String text) throws IOException {
+        final long inReplyTo;
+        try {
+            inReplyTo = Long.parseLong(inReplyToId);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "Invalid inReplyToId: expected a numeric GitHub comment ID, but got: '" + inReplyToId + "'", e);
+        }
         String path = path(String.format("repos/%s/%s/pulls/%s/comments", workspace, repository, pullRequestId));
         GenericRequest postRequest = new GenericRequest(this, path);
         JSONObject body = new JSONObject();
         body.put("body", text);
-        body.put("in_reply_to", Long.parseLong(inReplyToId));
+        body.put("in_reply_to", inReplyTo);
         postRequest.setBody(body.toString());
         return post(postRequest);
     }
@@ -468,8 +475,20 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
         String resolvedCommitId = commitId;
         if (resolvedCommitId == null || resolvedCommitId.trim().isEmpty()) {
             String prResponse = getPullRequestResponse(workspace, repository, pullRequestId, false);
+            if (prResponse == null || prResponse.trim().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Unable to resolve head commit SHA: empty pull request response for repo '"
+                        + workspace + "/" + repository + "', pull request '" + pullRequestId + "'.");
+            }
             JSONObject prJson = new JSONObject(prResponse);
             resolvedCommitId = prJson.getJSONObject("head").getString("sha");
+        }
+        final int lineNum;
+        try {
+            lineNum = Integer.parseInt(line);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "Invalid line: expected a numeric line number, but got: '" + line + "'", e);
         }
         String path = path(String.format("repos/%s/%s/pulls/%s/comments", workspace, repository, pullRequestId));
         GenericRequest postRequest = new GenericRequest(this, path);
@@ -477,10 +496,17 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
         body.put("body", text);
         body.put("commit_id", resolvedCommitId);
         body.put("path", filePath);
-        body.put("line", Integer.parseInt(line));
+        body.put("line", lineNum);
         body.put("side", (side != null && !side.trim().isEmpty()) ? side.toUpperCase() : "RIGHT");
         if (startLine != null && !startLine.trim().isEmpty()) {
-            body.put("start_line", Integer.parseInt(startLine));
+            final int startLineNum;
+            try {
+                startLineNum = Integer.parseInt(startLine);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                        "Invalid startLine: expected a numeric line number, but got: '" + startLine + "'", e);
+            }
+            body.put("start_line", startLineNum);
             body.put("start_side", (side != null && !side.trim().isEmpty()) ? side.toUpperCase() : "RIGHT");
         }
         postRequest.setBody(body.toString());

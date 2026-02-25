@@ -19,7 +19,7 @@ import static org.junit.Assert.*;
  * Integration tests for GitHub PR MCPTool methods.
  * Tests against real PR: https://github.com/IstiN/dmtools/pull/74
  *
- * To run: ensure GITHUB_TOKEN env var is set (or dmtools.env file configured).
+ * To run: ensure SOURCE_GITHUB_TOKEN env var is set (or dmtools.env file configured for the GitHub token).
  * Enable by removing @Ignore annotation.
  */
 @Ignore("Enable for manual testing with real GitHub credentials")

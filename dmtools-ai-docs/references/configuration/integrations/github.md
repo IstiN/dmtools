@@ -39,7 +39,7 @@ DMTOOLS_INTEGRATIONS=jira,cli,file,teams,figma,jira_xray,testrail,github,ado,con
 ## Verify Setup
 
 ```bash
-# List all GitHub tools (should return 8 tools)
+# List all GitHub tools (should return 12 tools)
 dmtools list github
 
 # Get a specific pull request
@@ -56,6 +56,10 @@ dmtools github_get_pr workspace=MyOrg repository=my-repo pullRequestId=42
 | `github_get_pr_conversations` | Get inline review threads grouped by root/replies |
 | `github_get_pr_activities` | Get all activity (reviews + comments) |
 | `github_add_pr_comment` | Post a comment to the PR discussion |
+| `github_reply_to_pr_thread` | Reply to an existing inline review thread |
+| `github_add_inline_comment` | Create a new inline code review comment on a file/line |
+| `github_get_pr_review_threads` | Get all review threads via GraphQL (includes node IDs to resolve) |
+| `github_resolve_pr_thread` | Resolve a review thread via GraphQL mutation |
 | `github_add_pr_label` | Add a label to a PR |
 | `github_get_pr_diff` | Get diff statistics (files changed, additions, deletions) |
 

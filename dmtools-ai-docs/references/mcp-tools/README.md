@@ -60,7 +60,7 @@ file_write('output.txt', 'content');
 
 - [JIRA](jira-tools.md) - 52 tools
 - [ADO](ado-tools.md) - 14 tools
-- [GITHUB](github-tools.md) - 8 tools (pull requests)
+- [GITHUB](github-tools.md) - 12 tools (pull requests)
 
 ### Communication
 
