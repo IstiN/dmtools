@@ -594,6 +594,78 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
         return executeGraphQL(mutation, null);
     }
 
+    @MCPTool(
+            name = "github_get_commit_check_runs",
+            description = "Get all check runs (CI/CD status checks) for a commit SHA in a GitHub repository. Returns details about each check including status, conclusion, and output.",
+            integration = "github",
+            category = "pull_requests"
+    )
+    public String getCommitCheckRuns(
+            @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
+            String workspace,
+            @MCPParam(name = "repository", description = "The GitHub repository name", required = true, example = "dmtools")
+            String repository,
+            @MCPParam(name = "commitSha", description = "The commit SHA to get check runs for", required = true, example = "abc123...")
+            String commitSha) throws IOException {
+        String path = path(String.format("repos/%s/%s/commits/%s/check-runs", workspace, repository, commitSha));
+        GenericRequest getRequest = new GenericRequest(this, path);
+        return execute(getRequest);
+    }
+
+    @MCPTool(
+            name = "github_get_workflow_run",
+            description = "Get details of a specific GitHub Actions workflow run by ID. Returns status, conclusion, logs URL, and timing information.",
+            integration = "github",
+            category = "pull_requests"
+    )
+    public String getWorkflowRun(
+            @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
+            String workspace,
+            @MCPParam(name = "repository", description = "The GitHub repository name", required = true, example = "dmtools")
+            String repository,
+            @MCPParam(name = "runId", description = "The workflow run ID", required = true, example = "1234567890")
+            String runId) throws IOException {
+        String path = path(String.format("repos/%s/%s/actions/runs/%s", workspace, repository, runId));
+        GenericRequest getRequest = new GenericRequest(this, path);
+        return execute(getRequest);
+    }
+
+    @MCPTool(
+            name = "github_get_workflow_run_jobs",
+            description = "Get all jobs for a specific GitHub Actions workflow run. Shows individual job statuses, steps, and logs URLs.",
+            integration = "github",
+            category = "pull_requests"
+    )
+    public String getWorkflowRunJobs(
+            @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
+            String workspace,
+            @MCPParam(name = "repository", description = "The GitHub repository name", required = true, example = "dmtools")
+            String repository,
+            @MCPParam(name = "runId", description = "The workflow run ID", required = true, example = "1234567890")
+            String runId) throws IOException {
+        String path = path(String.format("repos/%s/%s/actions/runs/%s/jobs", workspace, repository, runId));
+        GenericRequest getRequest = new GenericRequest(this, path);
+        return execute(getRequest);
+    }
+
+    @MCPTool(
+            name = "github_get_job_logs",
+            description = "Get the raw text logs for a specific GitHub Actions job. Returns the complete log output from all steps in the job.",
+            integration = "github",
+            category = "pull_requests"
+    )
+    public String getJobLogs(
+            @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
+            String workspace,
+            @MCPParam(name = "repository", description = "The GitHub repository name", required = true, example = "dmtools")
+            String repository,
+            @MCPParam(name = "jobId", description = "The job ID (from github_get_workflow_run_jobs)", required = true, example = "1234567890")
+            String jobId) throws IOException {
+        String path = path(String.format("repos/%s/%s/actions/jobs/%s/logs", workspace, repository, jobId));
+        GenericRequest getRequest = new GenericRequest(this, path);
+        return execute(getRequest);
+    }
+
     private String executeGraphQL(String query, JSONObject variables) throws IOException {
         String graphqlPath = path("graphql");
         GenericRequest postRequest = new GenericRequest(this, graphqlPath);
