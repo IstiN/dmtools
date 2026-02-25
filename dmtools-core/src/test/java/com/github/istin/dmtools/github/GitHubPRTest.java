@@ -88,7 +88,7 @@ public class GitHubPRTest {
         doAnswer(invocation -> {
             GenericRequest req = invocation.getArgument(0);
             String url = req.url();
-            if (url.contains("/pulls/") && url.endsWith("/comments")) {
+            if (url.contains("/pulls/") && url.contains("/comments")) {
                 return inlineComments.toString();
             } else if (url.contains("/issues/")) {
                 return issueComments.toString();
@@ -111,7 +111,7 @@ public class GitHubPRTest {
         doAnswer(invocation -> {
             GenericRequest req = invocation.getArgument(0);
             String url = req.url();
-            if (url.contains("/pulls/") && url.endsWith("/comments")) {
+            if (url.contains("/pulls/") && url.contains("/comments")) {
                 return null;
             } else if (url.contains("/issues/")) {
                 return issueComments.toString();
@@ -140,7 +140,7 @@ public class GitHubPRTest {
         doAnswer(invocation -> {
             GenericRequest req = invocation.getArgument(0);
             String url = req.url();
-            if (url.contains("/pulls/") && url.endsWith("/comments")) {
+            if (url.contains("/pulls/") && url.contains("/comments")) {
                 return inlineComments.toString();
             } else if (url.contains("/issues/")) {
                 return issueComments.toString();
@@ -173,7 +173,7 @@ public class GitHubPRTest {
         doAnswer(invocation -> {
             GenericRequest req = invocation.getArgument(0);
             String url = req.url();
-            if (url.contains("/pulls/") && url.endsWith("/comments")) {
+            if (url.contains("/pulls/") && url.contains("/comments")) {
                 return inlineComments.toString();
             } else if (url.contains("/issues/")) {
                 return issueComments.toString();
@@ -196,7 +196,7 @@ public class GitHubPRTest {
         doAnswer(invocation -> {
             GenericRequest req = invocation.getArgument(0);
             String url = req.url();
-            if (url.contains("/pulls/") && url.endsWith("/comments")) {
+            if (url.contains("/pulls/") && url.contains("/comments")) {
                 return null;
             } else if (url.contains("/issues/")) {
                 return issueComments.toString();
@@ -228,7 +228,7 @@ public class GitHubPRTest {
             String url = req.url();
             if (url.endsWith("/reviews")) {
                 return reviews.toString();
-            } else if (url.contains("/pulls/") && url.endsWith("/comments")) {
+            } else if (url.contains("/pulls/") && url.contains("/comments")) {
                 return inlineComments.toString();
             } else if (url.contains("/issues/")) {
                 return issueComments.toString();
@@ -255,7 +255,7 @@ public class GitHubPRTest {
             String url = req.url();
             if (url.endsWith("/reviews")) {
                 return null;
-            } else if (url.contains("/pulls/") && url.endsWith("/comments")) {
+            } else if (url.contains("/pulls/") && url.contains("/comments")) {
                 return inlineComments.toString();
             } else if (url.contains("/issues/")) {
                 return new JSONArray().toString();

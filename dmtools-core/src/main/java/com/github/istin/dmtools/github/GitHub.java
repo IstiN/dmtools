@@ -230,27 +230,53 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             String repository,
             @MCPParam(name = "pullRequestId", description = "The pull request number", required = true, example = "74")
             String pullRequestId) throws IOException {
-        String path = path(String.format("repos/%s/%s/pulls/%s/comments", workspace, repository, pullRequestId));
-        GenericRequest getRequest = new GenericRequest(this, path);
-        String response = execute(getRequest);
         List<IComment> result = new ArrayList<>();
-        if (response != null) {
-            List<IComment> comments = JSONModel.convertToModels(GitHubComment.class, new JSONArray(response));
-            result.addAll(comments);
+        int perPage = 100;
+        int currentPage = 1;
+
+        while (true) {
+            String path = path(String.format("repos/%s/%s/pulls/%s/comments?per_page=%d&page=%d",
+                    workspace, repository, pullRequestId, perPage, currentPage));
+            GenericRequest getRequest = new GenericRequest(this, path);
+            String response = execute(getRequest);
+            if (response == null || response.isEmpty()) {
+                break;
+            }
+            JSONArray pageArray = new JSONArray(response);
+            result.addAll(JSONModel.convertToModels(GitHubComment.class, pageArray));
+            if (pageArray.length() < perPage) {
+                break;
+            }
+            currentPage++;
         }
+
         result.addAll(pullRequestCommentsFromIssue(workspace, repository, pullRequestId));
         result.sort((c1, c2) -> c1.getCreated().compareTo(c2.getCreated()));
         return result;
     }
 
     public List<IComment> pullRequestCommentsFromIssue(String workspace, String repository, String pullRequestId) throws IOException {
-        String path = path(String.format("repos/%s/%s/issues/%s/comments", workspace, repository, pullRequestId));
-        GenericRequest getRequest = new GenericRequest(this, path);
-        String response = execute(getRequest);
-        if (response == null) {
-            return new ArrayList<>();
+        List<IComment> allComments = new ArrayList<>();
+        int perPage = 100;
+        int currentPage = 1;
+
+        while (true) {
+            String path = path(String.format("repos/%s/%s/issues/%s/comments?per_page=%d&page=%d",
+                    workspace, repository, pullRequestId, perPage, currentPage));
+            GenericRequest getRequest = new GenericRequest(this, path);
+            String response = execute(getRequest);
+            if (response == null || response.isEmpty()) {
+                break;
+            }
+            JSONArray pageArray = new JSONArray(response);
+            allComments.addAll(JSONModel.convertToModels(GitHubComment.class, pageArray));
+            if (pageArray.length() < perPage) {
+                break;
+            }
+            currentPage++;
         }
-        return JSONModel.convertToModels(GitHubComment.class, new JSONArray(response));
+
+        return allComments;
     }
 
     @MCPTool(
@@ -266,16 +292,27 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             String repository,
             @MCPParam(name = "pullRequestId", description = "The pull request number", required = true, example = "74")
             String pullRequestId) throws IOException {
-        String path = path(String.format("repos/%s/%s/pulls/%s/comments", workspace, repository, pullRequestId));
-        GenericRequest getRequest = new GenericRequest(this, path);
-        String response = execute(getRequest);
-
-        List<GitHubConversation> conversations = new ArrayList<>();
         List<GitHubComment> inlineComments = new ArrayList<>();
-        if (response != null) {
-            inlineComments = JSONModel.convertToModels(GitHubComment.class, new JSONArray(response));
+        int perPage = 100;
+        int currentPage = 1;
+
+        while (true) {
+            String path = path(String.format("repos/%s/%s/pulls/%s/comments?per_page=%d&page=%d",
+                    workspace, repository, pullRequestId, perPage, currentPage));
+            GenericRequest getRequest = new GenericRequest(this, path);
+            String response = execute(getRequest);
+            if (response == null || response.isEmpty()) {
+                break;
+            }
+            JSONArray pageArray = new JSONArray(response);
+            inlineComments.addAll(JSONModel.convertToModels(GitHubComment.class, pageArray));
+            if (pageArray.length() < perPage) {
+                break;
+            }
+            currentPage++;
         }
 
+        List<GitHubConversation> conversations = new ArrayList<>();
         Map<Long, GitHubConversation> threadMap = new LinkedHashMap<>();
         for (GitHubComment comment : inlineComments) {
             Long replyToId = comment.getInReplyToId();
