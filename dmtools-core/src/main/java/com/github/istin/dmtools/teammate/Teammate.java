@@ -288,7 +288,7 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
 
             // Post "processing started" comment so CI run is traceable from the ticket immediately
             String ciRunUrl = expertParams.getCiRunUrl();
-            if (ciRunUrl != null && !ciRunUrl.isEmpty() && outputType != Params.OutputType.none) {
+            if (ciRunUrl != null && !ciRunUrl.isEmpty() && expertParams.isPostCiComment()) {
                 try {
                     trackerClient.postComment(ticket.getTicketKey(), "Processing started. CI Run: " + ciRunUrl);
                 } catch (Exception e) {

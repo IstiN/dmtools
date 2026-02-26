@@ -47,7 +47,8 @@ class TrackerParamsTest {
             2,
             30,
             customParams,
-            "https://ci.example.com/runs/42"
+            "https://ci.example.com/runs/42",
+            true
         );
 
         assertEquals("project = TEST", params.getInputJql());
@@ -64,6 +65,7 @@ class TrackerParamsTest {
         assertEquals(30, params.getChunkProcessingTimeoutInMinutes());
         assertEquals(customParams, params.getCustomParams());
         assertEquals("https://ci.example.com/runs/42", params.getCiRunUrl());
+        assertTrue(params.isPostCiComment());
     }
 
     @Test
@@ -141,6 +143,7 @@ class TrackerParamsTest {
         assertEquals("chunksProcessingTimeout", TrackerParams.CHUNKS_PROCESSING_TIMEOUT_IN_MINUTES);
         assertEquals("preJSAction", TrackerParams.PRE_ACTION);
         assertEquals("ciRunUrl", TrackerParams.CI_RUN_URL);
+        assertEquals("postCiComment", TrackerParams.POST_CI_COMMENT);
     }
 
     @Test
@@ -155,6 +158,32 @@ class TrackerParamsTest {
         String json = "{\"ciRunUrl\":\"https://ci.example.com/runs/99\"}";
         TrackerParams params = gson.fromJson(json, TrackerParams.class);
         assertEquals("https://ci.example.com/runs/99", params.getCiRunUrl());
+    }
+
+    @Test
+    void testPostCiComment_defaultValue() {
+        assertTrue(trackerParams.isPostCiComment());
+    }
+
+    @Test
+    void testPostCiComment_setterAndGetter() {
+        trackerParams.setPostCiComment(false);
+        assertFalse(trackerParams.isPostCiComment());
+
+        trackerParams.setPostCiComment(true);
+        assertTrue(trackerParams.isPostCiComment());
+    }
+
+    @Test
+    void testPostCiComment_deserializedFromJson() {
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        String jsonTrue = "{\"postCiComment\":true}";
+        TrackerParams paramsTrue = gson.fromJson(jsonTrue, TrackerParams.class);
+        assertTrue(paramsTrue.isPostCiComment());
+
+        String jsonFalse = "{\"postCiComment\":false}";
+        TrackerParams paramsFalse = gson.fromJson(jsonFalse, TrackerParams.class);
+        assertFalse(paramsFalse.isPostCiComment());
     }
 
     @Test

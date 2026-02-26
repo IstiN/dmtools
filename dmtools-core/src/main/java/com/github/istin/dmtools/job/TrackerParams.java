@@ -95,4 +95,9 @@ public class TrackerParams {
 
     @SerializedName(CI_RUN_URL)
     private String ciRunUrl;
+
+    public static final String POST_CI_COMMENT = "postCiComment";
+
+    @SerializedName(POST_CI_COMMENT)
+    private boolean postCiComment = true;
 }

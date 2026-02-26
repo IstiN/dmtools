@@ -183,6 +183,7 @@ dmtools run agents/xray_test_cases_generator.json
 - `preJSAction` - JavaScript to run before processing each ticket
 - `attachResponseAsFile` - Attach AI response as file (default: false)
 - `ciRunUrl` - CI/CD run URL for traceability (see [CI Run Tracing](#ci-run-tracing))
+- `postCiComment` - Post CI run URL as comment (default: true)
 
 **Output Formats**:
 1. **Xray Manual Test** - Step-by-step test cases with expected results
@@ -445,6 +446,7 @@ Teammate can execute external CLI agents with full workspace context:
 - `ticketContextDepth` - Depth of linked tickets to include (default: 1)
 - `chunkProcessingTimeoutInMinutes` - Timeout for chunk processing (default: 0 = no timeout)
 - `ciRunUrl` - CI/CD run URL for traceability (see [CI Run Tracing](#ci-run-tracing))
+- `postCiComment` - Post CI run URL as comment (default: true)
 
 **Inherited from Params** (for code/Confluence search):
 - `isCodeAsSource` - Search codebase for context (default: false)
@@ -546,6 +548,7 @@ Expert can gather context from multiple sources using flags from Params:
 - `ticketContextDepth` - Depth of linked tickets to include (default: 1)
 - `chunkProcessingTimeoutInMinutes` - Timeout for chunk processing (default: 0 = no timeout)
 - `ciRunUrl` - CI/CD run URL for traceability (see [CI Run Tracing](#ci-run-tracing))
+- `postCiComment` - Post CI run URL as comment (default: true)
 
 **Use Cases**:
 1. **Onboarding** - "What does this project do?" with codebase and Confluence context
@@ -1012,7 +1015,7 @@ If you always want the same URL (unusual), you can set it in the config file:
 }
 ```
 
-> **Note**: `ciRunUrl` only affects jobs with `outputType != none`. When `outputType` is `none` (dry run), no comments are posted and the URL is ignored.
+> **Note**: The CI run URL comment is controlled by the `postCiComment` flag (default: `true`). Set `"postCiComment": false` in your config to disable CI tracing comments while keeping other output behavior (`outputType`) unchanged. The `outputType` setting (`comment`/`field`/`creation`/`none`) controls where the job result is posted, independent of CI tracing.
 
 ---
 

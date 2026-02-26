@@ -138,8 +138,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             try {
                 // Post "processing started" comment so CI run is traceable from the ticket immediately
                 String ciRunUrl = params.getCiRunUrl();
-                if (ciRunUrl != null && !ciRunUrl.isEmpty()
-                        && !getOutputTypeSafe(params).equals(TrackerParams.OutputType.none)) {
+                if (ciRunUrl != null && !ciRunUrl.isEmpty() && params.isPostCiComment()) {
                     trackerClient.postComment(ticket.getTicketKey(), "Processing started. CI Run: " + ciRunUrl);
                 }
 
