@@ -134,6 +134,14 @@ public class CommandLineUtils {
                 capturedOutput = capturedOutput.replaceAll("\u001B\\[[;\\d]*m", "");
                 capturedOutput = capturedOutput.replaceAll("\r", "");
 
+                // Remove 'script' utility pollution lines
+                // These lines are added by the 'script' command and break parsing of command output
+                capturedOutput = capturedOutput.replaceAll("(?m)^Script started on.*$", "");
+                capturedOutput = capturedOutput.replaceAll("(?m)^Script done on.*$", "");
+
+                // Remove empty lines that may be left after filtering
+                capturedOutput = capturedOutput.replaceAll("(?m)^\\s*$\\n", "");
+
                 // Delete temp file
                 tempOutput.delete();
 
