@@ -58,6 +58,11 @@ public class GenericRequest {
     }
 
     public GenericRequest param(String param, String value) {
+        // Skip null or empty values to avoid URLEncoder.encode(null)
+        if (value == null || value.isEmpty()) {
+            return this;
+        }
+        
         if (url.indexOf("?") > 0) {
             url.append("&");
         } else {

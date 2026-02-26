@@ -92,4 +92,32 @@ public class GenericRequestTest {
         assertEquals("response", response);
         verify(restClientMock, times(1)).delete(genericRequest);
     }
+
+    @Test
+    public void testParamWithNullValue_shouldSkipParameter() {
+        // Given: A request with null parameter value
+        genericRequest.param("nullParam", (String) null);
+        
+        // Then: URL should not contain the parameter (no ? added)
+        assertEquals("http://example.com", genericRequest.url());
+    }
+
+    @Test
+    public void testParamWithEmptyValue_shouldSkipParameter() {
+        // Given: A request with empty parameter value
+        genericRequest.param("emptyParam", "");
+        
+        // Then: URL should not contain the parameter (no ? added)
+        assertEquals("http://example.com", genericRequest.url());
+    }
+
+    @Test
+    public void testParamWithNullValue_afterValidParam_shouldOnlyIncludeValidParam() {
+        // Given: A request with valid param followed by null param
+        genericRequest.param("validParam", "value");
+        genericRequest.param("nullParam", (String) null);
+        
+        // Then: URL should only contain the valid parameter
+        assertEquals("http://example.com?validParam=value", genericRequest.url());
+    }
 }
