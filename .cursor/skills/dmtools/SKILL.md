@@ -76,6 +76,9 @@ See [Installation Guide](references/installation/README.md#️-configuration-set
 dmtools list                          # List all 96+ MCP tools
 dmtools jira_get_ticket PROJ-123      # Get Jira ticket
 dmtools run agents/config.json        # Run configuration
+
+# JSRunner - Run JavaScript agents with parameters (no config file needed)
+dmtools run agents/js/script.js '{"ticketKey": "PROJ-123", "mode": "test"}'
 ```
 
 ## Core Capabilities

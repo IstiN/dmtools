@@ -182,6 +182,9 @@ dmtools jira_get_ticket PROJ-123      # Get Jira ticket
 dmtools run agents/config.json        # Run configuration
 dmtools run agents/config.json --ciRunUrl "https://ci.example.com/runs/42"  # With CI tracing
 dmtools run agents/config.json "${ENCODED_CONFIG}" --inputJql "key=PROJ-1"  # With overrides
+
+# JSRunner - Run JavaScript agents with parameters (no config file needed)
+dmtools run agents/js/script.js '{"ticketKey": "PROJ-123", "mode": "test"}'
 ```
 
 ## Core Capabilities

@@ -606,15 +606,38 @@ console.info("Info message");
 }
 ```
 
-### Direct Execution
+### Direct Execution (JSRunner)
+
+Run JavaScript agents directly without a config file using the JSRunner shorthand:
 
 ```bash
-# Run JavaScript agent directly
-dmtools run-js agents/js/myAgent.js --param ticketKey=PROJ-123
+# Run JS file with no parameters
+dmtools run agents/js/myAgent.js
 
-# With JSON parameters
-echo '{"ticketKey":"PROJ-123"}' | dmtools run-js agents/js/myAgent.js --stdin
+# Run with JSON parameters (passed as params.jobParams)
+dmtools run agents/js/myAgent.js '{"ticketKey": "PROJ-123", "mode": "test"}'
+
+# Run with parameters from a file
+dmtools run agents/js/myAgent.js "$(cat params.json)"
+
+# With base64-encoded parameters
+echo '{"ticketKey":"PROJ-123"}' | base64 | xargs -I {} dmtools run agents/js/myAgent.js {}
 ```
+
+**Access parameters in JS**:
+```javascript
+function action(params) {
+    // Parameters are available as params.jobParams
+    var ticketKey = params.jobParams.ticketKey;  // "PROJ-123"
+    var mode = params.jobParams.mode;            // "test"
+
+    // Use MCP tools
+    var ticket = jira_get_ticket(ticketKey);
+    return { success: true, ticket: ticket };
+}
+```
+
+See [JSRunner documentation](../jobs/README.md#jsrunner) for full details.
 
 ## 🆘 Common Issues
 
