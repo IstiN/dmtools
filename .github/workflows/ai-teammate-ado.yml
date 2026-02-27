@@ -1,0 +1,106 @@
+name: AI Teammate ADO
+
+on:
+  workflow_dispatch:
+    inputs:
+      config_file:
+        description: 'Path to config'
+        required: true
+      encoded_config:
+        description: 'Encoded or JSON Agent Config'
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  
+jobs:
+  cursor-agent:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cursor-agent-ado-${{ inputs.config_file }}
+      cancel-in-progress: false
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Java Environment
+      uses: ./.github/actions/setup-java-only
+      with:
+        cache-key-suffix: '-cursor'
+
+    - name: Install Cursor CLI
+      run: |
+        echo "Installing Cursor CLI..."
+        curl https://cursor.com/install -fsS | bash
+        
+        echo "Checking installation locations..."
+        ls -la "$HOME/.cursor/" || echo "No .cursor directory"
+        ls -la "$HOME/.cursor/bin/" || echo "No .cursor/bin directory"
+        ls -la "$HOME/.local/bin/" || echo "No .local/bin directory"
+        
+        # Cursor CLI installs to ~/.local/bin, not ~/.cursor/bin
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        
+        # Test installation
+        export PATH="$HOME/.local/bin:$PATH"
+        if command -v cursor-agent; then
+          echo "✅ cursor-agent found at: $(command -v cursor-agent)"
+          cursor-agent --version 2>&1 || echo "Version check failed"
+        else
+          echo "❌ cursor-agent not found after installation"
+          echo "Available files in .local/bin:"
+          ls -la "$HOME/.local/bin/" 2>/dev/null || echo "Directory does not exist"
+        fi
+
+    - name: Install DMTools CLI
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/IstiN/dmtools/main/install.sh | bash
+        echo "$HOME/.dmtools/bin" >> $GITHUB_PATH
+
+    - name: Build and Install DMTools CLI from source
+      run: |
+        dmtools || echo "dmtools version failed"
+        cursor-agent --version || echo "cursor-agent version failed"
+
+    - name: Run AI Teammate
+      env:
+        CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        MODEL: sonnet-4
+        AGENT_DISABLE_WATCHDOG: "1"
+        PATH: "/home/runner/.local/bin:/home/runner/.dmtools/bin:/bin:/usr/bin:$PATH"
+        # Azure DevOps Configuration
+        ADO_PAT_TOKEN: ${{ secrets.ADO_PAT_TOKEN }}
+        ADO_ORGANIZATION: ${{ vars.ADO_ORGANIZATION }}
+        ADO_PROJECT: ${{ vars.ADO_PROJECT }}
+        ADO_BASE_PATH: ${{ vars.ADO_BASE_PATH }}
+        DEFAULT_TRACKER: "ado"
+
+        # DMTools Integration Settings
+        DMTOOLS_INTEGRATIONS: "ado,ai,cli,file"
+
+        # AI Service Configuration
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL }}
+        PROMPT_CHUNK_TOKEN_LIMIT: ${{ vars.PROMPT_CHUNK_TOKEN_LIMIT }}
+        ENCODED_CONFIG: ${{ inputs.encoded_config }}
+        
+        # GitHub Authentication for PR creation
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      run: |
+        echo "Using configuration: ${{ inputs.config_file }}"
+        CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        echo "CI run URL: ${CI_RUN_URL}"
+
+        if [ -n "${ENCODED_CONFIG}" ]; then
+          echo "Encoded config received (raw):"
+          printf '%s\n' "${ENCODED_CONFIG}"
+          dmtools run "${{ inputs.config_file }}" "${ENCODED_CONFIG}" --ciRunUrl "${CI_RUN_URL}"
+        else
+          echo "No encoded config provided."
+          dmtools run "${{ inputs.config_file }}" --ciRunUrl "${CI_RUN_URL}"
+        fi
