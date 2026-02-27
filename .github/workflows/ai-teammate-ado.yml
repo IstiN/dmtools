@@ -78,8 +78,15 @@ jobs:
         ADO_BASE_PATH: ${{ vars.ADO_BASE_PATH }}
         DEFAULT_TRACKER: "ado"
 
+        # Confluence Configuration
+        CONFLUENCE_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        CONFLUENCE_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        CONFLUENCE_BASE_PATH: ${{ vars.CONFLUENCE_BASE_PATH }}
+        CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
+        CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
+
         # DMTools Integration Settings
-        DMTOOLS_INTEGRATIONS: "ado,ai,cli,file"
+        DMTOOLS_INTEGRATIONS: "ado,confluence,ai,cli,file"
 
         # AI Service Configuration
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
