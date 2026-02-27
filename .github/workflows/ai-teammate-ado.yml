@@ -1,4 +1,4 @@
-name: AI Teammate
+name: AI Teammate ADO
 
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
   cursor-agent:
     runs-on: ubuntu-latest
     concurrency:
-      group: cursor-agent-${{ inputs.config_file }}
+      group: cursor-agent-ado-${{ inputs.config_file }}
       cancel-in-progress: false
     
     steps:
@@ -71,16 +71,12 @@ jobs:
         MODEL: sonnet-4
         AGENT_DISABLE_WATCHDOG: "1"
         PATH: "/home/runner/.local/bin:/home/runner/.dmtools/bin:/bin:/usr/bin:$PATH"
-        # Jira Configuration
-        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
-        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-        JIRA_BASE_PATH: ${{ vars.JIRA_BASE_PATH }}
-        JIRA_AUTH_TYPE: ${{ vars.JIRA_AUTH_TYPE }}
-        JIRA_CLEAR_CACHE: ${{ vars.JIRA_CLEAR_CACHE }}
-        JIRA_EXTRA_FIELDS: ${{ vars.JIRA_EXTRA_FIELDS }}
-        JIRA_EXTRA_FIELDS_PROJECT: ${{ vars.JIRA_EXTRA_FIELDS_PROJECT }}
-        JIRA_LOGGING_ENABLED: ${{ vars.JIRA_LOGGING_ENABLED }}
-        JIRA_WAIT_BEFORE_PERFORM: ${{ vars.JIRA_WAIT_BEFORE_PERFORM }}
+        # Azure DevOps Configuration
+        ADO_PAT_TOKEN: ${{ secrets.ADO_PAT_TOKEN }}
+        ADO_ORGANIZATION: ${{ vars.ADO_ORGANIZATION }}
+        ADO_PROJECT: ${{ vars.ADO_PROJECT }}
+        ADO_BASE_PATH: ${{ vars.ADO_BASE_PATH }}
+        DEFAULT_TRACKER: "ado"
 
         # Confluence Configuration
         CONFLUENCE_EMAIL: ${{ secrets.JIRA_EMAIL }}
@@ -89,23 +85,13 @@ jobs:
         CONFLUENCE_DEFAULT_SPACE: ${{ vars.CONFLUENCE_DEFAULT_SPACE }}
         CONFLUENCE_GRAPHQL_PATH: ${{ vars.CONFLUENCE_GRAPHQL_PATH }}
 
-        # Azure DevOps Configuration
-        ADO_PAT_TOKEN: ${{ secrets.ADO_PAT_TOKEN }}
-        ADO_ORGANIZATION: ${{ vars.ADO_ORGANIZATION }}
-        ADO_PROJECT: ${{ vars.ADO_PROJECT }}
-        ADO_BASE_PATH: ${{ vars.ADO_BASE_PATH }}
-
         # DMTools Integration Settings
-        DMTOOLS_INTEGRATIONS: "jira,confluence,figma,ai,cli,file,ado"
+        DMTOOLS_INTEGRATIONS: "ado,confluence,ai,cli,file"
 
         # AI Service Configuration
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL }}
         PROMPT_CHUNK_TOKEN_LIMIT: ${{ vars.PROMPT_CHUNK_TOKEN_LIMIT }}
-        
-        # Figma Configuration
-        FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
-        FIGMA_BASE_PATH: ${{ vars.FIGMA_BASE_PATH }}
         ENCODED_CONFIG: ${{ inputs.encoded_config }}
         
         # GitHub Authentication for PR creation
