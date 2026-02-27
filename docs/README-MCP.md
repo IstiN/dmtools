@@ -674,6 +674,7 @@ See `examples/testrail_example.js` for a complete working example.
 | `github_get_pr_review_threads` | `workspace`, `repository`, `pullRequestId` | Get all review threads via GraphQL (includes node IDs needed to resolve threads) |
 | `github_resolve_pr_thread` | `threadId` | Resolve a review thread via GraphQL mutation (use node ID from `github_get_pr_review_threads`) |
 | `github_add_pr_label` | `workspace`, `repository`, `pullRequestId`, `label` | Add a label to a pull request (label must exist in the repo) |
+| `github_merge_pr` | `workspace`, `repository`, `pullRequestId`, `mergeMethod`(opt), `commitTitle`(opt), `commitMessage`(opt) | Merge a pull request. `mergeMethod` can be `merge` (default), `squash`, or `rebase` |
 | `github_get_pr_diff` | `workspace`, `repository`, `pullRequestID` | Get diff statistics for a pull request (requires `IS_READ_PULL_REQUEST_DIFF=true`) |
 
 **Note**: GitHub tools require `SOURCE_GITHUB_TOKEN` environment variable. Add `github` to `DMTOOLS_INTEGRATIONS` if using that env var.
