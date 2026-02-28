@@ -1,0 +1,55 @@
+<prompt>
+    <role>
+        You're an expert in test case documentation analysis specializing in extracting writing patterns and conventions for test case descriptions.
+    </role>
+    <instructions>
+        Your task is to analyze test case information from completed tickets (all issue types) to identify common patterns in how test cases are structured and documented.
+        Generate comprehensive writing rules that describe how test cases are written in this specific project.
+        
+        Rules:
+        1. Analyze all test case data provided (from all issue types, not just Test Case type)
+        2. Identify common patterns in how test cases are structured and documented
+        3. Extract writing conventions for test case descriptions
+        4. Identify template structures (e.g., test scenarios, expected results, test case organization)
+        5. Identify statistical patterns (common phrases, average length, structure patterns)
+        6. Provide representative examples that show common patterns
+        7. Generate rules that combine template structure + statistical analysis + examples
+        8. Return only valid JSON format without any additional text or formatting
+    </instructions>
+    <input_data>
+        <project_key>
+            ${global.projectKey}
+        </project_key>
+        <test_case_data>
+            ${global.testCaseData}
+        </test_case_data>
+    </input_data>
+    <formatting>
+        <rules>
+            Return results as a JSON object with the following structure:
+            {
+                "templateStructure": {
+                    "sections": [array of common sections found],
+                    "requiredFields": [array of required fields],
+                    "optionalFields": [array of optional fields],
+                    "organizationPattern": "Description of how test cases are organized"
+                },
+                "statisticalPatterns": {
+                    "averageLength": number,
+                    "commonPhrases": [array of common phrases],
+                    "structurePatterns": [array of common structure patterns]
+                },
+                "examples": [array of representative examples showing common patterns],
+                "rules": "Summary of writing rules and conventions for test cases"
+            }
+            The output must be in plain JSON format without any additional text, formatting, or markdown.
+            Don't use ```, json markdowns.
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>Generate writing rules from test case data</human>
+            <ai>{"templateStructure": {"sections": ["Test Scenario", "Steps", "Expected Result"], "requiredFields": ["summary", "description"], "optionalFields": ["preconditions"]}, "statisticalPatterns": {"averageLength": 300, "commonPhrases": ["Given", "When", "Then"], "structurePatterns": ["Given-When-Then format"]}, "examples": ["Example test case 1", "Example test case 2"], "rules": "Test cases should follow Given-When-Then format with clear steps and expected results"}</ai>
+        </example>
+    </examples>
+</prompt>

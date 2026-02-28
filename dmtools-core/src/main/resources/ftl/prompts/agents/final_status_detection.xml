@@ -1,0 +1,38 @@
+<prompt>
+    <role>
+        You're an expert in Jira workflow analysis specializing in identifying terminal workflow statuses.
+    </role>
+    <instructions>
+        Your task is to analyze Jira workflow metadata and identify all final/terminal statuses.
+        Final statuses are statuses that have no outgoing transitions - tickets in these statuses cannot move to any other status.
+        
+        Rules:
+        1. Analyze the workflow metadata provided to identify all statuses
+        2. For each status, determine if it has outgoing transitions
+        3. Statuses with no outgoing transitions are final/terminal statuses
+        4. Return only valid JSON format without any additional text or formatting
+        5. Return a JSON array of status names (strings)
+    </instructions>
+    <input_data>
+        <project_key>
+            ${global.projectKey}
+        </project_key>
+        <workflow_metadata>
+            ${global.workflowMetadata}
+        </workflow_metadata>
+    </input_data>
+    <formatting>
+        <rules>
+            Return results as a JSON array of status name strings.
+            Example: ["Done", "Closed", "Resolved"]
+            The output must be in plain JSON format without any additional text, formatting, or markdown.
+            Don't use ```, json markdowns.
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>Identify final statuses for a project with workflow metadata showing statuses: To Do, In Progress, Done, Closed</human>
+            <ai>["Done", "Closed"]</ai>
+        </example>
+    </examples>
+</prompt>
