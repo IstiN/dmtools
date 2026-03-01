@@ -356,7 +356,35 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public void deleteLabelInTicket(T ticket, String label) throws IOException {
-        throw new UnsupportedOperationException();
+        JSONArray jsonArray = ticket.getTicketLabels();
+        if (jsonArray == null) {
+            return;
+        }
+        JSONArray updatedLabels = new JSONArray();
+        for (int i = 0; i < jsonArray.length(); i++) {
+            String existing = jsonArray.optString(i);
+            if (!label.equalsIgnoreCase(existing)) {
+                updatedLabels.put(existing);
+            }
+        }
+        log(updateField(ticket.getKey(), Fields.LABELS, updatedLabels));
+    }
+
+    @MCPTool(
+            name = "jira_remove_label",
+            description = "Remove a label from a specific Jira ticket. Fetches current labels and removes the specified one.",
+            integration = "jira",
+            category = "ticket_management"
+    )
+    public void removeLabel(
+            @MCPParam(name = "key", description = "The Jira ticket key to remove label from", required = true, example = "PRJ-123")
+            String key,
+            @MCPParam(name = "label", description = "The label to be removed from the ticket", required = true, example = "custom_label")
+            String label
+    ) throws IOException {
+        T ticket = performTicket(key, new String[]{Fields.LABELS});
+        deleteLabelInTicket(ticket, label);
+        clearCache(createPerformTicketRequest(key, new String[]{Fields.LABELS}));
     }
 
     @NotNull
