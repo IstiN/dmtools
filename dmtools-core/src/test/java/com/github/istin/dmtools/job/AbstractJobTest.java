@@ -4,7 +4,9 @@ import com.github.istin.dmtools.ai.AI;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 public class AbstractJobTest {
 
@@ -56,5 +58,57 @@ public class AbstractJobTest {
         }
         InvalidJob job = new InvalidJob();
         assertThrows(IllegalArgumentException.class, job::getParamsClass);
+    }
+
+    // -------------------------------------------------------------------------
+    // shouldPostComments tests
+    // Regression: ciRunUrl was gated on outputType != none, ignoring alwaysPostComments.
+    // -------------------------------------------------------------------------
+
+    private TrackerParams paramsWithOutputType(TrackerParams.OutputType outputType) {
+        TrackerParams p = new TrackerParams();
+        p.setOutputType(outputType);
+        return p;
+    }
+
+    @Test
+    public void testShouldPostComments_outputTypeComment_returnsTrue() {
+        TestJob job = new TestJob();
+        TrackerParams params = paramsWithOutputType(TrackerParams.OutputType.comment);
+        assertTrue(job.shouldPostComments(params));
+    }
+
+    @Test
+    public void testShouldPostComments_outputTypeNone_returnsFalse() {
+        TestJob job = new TestJob();
+        TrackerParams params = paramsWithOutputType(TrackerParams.OutputType.none);
+        assertFalse(job.shouldPostComments(params));
+    }
+
+    @Test
+    public void testShouldPostComments_outputTypeNone_alwaysPostCommentsTrue_returnsTrue() {
+        // Regression test: ciRunUrl must be posted even when outputType=none,
+        // as long as alwaysPostComments=true.
+        TestJob job = new TestJob();
+        TrackerParams params = paramsWithOutputType(TrackerParams.OutputType.none);
+        params.setAlwaysPostComments(true);
+        assertTrue("alwaysPostComments=true must override outputType=none",
+                job.shouldPostComments(params));
+    }
+
+    @Test
+    public void testShouldPostComments_outputTypeComment_alwaysPostCommentsTrue_returnsTrue() {
+        TestJob job = new TestJob();
+        TrackerParams params = paramsWithOutputType(TrackerParams.OutputType.comment);
+        params.setAlwaysPostComments(true);
+        assertTrue(job.shouldPostComments(params));
+    }
+
+    @Test
+    public void testShouldPostComments_outputTypeNone_alwaysPostCommentsFalse_returnsFalse() {
+        TestJob job = new TestJob();
+        TrackerParams params = paramsWithOutputType(TrackerParams.OutputType.none);
+        params.setAlwaysPostComments(false);
+        assertFalse(job.shouldPostComments(params));
     }
 }
