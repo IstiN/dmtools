@@ -61,6 +61,7 @@ dmtools github_get_pr workspace=MyOrg repository=my-repo pullRequestId=42
 | `github_get_pr_review_threads` | Get all review threads via GraphQL (includes node IDs to resolve) |
 | `github_resolve_pr_thread` | Resolve a review thread via GraphQL mutation |
 | `github_add_pr_label` | Add a label to a PR |
+| `github_remove_pr_label` | Remove a label from a PR |
 | `github_get_pr_diff` | Get diff statistics (files changed, additions, deletions) |
 
 Full reference: [github-tools.md](../../mcp-tools/github-tools.md)

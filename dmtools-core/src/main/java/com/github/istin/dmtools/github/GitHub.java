@@ -855,6 +855,27 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
         post(postRequest);
     }
 
+    @Override
+    @MCPTool(
+            name = "github_remove_pr_label",
+            description = "Remove a label from a GitHub pull request.",
+            integration = "github",
+            category = "pull_requests"
+    )
+    public void removePullRequestLabel(
+            @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
+            String workspace,
+            @MCPParam(name = "repository", description = "The GitHub repository name", required = true, example = "dmtools")
+            String repository,
+            @MCPParam(name = "pullRequestId", description = "The pull request number", required = true, example = "74")
+            String pullRequestId,
+            @MCPParam(name = "label", description = "The label name to remove from the pull request", required = true, example = "bug")
+            String label) throws IOException {
+        String path = path(String.format("repos/%s/%s/issues/%s/labels/%s", workspace, repository, pullRequestId, label));
+        GenericRequest deleteRequest = new GenericRequest(this, path);
+        delete(deleteRequest);
+    }
+
     @MCPTool(
             name = "github_merge_pr",
             description = "Merge a GitHub pull request. Supports merge, squash, and rebase merge methods.",

@@ -168,6 +168,11 @@ public abstract class Bitbucket extends AtlassianRestClient implements SourceCod
         throw new UnsupportedOperationException("implement me");
     }
 
+    @Override
+    public void removePullRequestLabel(String workspace, String repository, String pullRequestId, String label) throws IOException {
+        throw new UnsupportedOperationException("implement me");
+    }
+
     private int buildNexPage(int start) {
         if (apiVersion == ApiVersion.V1) {
             start = start + defaultLimit;

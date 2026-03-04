@@ -43,6 +43,8 @@ public interface SourceCode {
 
     void addPullRequestLabel(String workspace, String repository, String pullRequestId, String label) throws IOException;
 
+    void removePullRequestLabel(String workspace, String repository, String pullRequestId, String label) throws IOException;
+
     List<IRepository> getRepositories(String namespace) throws IOException;
 
     List<ICommit> getCommitsBetween(String workspace, String repository, String from, String to) throws IOException;

@@ -247,6 +247,23 @@ dmtools github_add_pr_label workspace=IstiN repository=dmtools pullRequestId=74 
 
 ---
 
+### `github_remove_pr_label`
+
+Remove a label from a GitHub pull request.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `workspace` | String | ✅ | GitHub owner or organization name |
+| `repository` | String | ✅ | Repository name |
+| `pullRequestId` | String | ✅ | Pull request number |
+| `label` | String | ✅ | Label name to remove |
+
+```bash
+dmtools github_remove_pr_label workspace=IstiN repository=dmtools pullRequestId=74 label=bug
+```
+
+---
+
 ### `github_merge_pr`
 
 Merge a pull request. Supports merge, squash, and rebase merge methods.
