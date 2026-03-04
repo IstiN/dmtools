@@ -22,7 +22,6 @@ import com.github.istin.dmtools.di.ServerManagedIntegrationsModule;
 import com.github.istin.dmtools.job.AbstractJob;
 import com.github.istin.dmtools.job.TrackerParams;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
-import com.github.istin.dmtools.teammate.InstructionProcessor;
 import dagger.Component;
 import lombok.*;
 import org.apache.logging.log4j.LogManager;
@@ -43,8 +42,6 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
     private static final Logger logger = LogManager.getLogger(TestCasesGenerator.class);
     private static final String DEFAULT_EXISTING_RELATIONSHIP = Relationship.RELATES_TO;
-
-    InstructionProcessor instructionProcessor;
 
     @Data
     @NoArgsConstructor
@@ -100,9 +97,6 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     protected void initializeStandalone() {
         // Use existing Dagger component for standalone mode
         DaggerTestCasesGeneratorComponent.create().inject(this);
-
-        // Initialize instruction processor after dependencies are injected
-        this.instructionProcessor = new InstructionProcessor(confluence);
     }
 
     @Override
@@ -114,9 +108,6 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 .serverManagedIntegrationsModule(module)
                 .build();
             component.inject(this);
-
-            // Initialize instruction processor after dependencies are injected
-            this.instructionProcessor = new InstructionProcessor(confluence);
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize TestCasesGenerator in server-managed mode", e);
         }
@@ -125,50 +116,24 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     @Override
     public List<TestCasesResult> runJob(TestCasesGeneratorParams params) throws Exception {
         final List<TestCasesResult> result = new ArrayList<>();
-
-        // Initialise custom adapter once (null if not configured)
-        final TestCasesTrackerAdapter customAdapter;
-        if (params.getCustomTestCasesTracker() != null) {
-            customAdapter = TestCasesTrackerAdapterFactory.create(params.getCustomTestCasesTracker());
-        } else {
-            customAdapter = null;
-        }
-
         trackerClient.searchAndPerform(ticket -> {
             try {
-                // Post "processing started" comment so CI run is traceable from the ticket immediately
-                String ciRunUrl = params.getCiRunUrl();
-                if (ciRunUrl != null && !ciRunUrl.isEmpty()) {
-                    if (shouldPostComments(params)) {
-                        logger.info("Tracing CI run URL to ticket {}: {}", ticket.getTicketKey(), ciRunUrl);
-                        trackerClient.postComment(ticket.getTicketKey(), "Processing started. CI Run: " + ciRunUrl);
-                    } else {
-                        logger.debug("CI run URL provided ({}) but comments disabled - not posting to ticket {}", ciRunUrl, ticket.getTicketKey());
-                    }
-                }
-
                 // Combine related fields with custom fields
                 String[] relatedFields = combineFieldsWithCustomFields(params.getTestCasesRelatedFields(), params.getTestCasesCustomFields());
 
-                List<? extends ITicket> listOfAllTestCases;
-                if (customAdapter != null) {
-                    listOfAllTestCases = customAdapter.getExistingCases();
-                } else {
-                    // Apply JQL modifier if provided
-                    String effectiveJql = params.getExistingTestCasesJql();
-                    if (params.getJqlModifierJSAction() != null && !params.getJqlModifierJSAction().trim().isEmpty()) {
-                        effectiveJql = applyJqlModifier(ticket, params);
-                    }
-                    listOfAllTestCases = trackerClient.searchAndPerform(effectiveJql, relatedFields);
+                // Apply JQL modifier if provided
+                String effectiveJql = params.getExistingTestCasesJql();
+                if (params.getJqlModifierJSAction() != null && !params.getJqlModifierJSAction().trim().isEmpty()) {
+                    effectiveJql = applyJqlModifier(ticket, params);
                 }
 
+                List<? extends ITicket> listOfAllTestCases = trackerClient.searchAndPerform(effectiveJql, relatedFields);
                 TicketContext ticketContext = new TicketContext(trackerClient, ticket);
                 ticketContext.prepareContext(false, params.isIncludeOtherTicketReferences());
-                String[] additionalRulesArray = instructionProcessor.extractIfNeeded(params.getConfluencePages());
-                String additionalRules = String.join("\n\n", additionalRulesArray);
-                result.add(generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params, customAdapter));
-                
-                if (shouldPostComments(params)) {
+                String additionalRules = extractFromConfluence(params.getConfluencePages());
+                result.add(generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params));
+                TrackerParams.OutputType outputType = getOutputTypeSafe(params);
+                if (!outputType.equals(TrackerParams.OutputType.none)) {
                     trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
                 }
             } catch (Exception e) {
@@ -206,22 +171,13 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     }
 
     public TestCasesResult generateTestCases(TicketContext ticketContext, String extraRules, List<? extends ITicket> listOfAllTestCases, TestCasesGeneratorParams params) throws Exception {
-        return generateTestCases(ticketContext, extraRules, listOfAllTestCases, params, null);
-    }
-
-    public TestCasesResult generateTestCases(TicketContext ticketContext, String extraRules, List<? extends ITicket> listOfAllTestCases, TestCasesGeneratorParams params, TestCasesTrackerAdapter customAdapter) throws Exception {
         ITicket mainTicket = ticketContext.getTicket();
         String key = mainTicket.getTicketKey();
         String ticketText = ticketContext.toText();
         String existingRelationship = resolveRelationshipForExisting(params);
-        List<? extends ITicket> currentlyLinked;
-        if (customAdapter != null) {
-            currentlyLinked = customAdapter.getLinkedCases(key);
-        } else {
-            currentlyLinked = trackerClient.getTestCases(mainTicket, params.getTestCaseIssueType());
-        }
+        List<? extends ITicket> currentlyLinked = trackerClient.getTestCases(mainTicket, params.getTestCaseIssueType());
         List<ITicket> finaResults = params.isFindRelated()
-                ? findAndLinkSimilarTestCasesBySummary(ticketContext.getTicket().getTicketKey(), ticketText, listOfAllTestCases, params.isLinkRelated(), params.getRelatedTestCasesRules(), existingRelationship, currentlyLinked, params, customAdapter)
+                ? findAndLinkSimilarTestCasesBySummary(ticketContext.getTicket().getTicketKey(), ticketText, listOfAllTestCases, params.isLinkRelated(), params.getRelatedTestCasesRules(), existingRelationship, currentlyLinked, params)
                 : Collections.emptyList();
 
         // Initialize accumulator for all generated test cases
@@ -235,33 +191,16 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             int systemTokenLimits = chunkPreparation.getTokenLimit();
             int tokenLimit = (systemTokenLimits - storyTokens) / 2;
             System.out.println("GENERATION TOKEN LIMIT: " + tokenLimit);
-            if (tokenLimit <= 0) {
-                throw new IllegalStateException(
-                    "Not enough tokens to generate test cases. Story tokens (" + storyTokens +
-                    ") exceed system token limit (" + systemTokenLimits + "). " +
-                    "Increase PROMPT_CHUNK_TOKEN_LIMIT env variable.");
-            }
 
-            // Extract testCasesCreationRules and merge with extraRules from confluencePages
-            String testCasesCreationRulesLink = params.getTestCasesCreationRules();
-            if (testCasesCreationRulesLink != null && !testCasesCreationRulesLink.trim().isEmpty()) {
-                String[] creationRulesArray = instructionProcessor.extractIfNeeded(testCasesCreationRulesLink);
-                String creationRules = creationRulesArray.length > 0 ? creationRulesArray[0] : "";
-                if (!creationRules.isEmpty()) {
-                    extraRules = extraRules.isEmpty() ? creationRules : extraRules + "\n\n" + creationRules;
-                }
-            }
-
-            // Extract customFieldsRules (may be Confluence URL or file path)
+            // Extract customFieldsRules (may be Confluence URL)
             String customFieldsRules = params.getCustomFieldsRules();
-            if (customFieldsRules != null && !customFieldsRules.trim().isEmpty()) {
-                String[] customFieldsRulesArray = instructionProcessor.extractIfNeeded(customFieldsRules);
-                customFieldsRules = customFieldsRulesArray.length > 0 ? customFieldsRulesArray[0] : "";
+            if (customFieldsRules != null && customFieldsRules.startsWith("https://")) {
+                customFieldsRules = extractFromConfluence(customFieldsRules);
             }
 
             // Combine example fields with custom fields
             String[] exampleFields = combineFieldsWithCustomFields(params.getTestCasesExampleFields(), params.getTestCasesCustomFields());
-            String examples = unpackExamples(params.getExamples(), exampleFields, params.getTestCasesCustomFields(), customAdapter);
+            String examples = unpackExamples(params.getExamples(), exampleFields, params.getTestCasesCustomFields());
 
             if (!finaResults.isEmpty()) {
                 // Chunk existing test cases for generation
@@ -333,68 +272,58 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             for (TestCaseGeneratorAgent.TestCase testCase : newTestCases) {
                 // Get project code: use targetProject if provided, otherwise extract from mainTicket
                 String projectCode = params.getTargetProject();
-
-                if (customAdapter != null) {
-                    // When using a custom tracker adapter, delegate all creation and linking
-                    ITicket createdTestCase = customAdapter.createTestCase(testCase, key, params);
-                    testCase.setKey(createdTestCase.getKey());
-                    // linkToSource is a no-op for TestRail since refs was set during creation,
-                    // but we call it for completeness / future adapters that need it
-                    customAdapter.linkToSource(createdTestCase.getKey(), key, newTestCaseRelationship);
-                } else {
-                    if (!isNotBlank(projectCode)) {
-                        if (mainTicket instanceof WorkItem) {
-                            projectCode = ((WorkItem) mainTicket).getProject();
-                            if (projectCode == null || projectCode.isEmpty()) {
-                                throw new IOException("Unable to determine project from ADO work item " + key);
-                            }
-                        } else {
-                            // Jira format: PROJ-123 -> PROJ
-                            projectCode = key.split("-")[0];
+                if (!isNotBlank(projectCode)) {
+                    if (mainTicket instanceof WorkItem) {
+                        projectCode = ((WorkItem) mainTicket).getProject();
+                        if (projectCode == null || projectCode.isEmpty()) {
+                            throw new IOException("Unable to determine project from ADO work item " + key);
                         }
+                    } else {
+                        // Jira format: PROJ-123 -> PROJ
+                        projectCode = key.split("-")[0];
                     }
-                    String description = testCase.getDescription();
-                    if (params.isConvertToJiraMarkdown()) {
-                        description = StringUtils.convertToMarkdown(description);
-                    }
-                    // Create FieldsInitializer with tracker-specific field formats
-                    final boolean isAdo = trackerClient instanceof AzureDevOpsClient;
-                    final JSONObject customFields = testCase.getCustomFields() != null ? testCase.getCustomFields() : new JSONObject();
-                    ITicket createdTestCase = trackerClient.createTicket(trackerClient.createTicketInProject(projectCode, params.getTestCaseIssueType(), testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
-                        @Override
-                        public void init(TrackerClient.TrackerTicketFields fields) {
-                            if (isAdo) {
-                                // ADO: priority is numeric (1, 2, 3, 4), tags are semicolon-separated string
-                                try {
-                                    int priority = Integer.parseInt(testCase.getPriority());
-                                    fields.set("Microsoft.VSTS.Common.Priority", priority);
-                                } catch (NumberFormatException e) {
-                                    // If priority is not a number, default to 2 (Medium)
-                                    fields.set("Microsoft.VSTS.Common.Priority", 2);
-                                }
-                                fields.set("System.Tags", "ai_generated");
-                            } else {
-                                // Jira: priority is object with "name", labels are array
-                                fields.set("priority",
-                                        new JSONObject().put("name", testCase.getPriority())
-                                );
-                                fields.set("labels", new JSONArray().put("ai_generated"));
-                            }
-
-                            // Set custom fields from customFields object
-                            if (!customFields.isEmpty()) {
-                                for (String fieldKey : customFields.keySet()) {
-                                    Object fieldValue = customFields.get(fieldKey);
-                                    if (fieldValue != null) {
-                                        fields.set(fieldKey, fieldValue);
-                                    }
-                                }
-                            }
-                        }
-                    }));
-                    testCase.setKey(createdTestCase.getKey());
-                    trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), newTestCaseRelationship);
                 }
+                String description = testCase.getDescription();
+                if (params.isConvertToJiraMarkdown()) {
+                    description = StringUtils.convertToMarkdown(description);
+                }
+                // Create FieldsInitializer with tracker-specific field formats
+                final boolean isAdo = trackerClient instanceof AzureDevOpsClient;
+                final JSONObject customFields = testCase.getCustomFields() != null ? testCase.getCustomFields() : new JSONObject();
+                ITicket createdTestCase = trackerClient.createTicket(trackerClient.createTicketInProject(projectCode, params.getTestCaseIssueType(), testCase.getSummary(), description, new TrackerClient.FieldsInitializer() {
+                    @Override
+                    public void init(TrackerClient.TrackerTicketFields fields) {
+                        if (isAdo) {
+                            // ADO: priority is numeric (1, 2, 3, 4), tags are semicolon-separated string
+                            try {
+                                int priority = Integer.parseInt(testCase.getPriority());
+                                fields.set("Microsoft.VSTS.Common.Priority", priority);
+                            } catch (NumberFormatException e) {
+                                // If priority is not a number, default to 2 (Medium)
+                                fields.set("Microsoft.VSTS.Common.Priority", 2);
+                            }
+                            fields.set("System.Tags", "ai_generated");
+                        } else {
+                            // Jira: priority is object with "name", labels are array
+                            fields.set("priority",
+                                    new JSONObject().put("name", testCase.getPriority())
+                            );
+                            fields.set("labels", new JSONArray().put("ai_generated"));
+                        }
+                        
+                        // Set custom fields from customFields object
+                        if (!customFields.isEmpty()) {
+                            for (String fieldKey : customFields.keySet()) {
+                                Object fieldValue = customFields.get(fieldKey);
+                                if (fieldValue != null) {
+                                    fields.set(fieldKey, fieldValue);
+                                }
+                            }
+                        }
+                    }
+                }));
+                testCase.setKey(createdTestCase.getKey());
+                trackerClient.linkIssueWithRelationship(mainTicket.getTicketKey(), createdTestCase.getKey(), newTestCaseRelationship);
             }
         }
         js(params.getPostJSAction())
@@ -406,33 +335,49 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         return testCasesResult;
     }
 
-    public String unpackExamples(String examples, String[] testCasesExamplesFields, String[] testCasesCustomFields, TestCasesTrackerAdapter customAdapter) throws Exception {
+    public String unpackExamples(String examples, String[] testCasesExamplesFields, String[] testCasesCustomFields) throws Exception {
         if (examples == null) {
             return "";
         }
         String unpackedExamples;
-        if (examples.startsWith("https://") || examples.startsWith("/") || examples.startsWith("./") || examples.startsWith("../")) {
-            String[] unpackedExamplesArray = instructionProcessor.extractIfNeeded(examples);
-            unpackedExamples = unpackedExamplesArray.length > 0 ? unpackedExamplesArray[0] : "";
+        if (examples.startsWith("https://")) {
+            unpackedExamples = extractFromConfluence(examples);
         } else if (examples.startsWith("ql(")) {
             String ql = examples.substring(3, examples.length() - 1);
-
-            List<? extends ITicket> tickets;
-            if (customAdapter != null) {
-                tickets = customAdapter.searchCases(ql);
-            } else {
-                // testCasesExamplesFields already includes custom fields (combined in generateTestCases)
-                tickets = trackerClient.searchAndPerform(ql, testCasesExamplesFields);
-            }
+            
+            // testCasesExamplesFields already includes custom fields (combined in generateTestCases)
+            // So we can use it directly
+            List<? extends ITicket> tickets = trackerClient.searchAndPerform(ql, testCasesExamplesFields);
 
             JSONArray examplesArray = new JSONArray();
             for (ITicket ticket : tickets) {
-                JSONObject customFields = customAdapter != null
-                    ? customAdapter.extractCustomFieldsForExample(ticket, testCasesCustomFields)
-                    : extractCustomFieldsFromTicket(ticket, testCasesCustomFields);
+                // Extract custom fields if specified
+                JSONObject customFields = new JSONObject();
+                if (testCasesCustomFields != null && testCasesCustomFields.length > 0) {
+                    JSONObject fieldsJson = ticket.getFieldsAsJSON();
+                    for (String customFieldName : testCasesCustomFields) {
+                        // Check if field exists in JSON first
+                        if (fieldsJson != null && fieldsJson.has(customFieldName)) {
+                            // Extract directly from fields JSONObject to preserve type
+                            // (works for String, JSONArray, JSONObject - xrayDataset, xrayTestSteps, xrayPreconditions, xrayGherkin)
+                            Object fieldObj = fieldsJson.get(customFieldName);
+                            if (fieldObj != null && !JSONObject.NULL.equals(fieldObj)) {
+                                customFields.put(customFieldName, fieldObj);
+                            }
+                        } else {
+                            // Fallback: try standard field access for simple string fields
+                            String fieldValue = ticket.getFieldValueAsString(customFieldName);
+                            if (fieldValue != null && !fieldValue.trim().isEmpty()) {
+                                customFields.put(customFieldName, fieldValue);
+                            }
+                        }
+                    }
+                }
+                
+                // Create test case with custom fields (if any)
                 JSONObject testCaseJson = TestCaseGeneratorAgent.createTestCase(
-                    ticket.getPriority(),
-                    ticket.getTicketTitle(),
+                    ticket.getPriority(), 
+                    ticket.getTicketTitle(), 
                     ticket.getTicketDescription(),
                     customFields.length() > 0 ? customFields : null
                 );
@@ -444,25 +389,21 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         }
         return unpackedExamples;
     }
+    
 
-    private JSONObject extractCustomFieldsFromTicket(ITicket ticket, String[] customFieldNames) {
-        JSONObject result = new JSONObject();
-        if (customFieldNames == null || customFieldNames.length == 0) return result;
-        JSONObject fieldsJson = ticket.getFieldsAsJSON();
-        for (String name : customFieldNames) {
-            if (fieldsJson != null && fieldsJson.has(name)) {
-                Object value = fieldsJson.get(name);
-                if (value != null && !JSONObject.NULL.equals(value)) {
-                    result.put(name, value);
-                }
-            } else {
-                String value = ticket.getFieldValueAsString(name);
-                if (value != null && !value.trim().isEmpty()) {
-                    result.put(name, value);
-                }
+    private String extractFromConfluence(String... urls) throws IOException {
+        StringBuilder content = new StringBuilder();
+        for (String url : urls) {
+            String value = confluence.contentByUrl(url).getStorage().getValue();
+            if (StringUtils.isConfluenceYamlFormat(value)) {
+                value = StringUtils.extractYamlContentFromConfluence(value);
             }
+            if (!content.isEmpty()) {
+                content.append("\n");
+            }
+            content.append(value);
         }
-        return result;
+        return content.toString();
     }
 
     private List<TestCaseGeneratorAgent.TestCase> deduplicateInChunks(
@@ -575,6 +516,19 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     }
 
     /**
+     * Safely gets the output type from params.
+     * For TestCasesGenerator, if the output type is null or not specified,
+     * we default to 'creation' because its primary purpose is to create new test cases.
+     */
+    private TrackerParams.OutputType getOutputTypeSafe(TestCasesGeneratorParams params) {
+        TrackerParams.OutputType outputType = params.getOutputType();
+        if (outputType == null) {
+            return TrackerParams.OutputType.creation;
+        }
+        return outputType;
+    }
+
+    /**
      * Combines base fields with custom fields, ensuring no duplicates.
      * If customFields is null or empty, returns only baseFields.
      * 
@@ -625,8 +579,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             List<? extends ITicket> currentlyLinkedTestCases,
             String extraRelatedTestCaseRulesFromConfluence,
             TestCasesGeneratorParams params,
-            boolean needSync,
-            TestCasesTrackerAdapter customAdapter) throws Exception {
+            boolean needSync) throws Exception {
 
         boolean isConfirmed = relatedTestCaseAgent.run(
             params.getModelTestCaseRelation(),
@@ -638,22 +591,12 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 boolean isAlreadyLinked = currentlyLinkedTestCases != null &&
                     currentlyLinkedTestCases.stream().anyMatch(t -> t.getTicketKey().equals(testCase.getTicketKey()));
                 if (!isAlreadyLinked) {
-                    if (customAdapter != null) {
-                        if (needSync) {
-                            synchronized (customAdapter) {
-                                customAdapter.linkToSource(testCase.getKey(), ticketKey, relationship);
-                            }
-                        } else {
-                            customAdapter.linkToSource(testCase.getKey(), ticketKey, relationship);
-                        }
-                    } else {
-                        if (needSync) {
-                            synchronized (trackerClient) {
-                                trackerClient.linkIssueWithRelationship(ticketKey, testCase.getKey(), relationship);
-                            }
-                        } else {
+                    if (needSync) {
+                        synchronized (trackerClient) {
                             trackerClient.linkIssueWithRelationship(ticketKey, testCase.getKey(), relationship);
                         }
+                    } else {
+                        trackerClient.linkIssueWithRelationship(ticketKey, testCase.getKey(), relationship);
                     }
                 }
             }
@@ -675,8 +618,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             String relationship,
             List<? extends ITicket> currentlyLinkedTestCases,
             String extraRelatedTestCaseRulesFromConfluence,
-            TestCasesGeneratorParams params,
-            TestCasesTrackerAdapter customAdapter) throws Exception {
+            TestCasesGeneratorParams params) throws Exception {
 
         List<ITicket> chunkResults = new ArrayList<>();
 
@@ -689,8 +631,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         // Prepare list of test cases to verify
         List<ITicket> testCasesToVerify = new ArrayList<>();
         for (int j = 0; j < testCaseKeys.length(); j++) {
-            String rawKey = testCaseKeys.get(j).toString();
-            String testCaseKey = customAdapter != null ? customAdapter.normalizeKeyFromAI(rawKey) : rawKey;
+            String testCaseKey = testCaseKeys.getString(j);
             ITicket testCase = listOfAllTestCases.stream()
                 .filter(t -> t.getKey().equals(testCaseKey))
                 .findFirst()
@@ -712,7 +653,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                     verificationFutures.add(postVerificationExecutor.submit(() ->
                         verifyAndLinkTestCase(testCase, ticketKey, ticketText, isLink, relationship,
                                             currentlyLinkedTestCases, extraRelatedTestCaseRulesFromConfluence,
-                                            params, true, customAdapter)
+                                            params, true)
                     ));
                 }
 
@@ -738,8 +679,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             for (ITicket testCase : testCasesToVerify) {
                 ITicket verifiedTestCase = verifyAndLinkTestCase(testCase, ticketKey, ticketText, isLink,
                                                                  relationship, currentlyLinkedTestCases,
-                                                                 extraRelatedTestCaseRulesFromConfluence, params, false,
-                                                                 customAdapter);
+                                                                 extraRelatedTestCaseRulesFromConfluence, params, false);
                 if (verifiedTestCase != null) {
                     chunkResults.add(verifiedTestCase);
                 }
@@ -751,14 +691,14 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
 
     @NotNull
     public List<ITicket> findAndLinkSimilarTestCasesBySummary(String ticketKey, String ticketText, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink, String relationship, List<? extends ITicket> currentlyLinkedTestCases, TestCasesGeneratorParams params) throws Exception {
-        return findAndLinkSimilarTestCasesBySummary(ticketKey, ticketText, listOfAllTestCases, isLink, relatedTestCasesRulesLink, relationship, currentlyLinkedTestCases, params, null);
-    }
-
-    @NotNull
-    public List<ITicket> findAndLinkSimilarTestCasesBySummary(String ticketKey, String ticketText, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink, String relationship, List<? extends ITicket> currentlyLinkedTestCases, TestCasesGeneratorParams params, TestCasesTrackerAdapter customAdapter) throws Exception {
         List<ITicket> finaResults = new ArrayList<>();
-        String[] extraRelatedTestCaseRulesArray = instructionProcessor.extractIfNeeded(relatedTestCasesRulesLink);
-        String extraRelatedTestCaseRulesFromConfluence = extraRelatedTestCaseRulesArray.length > 0 ? extraRelatedTestCaseRulesArray[0] : "";
+        String value = confluence.contentByUrl(relatedTestCasesRulesLink).getStorage().getValue();
+        String extraRelatedTestCaseRulesFromConfluence;
+        if (StringUtils.isConfluenceYamlFormat(value)) {
+            extraRelatedTestCaseRulesFromConfluence  = StringUtils.extractYamlContentFromConfluence(value);
+        } else {
+            extraRelatedTestCaseRulesFromConfluence = value;
+        }
         ChunkPreparation chunkPreparation = new ChunkPreparation();
 
         int storyTokens = new Claude35TokenCounter().countTokens(ticketText);
@@ -767,12 +707,6 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         System.out.println("SYSTEM TOKEN LIMITS: " + systemTokenLimits);
         int tokenLimit = (systemTokenLimits - storyTokens)/2;
         System.out.println("TESTCASES TOKEN LIMITS: " + tokenLimit);
-        if (tokenLimit <= 0) {
-            throw new IllegalStateException(
-                "Not enough tokens to find related test cases. Story tokens (" + storyTokens +
-                ") exceed system token limit (" + systemTokenLimits + "). " +
-                "Increase PROMPT_CHUNK_TOKEN_LIMIT env variable.");
-        }
         List<ChunkPreparation.Chunk> chunks = chunkPreparation.prepareChunks(listOfAllTestCases, tokenLimit);
 
         if (params.isEnableParallelTestCaseCheck()) {
@@ -784,7 +718,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 for (ChunkPreparation.Chunk chunk : chunks) {
                     futures.add(executorService.submit(() ->
                         processChunk(chunk, ticketKey, ticketText, listOfAllTestCases, isLink,
-                                   relationship, currentlyLinkedTestCases, extraRelatedTestCaseRulesFromConfluence, params, customAdapter)
+                                   relationship, currentlyLinkedTestCases, extraRelatedTestCaseRulesFromConfluence, params)
                     ));
                 }
 
@@ -812,7 +746,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             for (ChunkPreparation.Chunk chunk : chunks) {
                 List<ITicket> chunkResults = processChunk(chunk, ticketKey, ticketText, listOfAllTestCases,
                                                           isLink, relationship, currentlyLinkedTestCases,
-                                                          extraRelatedTestCaseRulesFromConfluence, params, customAdapter);
+                                                          extraRelatedTestCaseRulesFromConfluence, params);
                 for (ITicket result : chunkResults) {
                     if (!finaResults.contains(result)) {
                         finaResults.add(result);
@@ -854,6 +788,12 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             }
             testCasesJson.put(testCaseJson);
         }
+        
+        // Prepare parameters for JavaScript execution
+        JSONObject jsParams = new JSONObject();
+        jsParams.put("newTestCases", testCasesJson);
+        jsParams.put("ticket", createTicketContextJson(ticketContext.getTicket()));
+        jsParams.put("jobParams", createParamsJson(params));
         
         // Execute JavaScript preprocessing
         Object result = js(params.getPreprocessJSAction())
@@ -959,8 +899,8 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
             // Execute JavaScript modifier
             Object result = js(params.getJqlModifierJSAction())
                     .mcp(trackerClient, ai, confluence, null)
-                    .with("ticket", ticket)
-                    .with("jobParams", params)
+                    .with("ticket", createTicketContextJson(ticket))
+                    .with("jobParams", createParamsJson(params))
                     .with("existingTestCasesJql", originalJql)
                     .execute();
 
@@ -1029,4 +969,46 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         return fallback;
     }
 
+    /**
+     * Create JSON representation of ticket for JavaScript context.
+     */
+    private JSONObject createTicketContextJson(ITicket ticket) {
+        JSONObject ticketJson = new JSONObject();
+        try {
+            ticketJson.put("key", ticket.getTicketKey());
+            ticketJson.put("title", ticket.getTicketTitle());
+            ticketJson.put("description", ticket.getTicketDescription());
+            if (ticket instanceof Ticket) {
+                Ticket jiraTicket = (Ticket) ticket;
+                if (jiraTicket.getFields() != null) {
+                    ticketJson.put("status", jiraTicket.getFields().getStatus() != null ? jiraTicket.getFields().getStatus().getName() : "");
+                    ticketJson.put("priority", jiraTicket.getFields().getPriority() != null ? jiraTicket.getFields().getPriority().getName() : "");
+                    ticketJson.put("issueType", jiraTicket.getFields().getIssueType() != null ? jiraTicket.getFields().getIssueType().getName() : "");
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to create ticket context JSON: {}", e.getMessage());
+        }
+        return ticketJson;
+    }
+    
+    /**
+     * Create JSON representation of params for JavaScript context.
+     */
+    private JSONObject createParamsJson(TestCasesGeneratorParams params) {
+        JSONObject paramsJson = new JSONObject();
+        try {
+            paramsJson.put("testCaseIssueType", params.getTestCaseIssueType());
+            paramsJson.put("testCasesPriorities", params.getTestCasesPriorities());
+            if (params.getTargetProject() != null) {
+                paramsJson.put("targetProject", params.getTargetProject());
+            }
+            if (params.getInputJql() != null) {
+                paramsJson.put("inputJql", params.getInputJql());
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to create params JSON: {}", e.getMessage());
+        }
+        return paramsJson;
+    }
 }

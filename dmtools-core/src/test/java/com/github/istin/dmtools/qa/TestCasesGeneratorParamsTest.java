@@ -100,7 +100,6 @@ public class TestCasesGeneratorParamsTest {
             "jql",                              // existingTestCasesJql
             "High,Medium,Low",                  // testCasesPriorities
             "https://rules.com",                // relatedTestCasesRules
-            "./creation_rules.md",              // testCasesCreationRules
             "examples",                         // examples
             "Test",                             // testCaseIssueType
             true,                               // isConvertToJiraMarkdown
@@ -123,8 +122,7 @@ public class TestCasesGeneratorParamsTest {
             10,                                 // parallelTestCaseCheckThreads
             true,                               // enableParallelPostVerification
             5,                                  // parallelPostVerificationThreads
-            "jqlModifier.js",                   // jqlModifierJSAction
-            null                                // customTestCasesTracker
+            "jqlModifier.js"                    // jqlModifierJSAction
         );
 
         assertTrue("Constructor should set enableParallelTestCaseCheck correctly",
