@@ -24,6 +24,24 @@ public class PropertyReader {
 	public static final String DEFAULT_JSAI_CLIENT_NAME = "JSAIClientFromProperties";
 	private static final String DEFAULT_GEMINI_BASE_PATH = "https://generativelanguage.googleapis.com/v1beta/models";
 
+	/** Thread-local overrides applied by per-job envVariables params (highest priority). */
+	private static final ThreadLocal<Map<String, String>> THREAD_LOCAL_OVERRIDES = new ThreadLocal<>();
+
+	/**
+	 * Set per-thread environment variable overrides. Called by JobRunner before executing a job.
+	 * These overrides take precedence over all other configuration sources.
+	 */
+	public static void setOverrides(Map<String, String> overrides) {
+		THREAD_LOCAL_OVERRIDES.set(overrides);
+	}
+
+	/**
+	 * Clear per-thread overrides. Always called in a finally block after job execution.
+	 */
+	public static void clearOverrides() {
+		THREAD_LOCAL_OVERRIDES.remove();
+	}
+
 	public static void setConfigFile(String resourcePath) {
 		PATH_TO_CONFIG_FILE = resourcePath;
 	}
@@ -110,6 +128,12 @@ public class PropertyReader {
 	}
 
 	public String getValue(String propertyKey) {
+		// Priority 0: Thread-local overrides (set per-job via envVariables params)
+		Map<String, String> overrides = THREAD_LOCAL_OVERRIDES.get();
+		if (overrides != null && overrides.containsKey(propertyKey)) {
+			return overrides.get(propertyKey);
+		}
+
 		if (prop == null) {
 			prop = new Properties();
 			InputStream input = null;

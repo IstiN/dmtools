@@ -1,5 +1,7 @@
 # JavaScript Agents Development Guide
 
+**→ See also: [Agent Best Practices](best-practices.md) for reusable helpers, common patterns, and critical preservation rules**
+
 ## 🎯 Overview
 
 DMtools JavaScript agents run via **GraalJS** (polyglot JavaScript execution in JVM) and provide direct access to all 67+ MCP tools as native JavaScript functions. Agents are used for preprocessing data, post-processing results, and orchestrating workflows.
@@ -57,6 +59,71 @@ function action(params) {
 
 // Entry point - DMtools calls this
 action(params);
+```
+
+## 📦 The `params` Object
+
+Every JS agent receives a single `params` argument with the following structure:
+
+```javascript
+{
+    ticket: {               // Current ticket being processed
+        key: "PROJ-123",
+        fields: { summary, description, status, labels, priority, ... }
+    },
+    jobParams: {            // Full serialized job config (all params from JSON)
+        inputJql: "...",
+        initiator: "user@company.com",
+        customParams: { ... },  // ← your custom data (see below)
+        // ... all other params fields
+    },
+    response: "...",        // AI response string (null in preJSAction)
+    initiator: "user@company.com",
+    inputFolderPath: "/abs/path/input/PROJ-123"  // preCliJSAction only
+}
+```
+
+### Accessing `customParams`
+
+Pass arbitrary data from the JSON config to JS agents via `customParams`:
+
+**JSON config:**
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "inputJql": "key = PROJ-123",
+    "preJSAction": "agents/js/triggerWorkflow.js",
+    "customParams": {
+      "workflowId": "rework.yml",
+      "targetBranch": "main",
+      "flags": { "dryRun": false }
+    }
+  }
+}
+```
+
+**JS agent:**
+```javascript
+function action(params) {
+    const custom = params.jobParams.customParams;
+
+    const workflowId   = custom.workflowId;       // "rework.yml"
+    const targetBranch = custom.targetBranch;     // "main"
+    const dryRun       = custom.flags.dryRun;     // false
+
+    if (!dryRun) {
+        github_trigger_workflow(
+            "my-org",
+            "my-repo",
+            workflowId,
+            JSON.stringify({ user_request: params.ticket.key }),
+            targetBranch
+        );
+    }
+
+    return { success: true };
+}
 ```
 
 ## 🔌 MCP Tools Access

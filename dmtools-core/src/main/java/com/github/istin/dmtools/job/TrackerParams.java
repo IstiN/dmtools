@@ -101,4 +101,9 @@ public class TrackerParams implements CliPostComment {
     @SerializedName(ALWAYS_POST_COMMENTS)
     private Boolean alwaysPostComments = false;
 
+    public static final String ENV_VARIABLES = "envVariables";
+
+    @SerializedName(ENV_VARIABLES)
+    private java.util.Map<String, String> envVariables;
+
 }

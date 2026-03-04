@@ -149,13 +149,16 @@ jobs:
 
       run: |
         echo "Using configuration: ${{ inputs.config_file }}"
+        CI_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        echo "CI run URL: ${CI_RUN_URL}"
+
         if [ -n "${ENCODED_CONFIG}" ]; then
           echo "Encoded config received (raw):"
           printf '%s\n' "${ENCODED_CONFIG}"
-          dmtools run "${{ inputs.config_file }}" "${ENCODED_CONFIG}"
+          dmtools run "${{ inputs.config_file }}" "${ENCODED_CONFIG}" --ciRunUrl "${CI_RUN_URL}"
         else
           echo "No encoded config provided."
-          dmtools run "${{ inputs.config_file }}"
+          dmtools run "${{ inputs.config_file }}" --ciRunUrl "${CI_RUN_URL}"
         fi
 ```
 
@@ -314,9 +317,40 @@ Use `encoded_config` to override or extend the base configuration at runtime:
 # Base config from file
 dmtools run agents/teammate_config.json
 
-# With override
+# With encoded config override
 dmtools run agents/teammate_config.json '{"params":{"inputJql":"key = PROJ-456"}}'
 ```
+
+### 4. CLI Parameter Overrides (`--key value`)
+
+Any `--key value` pair passed after the config file is injected directly into the `params` block, overriding the file value:
+
+```bash
+# Override inputJql and set ciRunUrl in one command
+dmtools run agents/teammate_config.json --inputJql "key = PROJ-99" --ciRunUrl "https://ci.example.com/42"
+
+# Combine encoded config + overrides
+dmtools run agents/teammate_config.json "${ENCODED_CONFIG}" --ciRunUrl "${CI_RUN_URL}"
+```
+
+### 5. CI Run Tracing
+
+Every execution of the `ai-teammate.yml` workflow automatically posts the GitHub Actions run URL as the **first comment** on each processed ticket:
+
+```
+Processing started. CI Run: https://github.com/org/repo/actions/runs/1234567890
+```
+
+This is done via `--ciRunUrl` passed automatically in the workflow. No configuration required — just run the workflow and the ticket will have a link to the live run log immediately.
+
+**What appears on the ticket**:
+
+| Timing | Comment |
+|--------|---------|
+| Job starts processing ticket | `Processing started. CI Run: https://github.com/.../runs/42` |
+| Job finishes | `@user, there is response on your request: ...` |
+
+> Tracing is suppressed when `outputType: none` (dry run mode).
 
 ## Advanced Examples
 

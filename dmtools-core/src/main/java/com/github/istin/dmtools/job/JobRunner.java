@@ -3,6 +3,7 @@ package com.github.istin.dmtools.job;
 
 import com.github.istin.dmtools.ai.AI;
 import com.github.istin.dmtools.ai.model.Metadata;
+import com.github.istin.dmtools.common.utils.PropertyReader;
 import com.github.istin.dmtools.ba.BusinessAnalyticDORGeneration;
 import com.github.istin.dmtools.ba.RequirementsCollector;
 import com.github.istin.dmtools.ba.UserStoryGenerator;
@@ -210,21 +211,34 @@ public class JobRunner {
             
             Object paramsByClass = jobParams.getParamsByClass(job.getParamsClass());
             
-            // Initialize job for the appropriate execution mode
-            if (job instanceof AbstractJob) {
-                AbstractJob<?, ?> abstractJob = (AbstractJob<?, ?>) job;
-                logger.info("Calling initializeForMode with mode: {}", mode);
-                abstractJob.initializeForMode(mode, resolvedIntegrations);
-                logger.info("Job initialization completed for mode: {}", mode);
+            // Apply per-job env variable overrides (from envVariables in JSON params)
+            if (paramsByClass instanceof TrackerParams) {
+                java.util.Map<String, String> envVariables = ((TrackerParams) paramsByClass).getEnvVariables();
+                if (envVariables != null && !envVariables.isEmpty()) {
+                    logger.info("Applying {} env variable override(s) for job: {}", envVariables.size(), jobParams.getName());
+                    PropertyReader.setOverrides(envVariables);
+                }
             }
-            
-            initMetadata(job, paramsByClass);
-            
-            logger.info("Starting job execution...");
-            Object result = job.runJob(paramsByClass);
-            logger.info("Job execution completed successfully");
-            
-            return result;
+
+            try {
+                // Initialize job for the appropriate execution mode
+                if (job instanceof AbstractJob) {
+                    AbstractJob<?, ?> abstractJob = (AbstractJob<?, ?>) job;
+                    logger.info("Calling initializeForMode with mode: {}", mode);
+                    abstractJob.initializeForMode(mode, resolvedIntegrations);
+                    logger.info("Job initialization completed for mode: {}", mode);
+                }
+                
+                initMetadata(job, paramsByClass);
+                
+                logger.info("Starting job execution...");
+                Object result = job.runJob(paramsByClass);
+                logger.info("Job execution completed successfully");
+                
+                return result;
+            } finally {
+                PropertyReader.clearOverrides();
+            }
         }
         
         throw new IllegalArgumentException("Unknown job name: " + jobParams.getName());

@@ -27,6 +27,7 @@ const result = jira_xray_get_test_details(...);
 |-----------|-------------|------------|
 | `jira_add_fix_version` | Add a fix version to a Jira ticket (without removing existing ones) | `fixVersion` (string, **required**)<br>`key` (string, **required**) |
 | `jira_add_label` | Adding label to specific ticket key | `key` (string, **required**)<br>`label` (string, **required**) |
+| `jira_remove_label` | Remove a label from a specific Jira ticket. Fetches current labels and removes the specified one. | `key` (string, **required**)<br>`label` (string, **required**) |
 | `jira_assign_ticket_to` | Assigns a Jira ticket to user | `accountId` (string, **required**)<br>`key` (string, **required**) |
 | `jira_attach_file_to_ticket` | Attach a file to a Jira ticket from a local file path. The file will only be attached if a file with the same name doesn't already exist | `name` (string, **required**)<br>`ticketKey` (string, **required**)<br>`contentType` (string, optional)<br>`filePath` (string, **required**) |
 | `jira_clear_field` | Clear (delete value) a specific field value in a Jira ticket | `field` (string, **required**)<br>`key` (string, **required**) |
@@ -126,6 +127,32 @@ dmtools jira_add_label "value" "value"
 ```javascript
 // In JavaScript agent
 const result = jira_add_label("key", "label");
+```
+
+---
+
+### `jira_remove_label`
+
+Remove a label from a specific Jira ticket. Fetches current labels and removes the specified one.
+
+**Parameters:**
+
+- **`key`** (string) 🔴 Required
+  - The Jira ticket key to remove label from
+  - Example: `PRJ-123`
+
+- **`label`** (string) 🔴 Required
+  - The label to be removed from the ticket
+  - Example: `custom_label`
+
+**Example:**
+```bash
+dmtools jira_remove_label "value" "value"
+```
+
+```javascript
+// In JavaScript agent
+const result = jira_remove_label("key", "label");
 ```
 
 ---

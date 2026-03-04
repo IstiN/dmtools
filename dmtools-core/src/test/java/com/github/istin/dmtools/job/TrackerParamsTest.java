@@ -48,7 +48,8 @@ class TrackerParamsTest {
             30,
             customParams,
             "https://ci.example.com/runs/42",
-            true
+            true,
+            null
         );
 
         assertEquals("project = TEST", params.getInputJql());
