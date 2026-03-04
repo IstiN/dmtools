@@ -249,10 +249,10 @@ main() {
     local CHOICE=""
 
     if [ ${#DIRS[@]} -eq 1 ]; then
-        # Only one option, use it
-        CHOICE="1"
+        # Only one option, install directly
         local SELECTED_DIR="${DIRS[0]}"
         echo "Installing to: $SELECTED_DIR" >&2
+        install_to_directory "$SKILL_SOURCE" "$SELECTED_DIR"
     else
         # Multiple options - check for non-interactive mode
         if [ "$INSTALL_ALL" = true ] || [ "${INSTALL_LOCATION}" = "all" ] || [ "${INSTALL_LOCATION}" = "ALL" ]; then
