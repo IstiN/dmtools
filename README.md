@@ -133,7 +133,7 @@ For complete OAuth2 setup instructions including:
 - ✅ **GitHub Actions** with secrets management
 - ✅ **Security configuration** and troubleshooting
 
-📖 **See the comprehensive guide**: [OAUTH_SETUP.md](OAUTH_SETUP.md)
+📖 **See the comprehensive guide**: [oauth-setup.md](docs/deployment/oauth-setup.md)
 
 ### Live Application
 - **Production**: https://ai-native.cloud
