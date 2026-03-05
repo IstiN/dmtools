@@ -6,7 +6,7 @@ compatibility:
   - Java 23+
   - macOS, Linux, Windows (WSL)
 metadata:
-  version: 1.7.141
+  version: 1.7.143
   author: DMtools Team
   repository: https://github.com/IstiN/dmtools
   documentation: https://github.com/IstiN/dmtools
