@@ -29,7 +29,11 @@ public abstract class AbstractRestClient implements RestClient {
     protected String basePath;
     protected String authorization;
     protected boolean isClearCache = false;
-    private boolean isCacheGetRequestsEnabled = true;
+    // Cache is disabled by default. Set DMTOOLS_CACHE_ENABLED=true to enable caching globally.
+    private static final boolean DEFAULT_CACHE_ENABLED =
+            "true".equalsIgnoreCase(System.getenv("DMTOOLS_CACHE_ENABLED")) ||
+            "true".equalsIgnoreCase(System.getProperty("dmtools.cache.enabled"));
+    private boolean isCacheGetRequestsEnabled = DEFAULT_CACHE_ENABLED;
 
     public boolean isCachePostRequestsEnabled() {
         return isCachePostRequestsEnabled;
