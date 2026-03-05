@@ -10,6 +10,7 @@ import com.github.istin.dmtools.ai.agent.TestCaseDeduplicationAgent;
 import com.github.istin.dmtools.ai.agent.TestCaseGeneratorAgent;
 import com.github.istin.dmtools.atlassian.confluence.Confluence;
 import com.github.istin.dmtools.atlassian.jira.model.Relationship;
+import com.github.istin.dmtools.teammate.InstructionProcessor;
 import com.github.istin.dmtools.atlassian.jira.model.Ticket;
 import com.github.istin.dmtools.common.model.ITicket;
 import com.github.istin.dmtools.common.model.ToText;
@@ -32,9 +33,7 @@ import org.json.JSONObject;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -397,21 +396,11 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         if (urls == null) {
             return "";
         }
+        String[] expanded = new InstructionProcessor(confluence).extractIfNeeded(urls);
         StringBuilder content = new StringBuilder();
-        for (String url : urls) {
-            if (url == null || url.isBlank()) {
+        for (String value : expanded) {
+            if (value == null || value.isBlank()) {
                 continue;
-            }
-            String value;
-            if (url.startsWith("http://") || url.startsWith("https://")) {
-                value = confluence.contentByUrl(url).getStorage().getValue();
-                if (StringUtils.isConfluenceYamlFormat(value)) {
-                    value = StringUtils.extractYamlContentFromConfluence(value);
-                }
-            } else {
-                // Local file path — read directly from filesystem
-                File file = new File(url);
-                value = new String(java.nio.file.Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
             }
             if (!content.isEmpty()) {
                 content.append("\n");
