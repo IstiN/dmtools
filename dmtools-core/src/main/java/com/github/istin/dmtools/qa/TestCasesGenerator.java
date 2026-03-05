@@ -696,13 +696,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
     @NotNull
     public List<ITicket> findAndLinkSimilarTestCasesBySummary(String ticketKey, String ticketText, List<? extends ITicket> listOfAllTestCases, boolean isLink, String relatedTestCasesRulesLink, String relationship, List<? extends ITicket> currentlyLinkedTestCases, TestCasesGeneratorParams params) throws Exception {
         List<ITicket> finaResults = new ArrayList<>();
-        String value = confluence.contentByUrl(relatedTestCasesRulesLink).getStorage().getValue();
-        String extraRelatedTestCaseRulesFromConfluence;
-        if (StringUtils.isConfluenceYamlFormat(value)) {
-            extraRelatedTestCaseRulesFromConfluence  = StringUtils.extractYamlContentFromConfluence(value);
-        } else {
-            extraRelatedTestCaseRulesFromConfluence = value;
-        }
+        String extraRelatedTestCaseRulesFromConfluence = extractFromConfluence(relatedTestCasesRulesLink);
         ChunkPreparation chunkPreparation = new ChunkPreparation();
 
         int storyTokens = new Claude35TokenCounter().countTokens(ticketText);
