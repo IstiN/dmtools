@@ -1,6 +1,6 @@
 # GitHub MCP Tools Reference
 
-**Total tools**: 20
+**Total tools**: 22
 **Integration key**: `github`
 **Categories**: `pull_requests`, `actions`
 
@@ -620,7 +620,7 @@ A common automation pattern: scan for recently failed GitHub Actions runs and au
 /**
  * Scans failed GitHub Actions runs and creates Jira bugs with deduplication.
  *
- * Deduplication strategy: Jira label  "gh-run-{runId}"
+ * Deduplication strategy: Jira label "gh-run-{runId}"
  * Before creating a bug we search Jira for an existing ticket with that label.
  * If one exists we skip creation; otherwise we fetch the full logs and create the bug.
  *
@@ -697,7 +697,7 @@ function action(params) {
         const newKey   = JSON.parse(newIssue).key;
 
         // 6. Add deduplication label so this run is never filed twice
-        jira_update_labels(newKey, label);
+        jira_add_label(newKey, label);
 
         print('Created ' + newKey + ' for run ' + runId);
         created++;
@@ -747,7 +747,7 @@ function extractFirstError(logs) {
 | `github_get_workflow_run_logs` | Download full (untruncated) logs ZIP |
 | `jira_search_by_jql` | Check if bug already exists (dedup via label) |
 | `jira_create_ticket_basic` | Create the Bug ticket |
-| `jira_update_labels` | Add deduplication label `gh-run-{runId}` |
+| `jira_add_label` | Add deduplication label `gh-run-{runId}` |
 
 ---
 
