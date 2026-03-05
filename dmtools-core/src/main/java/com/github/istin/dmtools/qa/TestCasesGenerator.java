@@ -707,7 +707,7 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
         // Prepare list of test cases to verify
         List<ITicket> testCasesToVerify = new ArrayList<>();
         for (int j = 0; j < testCaseKeys.length(); j++) {
-            String rawKey = testCaseKeys.getString(j);
+            String rawKey = testCaseKeys.get(j).toString();
             String testCaseKey = customAdapter != null ? customAdapter.normalizeKeyFromAI(rawKey) : rawKey;
             System.out.println("[DEBUG-LINKING] rawKey='" + rawKey + "' normalizedKey='" + testCaseKey + "'");
             ITicket testCase = listOfAllTestCases.stream()
