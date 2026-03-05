@@ -25,7 +25,8 @@ import java.util.Set;
 public class TestCase extends JSONModel implements ITicket {
 
     private static final Set<String> BLACKLISTED_FIELDS = Set.of(
-            "created_by", "updated_by", "display_order", "suite_id"
+            "created_by", "updated_by", "display_order", "suite_id",
+            "created_on", "updated_on"
     );
 
     private final String basePath;
