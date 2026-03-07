@@ -16,6 +16,7 @@ import com.github.istin.dmtools.job.Job;
 import com.github.istin.dmtools.job.JobParams;
 import com.github.istin.dmtools.job.Params;
 import com.github.istin.dmtools.presale.PreSaleSupport;
+import com.github.istin.dmtools.projectsetup.ProjectSetupAnalysisJob;
 import com.github.istin.dmtools.qa.TestCasesGenerator;
 import com.github.istin.dmtools.report.productivity.BAProductivityReport;
 import com.github.istin.dmtools.report.productivity.DevProductivityReport;
@@ -55,7 +56,8 @@ public class JobService {
             new SourceCodeCommitTrackerSyncJob(),
             new UserStoryGenerator(),
             new UnitTestsGenerator(),
-            new CommitsTriage()
+            new CommitsTriage(),
+            new ProjectSetupAnalysisJob()
     );
 
     public void executeJob(JobParams jobParams) throws Exception {

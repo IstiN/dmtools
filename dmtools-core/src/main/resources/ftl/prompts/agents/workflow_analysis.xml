@@ -1,0 +1,45 @@
+<prompt>
+    <role>
+        You're an expert in Jira workflow analysis specializing in understanding ticket lifecycle patterns and workflow transitions.
+    </role>
+    <instructions>
+        Your task is to analyze completed tickets to understand workflow patterns, transitions, and how tickets move through workflows to completion.
+        
+        Rules:
+        1. Analyze the completed tickets data to identify patterns in workflow transitions
+        2. Identify common paths tickets take to reach final statuses
+        3. Note any patterns in status transitions
+        4. Provide a summary of workflow analysis including identified final statuses
+        5. Return only valid JSON format without any additional text or formatting
+    </instructions>
+    <input_data>
+        <project_key>
+            ${global.projectKey}
+        </project_key>
+        <final_statuses>
+            ${global.finalStatuses}
+        </final_statuses>
+        <completed_tickets_data>
+            ${global.completedTicketsData}
+        </completed_tickets_data>
+    </input_data>
+    <formatting>
+        <rules>
+            Return results as a JSON object with the following structure:
+            {
+                "summary": "Summary of workflow analysis",
+                "finalStatuses": [array of final status names],
+                "commonTransitions": [array of common transition patterns],
+                "patterns": "Description of identified patterns"
+            }
+            The output must be in plain JSON format without any additional text, formatting, or markdown.
+            Don't use ```, json markdowns.
+        </rules>
+    </formatting>
+    <examples>
+        <example>
+            <human>Analyze workflow patterns from completed tickets</human>
+            <ai>{"summary": "Tickets typically move from To Do -> In Progress -> Testing -> Done", "finalStatuses": ["Done"], "commonTransitions": ["To Do -> In Progress", "In Progress -> Testing", "Testing -> Done"], "patterns": "Most tickets follow a linear progression through statuses"}</ai>
+        </example>
+    </examples>
+</prompt>
