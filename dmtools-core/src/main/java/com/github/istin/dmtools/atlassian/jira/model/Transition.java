@@ -28,6 +28,12 @@ public class Transition extends JSONModel {
         return getString(NAME);
     }
 
+    /** Returns the name of the target status (transition's "to.name"), or null if absent. */
+    public String getToStatusName() {
+        JSONObject to = getJSONObject().optJSONObject("to");
+        return to != null ? to.optString("name", null) : null;
+    }
+
     public JSONObject setId(String id) {
         set(ID, id);
         return getJSONObject();

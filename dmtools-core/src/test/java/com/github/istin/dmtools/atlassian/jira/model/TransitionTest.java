@@ -54,4 +54,32 @@ public class TransitionTest {
         assertEquals("101", transitionFromObject.getId());
         assertEquals("AnotherName", transitionFromObject.getValue());
     }
+
+    @Test
+    public void testGetToStatusName_WithToObject() {
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("id", "11");
+        jsonObject.put("name", "To Do");
+        jsonObject.put("to", new JSONObject().put("name", "Backlog"));
+        Transition t = new Transition(jsonObject);
+        assertEquals("Backlog", t.getToStatusName());
+    }
+
+    @Test
+    public void testGetToStatusName_WithoutToObject() {
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("id", "11");
+        jsonObject.put("name", "To Do");
+        Transition t = new Transition(jsonObject);
+        assertEquals(null, t.getToStatusName());
+    }
+
+    @Test
+    public void testGetToStatusName_TransitionNameDiffersFromTargetStatus() {
+        // Simulates the exact bug scenario: transition "To Do" leads to status "Backlog"
+        String jsonString = "{\"id\":\"11\",\"name\":\"To Do\",\"to\":{\"name\":\"Backlog\"}}";
+        Transition t = new Transition(jsonString);
+        assertEquals("To Do", t.getValue());
+        assertEquals("Backlog", t.getToStatusName());
+    }
 }

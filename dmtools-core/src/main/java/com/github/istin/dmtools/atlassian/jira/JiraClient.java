@@ -2679,7 +2679,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         List<Transition> transitions = getTransitions(ticketKey);
         if (transitions != null) {
             for (Transition transition : transitions) {
-                if (transition.getValue().equalsIgnoreCase(statusName)) {
+                if (transition.getValue().equalsIgnoreCase(statusName)
+                        || statusName.equalsIgnoreCase(transition.getToStatusName())) {
                     return moveToTransitionId(ticketKey, transition.getId());
                 }
             }
@@ -2699,7 +2700,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         List<Transition> transitions = getTransitions(ticket);
         if (transitions != null) {
             for (Transition transition : transitions) {
-                if (transition.getValue().equalsIgnoreCase(statusName)) {
+                if (transition.getValue().equalsIgnoreCase(statusName)
+                        || statusName.equalsIgnoreCase(transition.getToStatusName())) {
                     return moveToTransitionId(ticket, transition.getId(), resolution);
                 }
             }
