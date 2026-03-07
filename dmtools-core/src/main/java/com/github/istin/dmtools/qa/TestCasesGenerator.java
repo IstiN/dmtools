@@ -149,11 +149,15 @@ public class TestCasesGenerator extends AbstractJob<TestCasesGeneratorParams, Li
                 result.add(generateTestCases(ticketContext, additionalRules, listOfAllTestCases, params, customAdapter));
                 TrackerParams.OutputType outputType = getOutputTypeSafe(params);
                 if (!outputType.equals(TrackerParams.OutputType.none)) {
-                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), trackerClient.tag(params.getInitiator()) + ", similar test cases are linked and new test cases are generated.");
+                    String tagStr = trackerClient.tag(params.getInitiator());
+                    String prefix = tagStr.isEmpty() ? "" : tagStr + ", ";
+                    trackerClient.postCommentIfNotExists(ticket.getTicketKey(), prefix + "similar test cases are linked and new test cases are generated.");
                 }
             } catch (Exception e) {
-                String errorMessage = String.format("%s, test case generation failed with error: %s\n\nStack trace:\n%s", 
-                    trackerClient.tag(params.getInitiator()),
+                String tagStr = trackerClient.tag(params.getInitiator());
+                String tagPrefix = tagStr.isEmpty() ? "" : tagStr + ", ";
+                String errorMessage = String.format("%stest case generation failed with error: %s\n\nStack trace:\n%s",
+                    tagPrefix,
                     e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
                     getStackTraceAsString(e));
                 try {
