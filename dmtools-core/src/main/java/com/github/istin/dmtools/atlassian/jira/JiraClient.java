@@ -1866,6 +1866,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         List<String> cached = cacheManager.getOrComputeSimple("allProjectKeys", () -> {
             try {
                 GenericRequest req = new GenericRequest(this, path("project"));
+                req.setIgnoreCache(true);
                 String response = req.execute();
                 JSONArray projects = new JSONArray(response);
                 List<String> keys = new ArrayList<>();
@@ -3065,6 +3066,7 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return cacheManager.getOrComputeSimple("getFields_" + project, () -> {
             try {
                 GenericRequest genericRequest = new GenericRequest(client, path("field"));
+                genericRequest.setIgnoreCache(true);
                 return genericRequest.execute();
             } catch (Exception e) {
                 GenericRequest genericRequest = new GenericRequest(client, path("issue/createmeta?projectKeys=" + project + "&expand=projects.issuetypes.fields"));
