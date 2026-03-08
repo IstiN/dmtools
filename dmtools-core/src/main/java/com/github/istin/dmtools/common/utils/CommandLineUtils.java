@@ -56,7 +56,7 @@ public class CommandLineUtils {
 
         System.out.println("LOG: Running command: " + command);
 
-        // Create a unique temporary file to capture output
+        // Create unique temp files
         String timestamp = String.valueOf(System.currentTimeMillis());
         String uniqueId = UUID.randomUUID().toString().substring(0, 8);
         File tempOutput = File.createTempFile("cmd_output_" + timestamp + "_" + uniqueId + "_", ".txt");
@@ -64,37 +64,35 @@ public class CommandLineUtils {
 
         System.out.println("LOG: Temporary output file: " + tempOutput.getAbsolutePath());
 
-        // Detect OS and use appropriate approach
+        // Detect OS and build ProcessBuilder
         String os = System.getProperty("os.name").toLowerCase();
         ProcessBuilder processBuilder;
 
         if (os.contains("win")) {
-            // Windows - use cmd.exe directly
             System.out.println("LOG: Windows detected - using cmd.exe");
             processBuilder = new ProcessBuilder("cmd.exe", "/c", command);
         } else if (os.contains("mac")) {
-            // macOS - use script command for TTY support (full path required in stripped ProcessBuilder env)
             File scriptBin = new File("/usr/bin/script");
             if (scriptBin.exists()) {
-                String sanitizedCommand = escapeDoubleQuotes(command);
-                String scriptCommand = String.format("/usr/bin/script -q %s /bin/sh -c \"%s\"", tempOutput.getAbsolutePath(), sanitizedCommand);
-                processBuilder = new ProcessBuilder("/bin/sh", "-c", scriptCommand);
+                // Write command to a temp shell script to avoid shell-escaping issues with
+                // special characters (em-dash, embedded quotes, etc.) in 'script -q -c "..."'.
+                File tempScript = writeTempScript(command, timestamp, uniqueId);
+                // macOS script syntax: script -q <output-file> <command> [args...]
+                processBuilder = new ProcessBuilder(
+                        "/usr/bin/script", "-q", tempOutput.getAbsolutePath(),
+                        "/bin/sh", tempScript.getAbsolutePath());
             } else {
                 processBuilder = new ProcessBuilder("/bin/sh", "-c", command);
             }
         } else {
-            // Linux - check if script command supports -c flag, otherwise use direct execution
-            try {
-                // Test if script command supports -c flag
-                Process testProcess = new ProcessBuilder("script", "--help").start();
-                testProcess.waitFor();
-                
-                // Use script command if available
-                String sanitizedCommand = escapeDoubleQuotes(command);
-                String scriptCommand = String.format("script -q -c \"%s\" %s", sanitizedCommand, tempOutput.getAbsolutePath());
-                processBuilder = new ProcessBuilder("/bin/sh", "-c", scriptCommand);
-            } catch (Exception e) {
-                // Fallback to direct execution without script command
+            // Linux – use script if available, via temp shell script to avoid escaping issues
+            File scriptBin = resolveLinuxScriptBin();
+            if (scriptBin != null) {
+                File tempScript = writeTempScript(command, timestamp, uniqueId);
+                // Linux (util-linux) script syntax: script -q -c <cmd> <output-file>
+                processBuilder = new ProcessBuilder("/bin/sh", "-c",
+                        scriptBin.getAbsolutePath() + " -q -c \"/bin/sh " + tempScript.getAbsolutePath() + "\" " + tempOutput.getAbsolutePath());
+            } else {
                 System.out.println("LOG: script command not available, using direct execution");
                 processBuilder = new ProcessBuilder("/bin/sh", "-c", command);
             }
@@ -105,18 +103,16 @@ public class CommandLineUtils {
             processBuilder.directory(workingDirectory);
         }
 
-        // Add additional environment variables
+        // Merge additional environment variables
         if (additionalEnv != null && !additionalEnv.isEmpty()) {
             processBuilder.environment().putAll(additionalEnv);
         }
 
-        // Redirect error stream to output stream
         processBuilder.redirectErrorStream(true);
 
-        // Start the process
         Process process = processBuilder.start();
 
-        // Read output in real-time for Windows or if script fails
+        // Drain stdout/stderr in real-time so the process doesn't block on a full pipe
         StringBuilder directOutput = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
@@ -126,30 +122,58 @@ public class CommandLineUtils {
             }
         }
 
-        // Wait for process to complete
         int exitCode = process.waitFor();
         System.out.println("LOG: Process exited with code: " + exitCode);
 
-        // For Unix/Mac, read the captured output from temp file
+        // Collect output: prefer the script-captured temp file (contains TTY output),
+        // fall back to the piped directOutput.
+        String output = directOutput.toString().trim();
         if (!os.contains("win") && tempOutput.exists()) {
             try {
-                String capturedOutput = new String(Files.readAllBytes(tempOutput.toPath()));
-
-                // Clean up ANSI escape codes
-                capturedOutput = capturedOutput.replaceAll("\u001B\\[[;\\d]*m", "");
-                capturedOutput = capturedOutput.replaceAll("\r", "");
-
-                // Delete temp file
-                tempOutput.delete();
-
-                return capturedOutput.trim();
+                String captured = new String(Files.readAllBytes(tempOutput.toPath()));
+                captured = captured.replaceAll("\u001B\\[[;\\d]*m", ""); // strip ANSI
+                captured = captured.replaceAll("\r", "");
+                output = captured.trim();
             } catch (IOException e) {
                 System.err.println("LOG: Failed to read temp file, using direct output");
+            } finally {
+                tempOutput.delete();
             }
         }
 
-        // For Windows or if temp file reading fails, return direct output
-        return directOutput.toString().trim();
+        // Propagate non-zero exit codes so callers are not silently misled.
+        if (exitCode != 0) {
+            throw new IOException("Command failed (exit code " + exitCode + "): " + command + "\nOutput:\n" + output);
+        }
+
+        return output;
+    }
+
+    /**
+     * Writes the given shell command to a temporary executable script file.
+     * Using a file avoids all shell-quoting/escaping issues that arise when
+     * commands contain special characters (em-dash, embedded quotes, etc.).
+     */
+    private static File writeTempScript(String command, String timestamp, String uniqueId) throws IOException {
+        File tempScript = File.createTempFile("cmd_script_" + timestamp + "_" + uniqueId + "_", ".sh");
+        tempScript.deleteOnExit();
+        Files.write(tempScript.toPath(), ("#!/bin/sh\n" + command + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        tempScript.setExecutable(true);
+        return tempScript;
+    }
+
+    /**
+     * Returns the absolute path of the {@code script} binary on Linux, or {@code null}
+     * if the utility is not installed.
+     */
+    private static File resolveLinuxScriptBin() {
+        for (String candidate : new String[]{"/usr/bin/script", "/bin/script"}) {
+            File f = new File(candidate);
+            if (f.exists() && f.canExecute()) {
+                return f;
+            }
+        }
+        return null;
     }
 
     private static String escapeDoubleQuotes(String command) {

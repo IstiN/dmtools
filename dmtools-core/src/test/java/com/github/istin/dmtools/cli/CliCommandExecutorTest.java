@@ -233,18 +233,10 @@ public class CliCommandExecutorTest {
     // Error Handling Tests
     // ============================================================================
 
-    @Test
-    public void testExecuteCommand_InvalidGitCommand_ReturnsErrorOutput() throws IOException, InterruptedException {
-        // Test git command with invalid syntax
-        // Git will execute but return error message in output (not throw exception)
-        String result = executor.executeCommand("git invalid-command-xyz", null);
-        
-        assertNotNull("Result should not be null", result);
-        // Git will return error message about unknown command
-        assertTrue("Result should contain error message", 
-                result.toLowerCase().contains("invalid") || 
-                result.toLowerCase().contains("not a git command") ||
-                result.toLowerCase().contains("unknown"));
+    @Test(expected = IOException.class)
+    public void testExecuteCommand_InvalidGitCommand_ThrowsIOException() throws IOException, InterruptedException {
+        // Now that exit codes are propagated, a non-zero exit throws IOException
+        executor.executeCommand("git invalid-command-xyz", null);
     }
 
     @Test
