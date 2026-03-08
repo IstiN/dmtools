@@ -286,8 +286,7 @@ case "$COMMAND" in
         fi
         
         JSON_FILE="${ARGS[0]}"
-        ENCODED_PARAM="${ARGS[1]:-}"
-        
+
         # Validate file exists and is readable
         if [ ! -f "$JSON_FILE" ]; then
             error "Configuration file not found: $JSON_FILE"
@@ -297,14 +296,12 @@ case "$COMMAND" in
             error "Configuration file is not readable: $JSON_FILE"
         fi
         
-        # Execute run command with JobRunner
-        if [ -n "$ENCODED_PARAM" ]; then
-            info "Executing job with file: $JSON_FILE and encoded parameter"
-            execute_java_command "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner run "$JSON_FILE" "$ENCODED_PARAM"
-        else
-            info "Executing job with file: $JSON_FILE"
-            execute_java_command "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner run "$JSON_FILE"
-        fi
+        # Extra args after ARGS[0] (file) — includes optional encoded param and --key value pairs (e.g. --ciRunUrl)
+        EXTRA_RUN_ARGS=("${ARGS[@]:1}")
+
+        info "Executing job with file: $JSON_FILE"
+        # Run is not a tool — stderr must NOT be suppressed so errors are visible in CI logs
+        "$JAVA_CMD" -Dlog4j2.configurationFile=classpath:$LOG_CONFIG -Dlog4j.configuration=$LOG_CONFIG -Dlog4j2.disable.jmx=true -Djava.net.preferIPv4Stack=true --add-opens java.base/java.lang=ALL-UNNAMED -XX:-PrintWarnings -Dpolyglot.engine.WarnInterpreterOnly=false -cp "$JAR_FILE" com.github.istin.dmtools.job.JobRunner run "$JSON_FILE" "${EXTRA_RUN_ARGS[@]}"
         exit $?
         ;;
 esac
