@@ -35,7 +35,7 @@ GEMINI_API_KEY=AIza...
 
 # Can be also defined for EPAM DIAL
 # DEFAULT_LLM=dial
-# DIAL_BATH_PATH=https://ai-proxy.lab.epam.com/
+# DIAL_BATH_PATH=https://your-dial-proxy.yourcompany.com/
 # DIAL_API_KEY=xxxx
 # DIAL_MODEL=anthropic.claude-3-7-sonnet-20250219-v1:0
 

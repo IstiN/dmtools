@@ -29,7 +29,7 @@
     "ticketContextDepth" : 0,
     "attachResponseAsFile" : false,
     "skipAIProcessing" : true,
-    "inputJql" : "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 755",
+    "inputJql" : "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = YOUR_WORK_ITEM_ID",
     "initiator" : "Uladzimir_Klyshevich@epam.com",
     "preJSAction" : "agents/js/checkWipTagAdo.js",
     "postJSAction" : "agents/js/assignForReviewAdo.js"

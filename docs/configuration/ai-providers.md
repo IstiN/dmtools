@@ -92,7 +92,7 @@ Contact your company's AI platform team for:
 ```bash
 # EPAM DIAL Configuration (for OpenAI GPT-5)
 DEFAULT_LLM=dial
-DIAL_BATH_PATH=https://ai-proxy.lab.epam.com/
+DIAL_BATH_PATH=https://your-dial-proxy.yourcompany.com/
 DIAL_API_KEY=your-dial-api-key
 DIAL_MODEL=gpt-5.2-chat
 ```

@@ -32,7 +32,7 @@ dmtools teams_messages "Meeting Chat Name" 100
     "type": "recording",
     "title": "AI.M-20251016_125114UTC-Meeting Recording.mp4",
     "duration": "PT47.0144064S",
-    "url": "https://epam-my.sharepoint.com/:v:/p/ira_skrypnik/EXWM1FsAo-1PpSkyFHzGyqEBJKftYUcb6aQShdRdKUQLw"
+    "url": "https://yourcompany-my.sharepoint.com/:v:/p/username/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
   }
 ]
 ```
@@ -54,7 +54,7 @@ dmtools teams_download_file <url> <outputPath>
 ```bash
 # Download SharePoint recording (auto-detected and delegated to SharePoint client)
 dmtools teams_download_file \
-  "https://epam-my.sharepoint.com/:v:/p/user/..." \
+  "https://yourcompany-my.sharepoint.com/:v:/p/user/..." \
   "/tmp/meeting-recording.mp4"
 
 # Download Graph API hosted content
@@ -70,7 +70,7 @@ Transcripts require a multi-step process due to SharePoint REST API requirements
 #### Step 1: Extract Transcript Information
 
 ```bash
-dmtools teams_extract_transcript_from_sharepoint "https://epam-my.sharepoint.com/:v:/p/user/..."
+dmtools teams_extract_transcript_from_sharepoint "https://yourcompany-my.sharepoint.com/:v:/p/user/..."
 ```
 
 This parses the SharePoint HTML page and extracts:
@@ -163,12 +163,12 @@ dmtools teams_messages "Weekly Standup" 100
 # {
 #   "type": "recording",
 #   "title": "Meeting Recording.mp4",
-#   "url": "https://epam-my.sharepoint.com/:v:/p/user/..."
+#   "url": "https://yourcompany-my.sharepoint.com/:v:/p/user/..."
 # }
 
 # Step 2: Download the recording using the URL from output
 dmtools teams_download_file \
-  "https://epam-my.sharepoint.com/:v:/p/user/..." \
+  "https://yourcompany-my.sharepoint.com/:v:/p/user/..." \
   "/tmp/standup-recording.mp4"
 ```
 
@@ -190,7 +190,7 @@ dmtools teams_messages "Weekly Standup" 100
 # Step 2: Extract transcript info from SharePoint page
 # (Use the recording URL from the same meeting)
 dmtools teams_extract_transcript_from_sharepoint \
-  "https://epam-my.sharepoint.com/:v:/p/user/..."
+  "https://yourcompany-my.sharepoint.com/:v:/p/user/..."
 
 # Output:
 # {

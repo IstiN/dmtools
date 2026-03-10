@@ -131,7 +131,7 @@ Go to your repository → **Settings** → **Secrets and variables** → **Actio
 
 | Variable Name | Value | Description |
 |---------------|-------|-------------|
-| `GCP_PROJECT_ID` | `dmtools-oauth-1749672403` | GCP project ID |
+| `GCP_PROJECT_ID` | `YOUR_GCP_PROJECT_ID` | GCP project ID |
 | `GEMINI_DEFAULT_MODEL` | `gemini-2.5-flash-preview-05-20` | Gemini model name |
 
 ---
@@ -307,10 +307,10 @@ SERVER_USE_FORWARD_HEADERS="true"
 
 ```bash
 # Check deployment status
-gcloud run services describe dmtools --region=us-central1 --project=dmtools-oauth-1749672403
+gcloud run services describe dmtools --region=us-central1 --project=YOUR_GCP_PROJECT_ID
 
 # View application logs  
-gcloud logs read "resource.type=cloud_run_revision" --project=dmtools-oauth-1749672403 --limit=50
+gcloud logs read "resource.type=cloud_run_revision" --project=YOUR_GCP_PROJECT_ID --limit=50
 
 # Test endpoints
 curl -I https://ai-native.cloud

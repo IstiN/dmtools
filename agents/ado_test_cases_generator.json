@@ -1,7 +1,7 @@
 {
   "name": "TestCasesGenerator",
   "params": {
-    "inputJql": "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 755",
+    "inputJql": "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = YOUR_WORK_ITEM_ID",
     "initiator": "Uladzimir_Klyshevich@epam.com",
     "testCasesPriorities": "\"1\", \"2\", \"3\", \"4\"",
     "outputType": "creation",

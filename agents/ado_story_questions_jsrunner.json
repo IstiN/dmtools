@@ -8,17 +8,16 @@
       }
     },
     "ticket": {
-      "id": "755",
-      "key": "755",
+      "id": "YOUR_WORK_ITEM_ID",
+      "key": "YOUR_WORK_ITEM_ID",
       "fields": {
-        "System.Id": 755,
-        "System.TeamProject": "ai-native-sdlc-blueprint",
-        "System.AreaPath": "ai-native-sdlc-blueprint",
+        "System.Id": "YOUR_WORK_ITEM_ID",
+        "System.TeamProject": "YourProjectName",
+        "System.AreaPath": "YourProjectName",
         "System.Title": "New Auth And Login Flow"
       }
     },
     "response": [],
-    "initiator": "Uladzimir_Klyshevich@epam.com"
+    "initiator": "your.name@yourcompany.com"
   }
 }
-

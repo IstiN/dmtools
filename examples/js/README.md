@@ -181,7 +181,7 @@ Bedrock supports multiple model families with different capabilities:
 - **Configuration**:
   ```env
   BEDROCK_REGION=eu-north-1
-  BEDROCK_MODEL_ID=arn:aws:bedrock:eu-north-1:713881790201:inference-profile/eu.amazon.nova-lite-v1:0
+  BEDROCK_MODEL_ID=arn:aws:bedrock:eu-north-1:YOUR-AWS-ACCOUNT-ID:inference-profile/eu.amazon.nova-lite-v1:0
   BEDROCK_BEARER_TOKEN=your-token
   # Or use direct model ID:
   # BEDROCK_MODEL_ID=eu.amazon.nova-lite-v1:0

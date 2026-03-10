@@ -143,7 +143,7 @@ function action(params) {
     "metadata": {
       "contextId": "ado_story_description"
     },
-    "inputJql": "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 755",
+    "inputJql": "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = YOUR_WORK_ITEM_ID",
     "initiatorEmail": "user@example.com",
     "preJSAction": "agents/js/checkWipTagAdo.js",
     "postJSAction": "agents/js/assignForReviewAdo.js"

@@ -162,3 +162,11 @@ temp
 .settings/**
 .codemie
 .claude
+
+# Temporary working notes with local paths / internal data
+KB_FIXES*.md
+RELEASE_NOTES*.md
+
+# Generated report output files (may contain real commit data / PII)
+agents/reports/output/
+agents/reports/cursor_usage.csv

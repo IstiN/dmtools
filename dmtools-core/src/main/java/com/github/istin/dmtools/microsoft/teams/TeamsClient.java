@@ -1455,8 +1455,8 @@ public class TeamsClient extends MicrosoftGraphRestClient {
                 throw new IOException("Could not get webUrl from item");
             }
             
-            // Parse SharePoint site URL (e.g., "https://epam-my.sharepoint.com/personal/ira_skrypnik_epam_com/...")
-            // Extract: https://epam-my.sharepoint.com/personal/ira_skrypnik_epam_com
+            // Parse SharePoint site URL (e.g., "https://yourcompany-my.sharepoint.com/personal/username_company_com/...")
+            // Extract: https://yourcompany-my.sharepoint.com/personal/username_company_com
             java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(https://[^/]+/personal/[^/]+)");
             java.util.regex.Matcher matcher = pattern.matcher(webUrl);
             

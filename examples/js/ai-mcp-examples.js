@@ -36,7 +36,7 @@
  * Available Bedrock Models:
  * 
  * - Amazon Nova (supports images):
- *   BEDROCK_MODEL_ID=arn:aws:bedrock:eu-north-1:713881790201:inference-profile/eu.amazon.nova-lite-v1:0
+ *   BEDROCK_MODEL_ID=arn:aws:bedrock:eu-north-1:YOUR-AWS-ACCOUNT-ID:inference-profile/eu.amazon.nova-lite-v1:0
  *   # Or direct model ID:
  *   BEDROCK_MODEL_ID=eu.amazon.nova-lite-v1:0
  * 
