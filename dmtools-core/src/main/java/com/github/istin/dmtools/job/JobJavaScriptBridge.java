@@ -118,6 +118,14 @@ public class JobJavaScriptBridge {
             logger.debug("TestRailClient not initialized: {}. TestRail tools will not be available.", e.getMessage());
         }
 
+        // Initialize Figma client if configured
+        try {
+            this.clientInstances.put("figma", com.github.istin.dmtools.figma.BasicFigmaClient.getInstance());
+            logger.debug("BasicFigmaClient initialized for JavaScript bridge");
+        } catch (Exception e) {
+            logger.debug("BasicFigmaClient not initialized: {}. Figma tools will not be available.", e.getMessage());
+        }
+
         // Don't initialize JavaScript context in constructor - use lazy initialization instead
         // This significantly improves startup time for commands that don't need JS execution
         // initializeJavaScriptContext();

@@ -1,0 +1,30 @@
+{
+  "name": "Teammate",
+  "params": {
+    "metadata": {
+      "contextId": "figma_design_analysis"
+    },
+    "agentParams": {
+      "aiRole": "Senior UX Engineer",
+      "instructions": [
+        "Read input/{TICKET-KEY}/figma_snapshot.json — it contains the full Figma file structure and render URLs for every top-level frame.",
+        "Use render URLs to view screens: pass them to gemini_ai_chat_with_files for visual analysis.",
+        "If you need to download an individual node image: dmtools figma_download_image_as_file <href> <nodeId> png",
+        "./agents/instructions/common/bash_tools.md"
+      ],
+      "knownInfo": "",
+      "formattingRules": "Write outputs/design_analysis.md with your findings."
+    },
+    "cliPrompt": "./agents/prompts/figma_analysis_prompt.md",
+    "cliCommands": [
+      "./agents/scripts/run-agent.sh"
+    ],
+    "outputType": "none",
+    "ticketContextDepth": 1,
+    "attachResponseAsFile": false,
+    "skipAIProcessing": true,
+    "alwaysPostComments": true,
+    "preCliJSAction": "agents/js/prepareFigmaArtifacts.js",
+    "inputJql": "key = YOUR-TICKET-KEY"
+  }
+}

@@ -208,7 +208,7 @@ public abstract class AbstractRestClient implements RestClient {
             if (body.contains("No issues have a parent epic with key or name")) {
                 return new IOException(RestClientException.NO_SUCH_PARENT_EPICS);
             }
-        } else if (body.contains("rate")) {
+        } else if (code == 429 || body.toLowerCase().contains("rate")) {
             logger.error("Rate limit response body:\n{}", body);
             return new RateLimitException("rate limit", body, response, code);
         }

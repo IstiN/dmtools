@@ -415,15 +415,19 @@ See [JIRA_DUPLICATE_FIELDS_GUIDE.md](JIRA_DUPLICATE_FIELDS_GUIDE.md) for complet
 | `figma_download_image_as_file` | `format`, `nodeId`, `href` | Download image as file by node ID and format. Use this after figma_get_icons to download actual icon files. |
 | `figma_download_image_of_file` | `href` | Download image by URL as File type. Converts Figma design URL to downloadable image file. |
 | `figma_download_node_image` | `format`, `scale`, `href`, `nodeId` | Download image of specific node/component. Useful for visual preview of design pieces before processing structure. |
+| `figma_get_file_structure` | `href` | **Primary "load everything" call.** Fetches the full Figma file document tree (nodes, frames, components, text, styles) in one request. Response is intentionally large — use for pre-CLI artifact preparation (write to file), not inline AI context. If the URL contains `node-id`, returns only that subtree. |
 | `figma_get_icons` | `href` | Find and extract all exportable visual elements (vectors, shapes, graphics, text) from Figma design by URL. |
+| `figma_get_image_fills` | `href` | Get image fill URLs for nodes that use images as backgrounds/fills. Returns map of nodeId to image URL. |
 | `figma_get_layers` | `href` | Get first-level layers (direct children) to understand structure. Returns layer names, IDs, types, sizes. Essential first step before getting details. |
 | `figma_get_layers_batch` | `nodeIds`, `href` | Get layers for multiple nodes at once. More efficient for analyzing multiple screens/containers. Returns map of nodeId to layers. |
+| `figma_me` | *(none)* | Get current user information from Figma API (/me endpoint). Returns user id, handle, email, and connection status. Useful for verifying credentials. |
 | `figma_get_node_children` | `href` | Get immediate children IDs and basic info for a node. Non-recursive, returns only direct children. |
 | `figma_get_node_details` | `nodeIds`, `href` | Get detailed properties for specific node(s) including colors, fonts, text, dimensions, and styles. Returns small focused response. |
 | `figma_get_screen_source` | `url` | Get screen source content by URL. Returns the image URL for the specified Figma design node. |
 | `figma_get_styles` | `href` | Get design tokens (colors, text styles) defined in Figma file. |
 | `figma_get_svg_content` | `nodeId`, `href` | Get SVG content as text by node ID. Use this after figma_get_icons to get SVG code for vector icons. |
 | `figma_get_text_content` | `nodeIds`, `href` | Extract text content from text nodes. Returns map of nodeId to text content. |
+| `figma_render_nodes` | `href`, `nodeIds`, `format` | Render multiple Figma nodes as images in a single batched API call (up to 100 IDs). Returns map of nodeId → render URL. Most efficient way to get image URLs for many frames at once. |
 
 ### Microsoft Teams Tools
 

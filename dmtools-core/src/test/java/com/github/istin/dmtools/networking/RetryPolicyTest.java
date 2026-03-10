@@ -67,7 +67,7 @@ class RetryPolicyTest {
 
     @Test
     @DisplayName("Should calculate exponential backoff delay")
-    void testCalculateDelayWithExponentialBackoff() {
+    void testCalculateDelayWithExponentialBackoff() throws Exception {
         // Test exponential backoff without server headers
         long delay1 = retryPolicy.calculateDelayMs(1, null);
         long delay2 = retryPolicy.calculateDelayMs(2, null);
@@ -81,7 +81,7 @@ class RetryPolicyTest {
 
     @Test
     @DisplayName("Should respect Retry-After header")
-    void testCalculateDelayWithRetryAfterHeader() {
+    void testCalculateDelayWithRetryAfterHeader() throws Exception {
         when(mockResponse.header("Retry-After")).thenReturn("5");
 
         long delay = retryPolicy.calculateDelayMs(1, mockResponse);
@@ -92,7 +92,7 @@ class RetryPolicyTest {
 
     @Test
     @DisplayName("Should respect X-RateLimit-Reset header")
-    void testCalculateDelayWithRateLimitResetHeader() {
+    void testCalculateDelayWithRateLimitResetHeader() throws Exception {
         long futureTime = (System.currentTimeMillis() / 1000L) + 10; // 10 seconds in future
         when(mockResponse.header("X-RateLimit-Reset")).thenReturn(String.valueOf(futureTime));
 
@@ -104,7 +104,7 @@ class RetryPolicyTest {
 
     @Test
     @DisplayName("Should respect max delay limit")
-    void testMaxDelayLimit() {
+    void testMaxDelayLimit() throws Exception {
         // Test with very large attempt number
         long delay = retryPolicy.calculateDelayMs(10, null);
 
@@ -135,7 +135,7 @@ class RetryPolicyTest {
 
     @Test
     @DisplayName("Should handle invalid Retry-After header")
-    void testCalculateDelayWithInvalidRetryAfterHeader() {
+    void testCalculateDelayWithInvalidRetryAfterHeader() throws Exception {
         when(mockResponse.header("Retry-After")).thenReturn("invalid");
 
         // Should fall back to exponential backoff
@@ -164,7 +164,7 @@ class RetryPolicyTest {
 
     @Test
     @DisplayName("Should add jitter to prevent thundering herd")
-    void testJitterVariation() {
+    void testJitterVariation() throws Exception {
         // Run multiple calculations to ensure jitter creates variation
         long[] delays = new long[10];
         for (int i = 0; i < 10; i++) {

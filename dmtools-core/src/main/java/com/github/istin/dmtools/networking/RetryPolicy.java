@@ -20,6 +20,9 @@ public class RetryPolicy {
     public static final double DEFAULT_BACKOFF_MULTIPLIER = 2.0;
     public static final double DEFAULT_JITTER_FACTOR = 0.3; // 30% jitter
 
+    // Maximum time we will ever wait for a Retry-After response (5 minutes)
+    public static final long MAX_RETRY_AFTER_SECONDS = 300L;
+
     private final int maxRetries;
     private final long baseDelayMs;
     private final long maxDelayMs;
@@ -76,10 +79,26 @@ public class RetryPolicy {
     }
 
     /**
+     * Returns true if the exception represents a client error (4xx) that should never be retried.
+     * Note: 429 (RateLimitException) is explicitly excluded — it IS retryable with Retry-After delay.
+     */
+    public static boolean isClientError(IOException e) {
+        if (e instanceof com.github.istin.dmtools.common.networking.RestClient.RateLimitException) {
+            return false;
+        }
+        if (e instanceof com.github.istin.dmtools.common.networking.RestClient.RestClientException) {
+            int code = ((com.github.istin.dmtools.common.networking.RestClient.RestClientException) e).getCode();
+            return code >= 400 && code < 500;
+        }
+        return false;
+    }
+
+    /**
      * Calculates the delay before the next retry attempt.
      * Uses exponential backoff with jitter to avoid thundering herd.
+     * Throws IOException if the server-specified Retry-After exceeds MAX_RETRY_AFTER_SECONDS (5 minutes).
      */
-    public long calculateDelayMs(int attemptNumber, Response response) {
+    public long calculateDelayMs(int attemptNumber, Response response) throws IOException {
         // First check if server provided Retry-After header
         if (response != null) {
             String retryAfter = response.header("Retry-After");
@@ -87,7 +106,14 @@ public class RetryPolicy {
                 try {
                     // Retry-After can be in seconds or HTTP-date format
                     // For simplicity, assume it's in seconds
-                    long serverDelay = Long.parseLong(retryAfter) * 1000L;
+                    long retryAfterSeconds = Long.parseLong(retryAfter);
+                    if (retryAfterSeconds > MAX_RETRY_AFTER_SECONDS) {
+                        throw new IOException(
+                            "Retry-After header value (" + retryAfterSeconds + "s) exceeds configured maximum of "
+                            + MAX_RETRY_AFTER_SECONDS + "s. Aborting to avoid excessive wait."
+                        );
+                    }
+                    long serverDelay = retryAfterSeconds * 1000L;
                     logger.info("Server provided Retry-After header: {} seconds", retryAfter);
                     // Add small jitter even to server-provided delay
                     return addJitter(serverDelay);

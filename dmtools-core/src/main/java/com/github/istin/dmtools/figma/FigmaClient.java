@@ -12,6 +12,7 @@ import com.github.istin.dmtools.mcp.MCPTool;
 import com.github.istin.dmtools.mcp.MCPParam;
 import org.json.JSONObject;
 import com.github.istin.dmtools.networking.AbstractRestClient;
+import com.github.istin.dmtools.networking.RetryPolicy;
 import okhttp3.Request;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
@@ -46,6 +47,24 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
 
     public FigmaClient(String basePath, String authorization) throws IOException {
         super(basePath, authorization);
+        setCacheGetRequestsEnabled(true);
+        setRetryPolicy(new com.github.istin.dmtools.networking.RetryPolicy(logger) {
+            @Override
+            public boolean isRetryable(java.io.IOException e) {
+                if (RetryPolicy.isClientError(e)) {
+                    return false;
+                }
+                return super.isRetryable(e);
+            }
+        });
+    }
+
+    @Override
+    protected boolean isRecoverableConnectionError(Exception exception) {
+        if (exception instanceof java.io.IOException && RetryPolicy.isClientError((java.io.IOException) exception)) {
+            return false;
+        }
+        return super.isRecoverableConnectionError(exception);
     }
 
     /**
@@ -80,6 +99,17 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
         }
         
         return basePath;
+    }
+
+    @MCPTool(
+        name = "figma_me",
+        description = "Gets current user information from the Figma API using the /me endpoint. Returns user details including id, handle, and email. Can also be used to verify API connectivity.",
+        integration = "figma",
+        category = "user"
+    )
+    public String meMCP() {
+        Map<String, Object> result = me();
+        return new JSONObject(result).toString();
     }
 
     /**
@@ -349,20 +379,19 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
      * This method returns the complete file structure and content as a structured model.
      * If the URL contains a node-id parameter, it returns only that specific node's structure.
      *
-     * NOTE: MCP Tool annotation disabled due to large response size that causes context overflow.
-     * Method kept for internal use by other methods.
+     * NOTE: Response is intentionally large — use for pre-CLI artifact preparation
+     * (writing to file), not for inline AI chat context.
      *
      * @param href The Figma design URL to get structure for
      * @return FigmaFileResponse containing the file/node structure, or null if error occurs
      * @throws Exception if there's an error accessing Figma API
      */
-    // @MCPTool - DISABLED: Response too large for MCP context
-    // @MCPTool(
-    //     name = "figma_get_file_structure",
-    //     description = "Get JSON structure of Figma design file by URL. Returns the complete file structure and content as JSON. If URL contains node-id, returns only that specific node's structure.",
-    //     integration = "figma",
-    //     category = "content_access"
-    // )
+    @MCPTool(
+        name = "figma_get_file_structure",
+        description = "Get full JSON structure of a Figma design file by URL. Returns the complete document tree (nodes, frames, components, text, styles). Response is large by design — intended for pre-CLI artifact preparation and file output, not inline AI context. If the URL contains node-id, returns only that subtree.",
+        integration = "figma",
+        category = "content_access"
+    )
     public FigmaFileResponse getFileStructure(String href) throws Exception {
         href = href.replaceAll("&amp;", "&");
         String fileId = parseFileId(href);
@@ -512,6 +541,98 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
             logger.error("Failed to get image URL for node {} in format {}: {}", nodeId, format, e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Get original image fill URLs for all imageRefs in a Figma file.
+     * Resolves imageRef placeholders (e.g. "1:1") found in the file document tree
+     * to actual downloadable S3 URLs. These are original images uploaded by the designer.
+     *
+     * Use this as Step 2 after getting the file structure:
+     *   Step 1: figma_get_layers / getFileStructure → find imageRef values in nodes
+     *   Step 2: figma_get_image_fills → resolve imageRefs to real URLs
+     *   Step 3..N: download directly from returned S3 URLs (no Figma rate limits)
+     */
+    @MCPTool(
+        name = "figma_get_image_fills",
+        description = "Get original image fill URLs for all imageRefs in a Figma file. Resolves imageRef placeholders to actual downloadable S3 URLs. Use after inspecting file structure to download original photos/images embedded by the designer.",
+        integration = "figma",
+        category = "content_access"
+    )
+    public String getImageFills(
+        @MCPParam(name = "href", description = "Figma design URL", required = true) String href
+    ) throws Exception {
+        href = href.replaceAll("&amp;", "&");
+        String fileId = parseFileId(href);
+
+        GenericRequest getRequest = new GenericRequest(this, path("files/" + fileId + "/images"));
+
+        try {
+            String response = execute(getRequest);
+            logger.info("Retrieved image fills for file {}", fileId);
+            return response;
+        } catch (Exception e) {
+            logger.error("Failed to get image fills: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Render multiple Figma nodes as images in a single batched call.
+     * Uses GET /v1/images/:key?ids=ID1,ID2,... with automatic batching (max 100 IDs per request).
+     * Returns a combined map of nodeId → render URL for all requested nodes.
+     *
+     * Unlike figma_download_node_image (single node), this is efficient for exporting
+     * many icons/frames at once without hitting per-request overhead.
+     */
+    @MCPTool(
+        name = "figma_render_nodes",
+        description = "Render multiple Figma nodes as images in a single batched API call. Automatically batches up to 100 node IDs per request. Returns map of nodeId to render URL. Use for exporting many icons or frames efficiently.",
+        integration = "figma",
+        category = "content_access"
+    )
+    public String renderNodes(
+        @MCPParam(name = "href", description = "Figma design URL", required = true) String href,
+        @MCPParam(name = "nodeIds", description = "Comma-separated node IDs to render (e.g. '1:2,3:4,5:6')", required = true) String nodeIds,
+        @MCPParam(name = "format", description = "Export format: png, jpg, svg, pdf. Default: png", required = false) String format
+    ) throws Exception {
+        href = href.replaceAll("&amp;", "&");
+        String fileId = parseFileId(href);
+
+        if (format == null || format.isEmpty()) {
+            format = "png";
+        }
+
+        String[] ids = nodeIds.split(",");
+        int batchSize = 100;
+        Map<String, String> combined = new LinkedHashMap<>();
+
+        for (int i = 0; i < ids.length; i += batchSize) {
+            int end = Math.min(i + batchSize, ids.length);
+            String[] batch = java.util.Arrays.copyOfRange(ids, i, end);
+            String batchIds = String.join(",", batch);
+
+            GenericRequest getRequest = new GenericRequest(this, path("images/" + fileId));
+            getRequest.param("ids", batchIds);
+            getRequest.param("format", format);
+
+            try {
+                String response = execute(getRequest);
+                JSONObject json = new JSONObject(response);
+                JSONObject images = json.optJSONObject("images");
+                if (images != null) {
+                    for (String key : images.keySet()) {
+                        combined.put(key, images.optString(key));
+                    }
+                }
+                logger.info("Rendered batch {}-{} ({} nodes)", i, end - 1, end - i);
+            } catch (Exception e) {
+                logger.error("Failed to render batch {}-{}: {}", i, end - 1, e.getMessage());
+                throw e;
+            }
+        }
+
+        return new JSONObject(combined).toString(2);
     }
 
     /**
@@ -1075,8 +1196,7 @@ public class FigmaClient extends AbstractRestClient implements ContentUtils.UrlT
             return null;
         } catch (Exception e) {
             logger.error("Failed to get node children: {}", e.getMessage());
-            e.printStackTrace();
-            return null;
+            throw e;
         }
     }
 

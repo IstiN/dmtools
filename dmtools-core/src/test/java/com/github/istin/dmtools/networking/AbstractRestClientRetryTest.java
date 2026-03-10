@@ -78,7 +78,7 @@ class AbstractRestClientRetryTest {
 
     @Test
     @DisplayName("RetryPolicy should calculate exponential backoff delay")
-    void testCalculateDelayExponentialBackoff() {
+    void testCalculateDelayExponentialBackoff() throws Exception {
         long delay1 = retryPolicy.calculateDelayMs(1, null);
         long delay2 = retryPolicy.calculateDelayMs(2, null);
         long delay3 = retryPolicy.calculateDelayMs(3, null);
@@ -95,7 +95,7 @@ class AbstractRestClientRetryTest {
 
     @Test
     @DisplayName("RetryPolicy should respect Retry-After header")
-    void testRetryAfterHeader() {
+    void testRetryAfterHeader() throws Exception {
         Response mockResponse = mock(Response.class);
         when(mockResponse.header("Retry-After")).thenReturn("5");
 
@@ -103,6 +103,16 @@ class AbstractRestClientRetryTest {
 
         // Should use server-provided delay (5 seconds = 5000ms) with some jitter
         assertTrue(delay >= 4500 && delay <= 5500, "Delay should be ~5000ms: " + delay);
+    }
+
+    @Test
+    @DisplayName("RetryPolicy should throw when Retry-After exceeds 5 minutes")
+    void testRetryAfterExceedsMaxThrows() {
+        Response mockResponse = mock(Response.class);
+        when(mockResponse.header("Retry-After")).thenReturn("390883");
+
+        assertThrows(IOException.class, () -> retryPolicy.calculateDelayMs(1, mockResponse),
+            "Should throw when Retry-After exceeds MAX_RETRY_AFTER_SECONDS");
     }
 
     @Test
