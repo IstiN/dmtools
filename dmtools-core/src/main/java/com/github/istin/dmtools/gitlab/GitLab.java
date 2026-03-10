@@ -6,6 +6,8 @@ import com.github.istin.dmtools.common.model.*;
 import com.github.istin.dmtools.common.networking.GenericRequest;
 import com.github.istin.dmtools.gitlab.model.*;
 import com.github.istin.dmtools.job.JobRunner;
+import com.github.istin.dmtools.mcp.MCPParam;
+import com.github.istin.dmtools.mcp.MCPTool;
 import com.github.istin.dmtools.networking.AbstractRestClient;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
@@ -28,6 +30,7 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
 
     public GitLab(String basePath, String authorization) throws IOException {
         super(basePath, authorization);
+        setCacheGetRequestsEnabled(false);
     }
 
     @Override
@@ -85,13 +88,20 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         return new GitLabPullRequest(response);
     }
 
+    @MCPTool(
+        name = "gitlab_get_mr_comments",
+        description = "Get all comments for a GitLab merge request, including both inline code review comments (DiffNote) and general discussion notes. Excludes system-generated notes.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
     @Override
-    public List<IComment> pullRequestComments(String workspace, String repository, String pullRequestId) throws IOException {
+    public List<IComment> pullRequestComments(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId) throws IOException {
         List<IComment> pullRequestNotes = getPullRequestNotes(workspace, repository, pullRequestId);
         return pullRequestNotes.stream()
                 .filter(comment -> !((GitLabComment)comment).isSystem())
-                .filter(comment -> ((GitLabComment)comment).getType() != null)
-                .filter(comment -> ((GitLabComment)comment).getType().equalsIgnoreCase("DiffNote"))
                 .collect(Collectors.toList());
     }
 
@@ -115,19 +125,29 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         throw new UnsupportedOperationException("implement me");
     }
 
+    @MCPTool(
+        name = "gitlab_get_mr_activities",
+        description = "Get all activities for a GitLab merge request including approvals and general discussion notes.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
     @Override
-    public List<IActivity> pullRequestActivities(String workspace, String repository, String pullRequestId) throws IOException {
+    public List<IActivity> pullRequestActivities(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId) throws IOException {
         List<IComment> pullRequestNotes = getPullRequestNotes(workspace, repository, pullRequestId);
         return pullRequestNotes.stream()
-                .filter(comment -> ((GitLabComment)comment).getType() == null)
-                .filter(comment -> comment.getBody().toLowerCase().contains("approved"))
+                .filter(comment -> !((GitLabComment)comment).isSystem())
                 .map(new Function<IComment, IActivity>() {
                     @Override
                     public IActivity apply(IComment comment) {
+                        final String action = comment.getBody() != null && comment.getBody().toLowerCase().contains("approved")
+                                ? "APPROVED" : "COMMENTED";
                         return new IActivity() {
                             @Override
                             public String getAction() {
-                                return "APPROVED";
+                                return action;
                             }
 
                             @Override
@@ -166,8 +186,18 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         throw new UnsupportedOperationException("GitLab does not support creating comments and tasks.");
     }
 
+    @MCPTool(
+        name = "gitlab_add_mr_comment",
+        description = "Add a general discussion comment to a GitLab merge request.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
     @Override
-    public String addPullRequestComment(String workspace, String repository, String pullRequestId, String text) throws IOException {
+    public String addPullRequestComment(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId,
+            @MCPParam(name = "text", description = "Comment text", required = true, example = "LGTM!") String text) throws IOException {
         String path = path(String.format("projects/%s/merge_requests/%s/notes", getEncodedProject(workspace, repository), pullRequestId));
         GenericRequest postRequest = new GenericRequest(this, path);
         JSONObject jsonObject = new JSONObject();
@@ -415,6 +445,177 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
     @Override
     public String getDefaultWorkspace() {
         throw new UnsupportedOperationException();
+    }
+
+    @MCPTool(
+        name = "gitlab_get_mr",
+        description = "Get details of a specific GitLab merge request including title, description, state, author, diff_refs (base_sha, head_sha, start_sha needed for inline comments).",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
+    public String getMRDetails(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId) throws IOException {
+        IPullRequest mr = pullRequest(workspace, repository, pullRequestId);
+        if (mr == null) return "{}";
+        return ((GitLabPullRequest) mr).getJSONObject().toString();
+    }
+
+    @MCPTool(
+        name = "gitlab_list_mrs",
+        description = "List merge requests for a GitLab project. State can be 'opened', 'closed', 'merged', or 'all'.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
+    public String listMergeRequests(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "state", description = "MR state: opened, closed, merged, all", required = true, example = "opened") String state) throws IOException {
+        List<IPullRequest> mrs = pullRequests(workspace, repository, state, false, null);
+        JSONArray arr = new JSONArray();
+        for (IPullRequest mr : mrs) {
+            arr.put(((GitLabPullRequest) mr).getJSONObject());
+        }
+        return arr.toString();
+    }
+
+    @MCPTool(
+        name = "gitlab_get_mr_discussions",
+        description = "Get all discussion threads for a GitLab merge request. Each discussion contains notes (comments) and a resolved status. Use the discussion id with gitlab_resolve_mr_thread.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
+    public String getPRDiscussions(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId) throws IOException {
+        String path = path(String.format("projects/%s/merge_requests/%s/discussions", getEncodedProject(workspace, repository), pullRequestId));
+        GenericRequest getRequest = new GenericRequest(this, path);
+        String response = execute(getRequest);
+        return response != null ? response : "[]";
+    }
+
+    @MCPTool(
+        name = "gitlab_reply_to_mr_thread",
+        description = "Reply to an existing discussion thread in a GitLab merge request. Use the discussion id from gitlab_get_mr_discussions.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
+    public String replyToPullRequestComment(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId,
+            @MCPParam(name = "discussionId", description = "Discussion thread ID", required = true, example = "6a9c1750b37d57bba1079be3bbd13a...") String discussionId,
+            @MCPParam(name = "text", description = "Reply text", required = true, example = "Addressed in latest commit") String text) throws IOException {
+        String path = path(String.format("projects/%s/merge_requests/%s/discussions/%s/notes",
+                getEncodedProject(workspace, repository), pullRequestId, discussionId));
+        GenericRequest postRequest = new GenericRequest(this, path);
+        JSONObject body = new JSONObject();
+        body.put("body", text);
+        postRequest.setBody(body.toString());
+        return post(postRequest);
+    }
+
+    @MCPTool(
+        name = "gitlab_add_inline_mr_comment",
+        description = "Create a new inline code review comment on a specific file and line in a GitLab merge request. Requires base_sha, head_sha, start_sha from the MR diff refs (use gitlab_get_mr to get them from diff_refs).",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
+    public String addInlineReviewComment(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId,
+            @MCPParam(name = "filePath", description = "Path to the file to comment on", required = true, example = "src/main/Foo.java") String filePath,
+            @MCPParam(name = "line", description = "Line number in the new file to comment on", required = true, example = "42") String line,
+            @MCPParam(name = "text", description = "Comment text", required = true, example = "This looks wrong") String text,
+            @MCPParam(name = "baseSha", description = "Base commit SHA from MR diff_refs", required = true, example = "abc123") String baseSha,
+            @MCPParam(name = "headSha", description = "Head commit SHA from MR diff_refs", required = true, example = "def456") String headSha,
+            @MCPParam(name = "startSha", description = "Start commit SHA from MR diff_refs", required = true, example = "abc123") String startSha) throws IOException {
+        final int lineNum;
+        try {
+            lineNum = Integer.parseInt(line);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid line: expected numeric, got: '" + line + "'", e);
+        }
+        String path = path(String.format("projects/%s/merge_requests/%s/discussions",
+                getEncodedProject(workspace, repository), pullRequestId));
+        GenericRequest postRequest = new GenericRequest(this, path);
+        JSONObject body = new JSONObject();
+        body.put("body", text);
+        JSONObject position = new JSONObject();
+        position.put("position_type", "text");
+        position.put("base_sha", baseSha);
+        position.put("head_sha", headSha);
+        position.put("start_sha", startSha);
+        position.put("new_path", filePath);
+        position.put("old_path", filePath);
+        position.put("new_line", lineNum);
+        body.put("position", position);
+        postRequest.setBody(body.toString());
+        return post(postRequest);
+    }
+
+    @MCPTool(
+        name = "gitlab_resolve_mr_thread",
+        description = "Resolve (close) a review discussion thread in a GitLab merge request. Use the discussion id from gitlab_get_mr_discussions.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
+    public String resolveReviewThread(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId,
+            @MCPParam(name = "discussionId", description = "Discussion thread ID to resolve", required = true, example = "6a9c1750b37d57bba1079be3bbd13a...") String discussionId) throws IOException {
+        String path = path(String.format("projects/%s/merge_requests/%s/discussions/%s",
+                getEncodedProject(workspace, repository), pullRequestId, discussionId));
+        GenericRequest putRequest = new GenericRequest(this, path);
+        JSONObject body = new JSONObject();
+        body.put("resolved", true);
+        putRequest.setBody(body.toString());
+        return put(putRequest);
+    }
+
+    @MCPTool(
+        name = "gitlab_approve_mr",
+        description = "Approve a GitLab merge request. Adds your approval to the MR.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
+    public String approveMergeRequest(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId) throws IOException {
+        String path = path(String.format("projects/%s/merge_requests/%s/approve",
+                getEncodedProject(workspace, repository), pullRequestId));
+        GenericRequest postRequest = new GenericRequest(this, path);
+        postRequest.setBody("{}");
+        return post(postRequest);
+    }
+
+    @MCPTool(
+        name = "gitlab_merge_mr",
+        description = "Merge a GitLab merge request. Optionally provide a custom merge commit message.",
+        integration = "gitlab",
+        category = "merge_requests"
+    )
+    public String mergeMergeRequest(
+            @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
+            @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
+            @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId,
+            @MCPParam(name = "mergeCommitMessage", description = "Optional custom merge commit message", required = false, example = "Merge feature branch") String mergeCommitMessage) throws IOException {
+        String path = path(String.format("projects/%s/merge_requests/%s/merge",
+                getEncodedProject(workspace, repository), pullRequestId));
+        GenericRequest putRequest = new GenericRequest(this, path);
+        if (mergeCommitMessage != null && !mergeCommitMessage.isEmpty()) {
+            JSONObject body = new JSONObject();
+            body.put("merge_commit_message", mergeCommitMessage);
+            putRequest.setBody(body.toString());
+        } else {
+            putRequest.setBody("{}");
+        }
+        return put(putRequest);
     }
 
     private String getEncodedProject(String workspace, String repository) {

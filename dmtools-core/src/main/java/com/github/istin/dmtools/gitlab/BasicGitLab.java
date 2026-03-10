@@ -39,6 +39,9 @@ public class BasicGitLab extends GitLab {
 
     public static SourceCode getInstance() throws IOException {
         if (instance == null) {
+            if (!DEFAULT_CONFIG.isConfigured()) {
+                return null;
+            }
             instance = new BasicGitLab();
         }
         return instance;

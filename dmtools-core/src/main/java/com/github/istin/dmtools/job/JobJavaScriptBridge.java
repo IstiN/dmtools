@@ -78,8 +78,13 @@ public class JobJavaScriptBridge {
 
         // Initialize GitHub client if configured
         try {
-            this.clientInstances.put("github", com.github.istin.dmtools.github.BasicGithub.getInstance());
-            logger.debug("GitHub client initialized for JavaScript bridge");
+            com.github.istin.dmtools.github.BasicGithub githubInstance = (com.github.istin.dmtools.github.BasicGithub) com.github.istin.dmtools.github.BasicGithub.getInstance();
+            if (githubInstance != null) {
+                this.clientInstances.put("github", githubInstance);
+                logger.debug("GitHub client initialized for JavaScript bridge");
+            } else {
+                logger.debug("GitHub client not configured (GITHUB_TOKEN not set). GitHub tools will not be available.");
+            }
         } catch (Exception e) {
             logger.debug("GitHub client not initialized: {}. GitHub tools will not be available.", e.getMessage());
         }
@@ -96,32 +101,65 @@ public class JobJavaScriptBridge {
 
         // Initialize Teams client if configured
         try {
-            this.clientInstances.put("teams", BasicTeamsClient.getInstance());
-            logger.debug("BasicTeamsClient initialized for JavaScript bridge");
+            BasicTeamsClient teamsInstance = BasicTeamsClient.getInstance();
+            if (teamsInstance != null) {
+                this.clientInstances.put("teams", teamsInstance);
+                logger.debug("BasicTeamsClient initialized for JavaScript bridge");
+            } else {
+                logger.debug("BasicTeamsClient not configured. Teams tools will not be available.");
+            }
         } catch (Exception e) {
             logger.debug("BasicTeamsClient not initialized: {}. Teams tools will not be available.", e.getMessage());
         }
 
         // Initialize Azure DevOps client if configured
         try {
-            this.clientInstances.put("ado", BasicAzureDevOpsClient.getInstance());
-            logger.debug("BasicAzureDevOpsClient initialized for JavaScript bridge");
+            BasicAzureDevOpsClient adoInstance = BasicAzureDevOpsClient.getInstance();
+            if (adoInstance != null) {
+                this.clientInstances.put("ado", adoInstance);
+                logger.debug("BasicAzureDevOpsClient initialized for JavaScript bridge");
+            } else {
+                logger.debug("BasicAzureDevOpsClient not configured. ADO tools will not be available.");
+            }
         } catch (Exception e) {
             logger.debug("BasicAzureDevOpsClient not initialized: {}. ADO tools will not be available.", e.getMessage());
         }
 
         // Initialize TestRail client if configured
         try {
-            this.clientInstances.put("testrail", com.github.istin.dmtools.testrail.TestRailClient.getInstance());
-            logger.debug("TestRailClient initialized for JavaScript bridge");
+            com.github.istin.dmtools.common.tracker.TrackerClient<?> testRailInstance = com.github.istin.dmtools.testrail.TestRailClient.getInstance();
+            if (testRailInstance != null) {
+                this.clientInstances.put("testrail", testRailInstance);
+                logger.debug("TestRailClient initialized for JavaScript bridge");
+            } else {
+                logger.debug("TestRailClient not configured. TestRail tools will not be available.");
+            }
         } catch (Exception e) {
             logger.debug("TestRailClient not initialized: {}. TestRail tools will not be available.", e.getMessage());
         }
 
+        // Initialize GitLab client if configured
+        try {
+            com.github.istin.dmtools.gitlab.BasicGitLab gitLabInstance = (com.github.istin.dmtools.gitlab.BasicGitLab) com.github.istin.dmtools.gitlab.BasicGitLab.getInstance();
+            if (gitLabInstance != null) {
+                this.clientInstances.put("gitlab", gitLabInstance);
+                logger.debug("BasicGitLab initialized for JavaScript bridge");
+            } else {
+                logger.debug("BasicGitLab not configured (GITLAB_BASE_PATH/GITLAB_TOKEN not set). GitLab tools will not be available.");
+            }
+        } catch (Exception e) {
+            logger.debug("BasicGitLab not initialized: {}. GitLab tools will not be available.", e.getMessage());
+        }
+
         // Initialize Figma client if configured
         try {
-            this.clientInstances.put("figma", com.github.istin.dmtools.figma.BasicFigmaClient.getInstance());
-            logger.debug("BasicFigmaClient initialized for JavaScript bridge");
+            com.github.istin.dmtools.figma.BasicFigmaClient figmaInstance = (com.github.istin.dmtools.figma.BasicFigmaClient) com.github.istin.dmtools.figma.BasicFigmaClient.getInstance();
+            if (figmaInstance != null) {
+                this.clientInstances.put("figma", figmaInstance);
+                logger.debug("BasicFigmaClient initialized for JavaScript bridge");
+            } else {
+                logger.debug("BasicFigmaClient not configured (FIGMA_BASE_PATH not set). Figma tools will not be available.");
+            }
         } catch (Exception e) {
             logger.debug("BasicFigmaClient not initialized: {}. Figma tools will not be available.", e.getMessage());
         }

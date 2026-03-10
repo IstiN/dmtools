@@ -684,6 +684,22 @@ See `examples/testrail_example.js` for a complete working example.
 
 **Note**: GitHub tools require `SOURCE_GITHUB_TOKEN` environment variable. Add `github` to `DMTOOLS_INTEGRATIONS` if using that env var.
 
+### GitLab Tools
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `gitlab_list_mrs` | `workspace`, `repository`, `state` | List merge requests by state (`opened`, `closed`, `merged`, `all`) |
+| `gitlab_get_mr` | `workspace`, `repository`, `pullRequestId` | Get full details of a merge request including `diff_refs` (base_sha, head_sha, start_sha needed for inline comments) |
+| `gitlab_get_mr_comments` | `workspace`, `repository`, `pullRequestId` | Get all non-system comments (both DiffNote inline and general discussion notes) |
+| `gitlab_get_mr_activities` | `workspace`, `repository`, `pullRequestId` | Get all activities: approvals and general discussion notes (excludes system notes) |
+| `gitlab_add_mr_comment` | `workspace`, `repository`, `pullRequestId`, `text` | Add a general discussion comment to a merge request |
+| `gitlab_get_mr_discussions` | `workspace`, `repository`, `pullRequestId` | Get all discussion threads (use discussion `id` with reply/resolve tools) |
+| `gitlab_reply_to_mr_thread` | `workspace`, `repository`, `pullRequestId`, `discussionId`, `text` | Reply to an existing discussion thread |
+| `gitlab_add_inline_mr_comment` | `workspace`, `repository`, `pullRequestId`, `filePath`, `line`, `text`, `baseSha`, `headSha`, `startSha` | Create an inline code review comment on a specific file and line |
+| `gitlab_resolve_mr_thread` | `workspace`, `repository`, `pullRequestId`, `discussionId` | Resolve (close) a discussion thread |
+
+**Note**: GitLab tools require `GITLAB_TOKEN` and `GITLAB_BASE_PATH` environment variables. Add `gitlab` to `DMTOOLS_INTEGRATIONS` if using that env var.
+
 ## 💻 Input Methods
 
 DMTools supports multiple input methods with this priority:
