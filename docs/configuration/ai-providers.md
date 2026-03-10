@@ -47,7 +47,7 @@ Configure AI providers for automation jobs (TestCasesGenerator, CodeGenerator, U
 
 ```bash
 # Google Gemini Configuration
-GEMINI_API_KEY=AIzaSyD1234567890abcdefghijklmnopqrstuvwxyz
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
 GEMINI_DEFAULT_MODEL=gemini-3-pro-preview
 GEMINI_BASE_PATH=https://generativelanguage.googleapis.com/v1beta
 ```

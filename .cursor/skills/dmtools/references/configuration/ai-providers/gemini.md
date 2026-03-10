@@ -20,8 +20,8 @@ Add to your `dmtools.env`:
 
 ```bash
 # Gemini Configuration
-GEMINI_API_KEY=AIzaSyD-your-actual-api-key-here
-GEMINI_MODEL=gemini-2.0-flash-exp  # Optional, defaults to gemini-2.0-flash-exp
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+GEMINI_MODEL=gemini-3.0-flash-preview
 ```
 
 ### Step 3: Test Configuration
@@ -36,62 +36,30 @@ dmtools gemini_ai_chat "Hello, please confirm you're working"
 
 ## 🎭 Available Models
 
-### Gemini 2.0 Flash (Recommended)
+### Gemini 3.0 Flash (Recommended)
 ```bash
-GEMINI_MODEL=gemini-2.0-flash-exp
+GEMINI_MODEL=3.0-flash-preview
 # - Fastest response time
 # - Best for most DMtools tasks
 # - 1M token context window
 # - Free tier: 15 RPM, 1M TPM, 1500 RPD
 ```
 
-### Gemini 1.5 Pro
+### Gemini 3.1 Pro
 ```bash
-GEMINI_MODEL=gemini-1.5-pro-002
+GEMINI_MODEL=gemini-3.1-pro
 # - More capable for complex tasks
 # - 2M token context window
 # - Free tier: 2 RPM, 32K TPM, 50 RPD
 # - Use for large code analysis
 ```
 
-### Gemini 1.5 Flash
+### Gemini 3.0 Flash
 ```bash
-GEMINI_MODEL=gemini-1.5-flash-002
+GEMINI_MODEL=gemini-3.0-flash-preview
 # - Previous generation flash model
 # - Good balance of speed and capability
 # - Free tier: 15 RPM, 1M TPM, 1500 RPD
-```
-
-## 💰 Free Tier Limits
-
-| Model | Requests/Minute | Tokens/Minute | Requests/Day |
-|-------|-----------------|---------------|--------------|
-| **Gemini 2.0 Flash** | 15 | 1,000,000 | 1,500 |
-| **Gemini 1.5 Flash** | 15 | 1,000,000 | 1,500 |
-| **Gemini 1.5 Pro** | 2 | 32,000 | 50 |
-
-**Note**: Free tier is perfect for development and moderate production use. Most DMtools operations stay well within these limits.
-
-## 🔧 Advanced Configuration
-
-### Rate Limit Handling
-
-```bash
-# dmtools.env
-GEMINI_API_KEY=AIzaSyD-your-api-key
-GEMINI_MODEL=gemini-2.0-flash-exp
-GEMINI_RETRY_ATTEMPTS=3          # Retry on rate limit
-GEMINI_RETRY_DELAY_MS=2000       # Wait 2 seconds between retries
-```
-
-### Multiple API Keys (Load Balancing)
-
-```bash
-# For higher throughput, rotate between keys
-GEMINI_API_KEY_1=AIzaSyD-first-key
-GEMINI_API_KEY_2=AIzaSyD-second-key
-GEMINI_API_KEY_3=AIzaSyD-third-key
-GEMINI_LOAD_BALANCE=true
 ```
 
 ### Context Window Management
@@ -353,36 +321,12 @@ const response = gemini_ai_chat(`
 }
 ```
 
-### Configure for Code Generation
-```json
-{
-  "name": "CodeGenerator",
-  "params": {
-    "aiProvider": "gemini",
-    "aiModel": "gemini-1.5-pro-002",
-    "targetLanguage": "java"
-  }
-}
-```
-
 ## 🔗 Useful Resources
 
 - [Google AI Studio](https://aistudio.google.com/) - API key management and testing
 - [Gemini API Docs](https://ai.google.dev/gemini-api/docs) - Official documentation
 - [Pricing Calculator](https://ai.google.dev/pricing) - Estimate costs for paid tier
 - [Model Comparison](https://ai.google.dev/gemini-api/docs/models/gemini) - Detailed model capabilities
-
-## 🚦 When to Upgrade to Paid
-
-Consider paid tier when:
-- You need > 15 requests/minute consistently
-- You require > 1,500 requests/day
-- You need priority support
-- You want higher rate limits for production
-
-Paid pricing (as of 2024):
-- Gemini 2.0 Flash: $0.075 per 1M tokens
-- Gemini 1.5 Pro: $1.25 per 1M tokens
 
 ---
 

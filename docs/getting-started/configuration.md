@@ -459,14 +459,14 @@ CONFLUENCE_AUTH_TYPE=Basic
 # ============================================
 # AI Provider (Gemini)
 # ============================================
-GEMINI_API_KEY=AIzaSyD1234567890abcdefghijklmnopqrstuvwxyz
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
 GEMINI_DEFAULT_MODEL=gemini-1.5-pro
 GEMINI_BASE_PATH=https://generativelanguage.googleapis.com/v1beta
 
 # ============================================
 # GitHub Integration
 # ============================================
-SOURCE_GITHUB_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz
+SOURCE_GITHUB_TOKEN=YOUR_GITHUB_TOKEN_HERE
 SOURCE_GITHUB_WORKSPACE=mycompany
 SOURCE_GITHUB_REPOSITORY=myproject
 SOURCE_GITHUB_BRANCH=main
@@ -475,7 +475,7 @@ SOURCE_GITHUB_BASE_PATH=https://api.github.com
 # ============================================
 # Figma Integration
 # ============================================
-FIGMA_TOKEN=figd_1234567890abcdefghijklmnopqrstuvwxyz
+FIGMA_TOKEN=YOUR_FIGMA_ACCESS_TOKEN_HERE
 FIGMA_BASE_PATH=https://api.figma.com/v1
 
 # ============================================
