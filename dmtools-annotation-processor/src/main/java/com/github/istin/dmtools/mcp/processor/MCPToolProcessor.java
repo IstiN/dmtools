@@ -147,7 +147,8 @@ public class MCPToolProcessor extends AbstractProcessor {
             className,
             methodName,
             returnType,
-            parameters
+            parameters,
+            annotation.aliases()
         );
     }
 
@@ -161,6 +162,7 @@ public class MCPToolProcessor extends AbstractProcessor {
             out.println("import com.github.istin.dmtools.mcp.MCPParameterDefinition;");
             out.println("import java.util.*;");
             out.println("import java.util.stream.Collectors;");
+            out.println("import java.util.Objects;");
             out.println();
             out.println("/**");
             out.println(" * Auto-generated MCP tool registry.");
@@ -169,6 +171,7 @@ public class MCPToolProcessor extends AbstractProcessor {
             out.println("public class MCPToolRegistry {");
             out.println();
             out.println("    private static final Map<String, MCPToolDefinition> TOOLS = createToolsMap();");
+            out.println("    private static final Map<String, List<String>> ALIAS_TO_TOOL_NAMES = createAliasMap();");
             out.println();
             out.println("    private static Map<String, MCPToolDefinition> createToolsMap() {");
             out.println("        Map<String, MCPToolDefinition> tools = new HashMap<>();");
@@ -178,6 +181,21 @@ public class MCPToolProcessor extends AbstractProcessor {
             }
             
             out.println("        return Collections.unmodifiableMap(tools);");
+            out.println("    }");
+            out.println();
+            out.println("    private static Map<String, List<String>> createAliasMap() {");
+            out.println("        Map<String, List<String>> aliasMap = new HashMap<>();");
+
+            for (MCPToolDefinition tool : tools) {
+                String[] toolAliases = tool.getToolAliases();
+                if (toolAliases != null && toolAliases.length > 0) {
+                    for (String alias : toolAliases) {
+                        out.println("        aliasMap.computeIfAbsent(\"" + alias + "\", k -> new ArrayList<>()).add(\"" + tool.getName() + "\");");
+                    }
+                }
+            }
+
+            out.println("        return Collections.unmodifiableMap(aliasMap);");
             out.println("    }");
             out.println();
             out.println("    public static List<MCPToolDefinition> getAllTools() {");
@@ -196,6 +214,17 @@ public class MCPToolProcessor extends AbstractProcessor {
             out.println();
             out.println("    public static boolean hasTool(String toolName) {");
             out.println("        return TOOLS.containsKey(toolName);");
+            out.println("    }");
+            out.println();
+            out.println("    public static List<MCPToolDefinition> getToolsByAlias(String alias) {");
+            out.println("        List<String> toolNames = ALIAS_TO_TOOL_NAMES.getOrDefault(alias, Collections.emptyList());");
+            out.println("        return toolNames.stream().map(TOOLS::get).filter(Objects::nonNull).collect(Collectors.toList());");
+            out.println("    }");
+            out.println();
+            out.println("    public static MCPToolDefinition getToolByAliasAndIntegration(String alias, String integration) {");
+            out.println("        return getToolsByAlias(alias).stream()");
+            out.println("                .filter(t -> t.getIntegration().equals(integration))");
+            out.println("                .findFirst().orElse(null);");
             out.println("    }");
             out.println();
             out.println("    public static Set<String> getAvailableIntegrations() {");
@@ -242,6 +271,21 @@ public class MCPToolProcessor extends AbstractProcessor {
         }
         
         sb.append("))");
+        
+        // Append toolAliases as the final constructor argument
+        String[] toolAliases = tool.getToolAliases();
+        if (toolAliases != null && toolAliases.length > 0) {
+            // Replace the closing ")) " with the aliases argument
+            sb.deleteCharAt(sb.length() - 1);
+            sb.deleteCharAt(sb.length() - 1);
+            sb.append("), new String[]{");
+            for (int i = 0; i < toolAliases.length; i++) {
+                if (i > 0) sb.append(", ");
+                sb.append("\"").append(escapeJavaString(toolAliases[i])).append("\"");
+            }
+            sb.append("})");
+        }
+
         return sb.toString();
     }
 

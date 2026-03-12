@@ -758,4 +758,36 @@ public class CliExecutionHelperTest {
         assertFalse(Files.exists(tempDir.resolve("comments.md")),
                 "File should not be created when all comments produce blank text");
     }
+
+    // --- isVideoFile ---
+
+    @Test
+    void testIsVideoFile_KnownVideoExtensions_ReturnsTrue() {
+        String[] videoFiles = {"clip.mp4", "screen.mov", "demo.avi", "recording.mkv",
+                "stream.wmv", "short.flv", "web.webm", "mobile.m4v", "call.3gp",
+                "open.ogv", "archive.mpg", "old.mpeg"};
+        for (String name : videoFiles) {
+            assertTrue(CliExecutionHelper.isVideoFile(name), "Expected video: " + name);
+        }
+    }
+
+    @Test
+    void testIsVideoFile_UppercaseExtension_ReturnsTrue() {
+        assertTrue(CliExecutionHelper.isVideoFile("Demo.MP4"));
+        assertTrue(CliExecutionHelper.isVideoFile("SCREEN.MOV"));
+    }
+
+    @Test
+    void testIsVideoFile_NonVideoFile_ReturnsFalse() {
+        assertFalse(CliExecutionHelper.isVideoFile("screenshot.png"));
+        assertFalse(CliExecutionHelper.isVideoFile("report.pdf"));
+        assertFalse(CliExecutionHelper.isVideoFile("data.json"));
+        assertFalse(CliExecutionHelper.isVideoFile("notes.txt"));
+    }
+
+    @Test
+    void testIsVideoFile_NullOrEmpty_ReturnsFalse() {
+        assertFalse(CliExecutionHelper.isVideoFile(null));
+        assertFalse(CliExecutionHelper.isVideoFile(""));
+    }
 }

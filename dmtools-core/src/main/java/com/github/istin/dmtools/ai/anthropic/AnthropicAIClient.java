@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.ai.anthropic;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.AIFileFilter;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.model.Metadata;
@@ -183,6 +184,10 @@ public class AnthropicAIClient extends AbstractRestClient implements AI {
     public String chat(String model, String message, File imageFile) throws Exception {
         if (model == null) {
             model = this.model;
+        }
+        // Apply attachment filter: skip file if it exceeds size limit or fails extension check
+        if (imageFile != null && !new AIFileFilter().shouldInclude(imageFile)) {
+            imageFile = null;
         }
         logger.info("-------- message to ai --------");
         logger.info(message);

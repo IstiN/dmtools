@@ -166,15 +166,22 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_list_prs",
             description = "List pull requests in a GitHub repository by state. State can be 'open', 'closed', or 'merged'. Returns first page (up to 100) of pull requests.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_list_prs"}
     )
     public List<IPullRequest> listPullRequests(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
             String workspace,
             @MCPParam(name = "repository", description = "The GitHub repository name", required = true, example = "dmtools")
             String repository,
-            @MCPParam(name = "state", description = "The state of pull requests to list: 'open', 'closed', or 'merged'", required = true, example = "open")
+            @MCPParam(name = "state", description = "The state of pull requests to list: 'open', 'closed', or 'merged'. 'opened' is accepted as a synonym for 'open'.", required = true, example = "open")
             String state) throws IOException {
+        // Normalize state synonyms: GitLab uses "opened", GitHub uses "open"
+        if ("opened".equalsIgnoreCase(state)) {
+            state = "open";
+        } else if ("declined".equalsIgnoreCase(state)) {
+            state = "closed";
+        }
         return pullRequests(workspace, repository, state, false, null);
     }
 
@@ -183,7 +190,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_get_pr",
             description = "Get details of a GitHub pull request including title, description, status, author, branches, and merge info.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_get_pr"}
     )
     public IPullRequest pullRequest(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
@@ -282,7 +290,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_get_pr_comments",
             description = "Get all comments for a GitHub pull request, including both inline code review comments and general discussion comments. Results are sorted by creation date.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_get_pr_comments"}
     )
     public List<IComment> pullRequestComments(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
@@ -344,7 +353,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_get_pr_conversations",
             description = "Get all review conversations (inline code comment threads) for a GitHub pull request. Groups inline code review comments into threads showing root comment and replies. Also includes general PR discussion comments as separate entries.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_get_pr_discussions"}
     )
     public List<GitHubConversation> getPRConversations(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
@@ -408,7 +418,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_get_pr_activities",
             description = "Get all activities for a GitHub pull request including reviews (approvals, change requests), inline code comments, and general discussion comments.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_get_pr_activities"}
     )
     public List<IActivity> pullRequestActivities(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
@@ -493,7 +504,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_add_pr_comment",
             description = "Add a comment to a GitHub pull request discussion.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_add_pr_comment"}
     )
     public String addPullRequestComment(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
@@ -516,7 +528,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_reply_to_pr_thread",
             description = "Reply to an existing inline code review comment thread in a GitHub pull request. Use the comment ID of the root comment (or any comment) in the thread as inReplyToId.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_reply_to_pr_thread"}
     )
     public String replyToPullRequestComment(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
@@ -525,7 +538,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             String repository,
             @MCPParam(name = "pullRequestId", description = "The pull request number", required = true, example = "74")
             String pullRequestId,
-            @MCPParam(name = "inReplyToId", description = "The ID of the comment to reply to (from github_get_pr_conversations rootComment.id or replies[].id)", required = true, example = "123456789")
+            @MCPParam(name = "inReplyToId", description = "The ID of the comment to reply to (from github_get_pr_conversations rootComment.id or replies[].id)", required = true, example = "123456789", aliases = {"threadId"})
             String inReplyToId,
             @MCPParam(name = "text", description = "The reply text (Markdown supported)", required = true, example = "Fixed in the latest commit.")
             String text) throws IOException {
@@ -549,7 +562,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_add_inline_comment",
             description = "Create a new inline code review comment on a specific file and line in a GitHub pull request. To comment on a range of lines, provide both startLine and line. Side is 'RIGHT' for new code (default) or 'LEFT' for old code.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_add_inline_comment"}
     )
     public String addInlineReviewComment(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
@@ -558,7 +572,7 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             String repository,
             @MCPParam(name = "pullRequestId", description = "The pull request number", required = true, example = "74")
             String pullRequestId,
-            @MCPParam(name = "path", description = "The relative file path in the repository", required = true, example = "src/main/java/com/example/Foo.java")
+            @MCPParam(name = "path", description = "The relative file path in the repository", required = true, example = "src/main/java/com/example/Foo.java", aliases = {"filePath"})
             String filePath,
             @MCPParam(name = "line", description = "The line number in the file to comment on", required = true, example = "42")
             String line,
@@ -644,7 +658,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_resolve_pr_thread",
             description = "Resolve a review thread in a GitHub pull request. Requires the thread's GraphQL node ID, which can be obtained from github_get_pr_review_threads (the 'id' field of each thread).",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_resolve_pr_thread"}
     )
     public String resolveReviewThread(
             @MCPParam(name = "threadId", description = "The GraphQL node ID of the review thread to resolve (from github_get_pr_review_threads thread.id)", required = true, example = "PRRT_kwDOBQfyNc5A...")
@@ -880,7 +895,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_merge_pr",
             description = "Merge a GitHub pull request. Supports merge, squash, and rebase merge methods.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_merge_pr"}
     )
     public String mergePullRequest(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")
@@ -1004,7 +1020,8 @@ public abstract class GitHub extends AbstractRestClient implements SourceCode, U
             name = "github_get_pr_diff",
             description = "Get the diff statistics for a GitHub pull request (files changed, additions, deletions). Requires IS_READ_PULL_REQUEST_DIFF env/config to be enabled.",
             integration = "github",
-            category = "pull_requests"
+            category = "pull_requests",
+            aliases = {"source_code_get_pr_diff"}
     )
     public IDiffStats getPullRequestDiff(
             @MCPParam(name = "workspace", description = "The GitHub owner/organization name", required = true, example = "IstiN")

@@ -34,9 +34,26 @@ public class CliExecutionHelper {
     private static final String COMMENTS_FILE_NAME = "comments.md";
     private static final String RESPONSE_FILE_NAME = "response.md";
 
+    private static final String[] VIDEO_EXTENSIONS = {
+        ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".m4v", ".3gp", ".ogv", ".mpg", ".mpeg"
+    };
+
+    /**
+     * Returns true if the given filename has a video file extension.
+     */
+    public static boolean isVideoFile(String fileName) {
+        if (fileName == null) return false;
+        String lower = fileName.toLowerCase();
+        for (String ext : VIDEO_EXTENSIONS) {
+            if (lower.endsWith(ext)) return true;
+        }
+        return false;
+    }
+
     /**
      * Creates input context folder and files for CLI command execution.
-     * 
+     * All attachments (including videos) are downloaded so the CLI tool has full access.
+     *
      * @param ticket The ticket to create context for
      * @param inputParams The input parameters to save as request.md
      * @param trackerClient The tracker client for downloading attachments
@@ -83,7 +100,7 @@ public class CliExecutionHelper {
             }
         }
 
-        // Download all ticket attachments to the input folder
+        // Download all ticket attachments to the input folder (including videos)
         List<? extends IAttachment> attachments = ticket.getAttachments();
         logger.info("📎 Ticket {} has {} attachments", ticketKey, attachments != null ? attachments.size() : 0);
         

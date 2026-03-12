@@ -1,6 +1,9 @@
 package com.github.istin.dmtools.common.config;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -266,6 +269,35 @@ public class InMemoryConfiguration implements ApplicationConfiguration {
         }
     }
     
+    @Override
+    public long getAIAttachmentMaxSizeBytes() {
+        String value = getValue("AI_ATTACHMENT_MAX_SIZE_MB");
+        if (value == null || value.trim().isEmpty()) {
+            return 0;
+        }
+        try {
+            return Long.parseLong(value.trim()) * 1024 * 1024;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    @Override
+    public Set<String> getAIAttachmentAllowedExtensions() {
+        String value = getValue("AI_ATTACHMENT_ALLOWED_EXTENSIONS");
+        if (value == null || value.trim().isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<String> result = new HashSet<>();
+        for (String ext : value.split(",")) {
+            String trimmed = ext.trim().toLowerCase();
+            if (!trimmed.isEmpty()) {
+                result.add(trimmed);
+            }
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
     @Override
     public String getGeminiApiKey() {
         return getValue("GEMINI_API_KEY");

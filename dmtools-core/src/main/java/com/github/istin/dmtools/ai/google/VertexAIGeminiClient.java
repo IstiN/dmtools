@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.ai.google;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.AIFileFilter;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.model.Metadata;
@@ -504,7 +505,7 @@ public class VertexAIGeminiClient extends AbstractRestClient implements AI {
 
         // Add file parts
         if (files != null && !files.isEmpty()) {
-            for (File file : files) {
+            for (File file : new AIFileFilter().filter(files)) {
                 if (!file.exists() || !file.canRead()) {
                     logger.warn("Skipping file (does not exist or not readable): {}", file.getAbsolutePath());
                     continue;

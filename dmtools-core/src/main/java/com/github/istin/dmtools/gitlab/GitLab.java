@@ -92,7 +92,8 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_get_mr_comments",
         description = "Get all comments for a GitLab merge request, including both inline code review comments (DiffNote) and general discussion notes. Excludes system-generated notes.",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_get_pr_comments"}
     )
     @Override
     public List<IComment> pullRequestComments(
@@ -129,7 +130,8 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_get_mr_activities",
         description = "Get all activities for a GitLab merge request including approvals and general discussion notes.",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_get_pr_activities"}
     )
     @Override
     public List<IActivity> pullRequestActivities(
@@ -190,7 +192,8 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_add_mr_comment",
         description = "Add a general discussion comment to a GitLab merge request.",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_add_pr_comment"}
     )
     @Override
     public String addPullRequestComment(
@@ -451,7 +454,8 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_get_mr",
         description = "Get details of a specific GitLab merge request including title, description, state, author, diff_refs (base_sha, head_sha, start_sha needed for inline comments).",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_get_pr"}
     )
     public String getMRDetails(
             @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
@@ -466,12 +470,17 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_list_mrs",
         description = "List merge requests for a GitLab project. State can be 'opened', 'closed', 'merged', or 'all'.",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_list_prs"}
     )
     public String listMergeRequests(
             @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
             @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
-            @MCPParam(name = "state", description = "MR state: opened, closed, merged, all", required = true, example = "opened") String state) throws IOException {
+            @MCPParam(name = "state", description = "MR state: opened, closed, merged, all. 'open' is also accepted as a synonym for 'opened'.", required = true, example = "opened") String state) throws IOException {
+        // Normalize state synonyms: GitHub uses "open", GitLab uses "opened"
+        if ("open".equalsIgnoreCase(state)) {
+            state = "opened";
+        }
         List<IPullRequest> mrs = pullRequests(workspace, repository, state, false, null);
         JSONArray arr = new JSONArray();
         for (IPullRequest mr : mrs) {
@@ -484,7 +493,8 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_get_mr_discussions",
         description = "Get all discussion threads for a GitLab merge request. Each discussion contains notes (comments) and a resolved status. Use the discussion id with gitlab_resolve_mr_thread.",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_get_pr_discussions"}
     )
     public String getPRDiscussions(
             @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
@@ -500,13 +510,14 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_reply_to_mr_thread",
         description = "Reply to an existing discussion thread in a GitLab merge request. Use the discussion id from gitlab_get_mr_discussions.",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_reply_to_pr_thread"}
     )
     public String replyToPullRequestComment(
             @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
             @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
             @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId,
-            @MCPParam(name = "discussionId", description = "Discussion thread ID", required = true, example = "6a9c1750b37d57bba1079be3bbd13a...") String discussionId,
+            @MCPParam(name = "discussionId", description = "Discussion thread ID", required = true, example = "6a9c1750b37d57bba1079be3bbd13a...", aliases = {"threadId"}) String discussionId,
             @MCPParam(name = "text", description = "Reply text", required = true, example = "Addressed in latest commit") String text) throws IOException {
         String path = path(String.format("projects/%s/merge_requests/%s/discussions/%s/notes",
                 getEncodedProject(workspace, repository), pullRequestId, discussionId));
@@ -521,7 +532,8 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_add_inline_mr_comment",
         description = "Create a new inline code review comment on a specific file and line in a GitLab merge request. Requires base_sha, head_sha, start_sha from the MR diff refs (use gitlab_get_mr to get them from diff_refs).",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_add_inline_comment"}
     )
     public String addInlineReviewComment(
             @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
@@ -561,13 +573,14 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_resolve_mr_thread",
         description = "Resolve (close) a review discussion thread in a GitLab merge request. Use the discussion id from gitlab_get_mr_discussions.",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_resolve_pr_thread"}
     )
     public String resolveReviewThread(
             @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,
             @MCPParam(name = "repository", description = "Repository name", required = true, example = "myrepo") String repository,
             @MCPParam(name = "pullRequestId", description = "Merge request IID", required = true, example = "42") String pullRequestId,
-            @MCPParam(name = "discussionId", description = "Discussion thread ID to resolve", required = true, example = "6a9c1750b37d57bba1079be3bbd13a...") String discussionId) throws IOException {
+            @MCPParam(name = "discussionId", description = "Discussion thread ID to resolve", required = true, example = "6a9c1750b37d57bba1079be3bbd13a...", aliases = {"threadId"}) String discussionId) throws IOException {
         String path = path(String.format("projects/%s/merge_requests/%s/discussions/%s",
                 getEncodedProject(workspace, repository), pullRequestId, discussionId));
         GenericRequest putRequest = new GenericRequest(this, path);
@@ -598,7 +611,8 @@ public abstract class GitLab extends AbstractRestClient implements SourceCode {
         name = "gitlab_merge_mr",
         description = "Merge a GitLab merge request. Optionally provide a custom merge commit message.",
         integration = "gitlab",
-        category = "merge_requests"
+        category = "merge_requests",
+        aliases = {"source_code_merge_pr"}
     )
     public String mergeMergeRequest(
             @MCPParam(name = "workspace", description = "GitLab group or namespace", required = true, example = "mygroup") String workspace,

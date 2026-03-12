@@ -17,9 +17,16 @@ public class MCPToolDefinition {
     private final String methodName;
     private final String returnType;
     private final List<MCPParameterDefinition> parameters;
+    private final String[] toolAliases;
     
     public MCPToolDefinition(String name, String description, String integration, String category,
                            String className, String methodName, String returnType, List<MCPParameterDefinition> parameters) {
+        this(name, description, integration, category, className, methodName, returnType, parameters, new String[0]);
+    }
+
+    public MCPToolDefinition(String name, String description, String integration, String category,
+                           String className, String methodName, String returnType, List<MCPParameterDefinition> parameters,
+                           String[] toolAliases) {
         this.name = name;
         this.description = description;
         this.integration = integration;
@@ -28,6 +35,7 @@ public class MCPToolDefinition {
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameters = parameters;
+        this.toolAliases = toolAliases != null ? toolAliases : new String[0];
     }
     
     public String getName() {
@@ -60,6 +68,10 @@ public class MCPToolDefinition {
     
     public List<MCPParameterDefinition> getParameters() {
         return parameters;
+    }
+
+    public String[] getToolAliases() {
+        return toolAliases;
     }
     
     @Override

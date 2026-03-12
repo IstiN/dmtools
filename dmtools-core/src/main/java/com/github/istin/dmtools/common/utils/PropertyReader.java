@@ -8,9 +8,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Base64;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class PropertyReader {
@@ -739,6 +737,43 @@ public class PropertyReader {
 		} catch (NumberFormatException e) {
 			return DEFAULT_PROMPT_CHUNK_MAX_FILES;
 		}
+	}
+
+	/**
+	 * Returns the maximum attachment file size (in bytes) allowed for AI clients.
+	 * Read from {@code AI_ATTACHMENT_MAX_SIZE_MB}. Returns 0 (no limit) if not set.
+	 */
+	public long getAIAttachmentMaxSizeBytes() {
+		String value = getValue("AI_ATTACHMENT_MAX_SIZE_MB");
+		if (value == null || value.trim().isEmpty()) {
+			return 0;
+		}
+		try {
+			long mb = Long.parseLong(value.trim());
+			return mb * 1024 * 1024;
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
+
+	/**
+	 * Returns the set of allowed file extensions (lowercase, without dot) for AI client attachments.
+	 * Read from {@code AI_ATTACHMENT_ALLOWED_EXTENSIONS} as a comma-separated list.
+	 * Returns an empty set if not set (all extensions allowed).
+	 */
+	public Set<String> getAIAttachmentAllowedExtensions() {
+		String value = getValue("AI_ATTACHMENT_ALLOWED_EXTENSIONS");
+		if (value == null || value.trim().isEmpty()) {
+			return Collections.emptySet();
+		}
+		Set<String> result = new HashSet<>();
+		for (String ext : value.split(",")) {
+			String trimmed = ext.trim().toLowerCase();
+			if (!trimmed.isEmpty()) {
+				result.add(trimmed);
+			}
+		}
+		return Collections.unmodifiableSet(result);
 	}
 
 	// JSAIClient specific properties

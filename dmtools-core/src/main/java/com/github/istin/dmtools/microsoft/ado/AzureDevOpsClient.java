@@ -107,10 +107,11 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_get_work_item",
             description = "Get a specific Azure DevOps work item by ID with optional field filtering",
             integration = "ado",
-            category = "work_item_management"
+            category = "work_item_management",
+            aliases = {"tracker_get_ticket"}
     )
     public WorkItem performTicket(
-            @MCPParam(name = "id", description = "The work item ID (numeric)", required = true, example = "12345")
+            @MCPParam(name = "id", description = "The work item ID (numeric)", required = true, example = "12345", aliases = {"key"})
             String workItemId,
             @MCPParam(name = "fields", description = "Optional array of fields to include in the response", required = false)
             String[] fields
@@ -240,10 +241,11 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_search_by_wiql",
             description = "Search for work items using WIQL (Work Item Query Language)",
             integration = "ado",
-            category = "search"
+            category = "search",
+            aliases = {"tracker_search"}
     )
     public List<WorkItem> searchAndPerform(
-            @MCPParam(name = "wiql", description = "WIQL query string", required = true, example = "SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType] = 'Bug'")
+            @MCPParam(name = "wiql", description = "WIQL query string", required = true, example = "SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType] = 'Bug'", aliases = {"jql", "query"})
             String wiqlQuery,
             @MCPParam(name = "fields", description = "Optional array of fields to include", required = false)
             String[] fields
@@ -338,10 +340,11 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_get_comments",
             description = "Get all comments for a work item",
             integration = "ado",
-            category = "comment_management"
+            category = "comment_management",
+            aliases = {"tracker_get_comments"}
     )
     public List<? extends IComment> getComments(
-            @MCPParam(name = "id", description = "The work item ID", required = true)
+            @MCPParam(name = "id", description = "The work item ID", required = true, aliases = {"key"})
             String workItemId,
             ITicket ticket
     ) throws IOException {
@@ -368,10 +371,11 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_post_comment",
             description = "Post a comment to a work item",
             integration = "ado",
-            category = "comment_management"
+            category = "comment_management",
+            aliases = {"tracker_post_comment"}
     )
     public void postComment(
-            @MCPParam(name = "id", description = "The work item ID", required = true)
+            @MCPParam(name = "id", description = "The work item ID", required = true, aliases = {"key"})
             String workItemId,
             @MCPParam(name = "comment", description = "The comment text", required = true)
             String comment
@@ -415,12 +419,13 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_assign_work_item",
             description = "Assign a work item to a user",
             integration = "ado",
-            category = "work_item_management"
+            category = "work_item_management",
+            aliases = {"tracker_assign_ticket"}
     )
     public String assignTo(
-            @MCPParam(name = "id", description = "The work item ID", required = true)
+            @MCPParam(name = "id", description = "The work item ID", required = true, aliases = {"key"})
             String workItemId,
-            @MCPParam(name = "userEmail", description = "The user email or display name", required = true)
+            @MCPParam(name = "userEmail", description = "The user email or display name", required = true, aliases = {"accountId"})
             String userIdentity
     ) throws IOException {
         return updateWorkItem(workItemId, fields -> {
@@ -529,12 +534,13 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_move_to_state",
             description = "Move a work item to a specific state",
             integration = "ado",
-            category = "work_item_management"
+            category = "work_item_management",
+            aliases = {"tracker_move_to_status"}
     )
     public String moveToStatus(
-            @MCPParam(name = "id", description = "The work item ID", required = true)
+            @MCPParam(name = "id", description = "The work item ID", required = true, aliases = {"key"})
             String workItemId,
-            @MCPParam(name = "state", description = "The target state name", required = true, example = "Active")
+            @MCPParam(name = "state", description = "The target state name", required = true, example = "Active", aliases = {"statusName"})
             String stateName
     ) throws IOException {
         return updateWorkItem(workItemId, fields -> {
@@ -607,12 +613,13 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_link_work_items",
             description = "Link two work items with a relationship (e.g., Parent-Child, Related, Tested By)",
             integration = "ado",
-            category = "work_item_management"
+            category = "work_item_management",
+            aliases = {"tracker_link_tickets"}
     )
     public String linkIssueWithRelationship(
-            @MCPParam(name = "sourceId", description = "The source work item ID", required = true)
+            @MCPParam(name = "sourceId", description = "The source work item ID", required = true, aliases = {"sourceKey"})
             String sourceId,
-            @MCPParam(name = "targetId", description = "The target work item ID to link to", required = true)
+            @MCPParam(name = "targetId", description = "The target work item ID to link to", required = true, aliases = {"anotherKey"})
             String targetId,
             @MCPParam(name = "relationship", description = "Relationship type (e.g., 'parent', 'child', 'related', 'tested by', 'tests')", required = true, example = "parent")
             String relationship
@@ -706,14 +713,15 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_create_work_item",
             description = "Create a new work item in Azure DevOps",
             integration = "ado",
-            category = "work_item_management"
+            category = "work_item_management",
+            aliases = {"tracker_create_ticket"}
     )
     public String createWorkItemWithFieldsJson(
             @MCPParam(name = "project", description = "The project name", required = true)
             String projectName,
-            @MCPParam(name = "workItemType", description = "The work item type (Bug, Task, User Story, etc.)", required = true)
+            @MCPParam(name = "workItemType", description = "The work item type (Bug, Task, User Story, etc.)", required = true, aliases = {"issueType"})
             String workItemType,
-            @MCPParam(name = "title", description = "The work item title", required = true)
+            @MCPParam(name = "title", description = "The work item title", required = true, aliases = {"summary"})
             String title,
             @MCPParam(name = "description", description = "The work item description (HTML)", required = false)
             String description,
@@ -1029,7 +1037,8 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_download_attachment",
             description = "Download an ADO work item attachment by URL and save it as a file",
             integration = "ado",
-            category = "file_management"
+            category = "file_management",
+            aliases = {"tracker_download_attachment"}
     )
     public File convertUrlToFile(
             @MCPParam(name = "href", description = "The attachment URL to download", required = true)
@@ -1054,7 +1063,8 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_get_user_by_email",
             description = "Get user information by email address in Azure DevOps",
             integration = "ado",
-            category = "user_management"
+            category = "user_management",
+            aliases = {"tracker_get_user_by_email"}
     )
     public AdoUser getUserByEmail(
             @MCPParam(name = "email", description = "User email address", required = true)
@@ -1128,7 +1138,8 @@ public abstract class AzureDevOpsClient extends AbstractRestClient implements Tr
             name = "ado_get_my_profile",
             description = "Get the current user's profile information from Azure DevOps",
             integration = "ado",
-            category = "user_management"
+            category = "user_management",
+            aliases = {"tracker_get_my_profile"}
     )
     public IUser getMyProfile() throws IOException {
         // Use the Profile API endpoint which is at app.vssps.visualstudio.com (not dev.azure.com)

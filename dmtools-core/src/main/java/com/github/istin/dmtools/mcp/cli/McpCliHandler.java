@@ -24,6 +24,8 @@ import com.github.istin.dmtools.microsoft.teams.TeamsAuthTools;
 import com.github.istin.dmtools.microsoft.sharepoint.BasicSharePointClient;
 import com.github.istin.dmtools.mcp.generated.MCPSchemaGenerator;
 import com.github.istin.dmtools.mcp.generated.MCPToolExecutor;
+import com.github.istin.dmtools.mcp.generated.MCPToolRegistry;
+import com.github.istin.dmtools.mcp.MCPToolDefinition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -215,7 +217,8 @@ public class McpCliHandler {
         String toolName = null;
         try {
             toolName = args[1];
-            Map<String, Object> arguments = parseToolArguments(args);
+            toolName = resolveToolAlias(toolName);
+            Map<String, Object> arguments = parseToolArguments(args, toolName);
 
             logger.info("Executing MCP tool: {} with arguments: {}", toolName, arguments);
 
@@ -295,10 +298,10 @@ public class McpCliHandler {
      * - --data JSON_STRING
      * - --stdin-data JSON_STRING (for wrapper script)
      */
-    private Map<String, Object> parseToolArguments(String[] args) {
+    private Map<String, Object> parseToolArguments(String[] args, String resolvedToolName) {
         Map<String, Object> arguments = new HashMap<>();
         List<String> positionalArgs = new ArrayList<>();
-        String toolName = args[1];
+        String toolName = resolvedToolName;
 
         for (int i = 2; i < args.length; i++) {
             String arg = args[i];
@@ -607,6 +610,64 @@ public class McpCliHandler {
     }
     
     /**
+     * Resolves an abstract tool alias to the canonical tool name for the configured default integration.
+     *
+     * <p>If the given name is already a known tool, it is returned unchanged.
+     * If it matches an alias shared by multiple integrations (e.g. "source_code_list_prs"),
+     * the correct concrete tool is chosen via:
+     * <ul>
+     *   <li>{@code DEFAULT_SOURCE_CODE} env var for {@code source_code_*} aliases</li>
+     *   <li>{@code DEFAULT_TRACKER} env var for {@code tracker_*} aliases</li>
+     * </ul>
+     *
+     * @param toolName the raw tool name (may be an alias)
+     * @return the resolved canonical tool name, or the original if no alias matched
+     */
+    String resolveToolAlias(String toolName) {
+        if (toolName == null) {
+            return null;
+        }
+        // Already a direct tool — no resolution needed
+        if (MCPToolRegistry.hasTool(toolName)) {
+            return toolName;
+        }
+        List<MCPToolDefinition> candidates = MCPToolRegistry.getToolsByAlias(toolName);
+        if (candidates == null || candidates.isEmpty()) {
+            return toolName;
+        }
+        if (candidates.size() == 1) {
+            return candidates.get(0).getName();
+        }
+        // Multiple implementations — pick by configured default integration
+        String defaultIntegration = resolveDefaultIntegrationForAlias(toolName);
+        if (defaultIntegration != null) {
+            MCPToolDefinition matched = MCPToolRegistry.getToolByAliasAndIntegration(toolName, defaultIntegration);
+            if (matched != null) {
+                logger.info("Resolved alias '{}' -> '{}' via DEFAULT integration '{}'",
+                        toolName, matched.getName(), defaultIntegration);
+                return matched.getName();
+            }
+        }
+        // Fallback: first candidate
+        String resolved = candidates.get(0).getName();
+        logger.warn("No default integration configured for alias '{}'. Falling back to first candidate: '{}'",
+                toolName, resolved);
+        return resolved;
+    }
+
+    private String resolveDefaultIntegrationForAlias(String alias) {
+        if (alias.startsWith("source_code_")) {
+            String val = System.getenv("DEFAULT_SOURCE_CODE");
+            return val != null ? val.trim().toLowerCase() : null;
+        }
+        if (alias.startsWith("tracker_")) {
+            String val = System.getenv("DEFAULT_TRACKER");
+            return val != null ? val.trim().toLowerCase() : null;
+        }
+        return null;
+    }
+
+    /**
      * Gets the appropriate AI client for a given tool name.
      * Returns the client that matches the tool's expected type.
      */
@@ -664,7 +725,8 @@ public class McpCliHandler {
         // Non-AI tools don't need an AI client
         Set<String> nonAIIntegrations = Set.of(
             "jira", "confluence", "ado", "figma", "file", "cli",
-            "teams", "sharepoint", "testrail", "kb", "mermaid", "github"
+            "teams", "sharepoint", "testrail", "kb", "mermaid", "github",
+            "gitlab", "source", "tracker"
         );
         if (parts.length > 0 && nonAIIntegrations.contains(parts[0])) {
             return null;

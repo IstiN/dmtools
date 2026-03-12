@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.ai.bedrock;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.AIFileFilter;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.model.Metadata;
@@ -247,6 +248,10 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
     public String chat(String model, String message, File imageFile) throws Exception {
         if (model == null) {
             model = this.modelId;
+        }
+        // Apply attachment filter: skip file if it exceeds size limit or fails extension check
+        if (imageFile != null && !new AIFileFilter().shouldInclude(imageFile)) {
+            imageFile = null;
         }
         logger.info("-------- message to ai --------");
         logger.info(message);
@@ -931,6 +936,11 @@ public class BedrockAIClient extends AbstractRestClient implements AI {
     @Override
     public String chat(String model, String message, List<File> files) throws Exception {
         if (files == null || files.isEmpty()) {
+            return chat(model, message, (File) null);
+        }
+        // Apply attachment filter before forwarding to AI
+        files = new AIFileFilter().filter(files);
+        if (files.isEmpty()) {
             return chat(model, message, (File) null);
         }
         

@@ -2,6 +2,10 @@
 
 This is the complete list of available MCP tools, generated directly from the running DMtools instance.
 
+> **Cross-integration aliases**: DMtools supports generic `source_code_*` and `tracker_*` aliases that
+> route to the correct platform (GitHub/GitLab or Jira/ADO) based on the `DEFAULT_SOURCE_CODE` and
+> `DEFAULT_TRACKER` environment variables. See [default-integrations.md](default-integrations.md) for details.
+
 ## How to Use
 
 ### From Command Line

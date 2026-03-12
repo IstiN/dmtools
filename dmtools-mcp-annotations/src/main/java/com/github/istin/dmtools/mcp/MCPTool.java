@@ -43,4 +43,14 @@ public @interface MCPTool {
      * @return the tool category
      */
     String category() default "";
+
+    /**
+     * Alternative names (aliases) for this tool to support cross-integration abstraction.
+     * Multiple tools from different integrations can share the same alias (e.g.,
+     * "source_code_list_prs" for both github_list_prs and gitlab_list_mrs).
+     * The active implementation is selected via DEFAULT_SOURCE_CODE or DEFAULT_TRACKER env vars.
+     *
+     * @return array of alias names
+     */
+    String[] aliases() default {};
 } 

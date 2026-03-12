@@ -522,5 +522,15 @@ public class PropertyReaderConfiguration implements ApplicationConfiguration {
     public String getDefaultTracker() {
         return propertyReader.getDefaultTracker();
     }
+
+    @Override
+    public long getAIAttachmentMaxSizeBytes() {
+        return propertyReader.getAIAttachmentMaxSizeBytes();
+    }
+
+    @Override
+    public java.util.Set<String> getAIAttachmentAllowedExtensions() {
+        return propertyReader.getAIAttachmentAllowedExtensions();
+    }
     
 }

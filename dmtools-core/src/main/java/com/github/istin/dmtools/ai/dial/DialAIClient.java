@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.ai.dial;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.AIFileFilter;
 import com.github.istin.dmtools.ai.ConversationObserver;
 import com.github.istin.dmtools.ai.Message;
 import com.github.istin.dmtools.ai.model.Metadata;
@@ -159,6 +160,10 @@ public class DialAIClient extends AbstractRestClient implements AI {
     public String chat(String executionModel, String message, File imageFile, JSONObject agentContext) throws Exception {
         if (executionModel == null) {
             executionModel = this.model;
+        }
+        // Apply attachment filter: skip file if it exceeds size limit or fails extension check
+        if (imageFile != null && !new AIFileFilter().shouldInclude(imageFile)) {
+            imageFile = null;
         }
         logger.info("-------- message to ai --------");
         logger.info(message);

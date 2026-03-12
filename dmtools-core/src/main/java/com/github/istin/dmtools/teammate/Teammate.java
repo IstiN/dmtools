@@ -82,6 +82,9 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         @SerializedName("preCliJSAction")
         private String preCliJSAction;
 
+        @SerializedName("skipVideoAttachments")
+        private boolean skipVideoAttachments = false;
+
     }
 
     /**
@@ -321,6 +324,17 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
             ticketContext.prepareContext(true, false);
             // Get attachments and convert to text
             List<? extends IAttachment> attachments = ticket.getAttachments();
+            if (expertParams.isSkipVideoAttachments() && attachments != null) {
+                List<IAttachment> filtered = new ArrayList<>();
+                for (IAttachment a : attachments) {
+                    if (a != null && CliExecutionHelper.isVideoFile(a.getName())) {
+                        logger.info("⏭️ Skipping video attachment (skipVideoAttachments=true): {}", a.getName());
+                    } else {
+                        filtered.add(a);
+                    }
+                }
+                attachments = filtered;
+            }
             // Process content with ContextOrchestrator
             //contextOrchestrator.processFullContent(ticket.getKey(), ticketText, (UriToObject) trackerClient, uriProcessingSources, expertParams.getTicketContextDepth());
             

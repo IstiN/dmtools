@@ -10,5 +10,6 @@ public interface AIConfiguration extends
         OllamaConfiguration,
         PromptConfiguration,
         AIRetryConfiguration,
-        AIModelConfiguration {
+        AIModelConfiguration,
+        AIAttachmentConfiguration {
 } 

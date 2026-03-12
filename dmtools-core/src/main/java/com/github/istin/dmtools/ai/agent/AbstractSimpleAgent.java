@@ -1,6 +1,7 @@
 package com.github.istin.dmtools.ai.agent;
 
 import com.github.istin.dmtools.ai.AI;
+import com.github.istin.dmtools.ai.AIFileFilter;
 import com.github.istin.dmtools.ai.ChunkPreparation;
 import com.github.istin.dmtools.ai.params.JSONFixParams;
 import com.github.istin.dmtools.prompt.IPromptTemplateReader;
@@ -75,6 +76,8 @@ public abstract class AbstractSimpleAgent<Params, Result> implements IAgent<Para
                 files.addAll(fileList);
             }
         }
+        // Apply size/extension filter before sending files to any AI client
+        files = new AIFileFilter().filter(files);
         
         List<ChunkPreparation.Chunk> chunks = new ArrayList<>();
         long chunksProcessingTimeout = 0;

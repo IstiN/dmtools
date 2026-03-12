@@ -234,7 +234,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_get_account_by_email",
             description = "Gets account details by email",
             integration = "jira",
-            category = "information"
+            category = "information",
+            aliases = {"tracker_get_user_by_email"}
     )
     public Assignee getAccountByEmail(
             @MCPParam(name = "email", description = "The Jira Email", required = true, example = "email@email.com")
@@ -254,7 +255,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_assign_ticket_to",
             description = "Assigns a Jira ticket to user",
             integration = "jira",
-            category = "ticket_management"
+            category = "ticket_management",
+            aliases = {"tracker_assign_ticket"}
     )
     public String assignTo(
             @MCPParam(name = "key", description = "The Jira ticket key to assign", required = true, example = "PRJ-123")
@@ -441,10 +443,11 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_search_by_jql",
             description = "Search for Jira tickets using JQL and returns all results",
             integration = "jira",
-            category = "search"
+            category = "search",
+            aliases = {"tracker_search"}
     )
     public List<T> searchAndPerform(
-            @MCPParam(name = "jql", description = "JQL query string to search tickets", required = true, example = "project = DEMO AND status = Open", aliases = {"searchQueryJQL"})
+            @MCPParam(name = "jql", description = "JQL query string to search tickets", required = true, example = "project = DEMO AND status = Open", aliases = {"searchQueryJQL", "query"})
             String jql,
             @MCPParam(name = "fields", description = "Optional array of field names to include in response", required = false, example = "[\"summary\", \"status\", \"assignee\"]")
             String[] fields
@@ -718,7 +721,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_get_my_profile",
             description = "Get the current user's profile information from Jira",
             integration = "jira",
-            category = "user_management"
+            category = "user_management",
+            aliases = {"tracker_get_my_profile"}
     )
     public IUser performMyProfile() throws IOException {
         return new Assignee(new GenericRequest(this, path("myself")).execute());
@@ -741,7 +745,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_get_ticket",
             description = "Get a specific Jira ticket by key with optional field filtering",
             integration = "jira",
-            category = "ticket_management"
+            category = "ticket_management",
+            aliases = {"tracker_get_ticket"}
     )
     public T performTicket(@MCPParam(name = "key", description = "The Jira ticket key to retrieve", required = true) String ticketKey, 
                           @MCPParam(name = "fields", description = "Optional array of fields to include in the response", required = false) String[] fields) throws IOException {
@@ -900,7 +905,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_get_comments",
             description = "Get all comments for a specific Jira ticket",
             integration = "jira",
-            category = "comment_management"
+            category = "comment_management",
+            aliases = {"tracker_get_comments"}
     )
     public List<? extends IComment> getComments(@MCPParam(name = "key", description = "The Jira ticket key to get comments for", required = true) String key, 
                                                @MCPParam(name = "ticket", description = "Optional ticket object for cache validation", required = false) ITicket ticket) throws IOException {
@@ -938,7 +944,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_post_comment",
             description = "Post a comment to a Jira ticket. Supports Jira markup syntax: h2. for headings, *text* for bold, {code}text{code} for inline code, * for bullet lists",
             integration = "jira",
-            category = "comment_management"
+            category = "comment_management",
+            aliases = {"tracker_post_comment"}
     )
     public void postComment(@MCPParam(name = "key", description = "The Jira ticket key to post comment to", required = true) String ticketKey, 
                           @MCPParam(name = "comment", description = "The comment text to post (supports Jira markup: h2. headings, *bold*, {code}code{code}, * lists)", required = true) String comment) throws IOException {
@@ -1159,7 +1166,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_create_ticket_basic",
             description = "Create a new Jira ticket with basic fields (project, issue type, summary, description)",
             integration = "jira",
-            category = "ticket_management"
+            category = "ticket_management",
+            aliases = {"tracker_create_ticket"}
     )
     public String createTicketInProjectMcp(@MCPParam(name = "project", description = "The Jira project key to create the ticket in (e.g., PROJ)", required = true) String project,
                                          @MCPParam(name = "issueType", description = "The type of issue to create (e.g., Bug, Story, Task)", required = true) String issueType,
@@ -2703,7 +2711,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_move_to_status",
             description = "Move a Jira ticket to a specific status (workflow, transition)",
             integration = "jira",
-            category = "ticket_management"
+            category = "ticket_management",
+            aliases = {"tracker_move_to_status"}
     )
     public String moveToStatus(@MCPParam(name = "key", description = "The Jira ticket key to move", required = true) String ticketKey, 
                              @MCPParam(name = "statusName", description = "The target status name", required = true) String statusName) throws IOException {
@@ -3032,7 +3041,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_download_attachment",
             description = "Download a Jira attachment by URL and save it as a file",
             integration = "jira",
-            category = "file_management"
+            category = "file_management",
+            aliases = {"tracker_download_attachment"}
     )
     public File convertUrlToFile(@MCPParam(name = "href", description = "The attachment URL to download", required = true) String href) throws IOException {
         File targetFile = getCachedFile(href);
@@ -3343,7 +3353,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             name = "jira_link_issues",
             description = "Link two Jira issues with a specific relationship type",
             integration = "jira",
-            category = "ticket_management"
+            category = "ticket_management",
+            aliases = {"tracker_link_tickets"}
     )
     public String linkIssueWithRelationship(@MCPParam(name = "sourceKey", description = "The source issue key", required = true) String sourceKey, 
                                           @MCPParam(name = "anotherKey", description = "The target issue key", required = true) String anotherKey, 
