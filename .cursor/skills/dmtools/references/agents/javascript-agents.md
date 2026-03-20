@@ -512,73 +512,187 @@ function action(params) {
 }
 ```
 
-## 🔧 Debugging Agents
+## 🔧 Testing and Debugging Agents
+
+### The Recommended Approach: JSRunner
+
+**JSRunner is the primary way to test JS agents** — it runs the script inside the real GraalJS environment with live MCP tools, real Jira/Confluence connections, and the exact same `params` structure your agent will receive in production.
+
+```bash
+# Run agent with no params (useful for scripts that read their own config)
+dmtools run agents/js/myScript.js
+
+# Run with inline JSON params — becomes params.jobParams inside JS
+dmtools run agents/js/myScript.js '{"ticketKey": "PROJ-123", "dryRun": true}'
+
+# Run with params from a file (useful for complex inputs)
+dmtools run agents/js/myScript.js "$(cat agents/js/test-params.json)"
+```
+
+**How params are mapped**: the JSON object you pass becomes `params.jobParams` inside the agent:
+
+```javascript
+// dmtools run agents/js/myScript.js '{"ticketKey":"PROJ-123","dryRun":true}'
+
+function action(params) {
+    const key    = params.jobParams.ticketKey;  // "PROJ-123"
+    const dryRun = params.jobParams.dryRun;     // true
+    // params.ticket   → null (no ticket context when running via JSRunner)
+    // params.response → null (no AI response)
+}
+```
+
+#### Simulating a postprocess action (with ticket + AI response)
+
+Use the full JSON config form when you need to pass `ticket` or `response`:
+
+```json
+// agents/test/test-postprocess.json
+{
+  "name": "JSRunner",
+  "params": {
+    "jsPath": "agents/js/myPostAction.js",
+    "jobParams": { "dryRun": true },
+    "ticket": { "key": "PROJ-123", "fields": { "summary": "My story" } },
+    "response": "[{\"summary\":\"Test case 1\",\"priority\":\"High\"}]"
+  }
+}
+```
+
+```bash
+dmtools run agents/test/test-postprocess.json
+```
+
+#### Dry-run pattern
+
+Add a `dryRun` guard in your agent to test logic without side effects:
+
+```javascript
+function action(params) {
+    const dryRun = params.jobParams?.dryRun || false;
+
+    const ticket = jira_get_ticket("PROJ-123");
+    const comment = "Processing complete ✅";
+
+    if (dryRun) {
+        console.log("[DRY RUN] Would post comment:", comment);
+        console.log("[DRY RUN] Ticket:", JSON.stringify(ticket, null, 2));
+        return { dryRun: true, wouldPost: comment };
+    }
+
+    jira_post_comment(ticket.key, comment);
+    return { success: true };
+}
+```
+
+```bash
+# Safe to run — makes no writes
+dmtools run agents/js/myScript.js '{"dryRun": true}'
+
+# Real run
+dmtools run agents/js/myScript.js '{}'
+```
+
+---
 
 ### Console Output
 
+`console.log/warn/error` output appears directly in the DMtools terminal — no special setup needed:
+
 ```javascript
 function action(params) {
-    // Use console for debugging
-    console.log("Starting agent with params:", JSON.stringify(params));
+    console.log("Starting with:", JSON.stringify(params.jobParams));
 
-    const result = someOperation();
-    console.log("Operation result:", result);
+    const ticket = jira_get_ticket("PROJ-123");
+    console.log("Ticket summary:", ticket.fields.summary);
 
-    // Console output appears in DMtools logs
+    console.warn("Watch out for this edge case");
     console.error("This is an error message");
-    console.warn("This is a warning");
 
-    return result;
+    return { done: true };
 }
 ```
 
-### Debug Mode
+### Debug Mode (opt-in verbose output)
+
+Use a `debug` param flag to enable verbose output without cluttering production logs:
 
 ```javascript
 function action(params) {
-    const debug = params.debug || false;
+    const debug = params.jobParams?.debug || false;
 
     if (debug) {
-        console.log("=== DEBUG MODE ===");
-        console.log("Params:", JSON.stringify(params, null, 2));
-        console.log("Environment:", {
-            cwd: process.cwd(),
-            timestamp: new Date().toISOString()
-        });
+        console.log("=== DEBUG: params ===");
+        console.log(JSON.stringify(params, null, 2));
     }
 
-    // Your logic here
+    const tickets = jira_search_by_jql("project = PROJ AND status = Open");
 
     if (debug) {
-        console.log("=== EXECUTION COMPLETE ===");
+        console.log("=== DEBUG: found", tickets.length, "tickets ===");
+        tickets.forEach(t => console.log(" -", t.key, t.fields.summary));
     }
+
+    // ... rest of logic
 }
 ```
-
-### Test Locally
 
 ```bash
-# Create test file
+# Verbose run
+dmtools run agents/js/myScript.js '{"debug": true}'
+
+# Normal run
+dmtools run agents/js/myScript.js '{}'
+```
+
+### Test Locally with Node.js (no DMtools needed)
+
+Useful for unit-testing pure logic (transforms, JSON manipulation) without any API calls:
+
+```bash
 cat > test_agent.js << 'EOF'
-// Mock MCP functions for local testing
+// Stub MCP functions — return fixture data, no real API calls
 function jira_get_ticket(key) {
-    return { key: key, fields: { summary: "Test" } };
+    return { key: key, fields: { summary: "My Story", labels: [], priority: { name: "High" } } };
+}
+function jira_post_comment(key, text) {
+    console.log("[STUB] jira_post_comment(", key, ",", text, ")");
+}
+function jira_update_labels(key, labels) {
+    console.log("[STUB] jira_update_labels(", key, ",", labels, ")");
 }
 
-// Your agent code
+// Paste your agent function here (or require it if using Node modules)
 function action(params) {
     const ticket = jira_get_ticket(params.ticketKey);
-    return { success: true, ticket: ticket };
+    if (ticket.fields.priority.name === "High") {
+        jira_update_labels(ticket.key, "urgent");
+        jira_post_comment(ticket.key, "Marked urgent");
+    }
+    return { success: true, key: ticket.key };
 }
 
-// Test execution
+// Run it
 const result = action({ ticketKey: "PROJ-123" });
-console.log(result);
+console.log("Result:", JSON.stringify(result, null, 2));
 EOF
 
-# Run with Node.js
 node test_agent.js
 ```
+
+> ⚠️ Node.js runs a different engine than GraalJS. This is only suitable for testing **pure business logic**. For MCP tool calls and real integrations, always use JSRunner (`dmtools run`).
+
+---
+
+### Choosing the Right Testing Approach
+
+| Situation | Recommended approach |
+|-----------|----------------------|
+| Testing logic with real Jira/Confluence data | `dmtools run agents/js/myScript.js '{"ticketKey":"PROJ-123"}'` |
+| Testing a post-action with ticket + AI response | Full JSRunner JSON config with `ticket` and `response` fields |
+| Safe end-to-end test without side effects | Add `dryRun: true` param + guard in agent |
+| Testing pure JS logic (no API calls) | `node test_agent.js` with stubbed MCP functions |
+| Debugging unexpected behaviour | Add `console.log` + run with `debug: true` param |
 
 ## 🚀 Performance Tips
 

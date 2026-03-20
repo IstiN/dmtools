@@ -1,3 +1,16 @@
+## [skill-v1.0.26] - 2026-03-20
+
+### Documentation
+
+- **Expanded JS agent testing guide** — rewrote "Debugging Agents" section in `javascript-agents.md` into a comprehensive "Testing and Debugging Agents" section
+  - **JSRunner as the primary testing tool**: `dmtools run agents/js/script.js '{"ticketKey":"PROJ-123"}'` runs inside real GraalJS with live MCP tools
+  - **Simulating post-actions**: full JSON config form with `ticket` + `response` fields to replicate `postJSAction` context
+  - **Dry-run pattern**: `dryRun: true` param guard to test end-to-end without side effects
+  - **Debug mode**: opt-in `debug: true` param for verbose output without polluting production logs
+  - **Node.js unit testing**: stubbing MCP functions for pure logic testing (with GraalJS caveat warning)
+  - **Decision table**: which approach to use for each testing scenario
+- **Expanded JSRunner section** in `jobs/README.md` with link to the new testing guide and example for testing post-actions with ticket + AI response context
+
 ## [skill-v1.0.25] - 2026-03-20
 
 ### Added

@@ -921,11 +921,32 @@ function action(params) {
 - Base64 or URL-encoded JSON — decoded automatically via `EncodingDetector`.
 - Omitted or blank — `jobParams` defaults to `{}`.
 
+**Testing a post-action with ticket + AI response context**:
+
+When you need to simulate a `postJSAction` that receives `params.ticket` and `params.response`, use the full JSON config form instead of the shorthand:
+
+```json
+{
+  "name": "JSRunner",
+  "params": {
+    "jsPath": "agents/js/myPostAction.js",
+    "jobParams": { "dryRun": true },
+    "ticket": { "key": "PROJ-123", "fields": { "summary": "My story" } },
+    "response": "[{\"summary\":\"Test case 1\",\"priority\":\"High\"}]"
+  }
+}
+```
+```bash
+dmtools run agents/test/test-postprocess.json
+```
+
 **Use cases**:
 - Rapid testing of a JS agent without creating a config file
 - CI/CD pipelines with dynamic parameters via shell variables
 - Running pre/post actions in isolation to debug them
 - One-off data transformations using MCP tools
+
+→ **See also**: [JS Agent Testing Guide](../agents/javascript-agents.md#-testing-and-debugging-agents) for dry-run patterns, debug mode, and Node.js unit testing.
 
 ---
 
