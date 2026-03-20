@@ -65,8 +65,12 @@ public class TicketFieldsTokensRetainedRule implements TrackerRule<ITicket> {
         }
 
         ITicket resolvedTicket = ticket;
+        List<String> preFetchedFields = getRequiredExtraFields();
         boolean needExtended = false;
         for (String field : filterFields) {
+            if (preFetchedFields.stream().anyMatch(f -> f.equalsIgnoreCase(field))) {
+                continue;
+            }
             String initialValue = getFieldValue(ticket, field);
             if (initialValue == null || initialValue.trim().isEmpty()) {
                 needExtended = true;
@@ -157,6 +161,15 @@ public class TicketFieldsTokensRetainedRule implements TrackerRule<ITicket> {
         }
 
         return result;
+    }
+
+    @Override
+    public List<String> getRequiredExtraFields() {
+        List<String> fields = new ArrayList<>(Arrays.asList("changelog"));
+        if (filterFields != null) {
+            fields.addAll(Arrays.asList(filterFields));
+        }
+        return fields;
     }
 
     private String getFieldValue(ITicket ticket, String field) {

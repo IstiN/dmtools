@@ -286,7 +286,28 @@ public class MetricFactory {
         double weightMultiplier = parseDivider(params.get("weightMultiplier"));
         String defaultWho = (String) params.getOrDefault("defaultWho", null);
         String dateFormat = (String) params.getOrDefault("dateFormat", null);
-        return new CsvMetricSource(employees, filePath, whoColumn, whenColumn, weightColumn, weightMultiplier, defaultWho, dateFormat);
+
+        String filterColumn = (String) params.getOrDefault("filterColumn", null);
+        List<String> filterValues = parseFilterValues(params.get("filterValue"), params.get("filterValues"));
+
+        return new CsvMetricSource(employees, filePath, whoColumn, whenColumn, weightColumn, weightMultiplier, defaultWho, dateFormat, filterColumn, filterValues);
+    }
+
+    private List<String> parseFilterValues(Object single, Object multi) {
+        List<String> result = new ArrayList<>();
+        if (multi instanceof List) {
+            for (Object v : (List<?>) multi) {
+                if (v != null && !v.toString().trim().isEmpty()) result.add(v.toString().trim());
+            }
+        } else if (multi instanceof String) {
+            String s = ((String) multi).trim();
+            if (!s.isEmpty()) result.add(s);
+        }
+        if (single instanceof String) {
+            String s = ((String) single).trim();
+            if (!s.isEmpty() && !result.contains(s)) result.add(s);
+        }
+        return result.isEmpty() ? null : result;
     }
 
     private Calendar parseDateParam(Object dateParam) {

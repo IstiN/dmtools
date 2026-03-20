@@ -193,11 +193,24 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
         return getCasesByProjectId(projectId, null, null, labelId);
     }
 
+    /** ID-based variant — bypasses project name resolution. */
+    List<TestCase> getAllCasesByProjectId(int projectId) throws Exception {
+        log("Retrieving all test cases for project ID: " + projectId);
+        return getCasesByProjectId(projectId, null, null, null);
+    }
+
+    /** ID-based variant — bypasses project name resolution. */
+    List<TestCase> getCasesByLabelByProjectId(int projectId, String labelName) throws Exception {
+        String labelId = resolveLabelIdsByProjectId(projectId, new String[]{labelName});
+        log("Retrieving test cases with label '" + labelName + "' for project ID: " + projectId);
+        return getCasesByProjectId(projectId, null, null, labelId);
+    }
+
     /**
      * Get test cases by project ID with optional filters.
      * TestRail API endpoint: GET /get_cases/:project_id
      */
-    private List<TestCase> getCasesByProjectId(int projectId, String suiteId, String sectionId, String labelId) throws Exception {
+    List<TestCase> getCasesByProjectId(int projectId, String suiteId, String sectionId, String labelId) throws Exception {
         List<TestCase> results = new ArrayList<>();
         int offset = 0;
         int limit = 250; // TestRail max per request
@@ -295,6 +308,41 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
         return results;
     }
 
+    /** ID-based variant of {@link #getCasesByRefs} — bypasses project name resolution. */
+    List<TestCase> getCasesByRefsByProjectId(String refs, int projectId) throws Exception {
+        List<TestCase> results = new ArrayList<>();
+        int offset = 0;
+        int limit = 250;
+        boolean hasMore = true;
+
+        while (hasMore) {
+            String url = "/get_cases/" + projectId + "&refs=" + URLEncoder.encode(refs, StandardCharsets.UTF_8)
+                    + "&limit=" + limit + "&offset=" + offset;
+
+            GenericRequest request = new GenericRequest(this, path(url));
+            String response = request.execute();
+
+            JSONObject responseObj = new JSONObject(response);
+            JSONArray cases = responseObj.optJSONArray("cases");
+
+            if (cases == null || cases.length() == 0) {
+                hasMore = false;
+                break;
+            }
+
+            for (int i = 0; i < cases.length(); i++) {
+                results.add(new TestCase(basePath, cases.getJSONObject(i)));
+            }
+
+            int size = responseObj.optInt("size", 0);
+            hasMore = size == limit;
+            offset += limit;
+        }
+
+        log("Found " + results.size() + " test cases with refs: " + refs + " in project ID: " + projectId);
+        return results;
+    }
+
     @MCPTool(
             name = "testrail_create_case",
             description = "Create a new test case in TestRail",
@@ -358,7 +406,13 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             @MCPParam(name = "label_ids", description = "Comma-separated label IDs (optional). Use testrail_get_labels to find IDs.", required = false, example = "7,8")
             String labelIds
     ) throws IOException {
-        int projectId = getProjectId(projectName);
+        return createCaseDetailedByProjectId(getProjectId(projectName), title, preconditions, steps, expected, priorityId, typeId, refs, labelIds);
+    }
+
+    /** ID-based variant of {@link #createCaseDetailed} — bypasses project name resolution. */
+    String createCaseDetailedByProjectId(int projectId, String title, String preconditions,
+            String steps, String expected, String priorityId, String typeId,
+            String refs, String labelIds) throws IOException {
         int sectionId = getDefaultSectionId(projectId);
 
         JSONObject caseData = new JSONObject();
@@ -459,7 +513,13 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             @MCPParam(name = "label_ids", description = "Comma-separated label IDs (optional). Use testrail_get_labels to find IDs.", required = false, example = "7,8")
             String labelIds
     ) throws IOException {
-        int projectId = getProjectId(projectName);
+        return createCaseStepsByProjectId(getProjectId(projectName), title, preconditions, stepsJson, priorityId, typeId, refs, labelIds);
+    }
+
+    /** ID-based variant of {@link #createCaseSteps} — bypasses project name resolution. */
+    String createCaseStepsByProjectId(int projectId, String title, String preconditions,
+            String stepsJson, String priorityId, String typeId,
+            String refs, String labelIds) throws IOException {
         int sectionId = getDefaultSectionId(projectId);
 
         JSONObject caseData = new JSONObject();
@@ -628,7 +688,11 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             @MCPParam(name = "project_name", description = "Project name", required = true, example = "My Project")
             String projectName
     ) throws IOException {
-        int projectId = getProjectId(projectName);
+        return getLabelsById(getProjectId(projectName));
+    }
+
+    /** ID-based variant — bypasses project name resolution. */
+    String getLabelsById(int projectId) throws IOException {
         List<JSONObject> allLabels = new ArrayList<>();
         int offset = 0;
         int limit = 250;
@@ -660,7 +724,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
         for (JSONObject label : allLabels) {
             result.put(label);
         }
-        log("Retrieved " + allLabels.size() + " labels for project " + projectName);
+        log("Retrieved " + allLabels.size() + " labels for project ID " + projectId);
         return result.toString(2);
     }
 
@@ -744,7 +808,12 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
      * Example: ["ai_generated", "Login"] -> "12,7"
      */
     public String resolveLabelIdsByNames(String projectName, String[] labelNames) throws IOException {
-        String response = getLabels(projectName);
+        return resolveLabelIdsByProjectId(getProjectId(projectName), labelNames);
+    }
+
+    /** ID-based variant — bypasses project name resolution. */
+    String resolveLabelIdsByProjectId(int projectId, String[] labelNames) throws IOException {
+        String response = getLabelsById(projectId);
         JSONArray labels = new JSONArray(response);
         List<String> ids = new ArrayList<>();
         for (String name : labelNames) {
@@ -758,7 +827,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             }
         }
         if (ids.isEmpty()) {
-            throw new IOException("No labels found for names: " + String.join(", ", labelNames) + " in project: " + projectName);
+            throw new IOException("No labels found for names: " + String.join(", ", labelNames) + " in project ID: " + projectId);
         }
         return String.join(",", ids);
     }
@@ -1105,25 +1174,38 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             return projectIdCache.get(projectName);
         }
 
-        GenericRequest request = new GenericRequest(this, path("/get_projects"));
-        String response = request.execute();
+        int offset = 0;
+        int limit = 250;
+        boolean hasMore = true;
 
-        // Parse response object which contains "projects" array
-        JSONObject responseObj = new JSONObject(response);
-        JSONArray projects = responseObj.getJSONArray("projects");
+        while (hasMore) {
+            String url = "/get_projects&limit=" + limit + "&offset=" + offset;
+            GenericRequest request = new GenericRequest(this, path(url));
+            String response = request.execute();
 
-        for (int i = 0; i < projects.length(); i++) {
-            JSONObject project = projects.getJSONObject(i);
-            String name = project.getString("name");
-            int id = project.getInt("id");
+            JSONObject responseObj = new JSONObject(response);
+            JSONArray projects = responseObj.optJSONArray("projects");
 
-            // Cache all projects we've seen
-            projectIdCache.put(name, id);
-
-            if (projectName.equals(name)) {
-                log("Resolved project '" + projectName + "' to ID " + id);
-                return id;
+            if (projects == null || projects.length() == 0) {
+                break;
             }
+
+            for (int i = 0; i < projects.length(); i++) {
+                JSONObject project = projects.getJSONObject(i);
+                String name = project.getString("name");
+                int id = project.getInt("id");
+
+                projectIdCache.put(name, id);
+
+                if (projectName.equals(name)) {
+                    log("Resolved project '" + projectName + "' to ID " + id);
+                    return id;
+                }
+            }
+
+            int size = responseObj.optInt("size", 0);
+            hasMore = size == limit;
+            offset += limit;
         }
 
         throw new IOException("Project not found: " + projectName);
@@ -1132,7 +1214,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
     /**
      * Get default section ID for a project (creates "Test Cases" section if needed).
      */
-    private int getDefaultSectionId(int projectId) throws IOException {
+    int getDefaultSectionId(int projectId) throws IOException {
         if (defaultSectionCache.containsKey(projectId)) {
             return defaultSectionCache.get(projectId);
         }

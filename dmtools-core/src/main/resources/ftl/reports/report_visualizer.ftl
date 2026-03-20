@@ -332,10 +332,17 @@
                 <div class="chart-title">
                     Contributors Radar
                     <span class="hint">Comparison across selected filters</span>
+                    <span style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+                        <span style="font-size:0.75em;color:var(--text3);">Mode:</span>
+                        <button id="radarModeSliding" onclick="setRadarAnimMode(false)" style="padding:2px 9px;font-size:0.75em;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text1);cursor:pointer;font-weight:700;">Sliding</button>
+                        <button id="radarModeCumulative" onclick="setRadarAnimMode(true)" style="padding:2px 9px;font-size:0.75em;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text1);cursor:pointer;font-weight:400;">Cumulative</button>
+                        <button id="radarAnimateBtn" onclick="toggleRadarAnimation()" style="padding:3px 12px;font-size:0.78em;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text1);cursor:pointer;">▶ Animate Timeline</button>
+                    </span>
                 </div>
                 <div id="radarLegend" style="padding:6px 18px 2px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border)">
                     <span style="font-size:0.72em;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Contributors:</span>
                 </div>
+                <div id="radarPeriodLabel" style="display:none;text-align:center;padding:4px 0;font-size:0.82em;font-weight:600;color:var(--accent);letter-spacing:0.5px;"></div>
                 <div class="chart-body" id="radarChart"></div>
             </div>
 
@@ -418,6 +425,112 @@
         let gMetricEnabled = {};
         let filtersCollapsed = false;
         let filtersManualOverride = false;
+
+        /* --- Radar animation state --- */
+        let radarAnimating = false;
+        let radarAnimTimer = null;
+        let radarAnimIdx = 0;
+        let radarAnimCumulative = false;
+
+        function toggleRadarAnimation() {
+            if (radarAnimating) {
+                stopRadarAnimation();
+            } else {
+                startRadarAnimation(radarAnimCumulative);
+            }
+        }
+        function setRadarAnimMode(cumulative) {
+            radarAnimCumulative = cumulative;
+            document.getElementById('radarModeSliding').style.fontWeight = cumulative ? '400' : '700';
+            document.getElementById('radarModeCumulative').style.fontWeight = cumulative ? '700' : '400';
+            if (radarAnimating) { stopRadarAnimation(); startRadarAnimation(cumulative); }
+        }
+        function startRadarAnimation(cumulative) {
+            const periods = filteredPeriods();
+            if (periods.length < 2) return;
+            radarAnimating = true;
+            radarAnimCumulative = cumulative;
+            radarAnimIdx = 0;
+            document.getElementById('radarAnimateBtn').textContent = '⏹ Stop';
+            document.getElementById('radarPeriodLabel').style.display = '';
+            stepRadarAnimation();
+        }
+        function stopRadarAnimation() {
+            radarAnimating = false;
+            if (radarAnimTimer) { clearTimeout(radarAnimTimer); radarAnimTimer = null; }
+            document.getElementById('radarAnimateBtn').textContent = '▶ Animate Timeline';
+            document.getElementById('radarPeriodLabel').style.display = 'none';
+            renderRadar();
+        }
+        function stepRadarAnimation() {
+            if (!radarAnimating) return;
+            const periods = filteredPeriods();
+            if (periods.length === 0) { stopRadarAnimation(); return; }
+            const idx = radarAnimIdx % periods.length;
+            if (radarAnimCumulative) {
+                // Cumulative: show periods[0..idx] aggregated
+                const label = periods[0].name + ' → ' + periods[idx].name;
+                document.getElementById('radarPeriodLabel').textContent = label;
+                renderRadarForPeriods(periods.slice(0, idx + 1));
+            } else {
+                // Sliding: show single period
+                document.getElementById('radarPeriodLabel').textContent = periods[idx].name;
+                renderRadarForPeriods([periods[idx]]);
+            }
+            radarAnimIdx++;
+            if (radarAnimIdx >= periods.length) {
+                radarAnimIdx = 0;
+                radarAnimTimer = setTimeout(stepRadarAnimation, 1800);
+            } else {
+                radarAnimTimer = setTimeout(stepRadarAnimation, 1200);
+            }
+        }
+        function renderRadarForPeriods(periodSlice) {
+            const el = document.getElementById('radarChart');
+            const metrics = enabledMetrics();
+            const contributors = enabledContributors();
+            const allC = allContributors();
+            const colors = getColors();
+            if (metrics.length < 2 || contributors.length === 0) return;
+
+            // Aggregate across the given period slice (same logic as aggregateFiltered)
+            const byContributor = {};
+            const total = {};
+            contributors.forEach(c => { byContributor[c] = {}; });
+            periodSlice.forEach(period => {
+                metrics.forEach(m => {
+                    contributors.forEach(c => {
+                        const v = period.contributorBreakdown?.[c]?.metrics?.[m]
+                            ? mv(period.contributorBreakdown[c].metrics[m], m)
+                            : 0;
+                        byContributor[c][m] = (byContributor[c][m] || 0) + v;
+                        total[m] = (total[m] || 0) + v;
+                    });
+                });
+            });
+
+            let globalMax = 0;
+            contributors.forEach(c => { metrics.forEach(m => { const v = byContributor[c][m] || 0; if (v > globalMax) globalMax = v; }); });
+            globalMax = Math.max(globalMax * 1.15, 1);
+
+            const indicator = metrics.map(m => ({ name: m + '\n(' + formatStatValue(total[m] || 0, m) + ')', max: globalMax }));
+            const seriesData = contributors.map(c => {
+                const ci = allC.indexOf(c);
+                return { name: c, value: metrics.map(m => byContributor[c][m] || 0), areaStyle: { opacity: 0.15 }, lineStyle: { width: 2 }, itemStyle: { color: colors[ci % colors.length] }, symbol: 'circle', symbolSize: 6 };
+            });
+
+            if (!charts.radar || charts.radar.isDisposed()) {
+                charts.radar = echarts.init(el);
+            }
+            charts.radar.setOption({
+                backgroundColor: 'transparent',
+                tooltip: { ...tooltipTheme(), formatter: function(params) { if (!params.value) return ''; let r = '<b>' + esc(params.name) + '</b><br/>'; metrics.forEach((m, i) => { r += esc(m) + ': <b>' + formatStatValue(params.value[i] || 0, m) + '</b><br/>'; }); return r; } },
+                legend: { show: false },
+                radar: { center: ['50%', '52%'], radius: '80%', indicator: indicator, shape: 'polygon', splitArea: { areaStyle: { color: isDark ? ['rgba(255,255,255,0.02)', 'rgba(255,255,255,0.04)'] : ['rgba(0,0,0,0.01)', 'rgba(0,0,0,0.03)'] }}, splitLine: { lineStyle: { color: gridLineColor() } }, axisLine: { lineStyle: { color: gridLineColor() } }, axisName: { color: axisLabelColor(), fontSize: 11 } },
+                series: [{ type: 'radar', data: seriesData }],
+                animationDuration: 600
+            }, { notMerge: true });
+        }
 
         function getColors() { return isDark ? DARK_COLORS : COLORS; }
 
@@ -788,7 +901,28 @@
                 borderColor: isDark ? '#5F6368' : '#EAEDF1',
                 textStyle: { color: isDark ? '#E8EAED' : '#212529' },
                 appendToBody: true,
-                confine: false
+                confine: true,
+                position: function(point, params, dom, rect, size) {
+                    var cw = size.contentSize[0], ch = size.contentSize[1];
+                    var vw = size.viewSize[0], vh = size.viewSize[1];
+                    var px = point[0], py = point[1];
+                    // Horizontal: prefer right, flip left if needed
+                    var x = px + 14;
+                    if (x + cw > vw - 4) x = px - cw - 14;
+                    if (x < 4) x = 4;
+                    // Vertical: prefer above cursor if more space there, otherwise below
+                    var spaceAbove = py;
+                    var spaceBelow = vh - py;
+                    var y;
+                    if (spaceAbove >= ch + 8) {
+                        y = py - ch - 8;
+                    } else if (spaceBelow >= ch + 8) {
+                        y = py + 14;
+                    } else {
+                        y = Math.max(4, vh - ch - 4);
+                    }
+                    return [x, y];
+                }
             };
         }
         function axisLabelColor() { return isDark ? '#9AA0A6' : '#495057'; }
@@ -1058,13 +1192,15 @@
 
         /* --- Radar (respects global filters) --- */
         function renderRadar() {
+            // Stop any running animation when re-rendering normally
+            if (radarAnimating) stopRadarAnimation();
+
             const el = document.getElementById('radarChart');
             if (charts.radar) charts.radar.dispose();
 
             const metrics = enabledMetrics();
             const contributors = enabledContributors();
             const allC = allContributors();
-            const allM = allMetricNames();
             const colors = getColors();
 
             // Render contributor legend

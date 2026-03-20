@@ -203,6 +203,17 @@ public class Fields extends JSONModel implements TrackerClient.TrackerTicketFiel
                 }
             }
         }
+        // When JIRA_TRANSFORM_CUSTOM_FIELDS_TO_NAMES=true, customfield IDs are renamed to
+        // human-readable names in the JSON response, so also try those names.
+        String[] humanNames = propertyReader.getDefaultTicketStoryPointsFieldHumanNames();
+        if (humanNames != null) {
+            for (String name : humanNames) {
+                int sp = getJSONObject().optInt(name, -1);
+                if (sp != -1) {
+                    return sp;
+                }
+            }
+        }
         return getJSONObject().optInt(Fields.STORY_POINTS, propertyReader.getDefaultTicketWeightIfNoSPs());
     }
 }

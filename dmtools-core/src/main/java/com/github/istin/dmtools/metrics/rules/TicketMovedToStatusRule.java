@@ -8,6 +8,7 @@ import com.github.istin.dmtools.metrics.TrackerRule;
 import com.github.istin.dmtools.report.model.KeyTime;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class TicketMovedToStatusRule implements TrackerRule<ITicket> {
@@ -75,5 +76,10 @@ public class TicketMovedToStatusRule implements TrackerRule<ITicket> {
 
     public String[] getStatuses() {
         return statuses;
+    }
+
+    @Override
+    public List<String> getRequiredExtraFields() {
+        return Collections.singletonList("changelog");
     }
 }

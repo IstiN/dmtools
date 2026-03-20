@@ -392,11 +392,65 @@ CSV metrics use `CsvMetricSource` at the metric level.
 }
 ```
 
+**CSV Row Filtering**
+
+Use `filterColumn` + `filterValue` (or `filterValues` for multiple) to include only rows matching a specific column value. Useful when a single CSV contains multiple model types or categories.
+
+Single value filter:
+```json
+{
+  "name": "CsvMetricSource",
+  "params": {
+    "weightColumn": "Tokens",
+    "label": "GPT-4 Tokens",
+    "isWeight": true,
+    "filterColumn": "Model",
+    "filterValue": "gpt-4"
+  }
+}
+```
+
+Multiple values filter:
+```json
+{
+  "name": "CsvMetricSource",
+  "params": {
+    "weightColumn": "Tokens",
+    "label": "GPT Tokens",
+    "isWeight": true,
+    "filterColumn": "Model",
+    "filterValues": ["gpt-4", "gpt-4o", "gpt-3.5-turbo"]
+  }
+}
+```
+
+This allows splitting one CSV into multiple metrics by type:
+```json
+"metrics": [
+  { "name": "CsvMetricSource", "params": { "label": "Claude Tokens", "weightColumn": "Tokens", "filterColumn": "Model", "filterValue": "claude-3-5-sonnet" } },
+  { "name": "CsvMetricSource", "params": { "label": "GPT-4 Tokens",   "weightColumn": "Tokens", "filterColumn": "Model", "filterValue": "gpt-4" } }
+]
+```
+
+CSV metric parameters:
+
+- `weightColumn` (required): Column with numeric values.
+- `whoColumn`: Column for person name.
+- `whenColumn`: Column for date (default: `Date`).
+- `defaultWho`: Fallback person name.
+- `dateFormat`: Custom date format (e.g. `yyyy-MM-dd`).
+- `weightMultiplier`: Multiply each value by this factor.
+- `divider`: Divide the aggregated result by this factor.
+- `filterColumn`: Column name to filter rows by.
+- `filterValue`: Single value to match (case-insensitive).
+- `filterValues`: Array of values to match (case-insensitive, OR logic).
+
 CSV parsing notes:
 
 - Dates are read from `whenColumn`.
 - Numeric values can be quoted.
 - Invalid values like `NaN`, `N/A`, empty strings are skipped.
+- Filter matching is case-insensitive.
 
 **Figma Metrics**
 

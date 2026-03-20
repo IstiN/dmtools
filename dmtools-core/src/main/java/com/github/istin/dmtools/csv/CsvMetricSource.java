@@ -37,9 +37,17 @@ public class CsvMetricSource extends CommonSourceCollector {
     private final String defaultWho;
     private final String dateFormat;
     private final SimpleDateFormat customDateFormat;
+    private final String filterColumn;
+    private final List<String> filterValues;
 
     public CsvMetricSource(IEmployees employees, String filePath, String whoColumn, String whenColumn,
                            String weightColumn, double weightMultiplier, String defaultWho, String dateFormat) {
+        this(employees, filePath, whoColumn, whenColumn, weightColumn, weightMultiplier, defaultWho, dateFormat, null, null);
+    }
+
+    public CsvMetricSource(IEmployees employees, String filePath, String whoColumn, String whenColumn,
+                           String weightColumn, double weightMultiplier, String defaultWho, String dateFormat,
+                           String filterColumn, List<String> filterValues) {
         super(employees);
         this.filePath = filePath;
         this.whoColumn = whoColumn;
@@ -48,6 +56,8 @@ public class CsvMetricSource extends CommonSourceCollector {
         this.weightMultiplier = weightMultiplier;
         this.defaultWho = defaultWho;
         this.dateFormat = dateFormat;
+        this.filterColumn = filterColumn;
+        this.filterValues = (filterValues != null && !filterValues.isEmpty()) ? filterValues : null;
         if (dateFormat != null && !dateFormat.isEmpty()) {
             SimpleDateFormat fmt = new SimpleDateFormat(dateFormat);
             fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -87,9 +97,25 @@ public class CsvMetricSource extends CommonSourceCollector {
             int[] summaryIndexes = buildSummaryIndexes(headers, whenIdx, weightIdx, whoIdx);
             String[] summaryHeaders = buildSummaryHeaders(headers, summaryIndexes);
 
+            // Resolve filter column index once
+            int filterIdx = (filterColumn != null) ? findColumnIndex(headers, filterColumn) : -1;
+            if (filterColumn != null && filterIdx == -1) {
+                logger.warn("Filter column '{}' not found in CSV headers: {}", filterColumn, Arrays.toString(headers));
+            }
+
             // Parse rows
             for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
                 String[] values = rows.get(rowIndex);
+
+                // Apply column filter
+                if (filterIdx >= 0 && filterValues != null) {
+                    String cellValue = safeGet(values, filterIdx).trim();
+                    boolean matches = false;
+                    for (String fv : filterValues) {
+                        if (fv.equalsIgnoreCase(cellValue)) { matches = true; break; }
+                    }
+                    if (!matches) continue;
+                }
 
                 // Parse date
                 Calendar cal = parseDateValue(safeGet(values, whenIdx));

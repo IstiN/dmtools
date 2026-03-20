@@ -76,13 +76,13 @@ public class ChangelogAssessment {
             }
         }
         if (!ifStatusChanged) {
-            ITicket latestStatusTicket = trackerClient.performTicket(key, trackerClient.getDefaultQueryFields());
-            String initialStatus = latestStatusTicket.getStatus();
+            ITicket statusTicket = ticket != null ? ticket : trackerClient.performTicket(key, trackerClient.getDefaultQueryFields());
+            String initialStatus = statusTicket.getStatus();
             Calendar createdCalendar = Calendar.getInstance();
-            createdCalendar.setTime(latestStatusTicket.getCreated());
+            createdCalendar.setTime(statusTicket.getCreated());
             for (String status : statuses) {
                 if (initialStatus.equalsIgnoreCase(status)) {
-                    IUser creator = latestStatusTicket.getCreator();
+                    IUser creator = statusTicket.getCreator();
                     if (creator == null) {
                         creator = firstAuthor;
                     }

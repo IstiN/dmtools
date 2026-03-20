@@ -61,6 +61,8 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
     public static final String PARAM_FIELDS = "fields";
     public static final String PARAM_START_AT = "startAt";
     public static final String NEXT_PAGE_TOKEN = "nextPageToken";
+    public static final String PARAM_EXPAND = "expand";
+    private static final List<String> EXPAND_ONLY_FIELDS = java.util.Arrays.asList("changelog", "renderedFields", "names", "schema", "transitions", "editmeta", "versionedRepresentations");
 
     /**
      * Resolves an array of field names, converting user-friendly names to custom field IDs where possible
@@ -271,6 +273,12 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
 
     @Override
     public IChangelog getChangeLog(String ticketKey, ITicket ticket) throws IOException {
+        if (ticket instanceof Ticket) {
+            Changelog preloaded = ((Ticket) ticket).getChangelog();
+            if (preloaded != null) {
+                return preloaded;
+            }
+        }
         GenericRequest genericRequest = createChangelogRequest(ticketKey);
         clearRequestIfExpired(genericRequest, ticket != null ? ticket.getUpdatedAsMillis() : null);
         String body = null;
@@ -589,11 +597,17 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         @MCPParam(name = "fields", description = "Array of field names to include in the response", required = true, example = "['summary', 'status', 'assignee']")
         List<String> fields
     ) throws IOException {
-        // Fields are already resolved, use them directly
+        String[] separated = separateExpandFields(fields);
+        String fieldsParam = separated[0];
+        String expandParam = separated[1];
+
         GenericRequest jqlSearchRequest = new GenericRequest(this, path("search")).
                 param(PARAM_JQL, jql)
-                .param(PARAM_FIELDS, StringUtils.concatenate(",", fields))
+                .param(PARAM_FIELDS, fieldsParam)
                 .param(PARAM_START_AT, String.valueOf(startAt));
+        if (expandParam != null) {
+            jqlSearchRequest.param(PARAM_EXPAND, expandParam);
+        }
 
         Integer expired = jqlExpirationInHours.get(jql);
         if (expired != null) {
@@ -633,11 +647,16 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
             @MCPParam(name = "fields", description = "Array of field names to include in the response", required = true, example = "['summary', 'status', 'assignee']")
             List<String> fields
     ) throws IOException {
-        // Fields are already resolved, use them directly
+        String[] separated = separateExpandFields(fields);
+        String fieldsParam = separated[0];
+        String expandParam = separated[1];
+
         GenericRequest jqlSearchRequest = new GenericRequest(this, path("search/jql")).
                 param(PARAM_JQL, jql)
-                .param(PARAM_FIELDS, StringUtils.concatenate(",", fields))
-                ;
+                .param(PARAM_FIELDS, fieldsParam);
+        if (expandParam != null) {
+            jqlSearchRequest.param(PARAM_EXPAND, expandParam);
+        }
         if (nextPageToken != null && !nextPageToken.isEmpty()) {
             jqlSearchRequest.param(NEXT_PAGE_TOKEN, nextPageToken);
         }
@@ -1764,6 +1783,25 @@ public abstract class JiraClient<T extends Ticket> implements RestClient, Tracke
         return null;
     }
     
+
+    /**
+     * Separates expand-only fields (e.g. "changelog") from regular fields.
+     * Returns a two-element array: [0] = regular fields joined by comma, [1] = expand value or null.
+     */
+    private String[] separateExpandFields(List<String> fields) {
+        List<String> regularFields = new ArrayList<>();
+        List<String> expandFields = new ArrayList<>();
+        for (String field : fields) {
+            if (EXPAND_ONLY_FIELDS.contains(field.toLowerCase())) {
+                expandFields.add(field.toLowerCase());
+            } else {
+                regularFields.add(field);
+            }
+        }
+        String fieldsParam = StringUtils.concatenate(",", regularFields);
+        String expandParam = expandFields.isEmpty() ? null : String.join(",", expandFields);
+        return new String[]{fieldsParam, expandParam};
+    }
 
     private List<String> resolveFieldNames(String[] fields, String projectKey) {
         if (fields == null || fields.length == 0) {

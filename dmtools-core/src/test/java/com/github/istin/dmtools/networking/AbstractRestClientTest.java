@@ -1,7 +1,10 @@
 package com.github.istin.dmtools.networking;
 
 import com.github.istin.dmtools.common.networking.GenericRequest;
+import com.github.istin.dmtools.common.networking.RestClient;
 import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -468,6 +471,59 @@ public class AbstractRestClientTest {
     public void testExecute_WithNullRequest() throws IOException {
         String result = restClient.execute((GenericRequest) null);
         assertEquals("", result);
+    }
+
+    @Test
+    public void testPrintAndCreateException_RateLimitByCode429() throws IOException {
+        Request mockRequest = mock(Request.class);
+        okhttp3.HttpUrl mockUrl = okhttp3.HttpUrl.parse("https://example.com/api");
+        when(mockRequest.url()).thenReturn(mockUrl);
+
+        Response mockResponse = mock(Response.class);
+        ResponseBody mockBody = ResponseBody.create("Too many requests", okhttp3.MediaType.parse("text/plain"));
+        when(mockResponse.code()).thenReturn(429);
+        when(mockResponse.body()).thenReturn(mockBody);
+        when(mockResponse.message()).thenReturn("Too Many Requests");
+
+        IOException ex = AbstractRestClient.printAndCreateException(mockRequest, mockResponse);
+        assertTrue("Should be RateLimitException for HTTP 429", ex instanceof RestClient.RateLimitException);
+    }
+
+    @Test
+    public void testPrintAndCreateException_RateLimitByBodyText() throws IOException {
+        Request mockRequest = mock(Request.class);
+        okhttp3.HttpUrl mockUrl = okhttp3.HttpUrl.parse("https://example.com/api");
+        when(mockRequest.url()).thenReturn(mockUrl);
+
+        Response mockResponse = mock(Response.class);
+        ResponseBody mockBody = ResponseBody.create("{\"message\": \"rate limit exceeded\"}", okhttp3.MediaType.parse("application/json"));
+        when(mockResponse.code()).thenReturn(200);
+        when(mockResponse.body()).thenReturn(mockBody);
+        when(mockResponse.message()).thenReturn("OK");
+
+        IOException ex = AbstractRestClient.printAndCreateException(mockRequest, mockResponse);
+        assertTrue("Should be RateLimitException when body contains 'rate limit'", ex instanceof RestClient.RateLimitException);
+    }
+
+    @Test
+    public void testPrintAndCreateException_MigrateWordShouldNotTriggerRateLimit() throws IOException {
+        // Regression test: "migrate" contains "rate" but must NOT trigger RateLimitException
+        Request mockRequest = mock(Request.class);
+        okhttp3.HttpUrl mockUrl = okhttp3.HttpUrl.parse("https://example.com/api");
+        when(mockRequest.url()).thenReturn(mockUrl);
+
+        Response mockResponse = mock(Response.class);
+        ResponseBody mockBody = ResponseBody.create(
+            "{\"errorMessages\":[\"The requested API has been removed. Please migrate to the /rest/api/3/search/jql API.\"]}",
+            okhttp3.MediaType.parse("application/json")
+        );
+        when(mockResponse.code()).thenReturn(410);
+        when(mockResponse.body()).thenReturn(mockBody);
+        when(mockResponse.message()).thenReturn("Gone");
+
+        IOException ex = AbstractRestClient.printAndCreateException(mockRequest, mockResponse);
+        assertFalse("'migrate' in body must NOT trigger RateLimitException", ex instanceof RestClient.RateLimitException);
+        assertTrue("Should be RestClientException for removed API", ex instanceof RestClient.RestClientException);
     }
 
     @Test

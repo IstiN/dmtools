@@ -186,8 +186,12 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
         }
         if (includeInitial && filterFields != null && filterFields.length > 0) {
             ITicket resolvedTicket = ticket;
+            List<String> preFetchedFields = getRequiredExtraFields();
             boolean needExtended = false;
             for (String field : filterFields) {
+                if (preFetchedFields.stream().anyMatch(f -> f.equalsIgnoreCase(field))) {
+                    continue;
+                }
                 String initialValue = null;
                 if ("description".equalsIgnoreCase(field)) {
                     initialValue = ticket.getTicketDescription();
@@ -255,6 +259,16 @@ public class TicketFieldsChangesRule implements TrackerRule<ITicket> {
             }
         }
         return result;
+    }
+
+    @Override
+    public List<String> getRequiredExtraFields() {
+        List<String> fields = new ArrayList<>();
+        fields.add("changelog");
+        if (filterFields != null) {
+            fields.addAll(java.util.Arrays.asList(filterFields));
+        }
+        return fields;
     }
 
     private boolean matchesFilter(String field) {

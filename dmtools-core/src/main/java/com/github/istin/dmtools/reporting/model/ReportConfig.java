@@ -48,6 +48,14 @@ public class ReportConfig {
     @Getter
     private Map<String, List<String>> aliases;
 
+    /**
+     * When set, any contributor not matched by an explicit alias is grouped under this name.
+     * Example: "catchAllGroup": "Human" → everyone except aliased groups shows as "Human".
+     */
+    @Setter
+    @Getter
+    private String catchAllGroup;
+
     @Setter
     @Getter
     private List<CustomChartConfig> customCharts;

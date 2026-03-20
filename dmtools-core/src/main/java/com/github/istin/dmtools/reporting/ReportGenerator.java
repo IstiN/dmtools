@@ -75,8 +75,8 @@ public class ReportGenerator {
 
         // Build employees from config (if provided)
         IEmployees employees = null;
-        if (config.getEmployees() != null || config.getAliases() != null) {
-            employees = new ReportEmployees(config.getEmployees(), config.getAliases());
+        if (config.getEmployees() != null || config.getAliases() != null || config.getCatchAllGroup() != null) {
+            employees = new ReportEmployees(config.getEmployees(), config.getAliases(), config.getCatchAllGroup());
         }
 
         // Initialize factories

@@ -66,6 +66,59 @@ dmtools run agents/testrail_test_cases_generator_detailed.json
 }
 ```
 
+### Configuration File — Steps Mode with Project ID (large TestRail instances)
+
+Use `projectIds` when the project is beyond the first page of results (> 250 projects in the instance) or when you want to avoid name-resolution overhead. Both `projectNames` and `projectIds` are optional — use one or the other (or both for multi-project searches).
+
+```json
+{
+  "name": "TestCasesGenerator",
+  "params": {
+    "inputJql": "key in (PROJ-123)",
+    "outputType": "creation",
+    "customTestCasesTracker": {
+      "type": "testrail",
+      "params": {
+        "projectIds": [42],
+        "creationMode": "steps",
+        "typeName": "Functional",
+        "labelNames": ["ai_generated"]
+      }
+    },
+    "testCasesPriorities": "Critical, High, Medium, Low",
+    "testCasesCustomFields": ["custom_preconds", "custom_steps_json"],
+    "isFindRelated": true,
+    "isLinkRelated": true,
+    "isGenerateNew": true,
+    "isConvertToJiraMarkdown": false
+  }
+}
+```
+
+To find the project ID:
+```bash
+dmtools testrail_get_projects
+# Look for "id" in the output for your project
+```
+
+You can also mix both — `projectNames` and `projectIds` are merged when searching for existing/related cases:
+
+```json
+"params": {
+  "projectNames": ["Legacy Project"],
+  "projectIds": [42, 55]
+}
+```
+
+For creation, `targetProjectId` takes precedence over `targetProject` (name):
+
+```json
+"params": {
+  "targetProjectId": 42,
+  "projectIds": [42, 55]
+}
+```
+
 ### Configuration File — Detailed Mode
 
 ```json

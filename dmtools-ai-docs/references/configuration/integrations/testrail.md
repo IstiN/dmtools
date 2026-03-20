@@ -92,6 +92,35 @@ dmtools run agents/testrail_test_cases_generator.json
 }
 ```
 
+### Using Project IDs (large TestRail instances)
+
+If your TestRail instance has more than 250 projects and the target project doesn't appear at the top of the list, use `projectIds` instead of (or alongside) `projectNames` to bypass name-based resolution entirely:
+
+```json
+"customTestCasesTracker": {
+  "type": "testrail",
+  "params": {
+    "projectIds": [42],
+    "targetProjectId": 42,
+    "creationMode": "steps",
+    "typeName": "Functional",
+    "labelNames": ["ai_generated"]
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `projectNames` | `string[]` | Project names to search when finding/linking cases. Optional if `projectIds` is set. |
+| `projectIds` | `number[]` | Project IDs — bypasses name resolution. Optional if `projectNames` is set. |
+| `targetProject` | `string` | Name of the project where new cases are created. Defaults to first `projectNames` entry. |
+| `targetProjectId` | `number` | ID of the project where new cases are created. Takes precedence over `targetProject`. |
+
+To find a project ID:
+```bash
+dmtools testrail_get_projects
+```
+
 **Full guide**: [../../test-generation/testrail-manual.md](../../test-generation/testrail-manual.md)
 
 ## 📋 Available TestRail MCP Tools

@@ -18,10 +18,19 @@ public class ReportEmployees implements IEmployees {
     private final Set<String> employeeNames = new HashSet<>();
     // Reverse map: alias (lowercase) -> primary name
     private final Map<String, String> aliasToName = new HashMap<>();
+    // Primary alias group names (the keys of the aliases map, lowercase) — never catch-all'd
+    private final Set<String> primaryAliasNames = new HashSet<>();
     // true when the user explicitly provided an employees list
     private final boolean hasExplicitEmployees;
+    // When non-null, all unmatched contributors map to this group name
+    private final String catchAllGroup;
 
     public ReportEmployees(List<String> employees, Map<String, List<String>> aliases) {
+        this(employees, aliases, null);
+    }
+
+    public ReportEmployees(List<String> employees, Map<String, List<String>> aliases, String catchAllGroup) {
+        this.catchAllGroup = catchAllGroup;
         hasExplicitEmployees = employees != null && !employees.isEmpty();
 
         if (hasExplicitEmployees) {
@@ -33,6 +42,7 @@ public class ReportEmployees implements IEmployees {
             for (Map.Entry<String, List<String>> entry : aliases.entrySet()) {
                 String primaryName = entry.getKey();
                 List<String> aliasList = entry.getValue();
+                primaryAliasNames.add(primaryName.toLowerCase());
                 if (hasExplicitEmployees) {
                     employeeNames.add(primaryName.toLowerCase());
                 }
@@ -58,7 +68,12 @@ public class ReportEmployees implements IEmployees {
     public String transformName(String sourceFullName) {
         if (sourceFullName == null) return null;
         String primary = aliasToName.get(sourceFullName.toLowerCase());
-        return primary != null ? primary : sourceFullName;
+        if (primary != null) return primary;
+        // Primary alias group names (e.g. "AI Teammate") are already the canonical name — keep as-is
+        if (primaryAliasNames.contains(sourceFullName.toLowerCase())) return sourceFullName;
+        // If catchAllGroup is set, any name not matched by an alias maps to the group
+        if (catchAllGroup != null) return catchAllGroup;
+        return sourceFullName;
     }
 
     @Override

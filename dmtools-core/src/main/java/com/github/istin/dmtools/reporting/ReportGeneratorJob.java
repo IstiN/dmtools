@@ -69,6 +69,9 @@ public class ReportGeneratorJob extends AbstractJob<
         @SerializedName("aliases")
         private Map<String, List<String>> aliases;
 
+        @SerializedName("catchAllGroup")
+        private String catchAllGroup;
+
         @SerializedName("customCharts")
         private List<CustomChartConfig> customCharts;
 
@@ -130,6 +133,7 @@ public class ReportGeneratorJob extends AbstractJob<
         config.setOutput(params.getOutput());
         config.setEmployees(params.getEmployees());
         config.setAliases(params.getAliases());
+        config.setCatchAllGroup(params.getCatchAllGroup());
         config.setCustomCharts(params.getCustomCharts());
         config.setComputedMetrics(params.getComputedMetrics());
 

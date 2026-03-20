@@ -605,6 +605,33 @@ public class PropertyReader {
 		return value.split(",");
 	}
 
+	/**
+	 * Returns human-readable field names to try when looking up story points after
+	 * JIRA_TRANSFORM_CUSTOM_FIELDS_TO_NAMES renames customfield_XXXX keys to their names.
+	 * Reads DEFAULT_TICKET_STORY_POINTS_FIELD_NAMES if set, otherwise auto-detects from
+	 * JIRA_EXTRA_FIELDS by finding entries whose name contains "story point" (case-insensitive).
+	 */
+	public String[] getDefaultTicketStoryPointsFieldHumanNames() {
+		String explicit = getValue("DEFAULT_TICKET_STORY_POINTS_FIELD_NAMES");
+		if (explicit != null && !explicit.isEmpty()) {
+			return explicit.split(",");
+		}
+		// Auto-detect: scan JIRA_EXTRA_FIELDS for entries that look like SP field names
+		String[] extraFields = getJiraExtraFields();
+		if (extraFields != null) {
+			java.util.List<String> candidates = new java.util.ArrayList<>();
+			for (String f : extraFields) {
+				if (f != null && f.trim().toLowerCase().contains("story point")) {
+					candidates.add(f.trim());
+				}
+			}
+			if (!candidates.isEmpty()) {
+				return candidates.toArray(new String[0]);
+			}
+		}
+		return null;
+	}
+
 	public Double getLinesOfCodeDivider() {
 		String value = getValue("LINES_OF_CODE_DIVIDER");
 		if (value == null || value.isEmpty()) {

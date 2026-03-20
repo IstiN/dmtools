@@ -233,6 +233,56 @@ public class JiraClientTest {
     }
 
     @Test
+    public void testSeparateExpandFields_ChangelogMovedToExpand() throws Exception {
+        Method method = JiraClient.class.getDeclaredMethod("separateExpandFields", List.class);
+        method.setAccessible(true);
+
+        List<String> fields = Arrays.asList("summary", "status", "changelog");
+        String[] result = (String[]) method.invoke(jiraClient, fields);
+
+        assertFalse("fields param must not contain 'changelog'", result[0].contains("changelog"));
+        assertTrue("fields param must contain 'summary'", result[0].contains("summary"));
+        assertTrue("fields param must contain 'status'", result[0].contains("status"));
+        assertEquals("expand param must be 'changelog'", "changelog", result[1]);
+    }
+
+    @Test
+    public void testSeparateExpandFields_NoExpandFields() throws Exception {
+        Method method = JiraClient.class.getDeclaredMethod("separateExpandFields", List.class);
+        method.setAccessible(true);
+
+        List<String> fields = Arrays.asList("summary", "status", "assignee");
+        String[] result = (String[]) method.invoke(jiraClient, fields);
+
+        assertTrue("fields param must contain all fields", result[0].contains("summary") && result[0].contains("status"));
+        assertNull("expand param must be null when no expand fields", result[1]);
+    }
+
+    @Test
+    public void testSeparateExpandFields_OnlyExpandField() throws Exception {
+        Method method = JiraClient.class.getDeclaredMethod("separateExpandFields", List.class);
+        method.setAccessible(true);
+
+        List<String> fields = Arrays.asList("changelog");
+        String[] result = (String[]) method.invoke(jiraClient, fields);
+
+        assertTrue("fields param must be empty", result[0].isEmpty());
+        assertEquals("expand param must be 'changelog'", "changelog", result[1]);
+    }
+
+    @Test
+    public void testSeparateExpandFields_CaseInsensitive() throws Exception {
+        Method method = JiraClient.class.getDeclaredMethod("separateExpandFields", List.class);
+        method.setAccessible(true);
+
+        List<String> fields = Arrays.asList("summary", "CHANGELOG");
+        String[] result = (String[]) method.invoke(jiraClient, fields);
+
+        assertFalse("fields param must not contain 'CHANGELOG'", result[0].toLowerCase().contains("changelog"));
+        assertEquals("expand param must be 'changelog'", "changelog", result[1]);
+    }
+
+    @Test
     public void testBuildJQLUrl() {
         String basePath = "http://example.com";
         String jql = "key in (TEST-1,TEST-2)";

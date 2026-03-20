@@ -51,21 +51,24 @@ public class TrackerDataSource extends DataSource {
                 }
                 return false;
             }
-        }, jql, resolveQueryFields());
+        }, jql, resolveQueryFields(rule));
     }
 
-    private String[] resolveQueryFields() {
+    private String[] resolveQueryFields(TrackerRule rule) {
         String[] defaults = trackerClient.getDefaultQueryFields();
-        if (extraFields == null || extraFields.isEmpty()) {
-            return defaults;
-        }
         java.util.LinkedHashSet<String> merged = new java.util.LinkedHashSet<>();
         if (defaults != null) {
             java.util.Collections.addAll(merged, defaults);
         }
-        for (String f : extraFields) {
-            if (f != null && !f.trim().isEmpty()) {
-                merged.add(f.trim());
+        if (extraFields != null) {
+            for (String f : extraFields) {
+                if (f != null && !f.trim().isEmpty()) merged.add(f.trim());
+            }
+        }
+        List<String> ruleFields = rule.getRequiredExtraFields();
+        if (ruleFields != null) {
+            for (String f : ruleFields) {
+                if (f != null && !f.trim().isEmpty()) merged.add(f.trim());
             }
         }
         return merged.toArray(new String[0]);

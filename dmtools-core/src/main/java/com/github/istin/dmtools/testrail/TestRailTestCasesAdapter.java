@@ -40,6 +40,11 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
             }
             result.addAll(cases);
         }
+        for (int projectId : config.getProjectIds()) {
+            List<TestCase> cases = client.getAllCasesByProjectId(projectId);
+            System.out.println("[DEBUG-LINKING] getExistingCases projectId=" + projectId + " returned " + cases.size() + " cases");
+            result.addAll(cases);
+        }
         return result;
     }
 
@@ -54,6 +59,11 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
             }
             result.addAll(cases);
         }
+        for (int projectId : config.getProjectIds()) {
+            List<TestCase> cases = client.getCasesByRefsByProjectId(sourceTicketKey, projectId);
+            System.out.println("[DEBUG-LINKING] getLinkedCases key='" + sourceTicketKey + "' projectId=" + projectId + " returned " + cases.size() + " cases");
+            result.addAll(cases);
+        }
         return result;
     }
 
@@ -64,6 +74,10 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
             List<TestCase> cases = client.getCasesByLabel(projectName, query);
             result.addAll(cases);
         }
+        for (int projectId : config.getProjectIds()) {
+            List<TestCase> cases = client.getCasesByLabelByProjectId(projectId, query);
+            result.addAll(cases);
+        }
         return result;
     }
 
@@ -71,7 +85,6 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
     public ITicket createTestCase(TestCaseGeneratorAgent.TestCase testCase,
                                   String sourceTicketKey,
                                   TestCasesGeneratorParams params) throws IOException {
-        String projectName = resolveTargetProject();
         String mode = config.getCreationMode();
 
         String typeId = config.getTypeId();
@@ -82,6 +95,23 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
             }
         }
 
+        String priorityId = convertPriorityToId(testCase.getPriority());
+        JSONObject customFields = testCase.getCustomFields() != null ? testCase.getCustomFields() : new JSONObject();
+
+        Integer targetProjectId = resolveTargetProjectId();
+        if (targetProjectId != null) {
+            String labelIds = config.getLabelIds();
+            if (labelIds == null || labelIds.isEmpty()) {
+                String[] labelNames = config.getLabelNames();
+                if (labelNames.length > 0) {
+                    labelIds = client.resolveLabelIdsByProjectId(targetProjectId, labelNames);
+                }
+            }
+            String response = createByProjectId(targetProjectId, testCase, customFields, priorityId, typeId, sourceTicketKey, labelIds);
+            return client.createTicket(response);
+        }
+
+        String projectName = resolveTargetProjectName();
         String labelIds = config.getLabelIds();
         if (labelIds == null || labelIds.isEmpty()) {
             String[] labelNames = config.getLabelNames();
@@ -89,9 +119,6 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
                 labelIds = client.resolveLabelIdsByNames(projectName, labelNames);
             }
         }
-
-        String priorityId = convertPriorityToId(testCase.getPriority());
-        JSONObject customFields = testCase.getCustomFields() != null ? testCase.getCustomFields() : new JSONObject();
 
         String response;
         switch (mode.toLowerCase()) {
@@ -111,14 +138,12 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
             case "steps":
                 String stepsJson = customFields.optString("custom_steps_json", null);
                 if (stepsJson == null || stepsJson.isEmpty()) {
-                    // AI may have used the actual TestRail field name instead of the virtual key
                     JSONArray stepsArray = customFields.optJSONArray("custom_steps_separated");
                     if (stepsArray != null) {
                         stepsJson = stepsArray.toString();
                     }
                 }
                 if (stepsJson == null || stepsJson.isEmpty()) {
-                    // Final fallback: build a single step from description
                     stepsJson = new JSONArray()
                             .put(new JSONObject()
                                     .put("content", testCase.getDescription() != null ? testCase.getDescription() : "")
@@ -136,7 +161,7 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
                         labelIds
                 );
                 break;
-            default: // "simple" — use createCaseDetailed so typeId/labelIds are always applied
+            default: // "simple"
                 response = client.createCaseDetailed(
                         projectName,
                         testCase.getSummary(),
@@ -210,12 +235,54 @@ public class TestRailTestCasesAdapter implements TestCasesTrackerAdapter {
 
     // ---- private helpers ----
 
-    private String resolveTargetProject() {
+    private String resolveTargetProjectName() {
         String target = config.getTargetProject();
         if (target != null && !target.isEmpty()) return target;
         String[] names = config.getProjectNames();
         if (names.length > 0) return names[0];
-        throw new IllegalStateException("No TestRail project configured in adapter params");
+        throw new IllegalStateException("No TestRail project name configured. Use 'projectNames' or 'targetProject', or use 'projectIds' / 'targetProjectId' for ID-based access.");
+    }
+
+    private Integer resolveTargetProjectId() {
+        Integer id = config.getTargetProjectId();
+        if (id != null) return id;
+        int[] ids = config.getProjectIds();
+        if (ids.length > 0) return ids[0];
+        return null;
+    }
+
+    private String createByProjectId(int projectId, TestCaseGeneratorAgent.TestCase testCase,
+                                     JSONObject customFields, String priorityId, String typeId,
+                                     String sourceTicketKey, String labelIds) throws IOException {
+        String mode = config.getCreationMode();
+        switch (mode.toLowerCase()) {
+            case "steps":
+                String stepsJson = customFields.optString("custom_steps_json", null);
+                if (stepsJson == null || stepsJson.isEmpty()) {
+                    JSONArray stepsArray = customFields.optJSONArray("custom_steps_separated");
+                    if (stepsArray != null) stepsJson = stepsArray.toString();
+                }
+                if (stepsJson == null || stepsJson.isEmpty()) {
+                    stepsJson = new JSONArray()
+                            .put(new JSONObject()
+                                    .put("content", testCase.getDescription() != null ? testCase.getDescription() : "")
+                                    .put("expected", ""))
+                            .toString();
+                }
+                return client.createCaseStepsByProjectId(projectId, testCase.getSummary(),
+                        customFields.optString("custom_preconds", null), stepsJson,
+                        priorityId, typeId, sourceTicketKey, labelIds);
+            case "detailed":
+                return client.createCaseDetailedByProjectId(projectId, testCase.getSummary(),
+                        customFields.optString("custom_preconds", null),
+                        customFields.optString("custom_steps", null),
+                        customFields.optString("custom_expected", null),
+                        priorityId, typeId, sourceTicketKey, labelIds);
+            default: // "simple"
+                return client.createCaseDetailedByProjectId(projectId, testCase.getSummary(),
+                        testCase.getDescription(), null, null,
+                        priorityId, typeId, sourceTicketKey, labelIds);
+        }
     }
 
     /**
