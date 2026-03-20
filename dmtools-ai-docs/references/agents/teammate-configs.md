@@ -175,7 +175,7 @@ function action(params) {
 ### Instruction Sources
 
 The following fields all go through **InstructionProcessor**, which resolves content from four source types:
-`instructions`, `formattingRules`, `fewShots`, `cliPrompt`, `aiRole`, `questions`, `tasks`
+`instructions`, `additionalInstructions`, `formattingRules`, `fewShots`, `cliPrompt`, `aiRole`, `questions`, `tasks`
 
 | Source | Detection | How content is fetched |
 |--------|-----------|------------------------|
@@ -210,6 +210,46 @@ If fetching fails for any reason, the original string is used as fallback — no
 ```bash
 SOURCE_GITHUB_TOKEN=ghp_your_token_here
 ```
+
+### `additionalInstructions` — Append Without Replacing
+
+`additionalInstructions` is a **top-level `params` field** (on `TeammateParams`, not inside `agentParams`) that lets projects add their own instructions **on top of** whatever `instructions` are defined in `agentParams`.
+
+This solves the `ConfigurationMerger` limitation: when you override a config with a different `instructions` array via encoded JSON, the whole array is replaced. With `additionalInstructions`, your project-specific rules live in a separate field and are always **appended** — never replaced — regardless of how `agentParams.instructions` is set.
+
+```json
+{
+  "name": "Teammate",
+  "params": {
+    "agentParams": {
+      "instructions": [
+        "https://github.com/your-org/shared-playbook/blob/main/instructions/default.md"
+      ]
+    },
+    "additionalInstructions": [
+      "https://yourcompany.atlassian.net/wiki/spaces/PROJ/pages/123",
+      "./instructions/project-specific-rules.md",
+      "Always use our internal API naming convention."
+    ]
+  }
+}
+```
+
+**How it works:**
+1. `agentParams.instructions` is resolved via InstructionProcessor (URLs/files → content)
+2. `additionalInstructions` is resolved the same way (same source types: plain text, file, Confluence, GitHub)
+3. The resolved additional instructions are **appended** to the resolved base instructions
+4. The AI receives one combined array: `[...instructions, ...additionalInstructions]`
+
+**When to use it:**
+- You have a shared base config (e.g. from GitHub) that you don't want to copy
+- Your project has Confluence pages or local files with project-specific rules
+- You want CI/CD to inject extra context without touching `agentParams`
+
+| Field | Location | Behavior on override |
+|-------|----------|----------------------|
+| `agentParams.instructions` | Inside `agentParams` | Replaced entirely by ConfigurationMerger |
+| `additionalInstructions` | Top-level `params` | Always appended — independent field |
 
 ### CLI Integration (NEW in v1.7.130+)
 

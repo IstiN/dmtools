@@ -1,3 +1,39 @@
+## [skill-v1.0.25] - 2026-03-20
+
+### Added
+
+- **`additionalInstructions` field for TeammateParams** — append project-specific instructions without replacing the base `instructions` array
+  - Defined on `TeammateParams` (top-level `params`), separate from `agentParams.instructions`
+  - Resolved by InstructionProcessor — supports the same source types: plain text, local file paths, Confluence URLs, GitHub URLs
+  - Appended **after** the resolved base `instructions` — the AI sees `[...instructions, ...additionalInstructions]`
+  - Solves the `ConfigurationMerger` limitation: array fields are replaced on override; `additionalInstructions` is always additive
+
+  **Problem it solves:**
+  When you override a shared config via encoded JSON, `ConfigurationMerger` replaces the entire `instructions` array. `additionalInstructions` lives in a separate field so project rules survive any override.
+
+  **Example:**
+  ```json
+  {
+    "name": "Teammate",
+    "params": {
+      "agentParams": {
+        "instructions": [
+          "https://github.com/your-org/shared-playbook/blob/main/instructions/default.md"
+        ]
+      },
+      "additionalInstructions": [
+        "https://yourcompany.atlassian.net/wiki/spaces/PROJ/pages/123",
+        "./instructions/project-specific-rules.md",
+        "Always use our internal API naming convention."
+      ]
+    }
+  }
+  ```
+
+### Documentation
+- Updated `teammate-configs.md` with `additionalInstructions` section including use-cases and comparison table
+- Updated Instruction Sources list to include `additionalInstructions`
+
 ## [skill-v1.0.24] - 2026-02-22
 
 ### Added

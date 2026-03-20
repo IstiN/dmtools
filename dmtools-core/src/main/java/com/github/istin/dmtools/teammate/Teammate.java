@@ -85,6 +85,9 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         @SerializedName("skipVideoAttachments")
         private boolean skipVideoAttachments = false;
 
+        @SerializedName("additionalInstructions")
+        private String[] additionalInstructions;
+
     }
 
     /**
@@ -271,7 +274,16 @@ public class Teammate extends AbstractJob<Teammate.TeammateParams, List<ResultIt
         RequestDecompositionAgent.Result inputParams = expertParams.getAgentParams();
         String[] aiRoleArray = instructionProcessor.extractIfNeeded(inputParams.getAiRole());
         inputParams.setAiRole(aiRoleArray.length > 0 ? aiRoleArray[0] : "");
-        inputParams.setInstructions(instructionProcessor.extractIfNeeded(inputParams.getInstructions()));
+        String[] resolvedInstructions = instructionProcessor.extractIfNeeded(inputParams.getInstructions());
+        String[] resolvedAdditional = instructionProcessor.extractIfNeeded(expertParams.getAdditionalInstructions());
+        if (resolvedAdditional != null && resolvedAdditional.length > 0) {
+            String[] combined = new String[resolvedInstructions.length + resolvedAdditional.length];
+            System.arraycopy(resolvedInstructions, 0, combined, 0, resolvedInstructions.length);
+            System.arraycopy(resolvedAdditional, 0, combined, resolvedInstructions.length, resolvedAdditional.length);
+            inputParams.setInstructions(combined);
+        } else {
+            inputParams.setInstructions(resolvedInstructions);
+        }
         String[] formattingRulesArray = instructionProcessor.extractIfNeeded(inputParams.getFormattingRules());
         inputParams.setFormattingRules(formattingRulesArray.length > 0 ? formattingRulesArray[0] : "");
         String[] fewShotsArray = instructionProcessor.extractIfNeeded(inputParams.getFewShots());
