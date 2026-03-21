@@ -8,6 +8,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
 
 import static org.junit.Assert.*;
 
@@ -17,6 +21,32 @@ public class TestRailClientTest {
     private String username = "test@example.com";
     private String apiKey = "test_api_key";
     private TestRailClient client;
+
+    private static class StubTestRailClient extends TestRailClient {
+        private final Queue<String> queuedResponses = new ArrayDeque<>();
+        private final List<String> requestedPaths = new ArrayList<>();
+
+        StubTestRailClient(String basePath, String username, String apiKey) throws IOException {
+            super(basePath, username, apiKey);
+        }
+
+        void queueResponse(String response) {
+            queuedResponses.add(response);
+        }
+
+        List<String> getRequestedPaths() {
+            return requestedPaths;
+        }
+
+        @Override
+        String executeGet(String apiPath) throws IOException {
+            requestedPaths.add(apiPath);
+            if (queuedResponses.isEmpty()) {
+                throw new IOException("No queued response for " + apiPath);
+            }
+            return queuedResponses.remove();
+        }
+    }
 
     @Before
     public void setUp() throws IOException {
@@ -206,6 +236,64 @@ public class TestRailClientTest {
     }
 
     @Test
+    public void testGetProjectsAggregatesAllPagesUsingNextLink() throws Exception {
+        StubTestRailClient stubClient = new StubTestRailClient(basePath, username, apiKey);
+        stubClient.queueResponse(createProjectsPage(0, "/api/v2/get_projects&limit=250&offset=250",
+                new JSONObject().put("id", 1).put("name", "Project A")));
+        stubClient.queueResponse(createProjectsPage(250, null,
+                new JSONObject().put("id", 251).put("name", "Project B")));
+
+        JSONObject response = new JSONObject(stubClient.getProjects());
+        JSONArray projects = response.getJSONArray("projects");
+
+        assertEquals(2, projects.length());
+        assertEquals("Project A", projects.getJSONObject(0).getString("name"));
+        assertEquals("Project B", projects.getJSONObject(1).getString("name"));
+        assertEquals(List.of(
+                "/get_projects&limit=250&offset=0",
+                "/get_projects&limit=250&offset=250"
+        ), stubClient.getRequestedPaths());
+    }
+
+    @Test
+    public void testGetProjectsStopsWhenNextLinkIsNullEvenIfSizeMatchesLimit() throws Exception {
+        StubTestRailClient stubClient = new StubTestRailClient(basePath, username, apiKey);
+        JSONObject response = new JSONObject();
+        response.put("offset", 0);
+        response.put("limit", 250);
+        response.put("size", 250);
+        response.put("projects", new JSONArray().put(new JSONObject().put("id", 1).put("name", "Project A")));
+        response.put("_links", new JSONObject().put("next", JSONObject.NULL).put("prev", JSONObject.NULL));
+        stubClient.queueResponse(response.toString());
+
+        JSONObject projectsResponse = new JSONObject(stubClient.getProjects());
+
+        assertEquals(1, projectsResponse.getJSONArray("projects").length());
+        assertEquals(List.of("/get_projects&limit=250&offset=0"), stubClient.getRequestedPaths());
+    }
+
+    @Test
+    public void testGetCasesByRefsResolvesProjectBeyondFirstProjectsPage() throws Exception {
+        StubTestRailClient stubClient = new StubTestRailClient(basePath, username, apiKey);
+        stubClient.queueResponse(createProjectsPage(0, "/api/v2/get_projects&limit=250&offset=250",
+                new JSONObject().put("id", 1).put("name", "Project A")));
+        stubClient.queueResponse(createProjectsPage(250, null,
+                new JSONObject().put("id", 251).put("name", "Target Project")));
+        stubClient.queueResponse(createCasesPage(0, null,
+                new JSONObject().put("id", 99).put("title", "Linked case")));
+
+        List<TestCase> result = stubClient.getCasesByRefs("PROJ-123", "Target Project");
+
+        assertEquals(1, result.size());
+        assertEquals("C99", result.get(0).getKey());
+        assertEquals(List.of(
+                "/get_projects&limit=250&offset=0",
+                "/get_projects&limit=250&offset=250",
+                "/get_cases/251&refs=PROJ-123&limit=250&offset=0"
+        ), stubClient.getRequestedPaths());
+    }
+
+    @Test
     public void testPath() throws IOException {
         client = new TestRailClient(basePath, username, apiKey);
 
@@ -218,6 +306,38 @@ public class TestRailClientTest {
         client = new TestRailClient(basePath, username, apiKey);
 
         assertEquals("cacheTestRail", client.getCacheFolderName());
+    }
+
+    private String createProjectsPage(int offset, String nextLink, JSONObject... projects) {
+        JSONObject response = new JSONObject();
+        JSONArray projectsArray = new JSONArray();
+        for (JSONObject project : projects) {
+            projectsArray.put(project);
+        }
+        response.put("offset", offset);
+        response.put("limit", 250);
+        response.put("size", projectsArray.length());
+        response.put("projects", projectsArray);
+        response.put("_links", new JSONObject()
+                .put("next", nextLink == null ? JSONObject.NULL : nextLink)
+                .put("prev", JSONObject.NULL));
+        return response.toString();
+    }
+
+    private String createCasesPage(int offset, String nextLink, JSONObject... cases) {
+        JSONObject response = new JSONObject();
+        JSONArray casesArray = new JSONArray();
+        for (JSONObject testCase : cases) {
+            casesArray.put(testCase);
+        }
+        response.put("offset", offset);
+        response.put("limit", 250);
+        response.put("size", casesArray.length());
+        response.put("cases", casesArray);
+        response.put("_links", new JSONObject()
+                .put("next", nextLink == null ? JSONObject.NULL : nextLink)
+                .put("prev", JSONObject.NULL));
+        return response.toString();
     }
 
     @Test(expected = UnsupportedOperationException.class)

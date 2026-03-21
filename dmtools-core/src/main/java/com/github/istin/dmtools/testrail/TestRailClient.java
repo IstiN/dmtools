@@ -130,10 +130,29 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             category = "projects"
     )
     public String getProjects() throws IOException {
-        GenericRequest request = new GenericRequest(this, path("/get_projects"));
-        String response = request.execute();
+        JSONArray allProjects = new JSONArray();
+        int limit = 250;
+        String nextPagePath = buildPagedPath("/get_projects", limit, 0);
+
+        while (nextPagePath != null) {
+            JSONObject responseObj = new JSONObject(executeGet(nextPagePath));
+            JSONArray projects = responseObj.optJSONArray("projects");
+            if (projects == null || projects.length() == 0) {
+                break;
+            }
+
+            appendAll(allProjects, projects);
+            nextPagePath = getNextPagePath(responseObj, "/get_projects", limit, projects.length());
+        }
+
+        JSONObject response = new JSONObject();
+        response.put("offset", 0);
+        response.put("limit", limit);
+        response.put("size", allProjects.length());
+        response.put("projects", allProjects);
+        response.put("_links", new JSONObject().put("next", JSONObject.NULL).put("prev", JSONObject.NULL));
         log("Retrieved projects list");
-        return response;
+        return response.toString();
     }
 
     @MCPTool(
@@ -212,36 +231,17 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
      */
     List<TestCase> getCasesByProjectId(int projectId, String suiteId, String sectionId, String labelId) throws Exception {
         List<TestCase> results = new ArrayList<>();
-        int offset = 0;
         int limit = 250; // TestRail max per request
-        boolean hasMore = true;
+        String baseApiPath = buildCasesPath(projectId, suiteId, sectionId, labelId);
+        String nextPagePath = buildPagedPath(baseApiPath, limit, 0);
 
-        while (hasMore) {
-            // Build URL with project_id in path: /get_cases/{project_id}
-            StringBuilder url = new StringBuilder("/get_cases/" + projectId);
-
-            // Add optional filters as query parameters
-            if (suiteId != null && !suiteId.isEmpty()) {
-                url.append("&suite_id=").append(suiteId);
-            }
-            if (sectionId != null && !sectionId.isEmpty()) {
-                url.append("&section_id=").append(sectionId);
-            }
-            if (labelId != null && !labelId.isEmpty()) {
-                url.append("&label_ids=").append(labelId);
-            }
-
-            // Add pagination
-            url.append("&limit=").append(limit).append("&offset=").append(offset);
-
-            GenericRequest request = new GenericRequest(this, path(url.toString()));
-            String response = request.execute();
+        while (nextPagePath != null) {
+            String response = executeGet(nextPagePath);
 
             JSONObject responseObj = new JSONObject(response);
             JSONArray cases = responseObj.optJSONArray("cases");
 
             if (cases == null || cases.length() == 0) {
-                hasMore = false;
                 break;
             }
 
@@ -250,10 +250,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
                 results.add(testCase);
             }
 
-            // Check if there are more results
-            int size = responseObj.optInt("size", 0);
-            hasMore = size == limit;
-            offset += limit;
+            nextPagePath = getNextPagePath(responseObj, baseApiPath, limit, cases.length());
         }
 
         log("Retrieved " + results.size() + " test cases for project " + projectId);
@@ -274,23 +271,17 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
     ) throws Exception {
         int projectId = getProjectId(projectName);
         List<TestCase> results = new ArrayList<>();
-        int offset = 0;
         int limit = 250;
-        boolean hasMore = true;
+        String baseApiPath = buildCasesByRefsPath(projectId, refs);
+        String nextPagePath = buildPagedPath(baseApiPath, limit, 0);
 
-        while (hasMore) {
-            // Build URL: /get_cases/{project_id}&refs={refs}&limit=...
-            String url = "/get_cases/" + projectId + "&refs=" + URLEncoder.encode(refs, StandardCharsets.UTF_8)
-                    + "&limit=" + limit + "&offset=" + offset;
-
-            GenericRequest request = new GenericRequest(this, path(url));
-            String response = request.execute();
+        while (nextPagePath != null) {
+            String response = executeGet(nextPagePath);
 
             JSONObject responseObj = new JSONObject(response);
             JSONArray cases = responseObj.optJSONArray("cases");
 
             if (cases == null || cases.length() == 0) {
-                hasMore = false;
                 break;
             }
 
@@ -299,9 +290,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
                 results.add(testCase);
             }
 
-            int size = responseObj.optInt("size", 0);
-            hasMore = size == limit;
-            offset += limit;
+            nextPagePath = getNextPagePath(responseObj, baseApiPath, limit, cases.length());
         }
 
         log("Found " + results.size() + " test cases with refs: " + refs);
@@ -311,22 +300,17 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
     /** ID-based variant of {@link #getCasesByRefs} — bypasses project name resolution. */
     List<TestCase> getCasesByRefsByProjectId(String refs, int projectId) throws Exception {
         List<TestCase> results = new ArrayList<>();
-        int offset = 0;
         int limit = 250;
-        boolean hasMore = true;
+        String baseApiPath = buildCasesByRefsPath(projectId, refs);
+        String nextPagePath = buildPagedPath(baseApiPath, limit, 0);
 
-        while (hasMore) {
-            String url = "/get_cases/" + projectId + "&refs=" + URLEncoder.encode(refs, StandardCharsets.UTF_8)
-                    + "&limit=" + limit + "&offset=" + offset;
-
-            GenericRequest request = new GenericRequest(this, path(url));
-            String response = request.execute();
+        while (nextPagePath != null) {
+            String response = executeGet(nextPagePath);
 
             JSONObject responseObj = new JSONObject(response);
             JSONArray cases = responseObj.optJSONArray("cases");
 
             if (cases == null || cases.length() == 0) {
-                hasMore = false;
                 break;
             }
 
@@ -334,9 +318,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
                 results.add(new TestCase(basePath, cases.getJSONObject(i)));
             }
 
-            int size = responseObj.optInt("size", 0);
-            hasMore = size == limit;
-            offset += limit;
+            nextPagePath = getNextPagePath(responseObj, baseApiPath, limit, cases.length());
         }
 
         log("Found " + results.size() + " test cases with refs: " + refs + " in project ID: " + projectId);
@@ -694,20 +676,17 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
     /** ID-based variant — bypasses project name resolution. */
     String getLabelsById(int projectId) throws IOException {
         List<JSONObject> allLabels = new ArrayList<>();
-        int offset = 0;
         int limit = 250;
-        boolean hasMore = true;
+        String baseApiPath = "/get_labels/" + projectId;
+        String nextPagePath = buildPagedPath(baseApiPath, limit, 0);
 
-        while (hasMore) {
-            GenericRequest request = new GenericRequest(this,
-                    path("/get_labels/" + projectId + "&limit=" + limit + "&offset=" + offset));
-            String response = request.execute();
+        while (nextPagePath != null) {
+            String response = executeGet(nextPagePath);
 
             JSONObject responseObj = new JSONObject(response);
             JSONArray labels = responseObj.optJSONArray("labels");
 
             if (labels == null || labels.length() == 0) {
-                hasMore = false;
                 break;
             }
 
@@ -715,9 +694,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
                 allLabels.add(labels.getJSONObject(i));
             }
 
-            int size = responseObj.optInt("size", 0);
-            hasMore = size == limit;
-            offset += limit;
+            nextPagePath = getNextPagePath(responseObj, baseApiPath, limit, labels.length());
         }
 
         JSONArray result = new JSONArray();
@@ -863,23 +840,17 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
 
     @Override
     public void searchAndPerform(JiraClient.Performer<TestCase> performer, String searchQuery, String[] fields) throws Exception {
-        // TestRail pagination: offset and limit
-        int offset = 0;
         int limit = 250; // TestRail max per request
-        boolean hasMore = true;
+        String baseApiPath = "/get_cases&" + searchQuery;
+        String nextPagePath = buildPagedPath(baseApiPath, limit, 0);
 
-        while (hasMore) {
-            // Note: TestRail API uses & instead of ? for query params after the endpoint
-            // URL format: index.php?/api/v2/get_cases&project_id=1&limit=250
-            String url = "/get_cases&" + searchQuery + "&limit=" + limit + "&offset=" + offset;
-            GenericRequest request = new GenericRequest(this, path(url));
-            String response = request.execute();
+        while (nextPagePath != null) {
+            String response = executeGet(nextPagePath);
 
             JSONObject responseObj = new JSONObject(response);
             JSONArray cases = responseObj.optJSONArray("cases");
 
             if (cases == null || cases.length() == 0) {
-                hasMore = false;
                 break;
             }
 
@@ -890,10 +861,7 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
                 }
             }
 
-            // Check if there are more results
-            int size = responseObj.optInt("size", 0);
-            hasMore = size == limit;
-            offset += limit;
+            nextPagePath = getNextPagePath(responseObj, baseApiPath, limit, cases.length());
         }
 
         log("Search completed: " + searchQuery);
@@ -1174,14 +1142,11 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
             return projectIdCache.get(projectName);
         }
 
-        int offset = 0;
         int limit = 250;
-        boolean hasMore = true;
+        String nextPagePath = buildPagedPath("/get_projects", limit, 0);
 
-        while (hasMore) {
-            String url = "/get_projects&limit=" + limit + "&offset=" + offset;
-            GenericRequest request = new GenericRequest(this, path(url));
-            String response = request.execute();
+        while (nextPagePath != null) {
+            String response = executeGet(nextPagePath);
 
             JSONObject responseObj = new JSONObject(response);
             JSONArray projects = responseObj.optJSONArray("projects");
@@ -1203,12 +1168,94 @@ public class TestRailClient extends AbstractRestClient implements TrackerClient<
                 }
             }
 
-            int size = responseObj.optInt("size", 0);
-            hasMore = size == limit;
-            offset += limit;
+            nextPagePath = getNextPagePath(responseObj, "/get_projects", limit, projects.length());
         }
 
         throw new IOException("Project not found: " + projectName);
+    }
+
+    String executeGet(String apiPath) throws IOException {
+        GenericRequest request = new GenericRequest(this, path(apiPath));
+        return request.execute();
+    }
+
+    private String buildCasesPath(int projectId, String suiteId, String sectionId, String labelId) {
+        StringBuilder path = new StringBuilder("/get_cases/" + projectId);
+        if (suiteId != null && !suiteId.isEmpty()) {
+            path.append("&suite_id=").append(suiteId);
+        }
+        if (sectionId != null && !sectionId.isEmpty()) {
+            path.append("&section_id=").append(sectionId);
+        }
+        if (labelId != null && !labelId.isEmpty()) {
+            path.append("&label_ids=").append(labelId);
+        }
+        return path.toString();
+    }
+
+    private String buildCasesByRefsPath(int projectId, String refs) {
+        return "/get_cases/" + projectId + "&refs=" + URLEncoder.encode(refs, StandardCharsets.UTF_8);
+    }
+
+    private String buildPagedPath(String baseApiPath, int limit, int offset) {
+        return baseApiPath + "&limit=" + limit + "&offset=" + offset;
+    }
+
+    private String getNextPagePath(JSONObject responseObj, String baseApiPath, int limit, int currentPageItemCount) {
+        if (responseObj.has("_links")) {
+            String nextLink = extractNextPageLink(responseObj);
+            return nextLink == null ? null : normalizePagedApiPath(nextLink);
+        }
+        if (currentPageItemCount < limit) {
+            return null;
+        }
+        return buildPagedPath(baseApiPath, limit, responseObj.optInt("offset", 0) + limit);
+    }
+
+    private String extractNextPageLink(JSONObject responseObj) {
+        JSONObject links = responseObj.optJSONObject("_links");
+        if (links == null) {
+            return null;
+        }
+
+        Object nextValue = links.opt("next");
+        if (nextValue == null || JSONObject.NULL.equals(nextValue)) {
+            return null;
+        }
+
+        String nextLink = links.optString("next", null);
+        if (nextLink == null || nextLink.isBlank() || "null".equalsIgnoreCase(nextLink)) {
+            return null;
+        }
+        return nextLink;
+    }
+
+    private String normalizePagedApiPath(String pathOrUrl) {
+        String normalized = pathOrUrl.trim();
+        String absolutePrefix = "/index.php?/api/v2";
+        String relativePrefix = "/api/v2";
+
+        if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+            int apiIndex = normalized.indexOf(relativePrefix);
+            if (apiIndex >= 0) {
+                normalized = normalized.substring(apiIndex + relativePrefix.length());
+            }
+        } else if (normalized.startsWith(absolutePrefix)) {
+            normalized = normalized.substring(absolutePrefix.length());
+        } else if (normalized.startsWith(relativePrefix)) {
+            normalized = normalized.substring(relativePrefix.length());
+        }
+
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        return normalized;
+    }
+
+    private void appendAll(JSONArray target, JSONArray source) {
+        for (int i = 0; i < source.length(); i++) {
+            target.put(source.get(i));
+        }
     }
 
     /**
