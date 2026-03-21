@@ -3,6 +3,7 @@ package com.github.istin.dmtools.common.utils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 
 import java.util.Map;
 
@@ -374,5 +375,55 @@ class PropertyReaderTest {
     void testIsXrayEnrichmentEnabledByDefault_DefaultValue() {
         boolean result = propertyReader.isXrayEnrichmentEnabledByDefault();
         assertTrue(result, "X-ray enrichment should be enabled by default");
+    }
+
+    // -------------------------------------------------------------------------
+    // CLI output configuration
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("CLI_OUTPUT constant has the correct string value")
+    void testCliOutputConstantValue() {
+        assertEquals("CLI_OUTPUT", PropertyReader.CLI_OUTPUT);
+    }
+
+    @Test
+    @DisplayName("getCliOutput() returns null when no CLI_OUTPUT is configured")
+    void testGetCliOutputReturnsNullWhenNotSet() {
+        // In the test environment, CLI_OUTPUT is not configured
+        String envValue = System.getenv(PropertyReader.CLI_OUTPUT);
+        if (envValue == null || envValue.trim().isEmpty()) {
+            assertNull(propertyReader.getCliOutput(),
+                "getCliOutput() should return null when CLI_OUTPUT is not set");
+        }
+    }
+
+    @Test
+    @DisplayName("getCliOutput() respects thread-local override (highest priority)")
+    void testGetCliOutputThreadLocalOverride() {
+        Map<String, String> overrides = new java.util.HashMap<>();
+        overrides.put(PropertyReader.CLI_OUTPUT, "toon");
+        PropertyReader.setOverrides(overrides);
+        try {
+            assertEquals("toon", new PropertyReader().getCliOutput());
+        } finally {
+            PropertyReader.clearOverrides();
+        }
+    }
+
+    @Test
+    @DisplayName("getCliOutput() with override returns the overridden format")
+    void testGetCliOutputOverrideFormats() {
+        for (String format : new String[]{"json", "toon", "mini"}) {
+            Map<String, String> overrides = new java.util.HashMap<>();
+            overrides.put(PropertyReader.CLI_OUTPUT, format);
+            PropertyReader.setOverrides(overrides);
+            try {
+                assertEquals(format, new PropertyReader().getCliOutput(),
+                    "Should return the overridden format: " + format);
+            } finally {
+                PropertyReader.clearOverrides();
+            }
+        }
     }
 }

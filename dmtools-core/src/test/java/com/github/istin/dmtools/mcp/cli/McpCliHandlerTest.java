@@ -509,4 +509,125 @@ class McpCliHandlerTest {
     // McpCliHandlerProviderIntegrationTest in src/integrationTest/java
     // These tests make real network calls and should not be in unit tests.
     // Run integration tests with: ./gradlew :dmtools-core:integrationTest
+
+    // -------------------------------------------------------------------------
+    // Output format flag tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("--toon flag: list command returns TOON format (not raw JSON)")
+    void testToonFlagListCommand() {
+        String[] args = {"mcp", "list", "--toon"};
+        String result = mcpCliHandler.processMcpCommand(args);
+
+        // JToon produces YAML-like "key: value" output, not raw JSON
+        assertFalse(result.trim().startsWith("{"),
+            "--toon list output should not be raw JSON object");
+        assertFalse(result.trim().isEmpty(), "Output should not be empty");
+    }
+
+    @Test
+    @DisplayName("--mini flag: list command returns LLMOptimizedJson text (not raw JSON)")
+    void testMiniFlagListCommand() {
+        String[] args = {"mcp", "list", "--mini"};
+        String result = mcpCliHandler.processMcpCommand(args);
+
+        // LLMOptimizedJson produces "Next key1,key2" style text
+        assertFalse(result.trim().startsWith("{"), "--mini output should not be raw JSON");
+        assertFalse(result.trim().isEmpty(), "Output should not be empty");
+        assertTrue(result.contains("tools"), "--mini output should contain 'tools'");
+    }
+
+    @Test
+    @DisplayName("--output toon flag: equivalent to --toon")
+    void testOutputToonFlagListCommand() {
+        String[] args1 = {"mcp", "list", "--toon"};
+        String[] args2 = {"mcp", "list", "--output", "toon"};
+
+        String result1 = mcpCliHandler.processMcpCommand(args1);
+        String result2 = mcpCliHandler.processMcpCommand(args2);
+
+        assertEquals(result1, result2, "--toon and --output toon should produce identical output");
+    }
+
+    @Test
+    @DisplayName("--output=mini flag (equals-sign form) is parsed correctly")
+    void testOutputEqualsMiniFlag() {
+        String[] args = {"mcp", "list", "--output=mini"};
+        String result = mcpCliHandler.processMcpCommand(args);
+
+        // LLMOptimizedJson format – not raw JSON
+        assertFalse(result.trim().startsWith("{"), "--output=mini output should not be raw JSON");
+        assertFalse(result.trim().isEmpty(), "Output should not be empty");
+        assertTrue(result.contains("tools"), "--output=mini output should contain 'tools'");
+    }
+
+    @Test
+    @DisplayName("Default output (no format flag) is pretty-printed JSON")
+    void testDefaultOutputIsJson() {
+        String[] args = {"mcp", "list"};
+        String result = mcpCliHandler.processMcpCommand(args);
+
+        assertTrue(result.contains("\n"), "Default output should be pretty-printed JSON with newlines");
+        JSONObject json = new JSONObject(result);
+        assertTrue(json.has("tools"));
+    }
+
+    @Test
+    @DisplayName("--output json flag explicitly requests JSON format")
+    void testOutputJsonFlagIsJson() {
+        String[] args = {"mcp", "list", "--output", "json"};
+        String result = mcpCliHandler.processMcpCommand(args);
+
+        assertTrue(result.contains("\n"), "--output json should be pretty-printed JSON");
+        JSONObject json = new JSONObject(result);
+        assertTrue(json.has("tools"));
+    }
+
+    @Test
+    @DisplayName("Unknown --output value falls back to JSON format")
+    void testUnknownOutputFormatFallsBackToJson() {
+        String[] args = {"mcp", "list", "--output", "yaml"};
+        String result = mcpCliHandler.processMcpCommand(args);
+
+        JSONObject json = new JSONObject(result);
+        assertTrue(json.has("tools"), "Unknown format should fall back to JSON");
+    }
+
+    @Test
+    @DisplayName("--toon flag on error response returns non-JSON text")
+    void testToonFlagErrorResponse() {
+        String[] args = {"mcp", "nonexistent_tool", "--toon"};
+        String result = mcpCliHandler.processMcpCommand(args);
+
+        assertFalse(result.trim().startsWith("{"),
+            "--toon error response should not be raw JSON");
+        // The message content should still be present somewhere
+        assertTrue(result.contains("nonexistent_tool") || result.contains("Unknown tool"),
+            "TOON error should contain error message text");
+    }
+
+    @Test
+    @DisplayName("--mini flag on error response returns LLMOptimizedJson text")
+    void testMiniFlagErrorResponse() {
+        String[] args = {"mcp", "nonexistent_tool", "--mini"};
+        String result = mcpCliHandler.processMcpCommand(args);
+
+        // LLMOptimizedJson format – not raw JSON
+        assertFalse(result.trim().startsWith("{"), "--mini error should not be raw JSON");
+        assertTrue(result.contains("error"), "--mini error should contain 'error'");
+    }
+
+    @Test
+    @DisplayName("Format flag is stripped from tool arguments (does not appear as a parameter)")
+    void testFormatFlagDoesNotPolluteTool() {
+        // --toon should be stripped; only "DMC-479" should reach argument parsing
+        String[] argsWithFlag  = {"mcp", "test_tool", "DMC-479", "--toon"};
+        String[] argsWithout   = {"mcp", "test_tool", "DMC-479"};
+
+        String resultWith  = mcpCliHandler.processMcpCommand(argsWithFlag);
+        // Both calls should fail with "Unknown tool" (not "Unknown tool: --toon")
+        assertFalse(resultWith.contains("--toon"),
+            "--toon flag should be stripped and must not appear in the tool error");
+    }
 }

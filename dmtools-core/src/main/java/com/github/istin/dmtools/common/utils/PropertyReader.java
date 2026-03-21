@@ -218,6 +218,22 @@ public class PropertyReader {
 		return value;
 	}
 
+	// -------------------------------------------------------------------------
+	// CLI output configuration
+	// -------------------------------------------------------------------------
+
+	/** Configuration key that controls the default CLI output format (json | toon | mini). */
+	public static final String CLI_OUTPUT = "CLI_OUTPUT";
+
+	/**
+	 * Returns the configured CLI output format identifier, or {@code null} if not set.
+	 * Follows the standard source-priority order: thread-local overrides →
+	 * config.properties → dmtools.env → environment variables.
+	 */
+	public String getCliOutput() {
+		return getValue(CLI_OUTPUT);
+	}
+
 	public String getJiraLoginPassToken() {
 		// Priority 1: Use separate email and API token if both are available
 		String email = getJiraEmail();

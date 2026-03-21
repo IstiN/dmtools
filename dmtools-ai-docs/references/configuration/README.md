@@ -310,6 +310,7 @@ GEMINI_API_KEY=...
    - [Jira Configuration](integrations/jira.md)
    - [Gemini AI Setup](ai-providers/gemini.md)
    - [Azure DevOps Setup](integrations/ado.md)
+   - [CLI Output Formats](cli-output-formats.md)
 
 ## 🆘 Troubleshooting
 

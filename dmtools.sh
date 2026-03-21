@@ -215,6 +215,7 @@ FILE=""
 QUIET=true
 DEBUG=false
 COMMAND=""
+OUTPUT_FORMAT=""
 
 # Parse all arguments first to handle flags
 while [[ $# -gt 0 ]]; do
@@ -238,6 +239,22 @@ while [[ $# -gt 0 ]]; do
             ;;
         --quiet)
             QUIET=true
+            shift
+            ;;
+        --toon)
+            OUTPUT_FORMAT="toon"
+            shift
+            ;;
+        --mini)
+            OUTPUT_FORMAT="mini"
+            shift
+            ;;
+        --output)
+            OUTPUT_FORMAT="$2"
+            shift 2
+            ;;
+        --output=*)
+            OUTPUT_FORMAT="${1#--output=}"
             shift
             ;;
         *)
@@ -369,6 +386,11 @@ if [ "$QUIET" = false ]; then
 fi
 if [ "$DEBUG" = true ]; then
     CMD_ARGS+=("--debug")
+fi
+
+# Add output format flag if provided
+if [ -n "$OUTPUT_FORMAT" ]; then
+    CMD_ARGS+=("--output" "$OUTPUT_FORMAT")
 fi
 
 # Execute command via JobRunner as MCP tool

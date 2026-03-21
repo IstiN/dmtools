@@ -242,6 +242,7 @@ function action(params) {
 | **Installation** | [Installation Guide](references/installation/README.md) | Complete setup for all platforms (macOS, Linux, Windows) |
 | | [Troubleshooting](references/installation/troubleshooting.md) | Common issues and solutions |
 | **Configuration** | [Configuration Overview](references/configuration/README.md) | Environment variables and hierarchy |
+| | [CLI Output Formats](references/configuration/cli-output-formats.md) | `json` / `toon` / `mini` — token savings up to 70% |
 | | [JSON Configuration Rules](references/configuration/json-config-rules.md) | **⚠️ CRITICAL**: Rules for job configurations |
 | | [Jira Setup](references/configuration/integrations/jira.md) | API tokens and 52 tools |
 | | [Azure DevOps](references/configuration/integrations/ado.md) | PAT setup and 23+ tools |

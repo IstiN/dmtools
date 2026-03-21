@@ -18,7 +18,6 @@ import com.github.istin.dmtools.figma.BasicFigmaClient;
 import com.github.istin.dmtools.github.BasicGithub;
 import com.github.istin.dmtools.gitlab.BasicGitLab;
 import com.github.istin.dmtools.file.FileTools;
-import com.github.istin.dmtools.common.utils.JSONUtils;
 import com.github.istin.dmtools.microsoft.teams.BasicTeamsClient;
 import com.github.istin.dmtools.microsoft.teams.TeamsAuthTools;
 import com.github.istin.dmtools.microsoft.sharepoint.BasicSharePointClient;
@@ -48,6 +47,9 @@ public class McpCliHandler {
     private volatile Map<String, Object> clientInstances;
     private volatile Map<String, AI> availableAIClients;
     private volatile Map<String, Object> cachedToolsResponse;
+
+    /** Active output formatter – resolved per {@link #processMcpCommand(String[])} call. */
+    private CliOutputFormatter formatter = CliOutputFormatterFactory.create();
 
     public McpCliHandler() {
         // Configure logging for CLI usage - suppress all logs except errors
@@ -167,24 +169,79 @@ public class McpCliHandler {
                 return createErrorResponse("Usage: mcp <command> [args...]\nCommands: list [filter], <tool_name>");
             }
 
-            String command = args[1];
+            // Resolve output format from flags and strip them from the args passed downstream
+            FormatExtractionResult extracted = extractFormatFlag(args);
+            this.formatter = CliOutputFormatterFactory.create(extracted.formatFlag);
+            String[] cleanedArgs = extracted.args;
+
+            String command = cleanedArgs[1];
 
             if ("list".equals(command)) {
-                String filter = args.length > 2 ? args[2] : null;
+                String filter = cleanedArgs.length > 2 ? cleanedArgs[2] : null;
                 return handleListCommand(filter);
             } else {
                 // Check if --help or -h flag is present → show tool schema instead of executing
-                for (int i = 2; i < args.length; i++) {
-                    if ("--help".equals(args[i]) || "-h".equals(args[i])) {
+                for (int i = 2; i < cleanedArgs.length; i++) {
+                    if ("--help".equals(cleanedArgs[i]) || "-h".equals(cleanedArgs[i])) {
                         return handleListCommand(command);
                     }
                 }
-                return handleToolExecutionCommand(args);
+                return handleToolExecutionCommand(cleanedArgs);
             }
 
         } catch (Exception e) {
             logger.error("Error processing MCP command", e);
             return createErrorResponse("Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Scans {@code args} for output-format flags ({@code --output <format>}, {@code --toon},
+     * {@code --mini}) and returns the detected format string plus a cleaned args array with
+     * those flags removed.
+     *
+     * <p>Only positions ≥ 2 are inspected so that {@code args[0]} ("mcp") and
+     * {@code args[1]} (command/tool name) are always preserved.</p>
+     */
+    private FormatExtractionResult extractFormatFlag(String[] args) {
+        String formatFlag = null;
+        java.util.List<String> cleaned = new java.util.ArrayList<>();
+
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            if (i >= 2) {
+                if ("--toon".equals(arg)) {
+                    formatFlag = "toon";
+                    continue;
+                }
+                if ("--mini".equals(arg)) {
+                    formatFlag = "mini";
+                    continue;
+                }
+                if ("--output".equals(arg) && i + 1 < args.length) {
+                    formatFlag = args[i + 1];
+                    i++; // skip next token (the format value)
+                    continue;
+                }
+                if (arg.startsWith("--output=")) {
+                    formatFlag = arg.substring("--output=".length());
+                    continue;
+                }
+            }
+            cleaned.add(arg);
+        }
+
+        return new FormatExtractionResult(formatFlag, cleaned.toArray(new String[0]));
+    }
+
+    /** Carrier returned by {@link #extractFormatFlag(String[])}. */
+    private static final class FormatExtractionResult {
+        final String formatFlag;
+        final String[] args;
+
+        FormatExtractionResult(String formatFlag, String[] args) {
+            this.formatFlag = formatFlag;
+            this.args = args;
         }
     }
 
@@ -203,7 +260,7 @@ public class McpCliHandler {
                 toolsList = filterToolsList(toolsList, filter.toLowerCase());
             }
             
-            return new JSONObject(toolsList).toString(2);
+            return formatter.formatList(toolsList);
         } catch (Exception e) {
             logger.error("Error generating tools list", e);
             return createErrorResponse("Failed to generate tools list: " + e.getMessage());
@@ -232,23 +289,7 @@ public class McpCliHandler {
             }
 
             Object result = MCPToolExecutor.executeTool(toolName, arguments, clientInstances);
-            if (result == null) {
-                JSONObject response = new JSONObject();
-                response.put("success", true);
-                return response.toString(2);
-            }
-
-            String serialized = serializeResult(result);
-            if (serialized.trim().startsWith("{")) {
-                return serialized;
-            }
-            JSONObject response = new JSONObject();
-            if (serialized.trim().startsWith("[")) {
-                response.put("result", new JSONArray(serialized));
-            } else {
-                response.put("result", result);
-            }
-            return response.toString(2);
+            return formatter.formatResult(result);
 
         } catch (IllegalArgumentException e) {
             logger.error("Invalid tool or arguments", e);
@@ -283,14 +324,6 @@ public class McpCliHandler {
         }
     }
     
-    /**
-     * Serializes tool execution result to JSON string.
-     * Handles various result types: JSONModel, List, primitives, etc.
-     */
-    private String serializeResult(Object result) {
-        return JSONUtils.serializeResult(result);
-    }
-
     /**
      * Parses tool arguments from command line.
      * Supports various formats:
@@ -781,13 +814,10 @@ public class McpCliHandler {
     }
 
     /**
-     * Creates a standardized error response.
+     * Creates a standardized error response using the active output formatter.
      */
     private String createErrorResponse(String message) {
-        JSONObject error = new JSONObject();
-        error.put("error", true);
-        error.put("message", message);
-        return error.toString(2);
+        return formatter.formatError(message);
     }
 
     /**
